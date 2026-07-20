@@ -218,7 +218,18 @@ textarea.fld{min-height:80px;resize:vertical}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
 .loading{text-align:center;padding:60px;color:var(--muted);font-size:14px}
-@media (prefers-reduced-motion:reduce){.gline{animation:none;stroke-dashoffset:0}.timer-btn.run .d{animation:none}}
+
+/* comemoração ao concluir */
+.celebrate{position:fixed;inset:0;pointer-events:none;z-index:200;overflow:hidden}
+.rocket{position:fixed;bottom:-60px;animation:rocketFly 2s ease-out forwards;will-change:transform}
+@keyframes rocketFly{0%{transform:translateY(0) translateX(0) rotate(-40deg);opacity:0}12%{opacity:1}100%{transform:translateY(-118vh) translateX(var(--dx,0)) rotate(-40deg);opacity:0}}
+.confetti{position:fixed;top:-18px;width:9px;height:15px;border-radius:2px;animation:confFall 1.8s linear forwards;will-change:transform}
+@keyframes confFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(110vh) rotate(760deg);opacity:0}}
+/* transição fluida ao trocar de aba */
+.view.on{animation:viewIn .3s cubic-bezier(.22,.61,.36,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.nav-i{transition:background .15s ease,color .15s ease}
+@media (prefers-reduced-motion:reduce){.gline{animation:none;stroke-dashoffset:0}.timer-btn.run .d{animation:none}.rocket,.confetti{display:none}.view.on{animation:none}}
 @media(max-width:720px){.side{position:fixed;z-index:40;transform:translateX(-100%);transition:.2s}.side.open{transform:none}}
 </style>
 </head>
@@ -345,6 +356,31 @@ const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 function initials(n){return (n||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase()}
 function isAdmin(){return ME && ME.role==='admin'}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200)}
+
+function celebrate(){
+  const wrap=document.createElement('div');wrap.className='celebrate';document.body.appendChild(wrap);
+  const icons=['🚀','🎉','✨','🎊','⭐','🥳'];
+  for(let i=0;i<20;i++){
+    const el=document.createElement('span');el.className='rocket';
+    el.textContent=icons[Math.floor(Math.random()*icons.length)];
+    el.style.left=(Math.random()*100)+'vw';
+    el.style.fontSize=(20+Math.random()*28)+'px';
+    el.style.setProperty('--dx',(Math.random()*220-110)+'px');
+    el.style.animationDelay=(Math.random()*0.5)+'s';
+    el.style.animationDuration=(1.6+Math.random()*0.9)+'s';
+    wrap.appendChild(el);
+  }
+  const colors=['#c2a15b','#d9be86','#7a8a5a','#c57b3c','#5e6b44','#ece7db'];
+  for(let i=0;i<55;i++){
+    const c=document.createElement('span');c.className='confetti';
+    c.style.left=(Math.random()*100)+'vw';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDelay=(Math.random()*0.5)+'s';
+    c.style.animationDuration=(1.4+Math.random()*1.3)+'s';
+    wrap.appendChild(c);
+  }
+  setTimeout(()=>wrap.remove(),3200);
+}
 function clientName(id){const c=CLIENTS.find(x=>x.id===id);return c?c.nome:'—'}
 function fmtDur(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;if(h)return h+'h '+String(m).padStart(2,'0')+'m';if(m)return m+'m '+String(s).padStart(2,'0')+'s';return s+'s'}
 function taskElapsed(t){let b=t.time_spent||0;if(t.timer_start)b+=(Date.now()-new Date(t.timer_start).getTime())/1000;return b}
@@ -424,7 +460,7 @@ function visibleTasks(){
 const NAV = [
   {v:'dashboard',ic:'▤',label:'Dashboard',admin:true},
   {v:'board',ic:'▦',label:'Quadro'},
-  {v:'list',ic:'☰',label:'Lista'},
+  {v:'list',ic:'☰',label:'Kanban'},
   {v:'calendar',ic:'▧',label:'Calendário'},
 ];
 function buildNav(){
@@ -442,7 +478,7 @@ function showView(v){
   document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('on'));
   $('v-'+v).classList.add('on');
-  $('view-title').textContent={dashboard:'Dashboard',board:'Quadro',list:'Lista',calendar:'Calendário'}[v];
+  $('view-title').textContent={dashboard:'Dashboard',board:'Quadro',list:'Kanban',calendar:'Calendário'}[v];
   render();
 }
 function render(){
@@ -676,6 +712,7 @@ function renderDetailBody(){
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
       <div class="frow"><span class="fl">Responsáveis</span>${admin?`<input class="fld" id="d-resp" value="${esc((t.assignees||[]).join(', '))}" placeholder="Ex.: Everton, Vinícius">`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
       <div class="frow"><span class="fl">Prazo</span>${admin?`<input class="fld" type="date" id="d-due" value="${t.due||''}">`:`<span>${t.due?fmtDate(t.due):'—'}</span>`}</div>
+      ${t.completed_at?`<div class="frow"><span class="fl">Concluída em</span><span style="color:var(--st-fin);font-weight:600">✓ ${new Date(t.completed_at).toLocaleDateString('pt-BR')}</span></div>`:''}
       <div class="frow"><span class="fl">Recorrência</span>${admin?`<select class="fld" id="d-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal']].map(([v,l])=>`<option value="${v}" ${t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select>`:`<span>${({none:'—',daily:'Diária',weekly:'Semanal'}[t.recurrence||'none'])}</span>`}</div>
       ${admin?`<div class="frow" style="align-items:flex-start"><span class="fl">Descrição</span><textarea class="fld" id="d-desc" placeholder="Detalhes da demanda…">${esc(t.description)}</textarea></div>`
               :(t.description?`<div style="margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13.5px;line-height:1.55;white-space:pre-wrap">${esc(t.description)}</div>`:'')}
@@ -735,11 +772,14 @@ async function saveDetail(){
     description:$('d-desc').value,
   };
   const becameDone = DONE_STATUSES.includes(patch.status) && !DONE_STATUSES.includes(t.status);
+  const leftDone = !DONE_STATUSES.includes(patch.status) && DONE_STATUSES.includes(t.status);
+  if(becameDone) patch.completed_at=new Date().toISOString();
+  if(leftDone)   patch.completed_at=null;
   const {error}=await sb.from('tasks').update(patch).eq('id',t.id);
   if(error){toast('Erro ao salvar');console.error(error);return}
   Object.assign(t,patch);
-  if(becameDone) await maybeRecur(t);
-  toast('Demanda atualizada');
+  if(becameDone){celebrate();toast('🎉 Demanda concluída!');await maybeRecur(t);}
+  else toast('Demanda atualizada');
   await refresh();
 }
 /* mudança rápida de status (dropdown do detalhe / drag) */
@@ -749,10 +789,14 @@ async function quickField(field,value){
 }
 async function changeStatus(t,status){
   const becameDone=DONE_STATUSES.includes(status)&&!DONE_STATUSES.includes(t.status);
-  const {error}=await sb.from('tasks').update({status}).eq('id',t.id);
+  const leftDone=!DONE_STATUSES.includes(status)&&DONE_STATUSES.includes(t.status);
+  const patch={status};
+  if(becameDone) patch.completed_at=new Date().toISOString();
+  if(leftDone)   patch.completed_at=null;
+  const {error}=await sb.from('tasks').update(patch).eq('id',t.id);
   if(error){toast('Erro ao mover');return}
-  t.status=status;
-  if(becameDone)await maybeRecur(t);
+  Object.assign(t,patch);
+  if(becameDone){celebrate();toast('🎉 Demanda concluída!');await maybeRecur(t);}
   await refresh();
 }
 
