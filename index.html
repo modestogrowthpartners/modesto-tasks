@@ -332,6 +332,43 @@ body.theme-dark .side{background:var(--card)}
 .note-badge.priv{background:rgba(26,26,24,.07);color:var(--muted)}
 .clogo{width:34px;height:34px;border-radius:6px;overflow:hidden;cursor:pointer;flex-shrink:0;display:block;border:1px solid var(--line)}
 .clogo img{width:100%;height:100%;object-fit:contain;background:#fff}
+
+/* fundo animado com MGP */
+.bg-anim{position:fixed;inset:0;z-index:-1;pointer-events:none}
+.bg-anim svg{width:100%;height:100%;display:block}
+.bg-line{stroke-dasharray:600;animation:bgflow 9s linear infinite}
+@keyframes bgflow{to{stroke-dashoffset:-1200}}
+.bg-marks{animation:bgdrift 34s ease-in-out infinite alternate}
+@keyframes bgdrift{from{transform:translateY(0)}to{transform:translateY(-34px)}}
+body.theme-dark .bg-anim .bg-marks text{opacity:.08!important}
+body.no-bg .bg-anim{display:none}
+
+/* densidade compacta */
+body.density-compact .content{padding:16px 20px}
+body.density-compact .card-t{padding:9px 11px}
+body.density-compact .frow{padding:7px 0}
+
+/* esconder avatares nos cards */
+body.hide-card-av .card-t .avs{display:none}
+
+/* faixa colorida no topo do card (estilo Trello) */
+.card-strip{height:5px;border-radius:6px;margin:-13px -13px 11px}
+
+/* subtarefas / checklist */
+.subs{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.sub{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.sub input[type=checkbox]{width:16px;height:16px;accent-color:var(--brass);cursor:pointer;flex-shrink:0}
+.sub.done .st{text-decoration:line-through;color:var(--muted)}
+.sub .st{flex:1}
+.sub .dl{color:var(--muted);cursor:pointer;font-size:12px;opacity:.4}
+.sub:hover .dl{opacity:1}
+.sub-add{display:flex;gap:8px;margin-top:10px}
+.sub-prog{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:2px 8px}
+.sub-prog.full{color:#2e7d5b;background:rgba(46,158,107,.12);border-color:rgba(46,158,107,.3)}
+/* swatches de cor de destaque */
+.acc-row{display:flex;gap:8px}
+.acc{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.acc.on{border-color:var(--text)}
 </style>
 </head>
 <body>
@@ -367,17 +404,35 @@ body.theme-dark .side{background:var(--card)}
 
 <!-- ============ APP ============ -->
 <div id="app">
+  <div class="bg-anim" id="bg-anim" aria-hidden="true">
+    <svg viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="bgar" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#c2a15b" stop-opacity="0.10"/>
+          <stop offset="1" stop-color="#c2a15b" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <g class="bg-marks" font-family="Fraunces, Georgia, serif" font-weight="600" fill="#c2a15b">
+        <text x="120" y="230" font-size="150" opacity="0.05">MGP</text>
+        <text x="820" y="520" font-size="120" opacity="0.045">M</text>
+        <text x="380" y="780" font-size="200" opacity="0.04">MGP</text>
+        <text x="1050" y="820" font-size="110" opacity="0.05">M</text>
+      </g>
+      <path class="bg-line" d="M-50,720 C220,700 360,560 560,540 C780,518 900,380 1120,300 C1280,242 1380,210 1460,150" fill="none" stroke="#c2a15b" stroke-opacity="0.16" stroke-width="2.5"/>
+      <path d="M-50,760 C220,740 360,600 560,580 C780,558 900,420 1120,340 C1280,282 1380,250 1460,190 L1460,900 L-50,900 Z" fill="url(#bgar)"/>
+    </svg>
+  </div>
   <div class="layout">
     <aside class="side" id="side">
       <div class="side-brand">
         <div class="logo">M</div>
         <div><div class="nm">Modesto Tasks</div><div class="tag">GESTÃO DE DEMANDAS</div></div>
       </div>
-      <nav class="side-nav" id="nav"></nav>
       <div class="side-today" id="side-today" style="display:none" onclick="showView('board')">
         <div class="big" id="today-n">0</div>
         <div class="lbl">para hoje</div>
       </div>
+      <nav class="side-nav" id="nav"></nav>
       <div class="side-flow" aria-hidden="true">
         <svg viewBox="0 0 240 56" preserveAspectRatio="none">
           <path class="fline" d="M0,42 C40,42 55,20 95,24 C135,28 155,8 200,16 C225,20 235,30 240,28" fill="none" stroke="#c2a15b" stroke-opacity=".45" stroke-width="2"/>
@@ -396,6 +451,10 @@ body.theme-dark .side{background:var(--card)}
         <div class="spacer"></div>
         <div class="search"><span style="opacity:.5">⌕</span><input id="q" placeholder="Buscar demanda…" oninput="render()"></div>
         <select class="tsel" id="cfilter" onchange="render()"></select>
+        <select class="tsel filter-only" id="ffilter" onchange="render()"></select>
+        <select class="tsel filter-only" id="pfilter" onchange="render()">
+          <option value="">Toda prioridade</option><option>Alta</option><option>Média</option><option>Baixa</option>
+        </select>
         <button class="btn-p admin-only" onclick="openTaskModal()">+ Nova demanda</button>
         <a class="portal-link" href="https://portal.modestogrowth.com.br" target="_blank" rel="noopener">◆ Portal</a>
       </div>
@@ -566,8 +625,9 @@ async function boot(){
   $('me-role').textContent=isAdmin()?'Equipe · Admin':'Cliente';
   document.querySelectorAll('.admin-only').forEach(e=>e.style.display=isAdmin()?'':'none');
   buildNav();
-  buildClientFilter();
   await loadData();
+  buildClientFilter();
+  buildFilters();
   showView(isAdmin()?'dashboard':'board');
   startTick();
   startAutoRefresh();
@@ -605,9 +665,13 @@ async function refresh(){await loadTasks();render();if(DETAIL_ID)renderDetailBod
 /* filtro/busca aplicado no client-side */
 function visibleTasks(){
   const cf=$('cfilter')?$('cfilter').value:'';
+  const ff=$('ffilter')?$('ffilter').value:'';
+  const pf=$('pfilter')?$('pfilter').value:'';
   const q=($('q')?$('q').value:'').toLowerCase().trim();
   return TASKS.filter(t=>{
     if(cf && t.client_id!==cf) return false;
+    if(pf && t.priority!==pf) return false;
+    if(ff && !(t.assignees||[]).some(a=>a.toLowerCase()===ff.toLowerCase())) return false;
     if(q && !((t.title||'').toLowerCase().includes(q)||(t.description||'').toLowerCase().includes(q))) return false;
     return true;
   });
@@ -618,8 +682,8 @@ function visibleTasks(){
    ===================================================================== */
 const NAV = [
   {v:'dashboard',ic:'▤',label:'Dashboard',admin:true},
-  {v:'board',ic:'▦',label:'Quadro'},
-  {v:'list',ic:'☰',label:'Kanban'},
+  {v:'board',ic:'▦',label:'Kanban'},
+  {v:'list',ic:'☰',label:'Quadro'},
   {v:'calendar',ic:'▧',label:'Calendário'},
   {v:'clientes',ic:'◈',label:'Clientes',admin:true},
   {v:'equipe',ic:'⌾',label:'Equipe',admin:true},
@@ -635,12 +699,20 @@ function buildClientFilter(){
   if(!isAdmin()){sel.style.display='none';return}
   sel.innerHTML='<option value="">Todos os clientes</option>'+CLIENTS.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
 }
+function buildFilters(){
+  const ff=$('ffilter');
+  if(ff) ff.innerHTML='<option value="">Todos os responsáveis</option>'+ASSIGNEE_OPTS.map(n=>`<option>${esc(n)}</option>`).join('');
+  // filtros extras só fazem sentido no Quadro/Kanban/Lista/Calendário
+  const show=['board','list','calendar'].includes(VIEW);
+  document.querySelectorAll('.filter-only').forEach(e=>e.style.display=show?'':'none');
+}
 function showView(v){
   VIEW=v;
   document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('on'));
   $('v-'+v).classList.add('on');
-  $('view-title').textContent={dashboard:'Dashboard',board:'Quadro',list:'Kanban',calendar:'Calendário',clientes:'Clientes',equipe:'Equipe',settings:'Configurações'}[v];
+  if(typeof buildFilters==='function')buildFilters();
+  $('view-title').textContent={dashboard:'Dashboard',board:'Kanban',list:'Quadro',calendar:'Calendário',clientes:'Clientes',equipe:'Equipe',settings:'Configurações'}[v];
   render();
 }
 function render(){
@@ -747,10 +819,12 @@ function taskCard(t,accent){
   return `<div class="card-t" style="border-left-color:${accent}" data-id="${t.id}"
       ${isAdmin()?`draggable="true" ondragstart="dragStart(event,'${t.id}')" ondragend="this.classList.remove('dragging')"`:''}
       onclick="openDetail('${t.id}')">
+    <div class="card-strip" style="background:${clientColor(t.client_id)}"></div>
     <div class="tt">${esc(t.title)}</div>
     <div class="card-meta">
       <span class="cbadge" style="background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${esc(clientName(t.client_id))}</span>
       ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${t.recurrence==='daily'?'Diária':'Semanal'}</span>`:''}
+      ${(t.subtasks&&t.subtasks.length)?(()=>{const d=t.subtasks.filter(x=>x.done).length,tt=t.subtasks.length;return `<span class="sub-prog ${d===tt?'full':''}">☑ ${d}/${tt}</span>`;})():''}
     </div>
     <div class="card-foot">
       <span class="tchip ${running?'run':''}" onclick="toggleTimer(event,'${t.id}')" title="${running?'Pausar':'Iniciar'} tempo">
@@ -926,6 +1000,11 @@ function renderDetailBody(){
               :(t.description?`<div style="margin-top:14px"><div class="fl" style="margin-bottom:6px">Descrição</div><div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap">${esc(t.description)}</div></div>`:'')}
       ${(()=>{const e=estimateFor(t);return e?`<div style="display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);border-radius:10px;padding:10px 13px"><span style="font-size:15px">📊</span><span>Estimativa automática: <b style="color:var(--text)">~${fmtDur(e.sec)}</b> · com base em ${e.n} demanda(s) parecida(s)</span></div>`:''})()}
 
+      ${(isAdmin()||(t.subtasks&&t.subtasks.length))?`
+      <div class="sect-t">☑ Subtarefas ${(t.subtasks&&t.subtasks.length)?`<span style="font-size:12px;color:var(--muted);font-weight:400">(${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length})</span>`:''}</div>
+      <div class="subs" id="d-subs">${renderSubtasks(t)}</div>
+      ${admin?`<div class="sub-add"><input class="fld" id="d-sub-input" placeholder="Adicionar item da checklist…" onkeydown="if(event.key==='Enter'){event.preventDefault();addSub();}"><button class="mini-btn" onclick="addSub()">+</button></div>`:''}`:''}
+
       <div class="timebox">
         <div><div class="tl">Tempo registrado</div>
         <div class="tv js-timer" data-base="${t.time_spent||0}" data-start="${running?new Date(t.timer_start).getTime():''}">${fmtDur(taskElapsed(t))}</div></div>
@@ -972,6 +1051,22 @@ async function deleteNote(id){
   await sb.from('task_notes').delete().eq('id',id);
   _notes=_notes.filter(n=>n.id!==id);$('d-notes').innerHTML=renderNotes();
 }
+/* ===== Subtarefas (checklist) ===== */
+function renderSubtasks(t){
+  const subs=t.subtasks||[];
+  if(!subs.length)return isAdmin()?'<div style="color:var(--muted);font-size:12.5px">Nenhuma subtarefa ainda.</div>':'';
+  return subs.map((x,i)=>`<div class="sub ${x.done?'done':''}">
+    <input type="checkbox" ${x.done?'checked':''} ${isAdmin()?`onchange="toggleSub(${i})"`:'disabled'}>
+    <span class="st">${esc(x.text)}</span>
+    ${isAdmin()?`<span class="dl" onclick="delSub(${i})">✕</span>`:''}
+  </div>`).join('');
+}
+function _curDetail(){return TASKS.find(x=>x.id===DETAIL_ID);}
+async function _saveSubs(t){_skipRefreshUntil=Date.now()+3000;const {error}=await sb.from('tasks').update({subtasks:t.subtasks}).eq('id',t.id);if(error){toast('Erro ao salvar subtarefa');console.error(error);}}
+function _reSubs(t){const el=$('d-subs');if(el)el.innerHTML=renderSubtasks(t);}
+function addSub(){const t=_curDetail();if(!t)return;const inp=$('d-sub-input');const v=(inp.value||'').trim();if(!v)return;t.subtasks=t.subtasks||[];t.subtasks.push({id:Date.now().toString(36),text:v,done:false});inp.value='';_reSubs(t);_saveSubs(t);}
+function toggleSub(i){const t=_curDetail();if(!t||!t.subtasks)return;t.subtasks[i].done=!t.subtasks[i].done;_reSubs(t);_saveSubs(t);}
+function delSub(i){const t=_curDetail();if(!t||!t.subtasks)return;t.subtasks.splice(i,1);_reSubs(t);_saveSubs(t);}
 
 /* salvar alterações do detalhe (admin) */
 async function saveDetail(){
@@ -1139,15 +1234,20 @@ function subscribeRealtime(){
    PREFERÊNCIAS (tema, texto, arredondamento) — Configurações
    ===================================================================== */
 const PREFS_KEY='mgp_prefs';
-let PREFS={theme:'light',fs:'md',round:'md'};
+let PREFS={theme:'light',fs:'md',round:'md',accent:'gold',density:'comfy',bg:'on',cardav:'on'};
 function loadPrefs(){try{PREFS=Object.assign(PREFS,JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'));}catch{}}
 function savePrefs(){localStorage.setItem(PREFS_KEY,JSON.stringify(PREFS));}
 function applyPrefs(){
   document.body.classList.toggle('theme-dark',PREFS.theme==='dark');
-  const z={sm:'0.92',md:'1',lg:'1.12'}[PREFS.fs]||'1';
-  document.documentElement.style.setProperty('--zoom',z);
-  const r={sharp:'4px',md:'12px',round:'20px'}[PREFS.round]||'12px';
-  document.documentElement.style.setProperty('--r-card',r);
+  document.body.classList.toggle('density-compact',PREFS.density==='compact');
+  document.body.classList.toggle('no-bg',PREFS.bg==='off');
+  document.body.classList.toggle('hide-card-av',PREFS.cardav==='off');
+  const rt=document.documentElement.style;
+  rt.setProperty('--zoom',{sm:'0.92',md:'1',lg:'1.12'}[PREFS.fs]||'1');
+  rt.setProperty('--r-card',{sharp:'4px',md:'12px',round:'20px'}[PREFS.round]||'12px');
+  const AC={gold:['#c2a15b','#9a7b3c','#d9be86'],green:['#2e9e6b','#1f7d52','#8fd4b4'],blue:['#2d6fcf','#2357a8','#9ec1f0'],terra:['#d95d39','#b5482c','#f0b3a3'],purple:['#8e3fbe','#6f2f97','#d0aee6']};
+  const a=AC[PREFS.accent]||AC.gold;
+  rt.setProperty('--brass',a[0]);rt.setProperty('--brass2',a[1]);rt.setProperty('--brass-soft',a[2]);
 }
 function setPref(k,v){PREFS[k]=v;savePrefs();applyPrefs();renderSettings();}
 loadPrefs();applyPrefs();
@@ -1212,8 +1312,12 @@ function renderSettings(){
       <h3>Aparência</h3>
       <div class="desc">Ajuste o visual do jeito que você prefere. Vale só pra você, salvo neste navegador.</div>
       <div class="set-row"><div class="k">Tema</div>${segBtns('theme',[['light','Claro'],['dark','Escuro']])}</div>
+      <div class="set-row"><div class="k">Cor de destaque</div><div class="acc-row">${[['gold','#c2a15b'],['green','#2e9e6b'],['blue','#2d6fcf'],['terra','#d95d39'],['purple','#8e3fbe']].map(([v,c])=>`<span class="acc ${PREFS.accent===v?'on':''}" style="background:${c}" onclick="setPref('accent','${v}')"></span>`).join('')}</div></div>
       <div class="set-row"><div class="k">Tamanho do texto</div>${segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']])}</div>
       <div class="set-row"><div class="k">Cantos dos cards</div>${segBtns('round',[['sharp','Retos'],['md','Suaves'],['round','Arredondados']])}</div>
+      <div class="set-row"><div class="k">Densidade</div>${segBtns('density',[['comfy','Confortável'],['compact','Compacto']])}</div>
+      <div class="set-row"><div class="k">Fundo animado</div>${segBtns('bg',[['on','Ligado'],['off','Desligado']])}</div>
+      <div class="set-row"><div class="k">Avatares nos cards</div>${segBtns('cardav',[['on','Mostrar'],['off','Ocultar']])}</div>
     </div>
     <div class="set-sec">
       <h3>Meu perfil</h3>
