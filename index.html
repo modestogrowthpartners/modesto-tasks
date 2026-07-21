@@ -123,7 +123,8 @@ button{font-family:inherit;cursor:pointer}
 .col-h{display:flex;align-items:center;gap:8px;padding:13px 14px 11px;border-top:3px solid var(--muted);border-radius:12px 12px 0 0}
 .col-h .t{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
 .col-h .c{margin-left:auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;color:var(--muted)}
-.cards{padding:0 10px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;flex:1}
+.cards{padding:0 10px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;flex:1;min-height:0}
+.cards>*{flex-shrink:0}
 .card-t{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:11px;padding:13px;cursor:pointer;transition:box-shadow .2s cubic-bezier(.22,.61,.36,1),transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s;box-shadow:0 1px 2px rgba(26,26,24,.04)}
 .card-t:hover{box-shadow:0 8px 22px rgba(26,26,24,.10);transform:translateY(-2px)}
 .card-t.dragging{opacity:.35;transform:scale(.97) rotate(1.6deg);box-shadow:0 12px 30px rgba(26,26,24,.18)}
@@ -173,14 +174,14 @@ tbody tr:last-child td{border-bottom:0}
 /* ===== Slide-over detalhe ===== */
 .overlay{position:fixed;inset:0;background:rgba(20,19,17,.45);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.on{opacity:1;pointer-events:auto}
-.slide{position:fixed;top:0;right:0;height:100vh;width:min(560px,94vw);background:var(--paper);z-index:51;
-  transform:translateX(100%);transition:transform .26s cubic-bezier(.22,.61,.36,1);display:flex;flex-direction:column;box-shadow:-20px 0 60px -20px rgba(0,0,0,.4)}
-.slide.on{transform:translateX(0)}
+.slide{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%) scale(.92);width:min(640px,94vw);max-height:92vh;background:var(--paper);z-index:51;opacity:0;pointer-events:none;
+  transition:transform .3s cubic-bezier(.22,1.25,.36,1),opacity .22s;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;box-shadow:0 40px 110px -24px rgba(0,0,0,.55)}
+.slide.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
 .slide-h{display:flex;align-items:flex-start;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line);background:var(--card)}
 .slide-h .st-line{flex:1}
 .slide-h h2{font-family:var(--font-d);font-size:20px;font-weight:500;line-height:1.25}
 .slide-h .x{background:var(--card2);border:1px solid var(--line);border-radius:8px;width:34px;height:34px;font-size:16px;flex-shrink:0}
-.slide-b{flex:1;overflow:auto;padding:20px 22px}
+.slide-b{flex:1;overflow:auto;padding:20px 22px;min-height:0}
 .frow{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .frow .fl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
 .fld{width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;font-family:inherit;color:var(--text)}
@@ -476,6 +477,23 @@ body.hide-card-av .card-t .avs{display:none}
 .nitem .ntm{font-size:11px;color:var(--muted);margin-top:3px}
 .nitem .udot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex-shrink:0;margin-top:7px}
 .n-empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:13.5px}
+.card-desc{font-size:11.5px;color:var(--muted);line-height:1.45;margin:6px 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-est{font-size:10.5px;color:var(--brass2);font-weight:600;margin:5px 0 2px}
+/* tour de funcionalidades (coach marks) */
+.coach-ov{position:fixed;inset:0;z-index:130;display:none;background:transparent}
+.coach-ov.on{display:block}
+.coach-hole{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(20,19,17,.72);border:2px solid var(--brass);pointer-events:none;transition:all .32s cubic-bezier(.22,.61,.36,1)}
+.coach-tip{position:absolute;width:300px;background:var(--paper);border-radius:14px;padding:18px;box-shadow:0 22px 55px -15px rgba(0,0,0,.55);z-index:131;transition:top .32s cubic-bezier(.22,.61,.36,1),left .32s cubic-bezier(.22,.61,.36,1);animation:tipPop .3s ease}
+@keyframes tipPop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.coach-tip h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin-bottom:6px}
+.coach-tip p{font-size:13px;color:var(--muted);line-height:1.55}
+.coach-tip .cnav{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+.coach-tip .cstep{font-size:11px;color:var(--muted);font-weight:600}
+.coach-tip .cbtns{display:flex;gap:8px}
+.coach-tip button{border:0;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer}
+.coach-next{background:var(--brass);color:#1a1a18}
+.coach-next:hover{background:var(--brass-soft)}
+.coach-skip{background:transparent;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -633,6 +651,7 @@ body.hide-card-av .card-t .avs{display:none}
   <div class="nlist" id="notif-list"></div>
 </div>
 
+<div class="coach-ov" id="coach-ov"><div class="coach-hole" id="coach-hole"></div><div class="coach-tip" id="coach-tip"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1077,6 +1096,8 @@ function taskCard(t,accent){
       onclick="openDetail('${t.id}')">
     <div class="card-strip" style="background:${clientColor(t.client_id)}"></div>
     <div class="tt">${esc(t.title)}</div>
+    ${t.description?`<div class="card-desc">${esc(t.description)}</div>`:''}
+    ${(()=>{const e=estimateFor(t);return e?`<div class="card-est">📊 ~${fmtDur(e.sec)} estimado</div>`:''})()}
     <div class="card-meta">
       <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${clientLogo(t.client_id)}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
       ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${t.recurrence==='daily'?'Diária':'Semanal'}</span>`:''}
@@ -1598,8 +1619,10 @@ function renderSettings(){
     </div>
     <div class="set-sec">
       <h3>Ajuda</h3>
-      <div class="set-row"><div class="k">Tutorial<small>Reveja a apresentação da plataforma</small></div>
-        <button class="mini-btn ghost" onclick="openTour()">Ver tutorial</button></div>
+      <div class="set-row"><div class="k">Tutorial de boas-vindas<small>A apresentação animada da plataforma</small></div>
+        <button class="mini-btn ghost" onclick="openTour()">Ver</button></div>
+      <div class="set-row"><div class="k">Tour de funcionalidades<small>Passo a passo destacando cada parte</small></div>
+        <button class="mini-btn ghost" onclick="openCoach()">Iniciar</button></div>
     </div>`;
 }
 
@@ -1744,9 +1767,40 @@ function renderTour(){
 }
 function tourNext(){if(_tourI<TOUR.length-1){_tourI++;renderTour();}}
 function tourPrev(){if(_tourI>0){_tourI--;renderTour();}}
-function closeTour(){localStorage.setItem('mgp_tour_done','1');$('tour').classList.remove('on');}
+function closeTour(){localStorage.setItem('mgp_tour_done','1');$('tour').classList.remove('on');if(!localStorage.getItem('mgp_coach_done'))setTimeout(startCoach,250);}
 function openTour(){_tourI=0;$('tour').classList.add('on');renderTour();}
 function maybeStartTour(){if(!localStorage.getItem('mgp_tour_done')){openTour();}}
+/* ===== TOUR DE FUNCIONALIDADES (coach marks) ===== */
+const COACH=[
+  {sel:'#nav',title:'Navegação',text:'Alterne entre Dashboard, Quadro, Kanban, Calendário, Clientes, Equipe e Configurações por aqui.'},
+  {sel:'#side-today',title:'Para hoje',text:'Mostra quantas demandas suas têm prazo para hoje. Clique para ir ao quadro.'},
+  {sel:'#filter-btn',title:'Filtros',text:'Filtre por responsável, situação, prioridade, atrasadas, atribuídas a você e muito mais.'},
+  {sel:'#notif-btn',title:'Notificações',text:'Você é avisado aqui quando recebe uma demanda ou quando comentam numa demanda sua.'},
+  {sel:'.btn-p.admin-only',title:'Nova demanda',text:'Crie uma demanda: cliente, responsáveis (vários!), prazo, prioridade e recorrência.'},
+  {sel:'#v-board .col',title:'Colunas do quadro',text:'Cada coluna é um status. Arraste os cards entre elas — ao chegar em Concluído, tem comemoração. 🚀'},
+  {sel:'#v-board .card-t',title:'Card da demanda',text:'Clique num card para abrir os detalhes: descrição, tempo, subtarefas e anotações. Ele salta no meio da tela.'},
+];
+let _coachI=0;
+function _coachVisible(el){return el && el.offsetParent!==null && el.getBoundingClientRect().width>0;}
+function coachStep(){
+  const c=COACH[_coachI];const el=document.querySelector(c.sel);
+  if(!_coachVisible(el)){ if(_coachI<COACH.length-1){_coachI++;return coachStep();} return endCoach(); }
+  const r=el.getBoundingClientRect();const pad=8;
+  const hole=$('coach-hole');
+  hole.style.left=(r.left-pad)+'px';hole.style.top=(r.top-pad)+'px';
+  hole.style.width=(r.width+pad*2)+'px';hole.style.height=(r.height+pad*2)+'px';
+  const tip=$('coach-tip');
+  tip.innerHTML=`<h4>${c.title}</h4><p>${c.text}</p><div class="cnav"><span class="cstep">${_coachI+1} de ${COACH.length}</span><div class="cbtns">${_coachI>0?'<button class="coach-skip" onclick="coachPrev()">Voltar</button>':'<button class="coach-skip" onclick="endCoach()">Pular</button>'}<button class="coach-next" onclick="${_coachI===COACH.length-1?'endCoach()':'coachNext()'}">${_coachI===COACH.length-1?'Concluir ✓':'Próximo →'}</button></div></div>`;
+  let top=r.bottom+14; if(top+190>window.innerHeight) top=Math.max(12,r.top-200);
+  let left=Math.min(Math.max(12,r.left), window.innerWidth-320);
+  tip.style.top=top+'px';tip.style.left=left+'px';
+}
+function coachNext(){if(_coachI<COACH.length-1){_coachI++;coachStep();}}
+function coachPrev(){if(_coachI>0){_coachI--;coachStep();}}
+function endCoach(){$('coach-ov').classList.remove('on');localStorage.setItem('mgp_coach_done','1');}
+function startCoach(){_coachI=0;showView('board');setTimeout(()=>{$('coach-ov').classList.add('on');coachStep();},400);}
+function openCoach(){startCoach();}
+window.addEventListener('resize',()=>{if($('coach-ov')&&$('coach-ov').classList.contains('on'))coachStep();});
 document.addEventListener('pointerdown',e=>{
   const el=e.target.closest('button,.nav-i,.asg-chip,.acc,.tchip,.timer-btn,.mini-btn,.cbadge,.seg>button,.tour-btn,.card-t,.stat,.crow');
   if(!el)return;
