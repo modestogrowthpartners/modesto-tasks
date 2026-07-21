@@ -494,6 +494,10 @@ body.hide-card-av .card-t .avs{display:none}
 .coach-next{background:var(--brass);color:#1a1a18}
 .coach-next:hover{background:var(--brass-soft)}
 .coach-skip{background:transparent;color:var(--muted)}
+.side-late{margin:0 12px 4px;background:rgba(208,31,69,.10);border:1px solid rgba(208,31,69,.28);border-radius:11px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s}
+.side-late:hover{background:rgba(208,31,69,.18)}
+.side-late .big{font-family:var(--font-d);font-size:22px;font-weight:600;color:#d01f45;line-height:1}
+.side-late .lbl{font-size:11px;color:var(--muted);line-height:1.2}
 </style>
 </head>
 <body>
@@ -566,6 +570,10 @@ body.hide-card-av .card-t .avs{display:none}
         <div class="big" id="today-n">0</div>
         <div class="lbl">para hoje</div>
       </div>
+      <div class="side-late" id="side-late" style="display:none" onclick="goOverdue()">
+        <div class="big" id="late-n">0</div>
+        <div class="lbl">atrasadas</div>
+      </div>
       <nav class="side-nav" id="nav"></nav>
       <div class="side-flow" aria-hidden="true">
         <svg viewBox="0 0 240 56" preserveAspectRatio="none">
@@ -595,6 +603,7 @@ body.hide-card-av .card-t .avs{display:none}
         <div class="view" id="v-board"></div>
         <div class="view" id="v-list"></div>
         <div class="view" id="v-calendar"></div>
+        <div class="view" id="v-checklist"></div>
         <div class="view" id="v-clientes"></div>
         <div class="view" id="v-equipe"></div>
         <div class="view" id="v-settings"></div>
@@ -792,6 +801,7 @@ async function boot(){
   $('login').style.display='none';
   $('app').style.display='block';
   setMeAvatar();
+  MYCHK=(ME.checklist&&ME.checklist.items)?ME.checklist:{items:[],notes:''};
   $('me-nm').textContent=ME.name;
   $('me-role').textContent=isAdmin()?'Equipe · Admin':'Cliente';
   document.querySelectorAll('.admin-only').forEach(e=>e.style.display=isAdmin()?'':'none');
@@ -957,6 +967,7 @@ const NAV = [
   {v:'board',ic:'▦',label:'Kanban'},
   {v:'list',ic:'☰',label:'Quadro'},
   {v:'calendar',ic:'▧',label:'Calendário'},
+  {v:'checklist',ic:'☑',label:'Checklist'},
   {v:'clientes',ic:'◈',label:'Clientes',admin:true},
   {v:'equipe',ic:'⌾',label:'Equipe',admin:true},
   {v:'settings',ic:'⚙',label:'Configurações'},
@@ -986,7 +997,7 @@ function showView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('on'));
   $('v-'+v).classList.add('on');
   if(typeof buildFilters==='function')buildFilters();
-  $('view-title').textContent={dashboard:'Dashboard',board:'Kanban',list:'Quadro',calendar:'Calendário',clientes:'Clientes',equipe:'Equipe',settings:'Configurações'}[v];
+  $('view-title').textContent={dashboard:'Dashboard',board:'Kanban',list:'Quadro',calendar:'Calendário',checklist:'Meu checklist',clientes:'Clientes',equipe:'Equipe',settings:'Configurações'}[v];
   render();
 }
 function render(){
@@ -994,6 +1005,7 @@ function render(){
   else if(VIEW==='board')renderBoard();
   else if(VIEW==='list')renderList();
   else if(VIEW==='calendar')renderCalendar();
+  else if(VIEW==='checklist')renderChecklist();
   else if(VIEW==='clientes')renderClientes();
   else if(VIEW==='equipe')renderEquipe();
   else if(VIEW==='settings')renderSettings();
@@ -1576,7 +1588,36 @@ function updateToday(){
   const n=mine.length||all.length;
   $('today-n').textContent=n;
   el.style.display=n>0?'flex':'none';
+  // atrasadas
+  const late=TASKS.filter(t=>isOverdue(t.due,t.status)&&(t.assignees||[]).some(a=>a.toLowerCase().includes(fn)));
+  const lateAll=TASKS.filter(t=>isOverdue(t.due,t.status));
+  const ln=late.length||lateAll.length;
+  const le=$('side-late');if(le){$('late-n').textContent=ln;le.style.display=ln>0?'flex':'none';}
 }
+function goOverdue(){FILTERS.overdue=true;const c=$('f-over');if(c)c.checked=true;updateFilterCount();showView('board');}
+let MYCHK={items:[],notes:''};
+function renderChecklist(){
+  if(VIEW!=='checklist')return;
+  const done=MYCHK.items.filter(i=>i.done).length;
+  $('v-checklist').innerHTML=`
+    <div class="set-sec" style="max-width:720px">
+      <h3>Meu checklist ${MYCHK.items.length?`<span style="font-size:12px;color:var(--muted);font-weight:400">(${done}/${MYCHK.items.length})</span>`:''}</h3>
+      <div class="desc">Itens e anotações só seus — ninguém mais vê. Fica salvo no seu perfil e sincroniza nos seus dispositivos.</div>
+      <div class="sub-add"><input class="fld" id="chk-in" placeholder="Adicionar item…" onkeydown="if(event.key==='Enter'){event.preventDefault();chkAdd();}"><button class="mini-btn" onclick="chkAdd()">+</button></div>
+      <div class="subs" style="margin-top:14px">${MYCHK.items.map((x,i)=>`<div class="sub ${x.done?'done':''}"><input type="checkbox" ${x.done?'checked':''} onchange="chkToggle(${i})"><span class="st">${esc(x.text)}</span><span class="dl" onclick="chkDel(${i})">✕</span></div>`).join('')||'<div style="color:var(--muted);font-size:12.5px">Nenhum item ainda.</div>'}</div>
+    </div>
+    <div class="set-sec" style="max-width:720px">
+      <h3>Anotações livres</h3>
+      <div class="desc">Um espaço em branco pra escrever o que quiser.</div>
+      <textarea class="fld" id="chk-notes" style="min-height:180px;line-height:1.6" placeholder="Escreva aqui…" oninput="chkNotesChanged(this.value)">${esc(MYCHK.notes||'')}</textarea>
+    </div>`;
+}
+function chkAdd(){const inp=$('chk-in');const v=(inp.value||'').trim();if(!v)return;MYCHK.items.push({text:v,done:false});inp.value='';saveChk();renderChecklist();const e=$('chk-in');if(e)e.focus();}
+function chkToggle(i){MYCHK.items[i].done=!MYCHK.items[i].done;saveChk();renderChecklist();}
+function chkDel(i){MYCHK.items.splice(i,1);saveChk();renderChecklist();}
+let _chkTimer=null;
+function chkNotesChanged(v){MYCHK.notes=v;clearTimeout(_chkTimer);_chkTimer=setTimeout(saveChk,700);}
+async function saveChk(){const {error}=await sb.rpc('save_my_checklist',{p:MYCHK});if(error){toast('Erro ao salvar checklist');console.error(error);}}
 
 /* =====================================================================
    CONFIGURAÇÕES
