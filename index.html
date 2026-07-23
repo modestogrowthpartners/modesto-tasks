@@ -4167,5 +4167,476 @@ function liberarTodosAcessos(){
   mgCopiar(SQL_LIBERAR_TODOS, 'SQL copiado — cole no SQL Editor do Supabase e rode');
 }
 </script>
+<style>
+/* ADIÇÃO 11 — voltar sempre visível na página do documento */
+.mg-voltar{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line2);
+  border-radius:10px;padding:8px 14px 8px 11px;font-size:13px;font-weight:600;color:var(--text);
+  margin-bottom:14px;font-family:inherit;
+  transition:border-color .15s,color .15s,transform .15s,box-shadow .18s}
+.mg-voltar:hover{border-color:var(--brass);color:var(--brass2);transform:translateX(-3px);
+  box-shadow:0 5px 14px rgba(0,0,0,.07)}
+.mg-voltar .seta{font-size:15px;line-height:1;transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.mg-voltar:hover .seta{transform:translateX(-3px)}
+.mg-doc-cab{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mg-doc-cab .mg-crumb{margin-bottom:0}
+@media(max-width:820px){
+  .mg-doc-topo .mg-doc-acoes{width:100%}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 11 — botão de voltar bem visível na página do documento
+   ===================================================================== */
+const _mg11Docs = renderDocsView;
+renderDocsView = function(){
+  const r = _mg11Docs();
+  if(DVIEW.kind!=='doc') return r;
+
+  const el = $('v-docs'); if(!el) return r;
+  if(el.querySelector('.mg-voltar')) return r;
+
+  const d = DOCS.find(x=>String(x.id)===String(DVIEW.id));
+  const destino = d ? clientName(d.client_id) : 'Documentos';
+
+  /* o voltar entra antes de tudo, no canto superior esquerdo */
+  el.insertAdjacentHTML('afterbegin',
+    `<button class="mg-voltar" onclick="voltarDocs()" title="Voltar para a pasta (Esc)">
+       <span class="seta">←</span> Voltar para ${esc(destino)}
+     </button>`);
+  return r;
+};
+
+/* Esc também volta, quando se está lendo um documento */
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  const janelaAberta = ['mg-cli','mg-cfg','mg-edcli'].some(id=>{
+    const m=$(id); return m && m.classList.contains('on');
+  });
+  if(janelaAberta) return;                       /* janelas têm prioridade */
+  if(VIEW==='docs' && DVIEW.kind==='doc') voltarDocs();
+});
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 12 — Início (hub) + barra que recolhe ao escolher
+   ===================================================================== */
+
+/* ---- a barra sai de cena quando você entra num módulo ---- */
+.side{transition:width .34s cubic-bezier(.22,1,.36,1), opacity .22s ease, transform .34s cubic-bezier(.22,1,.36,1)}
+body.mg-focado .side{width:0!important;opacity:0;transform:translateX(-16px);pointer-events:none;overflow:hidden}
+.content{transition:padding .3s cubic-bezier(.22,1,.36,1)}
+
+/* botão de início na barra de cima, aparece quando a lateral recolhe */
+.mg-home{display:none;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:11px;padding:8px 14px 8px 11px;font-size:13px;font-weight:600;color:var(--text);
+  font-family:inherit;margin-right:4px;
+  transition:border-color .15s,color .15s,transform .15s,box-shadow .18s}
+body.mg-focado .mg-home{display:inline-flex;animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
+/* o cliente só tem os documentos: não há para onde "voltar" */
+body.mg-cliente .mg-home{display:none!important}
+.mg-home:hover{border-color:var(--brass);color:var(--brass2);transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.07)}
+.mg-home .ic{font-size:15px;line-height:1;transition:transform .25s cubic-bezier(.22,1,.36,1)}
+.mg-home:hover .ic{transform:scale(1.15)}
+
+/* ---- tela de Início ---- */
+#v-home{max-width:1120px}
+.mg-ola{font-family:var(--font-d);font-size:30px;font-weight:500;letter-spacing:-.4px;margin-bottom:4px;
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-ola-sub{font-size:13.5px;color:var(--muted);margin-bottom:24px;
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) .05s both}
+.mg-atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:13px;margin-bottom:30px}
+.mg-atalho{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px 18px 16px;
+  text-align:left;cursor:pointer;font-family:inherit;color:var(--text);position:relative;overflow:hidden;
+  transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .2s,border-color .18s;
+  animation:mgSobe .42s cubic-bezier(.22,1,.36,1) both}
+.mg-atalho:nth-child(1){animation-delay:.06s} .mg-atalho:nth-child(2){animation-delay:.10s}
+.mg-atalho:nth-child(3){animation-delay:.14s} .mg-atalho:nth-child(4){animation-delay:.18s}
+.mg-atalho:nth-child(5){animation-delay:.22s} .mg-atalho:nth-child(6){animation-delay:.26s}
+.mg-atalho:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,.10);border-color:var(--line2)}
+.mg-atalho .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;
+  background:rgba(194,161,91,.14);color:var(--brass2);margin-bottom:11px;
+  transition:transform .25s cubic-bezier(.22,1,.36,1)}
+.mg-atalho:hover .ic{transform:scale(1.08) rotate(-4deg)}
+.mg-atalho .nm{font-family:var(--font-d);font-size:17px;font-weight:500}
+.mg-atalho .ds{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45}
+.mg-atalho .sino{position:absolute;top:14px;right:14px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;
+  background:var(--danger);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+
+.mg-duas{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.mg-duas{grid-template-columns:1fr}}
+.mg-painel{animation:mgSobe .45s cubic-bezier(.22,1,.36,1) .3s both}
+.mg-painel h3{font-family:var(--font-d);font-size:17px;font-weight:500;margin-bottom:12px;
+  display:flex;align-items:center;gap:9px}
+.mg-painel h3 .cnt{margin-left:auto;font-family:var(--font-b);font-size:12px;font-weight:700;
+  background:rgba(194,161,91,.16);color:var(--brass2);min-width:22px;height:22px;padding:0 7px;
+  border-radius:11px;display:grid;place-items:center}
+.mg-linhas{display:flex;flex-direction:column;gap:8px}
+.mg-linha{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:11px 14px;font-size:13px;cursor:pointer;text-align:left;width:100%;
+  font-family:inherit;color:var(--text);
+  transition:transform .15s,box-shadow .18s,border-color .15s}
+.mg-linha:hover{transform:translateX(3px);box-shadow:0 7px 18px rgba(0,0,0,.07);border-color:var(--line2)}
+.mg-linha .pt{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mg-linha .meio{flex:1;min-width:0}
+.mg-linha .ti{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mg-linha .sb{font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mg-linha .et{flex-shrink:0;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+.mg-linha .et.atraso{background:rgba(184,74,62,.13);color:var(--danger)}
+.mg-linha .et.hoje{background:rgba(217,131,36,.16);color:#b06a12}
+.mg-linha .et.nova{background:var(--danger);color:#fff;min-width:20px;text-align:center}
+.mg-vazio{font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:12px;padding:20px;text-align:center}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 12
+   • tela de Início: escolhe o módulo e vê o resumo do seu dia
+   • a barra lateral recolhe ao entrar num módulo; o botão de início
+     na barra de cima traz você de volta
+   ===================================================================== */
+
+/* ---- contêiner da tela ---- */
+(function(){
+  const cont=document.querySelector('.content');
+  if(cont && !document.getElementById('v-home')){
+    const d=document.createElement('div'); d.className='view'; d.id='v-home';
+    cont.insertBefore(d, cont.firstChild);
+  }
+})();
+/* ---- "Início" como primeira opção da barra ---- */
+(function(){
+  if(!NAV.some(n=>n.v==='home')) NAV.unshift({v:'home', ic:'⌂', label:'Início'});
+  if($('nav') && $('nav').children.length) buildNav();
+})();
+/* ---- botão de início na barra de cima ---- */
+(function(){
+  const topo=document.querySelector('.topbar');
+  if(topo && !document.getElementById('mg-btn-home')){
+    const b=document.createElement('button');
+    b.className='mg-home'; b.id='mg-btn-home';
+    b.innerHTML='<span class="ic">⌂</span> Início';
+    b.onclick=()=>showView('home');
+    topo.insertBefore(b, topo.firstChild);
+  }
+})();
+
+/* ---- ao escolher um módulo, a barra sai de cena ---- */
+const _mg12ShowView = showView;
+showView = function(v){
+  const r = _mg12ShowView(v);
+  const emCasa = (VIEW==='home');
+  document.body.classList.toggle('mg-focado', !emCasa);
+  return r;
+};
+const _mg12Render = render;
+render = function(){
+  if(VIEW==='home') return renderHome();
+  return _mg12Render();
+};
+
+/* ---- quais atalhos aparecem, conforme o papel ---- */
+function mgAtalhos(){
+  const desc = {
+    board:'Demandas no quadro por situação',
+    list:'Todas as demandas em lista',
+    calendar:'Demandas pelo prazo no mês',
+    checklist:'Suas anotações e pendências',
+    clientes:'Empresas, logos e acessos',
+    docs:'Apresentações, propostas e relatórios',
+    chat:'Conversas com a equipe e clientes',
+    settings:'Aparência, conta e notificações',
+  };
+  return NAV.filter(n=>n.v!=='home' && (!n.admin || isAdmin()))
+            .map(n=>({v:n.v, ic:n.ic, label:n.label, ds:desc[n.v]||''}));
+}
+
+/* ---- demandas de hoje e atrasadas, minhas ---- */
+function mgMinhasDeHoje(){
+  if(!ME || !ME.name) return [];
+  const meu = ME.name.split(' ')[0].toLowerCase();
+  const hoje = new Date().toISOString().slice(0,10);
+  return (TASKS||[]).filter(t=>{
+    if(DONE_STATUSES.includes(t.status)) return false;
+    const minha = (t.assignees||[]).some(a=>String(a).toLowerCase().includes(meu));
+    if(!minha) return false;
+    return t.prazo && t.prazo<=hoje;
+  }).sort((a,b)=>String(a.prazo).localeCompare(String(b.prazo)));
+}
+
+/* ---- mensagens que chegaram para você ---- */
+let MG_NAOLIDAS = [];
+async function mgCarregarNaoLidas(){
+  MG_NAOLIDAS = [];
+  if(CH_READY!==true || !ME) return;
+  try{
+    if(!CHANNELS.length) await loadChannels();
+    const {data:membros} = await sb.from('channel_members')
+      .select('channel_id,last_read_at').eq('profile_id', ME.id);
+    const marcos = {};
+    (membros||[]).forEach(m=>{ marcos[m.channel_id]=m.last_read_at });
+    const ids = CHANNELS.map(c=>c.id);
+    if(!ids.length) return;
+    const {data:msgs} = await sb.from('messages')
+      .select('id,channel_id,author_id,author_name,body,created_at')
+      .order('created_at',{ascending:false}).limit(120);
+    const porCanal = {};
+    (msgs||[]).forEach(m=>{
+      if(m.author_id===ME.id) return;                       /* não conto as minhas */
+      const marco = marcos[m.channel_id];
+      if(marco && m.created_at<=marco) return;              /* já li */
+      (porCanal[m.channel_id]=porCanal[m.channel_id]||[]).push(m);
+    });
+    MG_NAOLIDAS = Object.keys(porCanal).map(cid=>{
+      const c = CHANNELS.find(x=>x.id===cid);
+      const lista = porCanal[cid];
+      return {canal:c, quantas:lista.length, ultima:lista[0]};
+    }).filter(x=>x.canal);
+  }catch(e){ console.warn('[não lidas]', e) }
+}
+/* ao abrir um canal, marca como lido */
+const _mg12OpenChan = openChan;
+openChan = async function(id){
+  const r = await _mg12OpenChan(id);
+  if(ME && CH_READY===true){
+    try{ await sb.from('channel_members').update({last_read_at:new Date().toISOString()})
+            .eq('channel_id',id).eq('profile_id',ME.id) }catch(_){}
+  }
+  return r;
+};
+
+/* ---- desenha o Início ---- */
+function renderHome(){
+  if(VIEW!=='home') return;
+  const el=$('v-home'); if(!el) return;
+  const h=new Date().getHours();
+  const saud = h<12 ? 'Bom dia' : h<18 ? 'Boa tarde' : 'Boa noite';
+  const primeiro = (ME && ME.name ? ME.name.split(' ')[0] : '');
+  const minhas = mgMinhasDeHoje();
+  const hoje = new Date().toISOString().slice(0,10);
+
+  el.innerHTML = `
+    <div class="mg-ola">${saud}${primeiro?', '+esc(primeiro):''}.</div>
+    <div class="mg-ola-sub">${isAdmin()
+        ? 'Escolha por onde começar — ou veja o que já está esperando por você.'
+        : 'Aqui ficam os documentos da sua empresa.'}</div>
+    <div class="mg-atalhos">${mgAtalhos().map(a=>{
+      const badge = (a.v==='chat' && MG_NAOLIDAS.length)
+        ? `<span class="sino">${MG_NAOLIDAS.reduce((s,x)=>s+x.quantas,0)}</span>`
+        : (a.v==='board' && minhas.length) ? `<span class="sino">${minhas.length}</span>` : '';
+      return `<button class="mg-atalho" onclick="showView('${a.v}')">
+          ${badge}<span class="ic">${a.ic}</span>
+          <div class="nm">${esc(a.label)}</div>
+          <div class="ds">${esc(a.ds)}</div>
+        </button>`;
+    }).join('')}</div>
+    ${isAdmin() ? `
+    <div class="mg-duas">
+      <div class="mg-painel">
+        <h3>Suas demandas de hoje <span class="cnt">${minhas.length}</span></h3>
+        <div class="mg-linhas">${
+          minhas.length ? minhas.slice(0,6).map(t=>{
+            const atrasada = t.prazo < hoje;
+            return `<button class="mg-linha" onclick="mgIrParaDemanda('${esc(String(t.id))}')">
+                <span class="pt" style="background:${clientColor(t.client_id)}"></span>
+                <span class="meio">
+                  <span class="ti">${esc(t.title||'(sem título)')}</span>
+                  <span class="sb">${esc(clientName(t.client_id))} · ${esc(t.status||'')}</span>
+                </span>
+                <span class="et ${atrasada?'atraso':'hoje'}">${atrasada?'Atrasada':'Hoje'}</span>
+              </button>`;
+          }).join('') : `<div class="mg-vazio">Nada com prazo para hoje. 🎉</div>`
+        }</div>
+      </div>
+      <div class="mg-painel" style="animation-delay:.36s">
+        <h3>Mensagens para você <span class="cnt">${MG_NAOLIDAS.reduce((s,x)=>s+x.quantas,0)}</span></h3>
+        <div class="mg-linhas">${
+          MG_NAOLIDAS.length ? MG_NAOLIDAS.slice(0,6).map(x=>{
+            const c=x.canal;
+            const nome = (typeof mgChanNome==='function') ? mgChanNome(c) : c.nome;
+            const previa = (x.ultima.author_name||'')+': '+String(x.ultima.body||'').replace(/\s+/g,' ').slice(0,44);
+            return `<button class="mg-linha" onclick="showView('chat');openChan('${c.id}')">
+                <span class="pt" style="background:${c.tipo==='client'?clientColor(c.client_id):'var(--brass)'}"></span>
+                <span class="meio">
+                  <span class="ti">${c.tipo==='dm'?'':'#'}${esc(nome)}</span>
+                  <span class="sb">${esc(previa)}</span>
+                </span>
+                <span class="et nova">${x.quantas}</span>
+              </button>`;
+          }).join('') : `<div class="mg-vazio">${CH_READY===true?'Nenhuma mensagem nova.':'O chat ainda não foi ativado.'}</div>`
+        }</div>
+      </div>
+    </div>` : ''}`;
+}
+function mgIrParaDemanda(id){
+  showView('board');
+  setTimeout(()=>{ if(typeof openDetail==='function') openDetail(id); }, 260);
+}
+
+/* ---- ao entrar, começa pelo Início e busca as não lidas ---- */
+(function(){
+  const _mg12Boot = boot;
+  boot = async function(){
+    const r = await _mg12Boot();
+    try{
+      if(CH_READY===null && typeof checkChatTables==='function') await checkChatTables();
+      await mgCarregarNaoLidas();
+    }catch(_){}
+    showView('home');
+    return r;
+  };
+})();
+</script>
+<style>
+/* ADIÇÃO 13 — aviso de configuração do acesso */
+.mg-alerta{display:flex;gap:12px;align-items:flex-start;border-radius:13px;padding:14px 16px;
+  font-size:13px;line-height:1.55;margin-bottom:16px;
+  background:rgba(217,131,36,.10);border:1px solid rgba(217,131,36,.32);
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-alerta.ok{background:rgba(46,158,107,.09);border-color:rgba(46,158,107,.3)}
+.mg-alerta .sinal{font-size:17px;line-height:1.3;flex-shrink:0}
+.mg-alerta .txt{flex:1;min-width:0}
+.mg-alerta b{color:var(--text)}
+.mg-alerta .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mg-alerta .acoes a,.mg-alerta .acoes button{display:inline-flex;align-items:center;gap:6px;
+  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:7px 13px;
+  font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;font-family:inherit;cursor:pointer;
+  transition:border-color .15s,color .15s,transform .15s}
+.mg-alerta .acoes a:hover,.mg-alerta .acoes button:hover{border-color:var(--brass);color:var(--brass2);transform:translateY(-1px)}
+.mg-alerta .fechar{background:none;border:0;color:var(--muted);font-size:15px;line-height:1;padding:2px 4px;flex-shrink:0}
+.mg-alerta .fechar:hover{color:var(--text)}
+.mg-passos{margin:8px 0 0;padding-left:18px}
+.mg-passos li{margin-bottom:4px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 13 — "criei, tem que funcionar"
+   ---------------------------------------------------------------------
+   O acesso só não entra direto porque o Supabase está com a confirmação
+   por e-mail ligada. Isso é um botão no painel, que a plataforma não tem
+   permissão de desligar (só a chave secreta do servidor poderia, e ela
+   não pode viver aqui). O que dá para fazer — e está feito aqui — é
+   DETECTAR a configuração e avisar antes, com o caminho pronto.
+   ===================================================================== */
+
+let MG_AUTH = null;   /* {autoconfirma:bool, cadastroLiberado:bool} */
+
+async function mgVerificarAuth(){
+  try{
+    const r = await fetch(SUPABASE_URL+'/auth/v1/settings', {headers:{apikey:SUPABASE_ANON}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const s = await r.json();
+    MG_AUTH = {
+      autoconfirma: s.mailer_autoconfirm === true,
+      cadastroLiberado: s.disable_signup !== true,
+    };
+  }catch(e){ MG_AUTH = null; console.warn('[auth settings]', e) }
+  return MG_AUTH;
+}
+
+const MG_LINK_AUTH = 'https://supabase.com/dashboard/project/eeqaabwsheaiwyhujcqj/auth/providers';
+
+/* aviso montado conforme o que estiver errado */
+function mgAlertaAcesso(){
+  if(!isAdmin() || !MG_AUTH) return '';
+  const problemas = [];
+  if(!MG_AUTH.cadastroLiberado) problemas.push('cadastro');
+  if(!MG_AUTH.autoconfirma)     problemas.push('confirmacao');
+  if(!problemas.length) return '';
+
+  const passos = [];
+  if(problemas.includes('cadastro'))
+    passos.push('ligue <b>Allow new users to sign up</b>');
+  if(problemas.includes('confirmacao'))
+    passos.push('desligue <b>Confirm email</b>');
+
+  return `<div class="mg-alerta mg-alerta-acesso">
+    <span class="sinal">⚠</span>
+    <div class="txt">
+      <b>Os acessos criados aqui não vão entrar direto.</b>
+      O Supabase está exigindo confirmação por e-mail — e o envio padrão dele quase nunca chega para quem é de fora do projeto.
+      É um ajuste de uma vez só, e depois disso todo acesso criado já funciona na hora.
+      <ol class="mg-passos">
+        <li>Abra <b>Authentication → Providers → Email</b></li>
+        <li>${passos.join(' e ')}</li>
+        <li>Salve e pronto — não precisa mexer nunca mais</li>
+      </ol>
+      <div class="acoes">
+        <a href="${MG_LINK_AUTH}" target="_blank" rel="noopener">Abrir essa tela no Supabase →</a>
+        <button onclick="liberarTodosAcessos()">Copiar SQL que libera quem já foi criado</button>
+        <button onclick="mgRechecarAuth()">Já ajustei, verificar</button>
+      </div>
+    </div>
+    <button class="fechar" onclick="this.parentNode.remove()" title="Fechar">✕</button>
+  </div>`;
+}
+
+async function mgRechecarAuth(){
+  toast('Verificando…');
+  await mgVerificarAuth();
+  if(MG_AUTH && MG_AUTH.autoconfirma && MG_AUTH.cadastroLiberado){
+    document.querySelectorAll('.mg-alerta-acesso').forEach(a=>{
+      a.outerHTML = `<div class="mg-alerta ok"><span class="sinal">✓</span>
+        <div class="txt"><b>Tudo certo.</b> Os acessos criados a partir de agora já entram na hora, sem confirmar nada.</div></div>`;
+    });
+    toast('Configuração correta ✓');
+  }else{
+    toast('Ainda está exigindo confirmação — confira se salvou no Supabase');
+  }
+}
+
+/* ---- o aviso aparece onde o acesso é criado ---- */
+const _mg13AbrirCli = abrirNovoCliente;
+abrirNovoCliente = function(){
+  _mg13AbrirCli();
+  const corpo = document.querySelector('#mg-cli .mg-novocli');
+  if(corpo && !corpo.querySelector('.mg-alerta-acesso')){
+    const html = mgAlertaAcesso();
+    if(html) corpo.insertAdjacentHTML('afterbegin', html);
+  }
+};
+const _mg13AbrirEd = abrirEditarCliente;
+abrirEditarCliente = function(id){
+  _mg13AbrirEd(id);
+  const sec = document.getElementById('mg-acessos');
+  if(sec && !sec.querySelector('.mg-alerta-acesso')){
+    const html = mgAlertaAcesso();
+    if(html) sec.insertAdjacentHTML('afterbegin', html);
+  }
+};
+
+/* ---- e também no Início, para o administrador ver logo de cara ---- */
+const _mg13Home = renderHome;
+renderHome = function(){
+  const r = _mg13Home();
+  if(VIEW!=='home' || !isAdmin()) return r;
+  const el=$('v-home'); if(!el) return r;
+  const html = mgAlertaAcesso();
+  if(html && !el.querySelector('.mg-alerta-acesso')){
+    const sub = el.querySelector('.mg-ola-sub');
+    if(sub) sub.insertAdjacentHTML('afterend', html);
+  }
+  return r;
+};
+
+/* ---- se estiver tudo certo, a criação nem menciona confirmação ---- */
+const _mg13Enriquecer = mgEnriquecerAviso;
+mgEnriquecerAviso = function(idCaixa, email){
+  if(MG_AUTH && MG_AUTH.autoconfirma) return;   /* não há o que liberar */
+  return _mg13Enriquecer(idCaixa, email);
+};
+
+/* ---- verifica ao entrar ---- */
+(function(){
+  const _mg13Boot = boot;
+  boot = async function(){
+    const r = await _mg13Boot();
+    if(isAdmin()){
+      await mgVerificarAuth();
+      if(VIEW==='home') renderHome();
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
