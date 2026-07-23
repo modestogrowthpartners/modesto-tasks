@@ -3579,5 +3579,286 @@ document.addEventListener('keydown', e=>{
   if($('mg-cfg') && $('mg-cfg').classList.contains('on')) return fecharConfig();
 });
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 8 — editar cliente numa janela + página do documento
+   ===================================================================== */
+.mg-edit-logo{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.mg-edit-logo .lg{width:56px;height:56px;border-radius:12px;display:grid;place-items:center;overflow:hidden;
+  background:var(--card2);border:1px solid var(--line2);cursor:pointer;flex-shrink:0;transition:border-color .15s}
+.mg-edit-logo .lg:hover{border-color:var(--brass)}
+.mg-edit-logo .lg img{width:100%;height:100%;object-fit:contain;background:#fff}
+.mg-edit-logo .tx{font-size:12.5px;color:var(--muted);line-height:1.5}
+.mg-perigo{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+.mg-perigo .aviso{font-size:12px;color:var(--muted);margin-bottom:9px}
+.mg-btn-perigo{background:none;border:1px solid rgba(184,74,62,.4);color:var(--danger);border-radius:9px;
+  padding:8px 14px;font-size:12.5px;font-weight:600;transition:background .15s}
+.mg-btn-perigo:hover{background:rgba(184,74,62,.09)}
+
+/* ---- página do documento ---- */
+.mg-doc-topo{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.mg-doc-topo .info{flex:1;min-width:220px}
+.mg-doc-topo h2{font-family:var(--font-d);font-size:24px;font-weight:500;line-height:1.25;margin-bottom:8px}
+.mg-doc-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.mg-doc-meta .tp{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.mg-doc-acoes{display:flex;gap:9px;flex-wrap:wrap}
+.mg-visor{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;
+  height:calc(100vh - 300px);min-height:420px;position:relative;
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-visor iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+.mg-visor .carregando{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);
+  font-size:13px;background:var(--card2)}
+.mg-visor .falhou{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;
+  color:var(--muted);font-size:13px;line-height:1.6;background:var(--card2)}
+.mg-pontinhos::after{content:'';animation:mgPontos 1.2s steps(4,end) infinite}
+@keyframes mgPontos{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 8
+   • linha do cliente com um único botão: Editar (janela com logo, nome,
+     resumo e exclusão)
+   • clicar no documento abre uma PÁGINA do documento, que mostra o
+     conteúdo de verdade renderizado — e não o código-fonte
+   ===================================================================== */
+
+/* ---------- 1. janela de edição do cliente ---------- */
+(function(){
+  if(document.getElementById('mg-edcli')) return;
+  const el=document.createElement('div');
+  el.className='mg-modal'; el.id='mg-edcli';
+  el.innerHTML=`<div class="cx" style="max-width:520px">
+    <div class="cb"><h2>Editar cliente</h2><button class="x" onclick="fecharEditarCliente()">✕</button></div>
+    <div class="cc">
+      <div class="mg-novocli">
+        <div class="mg-edit-logo">
+          <span class="lg" id="ec-logo" onclick="ecTrocarLogo()"></span>
+          <span class="tx"><b>Logo da empresa</b><br>Clique para enviar ou trocar a imagem.</span>
+        </div>
+        <div><div class="rot">Nome da empresa</div><input type="text" id="ec-nome"></div>
+        <div><div class="rot">Resumo da empresa</div><textarea id="ec-resumo" placeholder="Ramo, o que fazemos para ela, contexto do contrato…"></textarea></div>
+        <div style="display:flex;gap:9px;margin-top:4px">
+          <button class="btn-p" id="ec-btn" onclick="salvarCliente()">Salvar</button>
+          <button class="mini-btn ghost" onclick="fecharEditarCliente()">Cancelar</button>
+        </div>
+        <div id="ec-res"></div>
+        <div class="mg-perigo">
+          <div class="aviso">Excluir remove a empresa da lista. As demandas e documentos dela ficam sem vínculo.</div>
+          <button class="mg-btn-perigo" onclick="excluirClienteDaJanela()">Excluir cliente</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  el.addEventListener('click',e=>{ if(e.target===el) fecharEditarCliente() });
+  document.body.appendChild(el);
+})();
+
+let EC_ID = null;
+function abrirEditarCliente(id){
+  const c = CLIENTS.find(x=>x.id===id); if(!c) return;
+  EC_ID = id;
+  $('ec-nome').value = c.nome||'';
+  $('ec-resumo').value = c.resumo||'';
+  $('ec-res').innerHTML = '';
+  $('ec-logo').innerHTML = c.logo_url
+    ? `<img src="${esc(c.logo_url)}" alt="">`
+    : `<span style="width:100%;height:100%;border-radius:11px;background:${clientColor(id)}"></span>`;
+  $('mg-edcli').classList.add('on');
+  setTimeout(()=>{ const n=$('ec-nome'); if(n) n.focus() },340);
+}
+function fecharEditarCliente(){ mgFechar('mg-edcli') }
+function ecTrocarLogo(){ if(EC_ID && typeof pickClientLogo==='function') pickClientLogo(EC_ID) }
+
+async function salvarCliente(){
+  if(!EC_ID) return;
+  const nome=($('ec-nome').value||'').trim();
+  const resumo=($('ec-resumo').value||'').trim();
+  const res=$('ec-res');
+  if(!nome){ res.innerHTML=`<div class="mg-res err">⚠ O nome não pode ficar vazio.</div>`; return }
+  $('ec-btn').disabled=true;
+  try{
+    let r = await sb.from('clients').update({nome, resumo}).eq('id',EC_ID);
+    if(r.error && /resumo/i.test(r.error.message||'')){
+      r = await sb.from('clients').update({nome}).eq('id',EC_ID);
+      if(r.error) throw r.error;
+      res.innerHTML=`<div class="mg-res ok">✓ Nome salvo. O resumo não foi: falta a coluna <b>resumo</b> em <b>clients</b> (está no SQL que te enviei).</div>`;
+    }else{
+      if(r.error) throw r.error;
+      res.innerHTML=`<div class="mg-res ok">✓ Alterações salvas.</div>`;
+    }
+    await loadClients(); buildClientFilter();
+    if(VIEW==='clientes') renderClientes();
+    toast('Cliente atualizado');
+    setTimeout(fecharEditarCliente, 700);
+  }catch(e){
+    res.innerHTML=`<div class="mg-res err">⚠ Não foi possível salvar: ${esc((e&&e.message)||'erro')}</div>`;
+  }finally{ $('ec-btn').disabled=false }
+}
+async function excluirClienteDaJanela(){
+  if(!EC_ID) return;
+  const c = CLIENTS.find(x=>x.id===EC_ID); if(!c) return;
+  fecharEditarCliente();
+  setTimeout(()=>{ if(typeof deleteClient==='function') deleteClient(c.id, c.nome) }, 200);
+}
+
+/* linha do cliente com um botão só */
+const _mg8RenderClientes = renderClientes;
+renderClientes = async function(){
+  await _mg8RenderClientes();
+  if(VIEW!=='clientes') return;
+  document.querySelectorAll('#v-clientes .crow').forEach(linha=>{
+    /* o id sai de qualquer ação da linha, sem depender do formato dele */
+    let id=null;
+    linha.querySelectorAll('[onclick]').forEach(el=>{
+      if(id) return;
+      const oc = el.getAttribute('onclick')||'';
+      const m = oc.match(/(?:pickClientLogo|renameClient|deleteClient)\(\s*(['"])(.*?)\1/);
+      if(m) id = m[2];
+    });
+    if(!id) return;
+    linha.querySelectorAll('.mini-btn').forEach(b=>b.remove());
+    linha.insertAdjacentHTML('beforeend',
+      `<button class="mini-btn ghost" onclick="abrirEditarCliente('${id}')">Editar</button>`);
+  });
+};
+
+/* ---------- 2. página do documento ---------- */
+function ehHTML(nomeOuPath){
+  return /\.(html?|htm)(\?|$)/i.test(nomeOuPath||'');
+}
+/* clicar no card leva à página do documento, em vez de abrir direto */
+openDoc = function(id){
+  DVIEW = {kind:'doc', id:String(id)};
+  renderDocsView();
+};
+function voltarDocs(){
+  const d = DOCS.find(x=>String(x.id)===String(DVIEW.id));
+  DVIEW = d ? {kind:'client', id:d.client_id} : {kind:'home'};
+  renderDocsView();
+}
+/* abre o arquivo numa aba, com o tipo certo para renderizar */
+async function abrirArquivoEmAba(id){
+  const d = DOCS.find(x=>String(x.id)===String(id)); if(!d) return;
+  if(!d.storage_path && d.metadata && d.metadata.link){ window.open(d.metadata.link,'_blank','noopener'); return }
+  if(!d.storage_path){ toast('Documento sem arquivo anexado'); return }
+  toast('Abrindo…');
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(d.storage_path, 120);
+    if(error) throw error;
+    if(ehHTML(d.storage_path)){
+      /* o arquivo pode estar guardado como texto puro; reconstruímos como
+         página para o navegador exibir o conteúdo, e não o código */
+      try{
+        const resp = await fetch(data.signedUrl);
+        const txt  = await resp.text();
+        const url  = URL.createObjectURL(new Blob([txt], {type:'text/html;charset=utf-8'}));
+        window.open(url,'_blank','noopener');
+        setTimeout(()=>URL.revokeObjectURL(url), 60000);
+        return;
+      }catch(_){ /* se não der, cai no link direto */ }
+    }
+    window.open(data.signedUrl,'_blank','noopener');
+  }catch(e){ toast('Não foi possível abrir: '+((e&&e.message)||'erro')) }
+}
+async function baixarArquivo(id){
+  const d = DOCS.find(x=>String(x.id)===String(id)); if(!d || !d.storage_path) return;
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(d.storage_path, 120, {download:true});
+    if(error) throw error;
+    window.open(data.signedUrl,'_blank','noopener');
+  }catch(e){ toast('Não foi possível baixar: '+((e&&e.message)||'erro')) }
+}
+/* carrega o conteúdo dentro do visor */
+async function carregarVisor(id){
+  const d = DOCS.find(x=>String(x.id)===String(id)); if(!d) return;
+  const box = $('mg-visor'); if(!box) return;
+  const falha = (msg, extra) => {
+    box.innerHTML = `<div class="falhou"><div><b>Não deu para exibir aqui.</b><br>${esc(msg)}
+      ${extra?`<br><br>${extra}`:''}</div></div>`;
+  };
+  if(!d.storage_path){
+    if(d.metadata && d.metadata.link){
+      falha('Este documento foi cadastrado por link.',
+        `<button class="btn-p" onclick="window.open('${esc(d.metadata.link)}','_blank','noopener')">Abrir o link</button>`);
+    } else falha('Este documento não tem arquivo anexado.');
+    return;
+  }
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(d.storage_path, 300);
+    if(error) throw error;
+    if(ehHTML(d.storage_path)){
+      const resp = await fetch(data.signedUrl);
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const txt = await resp.text();
+      const ifr = document.createElement('iframe');
+      ifr.setAttribute('sandbox','allow-scripts allow-popups allow-forms allow-modals');
+      ifr.setAttribute('referrerpolicy','no-referrer');
+      ifr.srcdoc = txt;
+      box.innerHTML=''; box.appendChild(ifr);
+    }else{
+      const ifr = document.createElement('iframe');
+      ifr.src = data.signedUrl;
+      box.innerHTML=''; box.appendChild(ifr);
+    }
+  }catch(e){
+    falha('O arquivo não pôde ser lido aqui ('+((e&&e.message)||'erro')+').',
+      `<button class="btn-p" onclick="abrirArquivoEmAba('${esc(String(id))}')">Abrir em nova aba</button>`);
+  }
+}
+/* a tela de documentos ganha o modo "página do documento" */
+const _mg8Docs = renderDocsView;
+renderDocsView = function(){
+  if(DVIEW.kind!=='doc') return _mg8Docs();
+  const d = DOCS.find(x=>String(x.id)===String(DVIEW.id));
+  const el = $('v-docs');
+  if(!d){ DVIEW={kind:'home'}; return _mg8Docs() }
+  const t = docTipo(d.tipo);
+  el.innerHTML = `
+    <div class="mg-crumb">
+      <a onclick="dGo({kind:'home'})">Documentos</a><span>›</span>
+      <a onclick="voltarDocs()">${esc(clientName(d.client_id))}</a><span>›</span>
+      <b style="color:var(--text)">${esc(d.titulo||'Documento')}</b>
+    </div>
+    <div class="mg-doc-topo">
+      ${mgClientLogo(d.client_id,44)}
+      <div class="info">
+        <h2>${esc(d.titulo||'(sem título)')}</h2>
+        <div class="mg-doc-meta">
+          <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
+          <span>${esc(clientName(d.client_id))}</span><span>·</span>
+          <span>publicado ${esc(docDate(d.created_at))}</span>
+        </div>
+      </div>
+      <div class="mg-doc-acoes">
+        <button class="btn-p" onclick="abrirArquivoEmAba('${esc(String(d.id))}')">Abrir arquivo</button>
+        ${d.storage_path?`<button class="mini-btn ghost" onclick="baixarArquivo('${esc(String(d.id))}')">Baixar</button>`:''}
+        <button class="mini-btn ghost" onclick="voltarDocs()">Voltar</button>
+      </div>
+    </div>
+    <div class="mg-visor" id="mg-visor"><div class="carregando"><span class="mg-pontinhos">carregando o documento</span></div></div>`;
+  carregarVisor(d.id);
+};
+
+/* ---------- 3. novos envios já guardam o tipo certo ---------- */
+(function(){
+  const _origUpload = sb.storage.from('documents').upload;
+  /* o SDK cria um objeto novo a cada chamada; então envolvemos o método `from` */
+  const _from = sb.storage.from.bind(sb.storage);
+  sb.storage.from = function(bucket){
+    const api = _from(bucket);
+    if(bucket!=='documents') return api;
+    const upOrig = api.upload.bind(api);
+    api.upload = function(path, file, opts){
+      const o = Object.assign({}, opts||{});
+      if(!o.contentType){
+        if(/\.html?$/i.test(path)) o.contentType='text/html;charset=utf-8';
+        else if(file && file.type) o.contentType=file.type;
+      }
+      return upOrig(path, file, o);
+    };
+    return api;
+  };
+})();
+</script>
 </body>
 </html>
