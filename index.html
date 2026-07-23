@@ -4435,7 +4435,7 @@ function renderHome(){
         <h3>Suas demandas de hoje <span class="cnt">${minhas.length}</span></h3>
         <div class="mg-linhas">${
           minhas.length ? minhas.slice(0,6).map(t=>{
-            const atrasada = t.prazo < hoje;
+            const atrasada = !!(t.due && t.due < hoje);
             return `<button class="mg-linha" onclick="mgIrParaDemanda('${esc(String(t.id))}')">
                 <span class="pt" style="background:${clientColor(t.client_id)}"></span>
                 <span class="meio">
@@ -4634,6 +4634,185 @@ mgEnriquecerAviso = function(idCaixa, email){
       await mgVerificarAuth();
       if(VIEW==='home') renderHome();
     }
+    return r;
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 14 — Início centralizado, sem barra lateral
+   ===================================================================== */
+body.mg-inicio .side{width:0!important;opacity:0;transform:translateX(-16px);pointer-events:none;overflow:hidden}
+body.mg-inicio .topbar .search,
+body.mg-inicio .topbar #cfilter,
+body.mg-inicio .topbar #filter-btn,
+body.mg-inicio .topbar .btn-p.admin-only,
+body.mg-inicio .topbar #view-title{display:none!important}
+body.mg-inicio .mg-home{display:none!important}
+body.mg-inicio .content{padding:0}
+
+#v-home{max-width:none}
+body.mg-inicio #v-home.on{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  min-height:calc(100vh - 62px);padding:min(7vh,64px) 26px 60px;text-align:center}
+.mg-centro{width:100%;max-width:940px}
+.mg-ola{font-size:clamp(28px,3.6vw,40px);margin-bottom:6px}
+.mg-ola-sub{font-size:14px;margin-bottom:34px}
+.mg-atalhos{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:38px}
+.mg-atalho{text-align:center;padding:22px 16px 18px}
+.mg-atalho .ic{margin:0 auto 12px}
+.mg-atalho .ds{min-height:32px}
+.mg-duas{text-align:left;gap:22px}
+.mg-painel h3{justify-content:flex-start}
+.mg-marca-fundo{position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.5}
+
+/* mais respiro entre as duas colunas do resumo */
+@media(min-width:900px){ body.mg-inicio .mg-duas{grid-template-columns:1fr 1fr} }
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 14
+   1) Início ocupa a tela inteira, centralizado — sem barra lateral
+   2) "Suas demandas de hoje" passa a reconhecer você de verdade
+      (acento, sobrenome e nome vindo do e-mail)
+   3) CORREÇÃO: as colunas do banco são due / priority / recurrence.
+      O comando #adicionardemanda estava gravando prazo / prioridade,
+      nomes que não existem — ou seja, ele falhava calado.
+   ===================================================================== */
+
+/* ---------- 1. reconhecer o usuário ---------- */
+function mgNorm(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function mgMeusApelidos(){
+  const set=new Set();
+  if(ME){
+    mgNorm(ME.name).split(' ').forEach(t=>{ if(t.length>=3) set.add(t) });
+    if(ME.email) mgNorm(String(ME.email).split('@')[0]).split(' ').forEach(t=>{ if(t.length>=3) set.add(t) });
+  }
+  return [...set];
+}
+function mgSouEu(nome){
+  const alvo = mgNorm(nome);
+  if(!alvo) return false;
+  const partes = alvo.split(' ');
+  const meus = mgMeusApelidos();
+  return meus.some(m => partes.some(p =>
+    p===m || (p.length>=4 && m.length>=4 && (p.startsWith(m) || m.startsWith(p)))
+  ));
+}
+
+/* ---------- 2. minhas demandas de hoje (campo correto: due) ---------- */
+mgMinhasDeHoje = function(){
+  if(!ME) return [];
+  const hoje = todayISO();
+  return (TASKS||[]).filter(t=>{
+    if(DONE_STATUSES.includes(t.status) || clientStatus(t.status)==='Concluído') return false;
+    if(!(t.assignees||[]).some(mgSouEu)) return false;
+    if(t.status==='Entregas do dia') return true;      /* o app trata isso como "hoje" */
+    return t.due && t.due<=hoje;
+  }).sort((a,b)=>{
+    const ad=a.due||'9999', bd=b.due||'9999';
+    return ad.localeCompare(bd);
+  });
+};
+
+/* ---------- 3. Início em tela cheia, centralizado ---------- */
+const _mg14ShowView = showView;
+showView = function(v){
+  const r = _mg14ShowView(v);
+  const emCasa = (VIEW==='home');
+  document.body.classList.toggle('mg-inicio', emCasa);
+  if(emCasa) document.body.classList.remove('mg-focado');
+  return r;
+};
+
+/* envolve o conteúdo do Início numa coluna centralizada */
+const _mg14Home = renderHome;
+renderHome = function(){
+  const r = _mg14Home();
+  if(VIEW!=='home') return r;
+  const el=$('v-home'); if(!el) return r;
+  if(!el.querySelector('.mg-centro')){
+    const dentro = el.innerHTML;
+    el.innerHTML = `<div class="mg-centro">${dentro}</div>`;
+  }
+  return r;
+};
+
+/* ---------- 4. correção das colunas ao criar demanda pelo chat ---------- */
+chCriarDemanda = async function(texto){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const campos={}; let inline='';
+  texto.split(/\r?\n/).forEach(l=>{
+    l=l.trim(); if(!l) return;
+    const m = l.match(/^(t[íi]tulo|cliente|respons[áa]ve(?:l|is)|prazo|prioridade|descri[çc][ãa]o)\s*:\s*(.+)$/i);
+    if(m){
+      let k=m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      k = k.startsWith('titulo')?'titulo' : k.startsWith('cliente')?'cliente'
+        : k.startsWith('responsave')?'resp' : k.startsWith('prazo')?'prazo'
+        : k.startsWith('priorid')?'prio' : 'desc';
+      campos[k]=m[2].trim();
+    } else if(/#adicionardemanda/i.test(l)){ inline = l.replace(/#adicionardemanda/i,'').trim() }
+  });
+  const titulo = campos.titulo || inline;
+  if(!titulo){ toast('Informe ao menos um título na demanda'); return }
+
+  let cid=null;
+  if(campos.cliente){
+    const f = CLIENTS.find(c=>mgNorm(c.nome).includes(mgNorm(campos.cliente)));
+    if(f) cid=f.id;
+  }
+  if(!cid && cur && cur.tipo==='client') cid = cur.client_id;
+
+  let who=[];
+  if(campos.resp){
+    campos.resp.split(/[,;\/]+/).map(s=>s.trim()).filter(Boolean).forEach(nm=>{
+      const p = (ASSIGNEE_OPTS||[]).find(x=>mgNorm(x)===mgNorm(nm)) ||
+                (ASSIGNEE_OPTS||[]).find(x=>mgNorm(x).startsWith(mgNorm(nm)));
+      who.push(p||nm);
+    });
+  }
+  let due=null;
+  if(campos.prazo){
+    const iso=campos.prazo.match(/^(\d{4})-(\d{2})-(\d{2})$/), br=campos.prazo.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(iso) due=campos.prazo; else if(br) due=`${br[3]}-${br[2]}-${br[1]}`;
+  }
+  let priority='Média';
+  if(campos.prio){ const p=mgNorm(campos.prio); priority = p.startsWith('alt')?'Alta' : p.startsWith('baix')?'Baixa' : 'Média' }
+
+  try{
+    /* nomes de coluna exatamente como o app usa: due, priority, recurrence */
+    const {error} = await sb.from('tasks').insert({
+      title: titulo,
+      client_id: cid,
+      status: 'Não iniciado',
+      priority: priority,
+      due: due,
+      recurrence: 'Nenhuma',
+      assignees: who,
+      description: campos.desc || ('Criada pelo chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
+    });
+    if(error) throw error;
+
+    const resumo = [cid?('cliente: '+clientName(cid)):'', who.length?('resp.: '+who.join(', ')):'',
+                    due?('prazo: '+fmtDate(due)):'', 'prioridade: '+priority].filter(Boolean).join(' · ');
+    await sb.from('messages').insert({
+      channel_id: CHAN, author_id: ME.id, author_name:'Tasks', kind:'system',
+      body: `Demanda criada no Kanban: “${titulo}” — ${resumo}`
+    });
+    await loadMsgs(CHAN); renderChatView();
+    if(typeof loadTasks==='function') await loadTasks();
+    toast('Demanda criada no Kanban ✓');
+  }catch(e){ toast('Não foi possível criar a demanda: '+((e&&e.message)||'erro')) }
+};
+
+/* ---------- 5. ao entrar, já mostra o Início centralizado ---------- */
+(function(){
+  const _mg14Boot = boot;
+  boot = async function(){
+    const r = await _mg14Boot();
+    if(VIEW==='home'){ document.body.classList.add('mg-inicio'); renderHome(); }
     return r;
   };
 })();
