@@ -5756,22 +5756,36 @@ function mgBlocoResp(assignees){
   </div>`;
 }
 
-/* ---- troca as iniciais pelo bloco novo, sem tocar no resto do card ---- */
+/* ---- troca as iniciais pelo bloco novo ----
+   Feito no DOM depois que o quadro é desenhado. Mexer no HTML por
+   expressão regular quebrava o fechamento das tags e desmontava o card. */
+function mgAplicarRespNosCards(raiz){
+  const alvo = raiz || document;
+  alvo.querySelectorAll('.card-t .avs').forEach(avs=>{
+    if(avs.dataset.mgFeito) return;
+    const nomes = [...avs.querySelectorAll('.av')]
+      .map(a=>(a.getAttribute('title')||a.textContent||'').trim())
+      .filter(Boolean);
+    if(!nomes.length) return;
+    const html = mgBlocoResp(nomes);
+    if(!html) return;
+    const caixa = document.createElement('div');
+    caixa.innerHTML = html;
+    const bloco = caixa.firstElementChild;
+    if(!bloco) return;
+    bloco.dataset.mgFeito = '1';
+    avs.replaceWith(bloco);
+  });
+}
+/* aplica depois de cada desenho do quadro */
 (function(){
-  if(typeof taskCard!=='function') return;
-  const _mg20Card = taskCard;
-  taskCard = function(t, accent){
-    let html = _mg20Card(t, accent);
-    const novo = mgBlocoResp(t.assignees);
-    /* o card original desenha <div class="avs">…</div> */
-    html = html.replace(/<div class="avs">[\s\S]*?<\/div>\s*(?=<\/div>)/,
-                        novo ? novo+'\n        ' : '');
-    if(novo && !html.includes('mg-resp')){
-      /* se o formato mudar, encaixa antes do fim do rodapé */
-      html = html.replace('</div>\n    </div>\n    ', novo+'</div>\n    </div>\n    ');
-    }
-    return html;
-  };
+  ['renderBoard','render'].forEach(nome=>{
+    if(typeof window[nome]!=='function' && typeof eval(nome)!=='function') return;
+    try{
+      const anterior = eval(nome);
+      eval(nome+' = function(){ const r = anterior.apply(this, arguments); try{ mgAplicarRespNosCards() }catch(e){} return r }');
+    }catch(_){}
+  });
 })();
 
 /* ---- o Quadro (lista) também mostra a foto ---- */
@@ -6313,6 +6327,113 @@ openChan = async function(id){
     if(modo==='fim' || modo==='inicio') cx.scrollTop = cx.scrollHeight;
   }
   return r;
+};
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 23 — remover um acesso da lista
+   ===================================================================== */
+.mg-lista-ac .p{position:relative;padding-right:44px}
+.mg-lista-ac .p .apagar{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:0;width:28px;height:28px;border-radius:8px;color:var(--muted2);
+  font-size:14px;line-height:1;display:grid;place-items:center;opacity:0;
+  transition:opacity .15s,background .15s,color .15s}
+.mg-lista-ac .p:hover .apagar{opacity:1}
+.mg-lista-ac .p .apagar:hover{background:rgba(184,74,62,.12);color:var(--danger)}
+.mg-lista-ac .p .apagar:focus-visible{opacity:1}
+.mg-aviso-sql{font-size:12px;line-height:1.55;background:rgba(217,131,36,.10);
+  border:1px solid rgba(217,131,36,.30);border-radius:10px;padding:11px 13px;margin-top:9px}
+.mg-aviso-sql .cod{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;
+  background:var(--card2);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;
+  margin-top:7px;word-break:break-all;white-space:pre-wrap}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 23 — excluir um acesso de cliente
+   O login em si vive no Auth do Supabase, que a plataforma não pode
+   apagar sozinha (isso exigiria a chave secreta do projeto). O que
+   fazemos aqui é remover o VÍNCULO: a pessoa deixa de pertencer à
+   empresa e não enxerga mais nada. E entregamos o comando pronto para
+   apagar o login de vez, se for essa a intenção.
+   ===================================================================== */
+
+function sqlApagarLogin(email){
+  return `-- Remove o login de ${email} de vez
+delete from auth.users where email = '${String(email||'').replace(/'/g,"''")}';`;
+}
+
+async function excluirAcessoCliente(pid, nome, email){
+  if(!confirm(`Remover o acesso de ${nome}?\n\nA pessoa deixa de enxergar os documentos desta empresa.`)) return;
+  const box = $('mg-lista-ac');
+  try{
+    const {error} = await sb.from('profiles').delete().eq('id', pid);
+    if(error) throw error;
+
+    /* confere se saiu mesmo — sem política de exclusão, o banco ignora calado */
+    const {data:ainda} = await sb.from('profiles').select('id').eq('id', pid).maybeSingle();
+    if(ainda){
+      if(box) box.insertAdjacentHTML('beforeend', `
+        <div class="mg-aviso-sql">
+          <b>O banco não permitiu remover.</b> Falta a permissão de exclusão em <b>profiles</b> —
+          está na <b>Parte 9</b> do SQL que te enviei. Enquanto isso, dá para remover pelo Supabase:
+          <div class="cod">Table Editor → profiles → apagar a linha de ${esc(nome)}</div>
+        </div>`);
+      toast('Não foi possível remover — veja o aviso');
+      return;
+    }
+
+    await carregarAcessosCliente(EC_ID);
+    if(email && box){
+      box.insertAdjacentHTML('beforeend', `
+        <div class="mg-aviso-sql">
+          <b>Vínculo removido.</b> ${esc(nome)} não enxerga mais os documentos desta empresa.<br>
+          O <b>login</b> continua existindo no Supabase (a plataforma não pode apagá-lo por segurança).
+          Se quiser eliminá-lo de vez:
+          <div class="cod">${esc(sqlApagarLogin(email))}</div>
+          <button class="mini-btn" style="margin-top:8px" onclick="mgCopiar(sqlApagarLogin('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar comando</button>
+        </div>`);
+    }
+    toast('Acesso removido');
+  }catch(e){
+    const m=(e&&e.message)||'erro';
+    if(/row-level security|permission|policy/i.test(m)){
+      if(box) box.insertAdjacentHTML('beforeend', `
+        <div class="mg-aviso-sql"><b>O banco bloqueou a exclusão.</b>
+        Rode a <b>Parte 9</b> do SQL para liberar isso ao administrador.</div>`);
+      toast('Sem permissão para remover — veja o aviso');
+    } else toast('Não foi possível remover: '+m);
+  }
+}
+
+/* a lista passa a mostrar o botão de remover em cada pessoa */
+carregarAcessosCliente = async function(id){
+  const box = $('mg-lista-ac'); if(!box) return;
+  try{
+    let lista;
+    const r1 = await sb.from('profiles').select('id,nome,role,client_id,email').eq('client_id', id);
+    if(r1.error){
+      const r2 = await sb.from('profiles').select('id,nome,role,client_id').eq('client_id', id);
+      if(r2.error) throw r2.error;
+      lista = r2.data;
+    } else lista = r1.data;
+
+    const pessoas = (lista||[]).filter(p=>p.role==='client');
+    box.innerHTML = pessoas.length
+      ? pessoas.map(p=>{
+          const nome = p.nome||'—';
+          const email = p.email||'';
+          return `<div class="p">
+            <span class="av">${esc(initials(nome))}</span>
+            <span class="nm">${esc(nome)}</span>
+            <span class="em">${esc(email)}</span>
+            <button class="apagar" title="Remover o acesso de ${esc(nome)}"
+              onclick="excluirAcessoCliente('${esc(p.id)}','${esc(nome).replace(/'/g,'&#39;')}','${esc(email)}')">✕</button>
+          </div>`;
+        }).join('')
+      : `<div class="vazio">Ninguém tem acesso a esta empresa ainda.</div>`;
+  }catch(e){
+    box.innerHTML = `<div class="vazio">Não foi possível carregar (${esc((e&&e.message)||'erro')}).</div>`;
+  }
 };
 </script>
 </body>
