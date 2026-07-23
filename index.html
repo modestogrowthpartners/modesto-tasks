@@ -3277,5 +3277,307 @@ renderDocsView = function(){
   }
 };
 </script>
+<script>
+/* =====================================================================
+   ADIÇÃO 6
+   • tira a aba "Acessos" — criar acesso passa a existir só no cadastro
+     de cliente novo
+   • amarra o perfil do cliente à empresa de forma confiável, com
+     verificação: se não conseguir, avisa em vez de falhar calado
+   ===================================================================== */
+
+/* ---------- 1. sai a aba Acessos ---------- */
+(function(){
+  const i = NAV.findIndex(n=>n.v==='acessos');
+  if(i>=0) NAV.splice(i,1);
+  const el = document.getElementById('v-acessos');
+  if(el) el.remove();
+  if($('nav') && $('nav').children.length) buildNav();
+})();
+
+/* ---------- 2. vínculo do perfil à empresa, com garantia ----------
+   O banco cria o perfil sozinho por gatilho, mas isso leva um instante
+   e nem sempre traz papel e empresa. Aqui a gente confere de verdade:
+   tenta atualizar, tenta criar se não existir, e só declara sucesso
+   depois de ler de volta e ver que ficou certo.                        */
+async function mgVincularPerfil(userId, nome, clientId){
+  for(let tentativa=0; tentativa<6; tentativa++){
+    await new Promise(r=>setTimeout(r, tentativa===0 ? 500 : 700));
+
+    /* já está correto? */
+    const {data:atual} = await sb.from('profiles')
+      .select('id,nome,role,client_id').eq('id',userId).maybeSingle();
+
+    if(atual && atual.role==='client' && atual.client_id===clientId) return {ok:true};
+
+    if(atual){
+      await sb.from('profiles').update({nome, role:'client', client_id:clientId}).eq('id',userId);
+    }else{
+      /* o gatilho ainda não criou — tentamos criar nós mesmos */
+      const {error} = await sb.from('profiles').insert({id:userId, nome, role:'client', client_id:clientId});
+      if(error && !/duplicate|already exists/i.test(error.message||'')){
+        if(tentativa>=3) return {ok:false, motivo:error.message};
+      }
+    }
+  }
+  const {data:fim} = await sb.from('profiles').select('role,client_id').eq('id',userId).maybeSingle();
+  if(fim && fim.role==='client' && fim.client_id===clientId) return {ok:true};
+  return {ok:false, motivo:'o perfil não ficou amarrado à empresa'};
+}
+
+/* ---------- 3. cadastro de cliente usando a verificação ---------- */
+async function criarClienteCompleto(){
+  const nome=($('nc-nome').value||'').trim();
+  const resumo=($('nc-resumo').value||'').trim();
+  const criar=$('nc-criar').checked;
+  const res=$('nc-res');
+  const erro=m=>{ res.innerHTML=`<div class="mg-res err">⚠ ${esc(m)}</div>` };
+  if(!nome) return erro('Dê um nome à empresa.');
+
+  let pnome='', email='', senha='';
+  if(criar){
+    pnome=($('nc-pnome').value||'').trim();
+    email=($('nc-email').value||'').trim();
+    senha=($('nc-senha').value||'');
+    if(!pnome) return erro('Informe o nome da pessoa que vai acessar.');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('E-mail de acesso inválido.');
+    if(senha.length<6) return erro('A senha precisa ter ao menos 6 caracteres.');
+  }
+
+  $('nc-btn').disabled=true;
+  res.innerHTML=`<div class="mg-res">⏳ Criando a empresa…</div>`;
+  try{
+    let semColuna=false;
+    let r = await sb.from('clients').insert(resumo?{nome,resumo}:{nome}).select().single();
+    if(r.error && /resumo/i.test(r.error.message||'')){
+      semColuna=true;
+      r = await sb.from('clients').insert({nome}).select().single();
+    }
+    if(r.error) throw r.error;
+    const empresa = r.data;
+    await loadClients(); buildClientFilter();
+
+    let aviso='';
+    if(criar){
+      res.innerHTML=`<div class="mg-res">⏳ Criando o acesso de ${esc(pnome)}…</div>`;
+      const {data,error} = await mgSb2().auth.signUp({
+        email, password: senha,
+        options:{ data:{ nome:pnome, role:'client', client_id: empresa.id } }
+      });
+      if(error) throw error;
+
+      const uid = data && data.user ? data.user.id : null;
+      let vinculo = {ok:false, motivo:'usuário não retornado'};
+      if(uid){
+        res.innerHTML=`<div class="mg-res">⏳ Amarrando o acesso à empresa…</div>`;
+        vinculo = await mgVincularPerfil(uid, pnome, empresa.id);
+      }
+      const precisaConfirmar = data && data.user && !data.user.confirmed_at && !data.session;
+
+      aviso = `<div class="cred">Endereço: ${location.origin+location.pathname}<br>E-mail: ${esc(email)}<br>Senha: ${esc(senha)}</div>`
+        + (precisaConfirmar
+            ? `<div style="margin-top:8px">⚠ A confirmação de e-mail está <b>ligada</b> no Supabase — ${esc(pnome)} precisa clicar no link recebido antes do primeiro login. Para evitar isso: Authentication → Providers → Email → desligue <b>Confirm email</b>.</div>`
+            : '')
+        + (vinculo.ok
+            ? `<div style="margin-top:8px">✓ Perfil confirmado: <b>cliente de ${esc(nome)}</b> — vai enxergar somente os documentos dessa empresa.</div>`
+            : `<div style="margin-top:8px">⚠ O login foi criado, mas <b>não consegui confirmar o vínculo com a empresa</b> (${esc(vinculo.motivo||'motivo desconhecido')}).
+                 Abra o Supabase → Table Editor → <b>profiles</b> e ajuste a linha de ${esc(pnome)} para <b>role = client</b> e <b>client_id = ${esc(empresa.id)}</b>, senão ela entra sem ver nada.</div>`)
+        + `<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Copie e envie por um canal seguro. A senha não fica guardada aqui.</div>`;
+    }
+
+    res.innerHTML = `<div class="mg-res ok">✓ <b>${esc(nome)}</b> criada${criar?` com acesso para ${esc(pnome)}`:''}.
+      ${semColuna?'<div style="margin-top:6px">O resumo não foi salvo: falta a coluna <b>resumo</b> na tabela <b>clients</b> (está no SQL que te enviei).</div>':''}
+      ${aviso}
+      <div style="margin-top:10px"><button class="mini-btn ghost" onclick="document.getElementById('nc-res').innerHTML=''">Ocultar</button></div></div>`;
+    $('nc-nome').value=''; $('nc-resumo').value='';
+    if($('nc-pnome')) $('nc-pnome').value='';
+    if($('nc-email')) $('nc-email').value='';
+    if($('nc-senha')) $('nc-senha').value='';
+    toast('Cliente criado ✓');
+  }catch(e){
+    const m=(e&&e.message)||'falha';
+    if(/signups? not allowed|disabled/i.test(m))
+      erro('A empresa foi criada, mas o cadastro de usuários está desligado no Supabase (Authentication → Providers → Email → "Allow new users to sign up").');
+    else if(/already registered|already exists/i.test(m))
+      erro('A empresa foi criada, mas já existe um usuário com esse e-mail.');
+    else erro('Não foi possível concluir: '+m);
+  }finally{ $('nc-btn').disabled=false }
+}
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 7 — janelas animadas + cadastro de cliente em popup
+   ===================================================================== */
+
+/* ---- animação de entrada e saída das janelas ---- */
+@keyframes mgFundoEntra{ from{opacity:0} to{opacity:1} }
+@keyframes mgFundoSai  { from{opacity:1} to{opacity:0} }
+@keyframes mgCaixaEntra{
+  0%  { opacity:0; transform:translateY(18px) scale(.96) }
+  60% { opacity:1 }
+  100%{ opacity:1; transform:translateY(0) scale(1) }
+}
+@keyframes mgCaixaSai{
+  from{ opacity:1; transform:translateY(0) scale(1) }
+  to  { opacity:0; transform:translateY(10px) scale(.985) }
+}
+@keyframes mgSobe{
+  from{ opacity:0; transform:translateY(10px) }
+  to  { opacity:1; transform:translateY(0) }
+}
+.mg-modal.on{ animation:mgFundoEntra .18s ease both }
+.mg-modal.on .cx{ animation:mgCaixaEntra .34s cubic-bezier(.22,1,.36,1) both }
+.mg-modal.saindo{ animation:mgFundoSai .16s ease both }
+.mg-modal.saindo .cx{ animation:mgCaixaSai .16s ease both }
+/* as seções entram em cascata, dando ritmo à abertura */
+.mg-modal.on .cc > *{ animation:mgSobe .34s cubic-bezier(.22,1,.36,1) both }
+.mg-modal.on .cc > *:nth-child(1){ animation-delay:.05s }
+.mg-modal.on .cc > *:nth-child(2){ animation-delay:.10s }
+.mg-modal.on .cc > *:nth-child(3){ animation-delay:.15s }
+.mg-modal.on .cc > *:nth-child(4){ animation-delay:.20s }
+.mg-modal.on .cc > *:nth-child(5){ animation-delay:.24s }
+.mg-modal .cb .x{transition:background .15s,color .15s,transform .15s}
+.mg-modal .cb .x:hover{transform:rotate(90deg)}
+
+/* ---- bloco que aparece ao marcar "criar acesso" ---- */
+.mg-abre{overflow:hidden;max-height:0;opacity:0;
+  transition:max-height .32s cubic-bezier(.22,1,.36,1), opacity .22s ease, margin .32s ease}
+.mg-abre.on{max-height:340px;opacity:1}
+
+/* ---- botão de abrir o cadastro ---- */
+.mg-add{display:inline-flex;align-items:center;gap:9px;background:var(--brass);color:var(--ink2);
+  border:0;border-radius:11px;padding:11px 18px;font-size:13.5px;font-weight:700;
+  transition:transform .15s cubic-bezier(.22,1,.36,1),box-shadow .2s,background .15s}
+.mg-add:hover{background:var(--brass2);color:#fff;transform:translateY(-2px);box-shadow:0 8px 20px rgba(194,161,91,.4)}
+.mg-add:active{transform:translateY(0) scale(.98)}
+.mg-add .p{font-size:17px;line-height:1;transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.mg-add:hover .p{transform:rotate(90deg)}
+
+@media (prefers-reduced-motion: reduce){
+  .mg-modal.on,.mg-modal.on .cx,.mg-modal.on .cc > *,.mg-modal.saindo,.mg-modal.saindo .cx{animation:none!important}
+  .mg-abre{transition:none}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 7
+   • cadastro de cliente vira janela, aberta por botão
+   • janelas com animação de entrada e saída
+   ===================================================================== */
+
+/* ---- fechar com animação (vale para todas as janelas novas) ---- */
+function mgFechar(id){
+  const el = $(id); if(!el || !el.classList.contains('on')) return;
+  el.classList.add('saindo');
+  setTimeout(()=>{ el.classList.remove('on','saindo') }, 170);
+}
+fecharConfig = function(){ mgFechar('mg-cfg') };
+
+/* ---- janela do cadastro de cliente ---- */
+(function(){
+  if(document.getElementById('mg-cli')) return;
+  const el=document.createElement('div');
+  el.className='mg-modal'; el.id='mg-cli';
+  el.innerHTML=`<div class="cx">
+    <div class="cb"><h2>Adicionar cliente</h2><button class="x" onclick="fecharNovoCliente()">✕</button></div>
+    <div class="cc">
+      <div class="mg-novocli">
+        <div class="desc" style="font-size:12.5px;color:var(--muted);line-height:1.55">
+          Cadastre a empresa e, se quiser, já crie o acesso dela — a pessoa entra e vê somente os documentos dessa empresa.
+        </div>
+        <div>
+          <div class="rot">Nome da empresa</div>
+          <input type="text" id="nc-nome" placeholder="ex.: Amakha Paris">
+        </div>
+        <div>
+          <div class="rot">Resumo da empresa</div>
+          <textarea id="nc-resumo" placeholder="Ramo, o que fazemos para ela, contexto do contrato…"></textarea>
+        </div>
+        <label class="op"><input type="checkbox" id="nc-criar" onchange="mgToggleAcesso()"> Criar também o acesso do cliente (e-mail e senha)</label>
+        <div id="nc-acesso" class="mg-abre">
+          <div class="mg-novocli" style="padding-top:10px">
+            <div class="par">
+              <div><div class="rot">Nome da pessoa</div><input type="text" id="nc-pnome" placeholder="ex.: Marina Costa"></div>
+              <div><div class="rot">E-mail de acesso</div><input type="text" id="nc-email" placeholder="marina@empresa.com.br" autocomplete="off"></div>
+            </div>
+            <div>
+              <div class="rot">Senha</div>
+              <div style="display:flex;gap:8px">
+                <input type="text" id="nc-senha" placeholder="mínimo 6 caracteres">
+                <button class="mini-btn" onclick="mgGerarSenhaCli()">Gerar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:9px;margin-top:4px">
+          <button class="btn-p" id="nc-btn" onclick="criarClienteCompleto()">Criar cliente</button>
+          <button class="mini-btn ghost" onclick="fecharNovoCliente()">Cancelar</button>
+        </div>
+        <div id="nc-res"></div>
+      </div>
+    </div>
+  </div>`;
+  el.addEventListener('click',e=>{ if(e.target===el) fecharNovoCliente() });
+  document.body.appendChild(el);
+})();
+
+function abrirNovoCliente(){
+  ['nc-nome','nc-resumo','nc-pnome','nc-email','nc-senha'].forEach(id=>{ const e=$(id); if(e) e.value='' });
+  const c=$('nc-criar'); if(c) c.checked=false;
+  const a=$('nc-acesso'); if(a) a.classList.remove('on');
+  const r=$('nc-res'); if(r) r.innerHTML='';
+  $('mg-cli').classList.add('on');
+  setTimeout(()=>{ const n=$('nc-nome'); if(n) n.focus() }, 340);
+}
+function fecharNovoCliente(){ mgFechar('mg-cli') }
+
+/* o bloco de acesso agora abre deslizando */
+mgToggleAcesso = function(){
+  const on = $('nc-criar').checked;
+  $('nc-acesso').classList.toggle('on', on);
+  if(on && !$('nc-senha').value) mgGerarSenhaCli();
+  if(on) setTimeout(()=>{ const p=$('nc-pnome'); if(p) p.focus() }, 260);
+};
+
+/* ---- na tela de Clientes, o formulário vira um botão ---- */
+const _mg7RenderClientes = renderClientes;
+renderClientes = async function(){
+  await _mg7RenderClientes();
+  if(VIEW!=='clientes') return;
+  const bloco = document.querySelector('#v-clientes .set-sec');
+  if(!bloco) return;
+  bloco.innerHTML = `
+    <h3>Clientes</h3>
+    <div class="desc">${CLIENTS.length} empresa(s) cadastrada(s). O acesso de cada cliente é criado junto com a empresa.</div>
+    <button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`;
+};
+
+/* ---- ao criar com sucesso, atualiza a lista por trás ---- */
+const _mg7Criar = criarClienteCompleto;
+criarClienteCompleto = async function(){
+  await _mg7Criar();
+  if(VIEW==='clientes'){
+    const lista = document.querySelector('#v-clientes .clist');
+    if(lista){
+      /* redesenha só a lista, preservando a janela aberta com o resultado */
+      const guardado = $('nc-res') ? $('nc-res').innerHTML : '';
+      await _mg7RenderClientes();
+      const bloco = document.querySelector('#v-clientes .set-sec');
+      if(bloco) bloco.innerHTML = `
+        <h3>Clientes</h3>
+        <div class="desc">${CLIENTS.length} empresa(s) cadastrada(s). O acesso de cada cliente é criado junto com a empresa.</div>
+        <button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`;
+      if(guardado && $('nc-res')) $('nc-res').innerHTML = guardado;
+    }
+  }
+};
+
+/* ---- fechar janelas com Esc ---- */
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if($('mg-cli') && $('mg-cli').classList.contains('on')) return fecharNovoCliente();
+  if($('mg-cfg') && $('mg-cfg').classList.contains('on')) return fecharConfig();
+});
+</script>
 </body>
 </html>
