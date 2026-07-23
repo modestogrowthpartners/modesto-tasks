@@ -6869,5 +6869,222 @@ mgDefinirIcone();
   topo.insertBefore(el, topo.firstChild);
 })();
 </script>
+<script>
+/* =====================================================================
+   ADIÇÃO 27 — "Logins de e-mail estão desativados"
+   Ao desligar a confirmação de e-mail, é fácil desligar sem querer o
+   PROVEDOR de e-mail inteiro no Supabase. Aí ninguém entra — nem o
+   administrador. Aqui a plataforma passa a reconhecer esse caso, dizer
+   o que houve e apontar exatamente onde religar.
+   ===================================================================== */
+
+const MG_LINK_EMAIL = 'https://supabase.com/dashboard/project/eeqaabwsheaiwyhujcqj/auth/providers';
+
+/* ---- 1. mensagem certa na tela de entrada ---- */
+(function(){
+  const anterior = signIn;
+  signIn = async function(){
+    const email=($('li-email').value||'').trim();
+    const pass=$('li-pass').value||'';
+    const err=$('li-err');
+    if(!email||!pass) return anterior();
+
+    const {error} = await sb.auth.signInWithPassword({email, password:pass});
+    if(!error){ await boot(); return }
+    const m = (error.message||'').toLowerCase();
+
+    if(/email logins are disabled|email_provider_disabled|provider is disabled|signups? not allowed/.test(m)){
+      err.innerHTML = `<b>O login por e-mail está desligado no Supabase.</b><br>
+        Isso costuma acontecer sem querer ao mexer na confirmação de e-mail:
+        em vez de desligar só o <i>Confirm email</i>, o provedor inteiro é desligado.
+        Ninguém consegue entrar enquanto ele estiver assim — nem o administrador.
+        <div class="mg-liberar">
+          <a href="${MG_LINK_EMAIL}" target="_blank" rel="noopener"
+             style="display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--text);text-decoration:none">
+            Abrir Authentication → Providers →
+          </a>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5">
+          Lá: ligue <b>Enable Email provider</b> · deixe <b>Confirm email</b> desligado ·
+          mantenha <b>Allow new users to sign up</b> ligado. Salve e tente de novo.
+        </div>`;
+      return;
+    }
+    /* os demais casos continuam com as mensagens que já tínhamos */
+    return anterior();
+  };
+})();
+
+/* ---- 2. o administrador é avisado antes de ficar sem acesso ---- */
+(function(){
+  const _verif = mgVerificarAuth;
+  mgVerificarAuth = async function(){
+    const r = await _verif();
+    try{
+      const resp = await fetch(SUPABASE_URL+'/auth/v1/settings', {headers:{apikey:SUPABASE_ANON}});
+      if(resp.ok){
+        const s = await resp.json();
+        if(MG_AUTH) MG_AUTH.emailLigado = !(s.external && s.external.email === false);
+      }
+    }catch(_){}
+    return MG_AUTH;
+  };
+  const _alerta = mgAlertaAcesso;
+  mgAlertaAcesso = function(){
+    if(isAdmin() && MG_AUTH && MG_AUTH.emailLigado === false){
+      return `<div class="mg-alerta mg-alerta-acesso" style="background:rgba(184,74,62,.10);border-color:rgba(184,74,62,.35)">
+        <span class="sinal">⛔</span>
+        <div class="txt">
+          <b>O login por e-mail está desligado no Supabase.</b>
+          Enquanto estiver assim, ninguém consegue entrar — inclusive você, quando esta sessão expirar.
+          <ol class="mg-passos">
+            <li>Abra <b>Authentication → Providers → Email</b></li>
+            <li>Ligue <b>Enable Email provider</b></li>
+            <li>Deixe <b>Confirm email</b> desligado e <b>Allow new users to sign up</b> ligado</li>
+          </ol>
+          <div class="acoes">
+            <a href="${MG_LINK_EMAIL}" target="_blank" rel="noopener">Abrir essa tela no Supabase →</a>
+            <button onclick="mgRechecarAuth()">Já religuei, verificar</button>
+          </div>
+        </div>
+        <button class="fechar" onclick="this.closest('.mg-alerta').remove()" title="Fechar">✕</button>
+      </div>`;
+    }
+    return _alerta();
+  };
+  const _recheca = mgRechecarAuth;
+  mgRechecarAuth = async function(){
+    toast('Verificando…');
+    await mgVerificarAuth();
+    if(MG_AUTH && MG_AUTH.emailLigado === false){
+      toast('O provedor de e-mail continua desligado');
+      return;
+    }
+    return _recheca();
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 28 — nomes no lugar, cards parados, MGP escurecendo no fundo
+   ===================================================================== */
+
+/* ---- o card de Clientes deixa de trocar de logo sozinho ---- */
+.mg-logos{animation:none!important}
+.mg-logos .lg{transition:none}
+
+/* ---- o MGP do fundo escurece e clareia devagar ----
+   Substitui o pulsar de cada letra por um respiro único e lento do
+   conjunto. Fica calmo, sem nada saltando na frente do conteúdo.      */
+.bg-marks text{animation:none!important}
+.bg-marks{animation:mgFundoEscurece 14s ease-in-out infinite alternate!important}
+@keyframes mgFundoEscurece{
+  from{ opacity:.55 }
+  to  { opacity:1 }
+}
+body.theme-dark .bg-marks{animation:mgFundoEscureceNoite 14s ease-in-out infinite alternate!important}
+@keyframes mgFundoEscureceNoite{
+  from{ opacity:.45 }
+  to  { opacity:.9 }
+}
+@media (prefers-reduced-motion: reduce){
+  .bg-marks{animation:none!important;opacity:.8}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 28
+   1) O Chrome estava TRADUZINDO a página sozinho — por isso apareceu
+      "Tarefas de Modesto", "Bater papo", "Lista de verificação".
+      A página já é em português; agora ela pede para não ser traduzida.
+   2) O card de Clientes parou de trocar de logo a cada 2 segundos.
+   3) O MGP do fundo passa a escurecer e clarear devagar, sozinho.
+   ===================================================================== */
+
+/* ---------- 1. impedir a tradução automática ---------- */
+(function(){
+  const html = document.documentElement;
+  html.setAttribute('lang','pt-BR');
+  html.setAttribute('translate','no');
+  html.classList.add('notranslate');
+  if(!document.querySelector('meta[name="google"][content="notranslate"]')){
+    const m = document.createElement('meta');
+    m.name = 'google'; m.content = 'notranslate';
+    document.head.appendChild(m);
+  }
+})();
+
+/* ---------- 2. logo do cliente parada ---------- */
+if(typeof mgPararLogos === 'function') mgPararLogos();
+mgMontarLogos = function(card){
+  const ic = card.querySelector('.ic'); if(!ic) return;
+  const lista = (CLIENTS||[]).filter(c=>c.logo_url);
+  const ds = card.querySelector('.ds');
+  if(ds) ds.textContent = `${(CLIENTS||[]).length} empresa${(CLIENTS||[]).length===1?'':'s'} · logos, acessos e resumo`;
+  if(!lista.length) return;                 /* sem logo, mantém o ícone */
+
+  /* uma logo só, fixa — a primeira empresa com logo cadastrada */
+  const c = lista[0];
+  const caixa = document.createElement('div');
+  caixa.className = 'mg-logos';
+  caixa.innerHTML = `<span class="lg on" title="${esc(c.nome)}"><img src="${esc(c.logo_url)}" alt=""></span>`;
+  ic.replaceWith(caixa);
+};
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 29 — avatar do responsável: sem realce, com foto
+   ===================================================================== */
+/* o avatar de quem é você fica igual aos outros — o que muda é a foto */
+.mg-resp .av.eu{border-color:var(--card)!important;box-shadow:none!important}
+.mg-resp-linha .av.eu{box-shadow:none!important}
+.mg-resp .av{border-width:2px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 29
+   • sem anel em volta do seu avatar (ele parecia maior que os outros)
+   • a SUA foto passa a aparecer sempre: em vez de depender do mapa de
+     fotos carregado no início, usamos direto a foto do seu perfil
+   ===================================================================== */
+
+/* foto do responsável — prioriza a sua, que a gente sempre tem à mão */
+mgAvatarResp = function(nome){
+  const eu = (typeof mgSouEu==='function') && mgSouEu(nome);
+  let url = null;
+
+  if(eu && ME && ME.avatar_url) url = ME.avatar_url;      /* sua foto, sempre atual */
+  else {
+    const f = mgFotoDe(nome);
+    if(f && f.url) url = f.url;
+  }
+  const dentro = url ? `<img src="${esc(url)}" alt="">` : esc(initials(nome));
+  return `<span class="av ${eu?'eu':''}" title="${esc(nome)}${eu?' (você)':''}">${dentro}</span>`;
+};
+
+/* se o mapa de fotos estiver vazio ou sem a sua, recarrega —
+   com um intervalo mínimo, para nunca virar um laço */
+(function(){
+  let ultimaTentativa = 0;
+  const _mg29Aplicar = mgAplicarRespNosCards;
+  mgAplicarRespNosCards = function(raiz){
+    const r = _mg29Aplicar(raiz);
+    if(!ME) return r;
+    const agora = Date.now();
+    if(agora - ultimaTentativa < 2500) return r;        /* no máximo a cada 2,5s */
+
+    const semFotos = !MG_FOTOS || Object.keys(MG_FOTOS).length===0;
+    const minhaFaltando = !!ME.avatar_url && (()=>{
+      const f = mgFotoDe(ME.name||'');
+      return !f || !f.url;
+    })();
+    if(semFotos || minhaFaltando){
+      ultimaTentativa = agora;
+      mgCarregarFotos().then(()=>{ if(typeof render==='function') render(); });
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
