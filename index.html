@@ -499,6 +499,115 @@ body.hide-card-av .card-t .avs{display:none}
 .side-late .big{font-family:var(--font-d);font-size:22px;font-weight:600;color:#d01f45;line-height:1}
 .side-late .lbl{font-size:11px;color:var(--muted);line-height:1.2}
 </style>
+<style>
+/* =====================================================================
+   ADIÇÃO — Documentos e Chat
+   Usa as mesmas variáveis do app, então acompanha tema claro/escuro,
+   densidade e arredondamento sem precisar de nada extra.
+   ===================================================================== */
+
+/* ---------- comuns ---------- */
+.mg-crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:18px}
+.mg-crumb a{color:var(--brass2);cursor:pointer;font-weight:600}
+.mg-crumb a:hover{text-decoration:underline}
+.mg-empty{font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);border-radius:11px;padding:18px;text-align:center}
+.mg-sec{display:flex;align-items:center;gap:10px;margin:24px 0 12px}
+.mg-sec:first-child{margin-top:0}
+.mg-sec .sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.mg-sec .t{font-family:var(--font-d);font-size:16px;font-weight:500}
+.mg-sec .c{font-size:12px;color:var(--muted)}
+.mg-load{font-size:13px;color:var(--muted);padding:18px 0}
+
+/* ---------- DOCUMENTOS ---------- */
+.dcat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px}
+@media(max-width:1000px){.dcat-row{grid-template-columns:repeat(2,1fr)}}
+.dcat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;cursor:pointer;text-align:left;transition:transform .15s,box-shadow .15s;display:block;width:100%}
+.dcat:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.10)}
+.dcat .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;margin-bottom:10px;font-size:16px}
+.dcat .nm{font-family:var(--font-d);font-size:15.5px;font-weight:500;color:var(--text)}
+.dcat .c{font-size:12px;color:var(--muted);margin-top:2px}
+.dfolders{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.dfolder{position:relative;background:var(--card);border:1px solid var(--line);border-radius:0 13px 13px 13px;padding:16px 18px 14px;cursor:pointer;text-align:left;transition:transform .15s,box-shadow .15s;margin-top:13px;width:100%}
+.dfolder::before{content:"";position:absolute;top:-12px;left:-1px;width:92px;height:13px;background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:9px 9px 0 0}
+.dfolder::after{content:"";position:absolute;top:-4px;left:0;right:0;height:8px;background:var(--card)}
+.dfolder:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.12)}
+.dfolder .cl{display:flex;align-items:center;gap:9px;position:relative;z-index:1}
+.dfolder .nm{font-family:var(--font-d);font-size:16.5px;font-weight:500;color:var(--text)}
+.dfolder .mt{font-size:12px;color:var(--muted);margin-top:9px;display:flex;gap:8px;align-items:center;position:relative;z-index:1}
+.dfolder .open{margin-left:auto;color:var(--brass2);font-weight:600;font-size:12px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px}
+.dcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;text-align:left;width:100%}
+.dcard:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.10)}
+.dcard .tp{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:3px 9px;border-radius:999px;display:inline-block;margin-bottom:9px}
+.dcard .ti{font-family:var(--font-d);font-size:15px;font-weight:500;line-height:1.3;color:var(--text)}
+.dcard .mt{display:flex;align-items:center;gap:8px;margin-top:11px;font-size:11.5px;color:var(--muted)}
+.dcard .open{margin-left:auto;color:var(--brass2);font-weight:600;font-size:12px}
+
+/* ---------- CHAT ---------- */
+#v-chat.on{display:flex}
+#v-chat{gap:0;height:calc(100vh - 172px);min-height:440px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+.mgc-side{width:212px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card2)}
+.mgc-search{margin:12px 12px 8px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.mgc-search input{border:0;background:none;outline:none;font-size:12.5px;width:100%;font-family:inherit;color:var(--text)}
+.mgc-list{flex:1;overflow:auto;padding:0 8px 12px}
+.mgc-sec{display:flex;align-items:center;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:12px 8px 5px}
+.mgc-sec .add{margin-left:auto;background:none;border:0;color:var(--muted2);width:20px;height:20px;border-radius:6px;font-size:15px;line-height:1}
+.mgc-sec .add:hover{background:var(--card);color:var(--brass2)}
+.mgc-i{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:500;background:none;border:0;text-align:left;width:100%;transition:background .15s,color .15s}
+.mgc-i:hover{background:var(--card);color:var(--text)}
+.mgc-i.on{background:rgba(194,161,91,.16);color:var(--brass2);font-weight:600}
+.mgc-i .h{opacity:.6}
+.mgc-i .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgc-i .b{margin-left:auto;background:var(--st-block);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.mgc-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.mgc-top{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);min-height:56px;flex-wrap:wrap}
+.mgc-top .nm{font-family:var(--font-d);font-size:17px;font-weight:500;display:flex;align-items:center;gap:8px}
+.mgc-top .sub{font-size:12px;color:var(--muted)}
+.mgc-top .sp{flex:1}
+.mgc-msgs{flex:1;overflow:auto;padding:16px 20px 6px;display:flex;flex-direction:column}
+.mgc-day{align-self:center;font-size:11px;font-weight:700;color:var(--muted2);background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px 13px;margin:10px 0 8px}
+.mgc-m{display:flex;gap:11px;padding:6px 10px;border-radius:11px;position:relative}
+.mgc-m:hover{background:var(--card2)}
+.mgc-m .av{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:13px;color:#1a1a18}
+.mgc-m .bd{min-width:0;flex:1}
+.mgc-m .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mgc-m .who{font-weight:700;font-size:13.5px}
+.mgc-m .rl{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--brass2);background:rgba(194,161,91,.16);padding:1px 7px;border-radius:999px}
+.mgc-m .rl.cli{color:#7C8A97;background:rgba(124,138,151,.18)}
+.mgc-m .tm{font-size:11px;color:var(--muted2)}
+.mgc-m .tx{font-size:13.5px;line-height:1.5;margin-top:2px;white-space:pre-wrap;word-break:break-word}
+.mgc-m .acts{position:absolute;top:-10px;right:12px;display:none;background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.mgc-m:hover .acts{display:flex}
+.mgc-m .acts button{background:none;border:0;font-size:14px;width:28px;height:26px;border-radius:6px;display:grid;place-items:center}
+.mgc-m .acts button:hover{background:var(--card2)}
+.mgc-re{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.mgc-re span{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:2px 9px;cursor:pointer;font-weight:600}
+.mgc-re span.mine{background:rgba(194,161,91,.16);border-color:var(--brass);color:var(--brass2)}
+.mgc-sys{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin:5px 10px}
+.mgc-sys .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.mgc-sys b{color:var(--text)}
+.mgc-sys .from{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--brass2)}
+.mgc-comp{padding:10px 18px 14px}
+.mgc-box{display:flex;align-items:flex-end;gap:8px;background:var(--card);border:1px solid var(--line2);border-radius:13px;padding:9px 12px}
+.mgc-box:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgc-box textarea{flex:1;border:0;background:none;outline:none;font-family:inherit;font-size:13.5px;resize:none;max-height:120px;color:var(--text);line-height:1.5}
+.mgc-box .tool{background:none;border:0;color:var(--muted);width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px}
+.mgc-box .tool:hover{background:var(--card2);color:var(--brass2)}
+.mgc-box .snd{background:var(--brass);border:0;color:#1a1a18;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:15px}
+.mgc-box .snd:hover{background:var(--brass2);color:#fff}
+.mgc-hint{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:4px}
+.mgc-hint b{color:var(--brass2)}
+.mgc-hint button{background:none;border:0;color:var(--brass2);font-weight:600;text-decoration:underline;cursor:pointer;font-size:11px;font-family:inherit}
+.mgc-setup{margin:auto;max-width:560px;text-align:center;padding:30px}
+.mgc-setup h3{font-family:var(--font-d);font-size:20px;font-weight:500;margin-bottom:8px}
+.mgc-setup p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.mgc-sql{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:14px;text-align:left;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.6;color:var(--text);max-height:230px;overflow:auto;white-space:pre;margin-bottom:14px}
+.mgc-stack{display:flex;align-items:center}
+.mgc-stack .sav{width:26px;height:26px;border-radius:50%;border:2px solid var(--card);display:grid;place-items:center;font-size:9.5px;font-weight:700;color:#1a1a18;margin-left:-7px}
+.mgc-stack .sav:first-child{margin-left:0}
+.mgc-stack .more{font-size:11px;color:var(--muted);margin-left:7px;font-weight:600}
+.mgc-typing{padding:0 30px 6px;font-size:12px;color:var(--muted2);min-height:20px}
+</style>
 </head>
 <body>
 
@@ -607,6 +716,8 @@ body.hide-card-av .card-t .avs{display:none}
         <div class="view" id="v-clientes"></div>
         <div class="view" id="v-equipe"></div>
         <div class="view" id="v-settings"></div>
+        <div class="view" id="v-docs"></div>
+        <div class="view" id="v-chat"></div>
       </div>
     </div>
   </div>
@@ -1877,6 +1988,510 @@ function fixPlaceholders(){
   const {data:{session}}=await sb.auth.getSession();
   if(session) boot();
 })();
+</script>
+<script>
+/* =====================================================================
+   ADIÇÃO — módulos Documentos e Chat
+   ---------------------------------------------------------------------
+   Nada do app original foi alterado. Este bloco apenas ACRESCENTA:
+     • duas entradas no menu (Documentos e Chat);
+     • dois renderizadores novos;
+     • estende showView()/render() por wrapper, preservando o original.
+   Reaproveita o que já existe: sb, ME, CLIENTS, isAdmin(), esc(), $(),
+   toast(), initials(), clientName(), clientColor(), clientChipHTML(),
+   hexA() e fmtDate().
+   ===================================================================== */
+
+/* ---------- 1. menu: insere antes de Configurações ---------- */
+(function(){
+  const iSet = NAV.findIndex(n=>n.v==='settings');
+  const novos = [
+    {v:'docs', ic:'▣', label:'Documentos'},
+    {v:'chat', ic:'✉', label:'Chat'},
+  ];
+  NAV.splice(iSet<0?NAV.length:iSet, 0, ...novos);
+  if($('nav') && $('nav').children.length) buildNav();   /* se já montou, remonta */
+})();
+
+/* ---------- 2. estende a navegação sem alterar as originais ---------- */
+const _mgOrigShowView = showView;
+showView = function(v){
+  if(v==='docs' || v==='chat'){
+    VIEW = v;
+    document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+    document.querySelectorAll('.view').forEach(el=>el.classList.remove('on'));
+    $('v-'+v).classList.add('on');
+    $('view-title').textContent = (v==='docs' ? 'Documentos' : 'Chat');
+    if(typeof buildFilters==='function') buildFilters();
+    render();
+    return;
+  }
+  _mgOrigShowView(v);
+};
+const _mgOrigRender = render;
+render = function(){
+  if(VIEW==='docs') return renderDocsView();
+  if(VIEW==='chat') return renderChatView();
+  return _mgOrigRender();
+};
+
+/* =====================================================================
+   DOCUMENTOS — lê a tabela `documents` de verdade
+   Colunas: id, client_id, titulo, tipo, storage_path, metadata, created_at
+   Abre por signed URL do bucket privado `documents`.
+   ===================================================================== */
+const DOC_TIPOS = [
+  {k:'apresentacao', label:'Apresentações', hex:'#2E9E6B', ic:'▤'},
+  {k:'proposta',     label:'Propostas',     hex:'#9a7b3c', ic:'▦'},
+  {k:'diagnostico',  label:'Diagnósticos',  hex:'#2D6FCF', ic:'◈'},
+  {k:'weekly',       label:'Weeklys',       hex:'#D98324', ic:'▧'},
+  {k:'concorrencia', label:'Concorrência',  hex:'#8E3FBE', ic:'⌾'},
+];
+const docTipo = k => DOC_TIPOS.find(t=>t.k===k) || {k:k||'outro', label:(k||'Outro'), hex:'#8a8271', ic:'▢'};
+let DOCS = [];
+let DOCS_LOADED = false;
+let DVIEW = {kind:'home'};
+
+async function loadDocs(){
+  try{
+    const {data,error} = await sb.from('documents').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    DOCS = data || [];
+    DOCS_LOADED = true;
+  }catch(e){
+    console.warn('[docs]', e);
+    DOCS = []; DOCS_LOADED = 'erro';
+    window._docsErr = e.message || String(e);
+  }
+}
+function dGo(v){ DVIEW = v; renderDocsView(); }
+function docDate(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+}
+async function openDoc(id){
+  const d = DOCS.find(x=>String(x.id)===String(id));
+  if(!d) return;
+  if(!d.storage_path){ toast('Documento sem arquivo anexado'); return }
+  toast('Abrindo…');
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(d.storage_path, 60);
+    if(error) throw error;
+    window.open(data.signedUrl,'_blank','noopener');
+  }catch(e){ toast('Não foi possível abrir: '+(e.message||'erro')) }
+}
+function docCardHTML(d){
+  const t = docTipo(d.tipo);
+  return `<button class="dcard" onclick="openDoc('${esc(d.id)}')">
+    <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
+    <div class="ti">${esc(d.titulo||'(sem título)')}</div>
+    <div class="mt">${esc(docDate(d.created_at))}<span class="open">Abrir →</span></div>
+  </button>`;
+}
+function renderDocsView(){
+  const el = $('v-docs');
+  if(!DOCS_LOADED){
+    el.innerHTML = `<div class="mg-load">Carregando documentos…</div>`;
+    loadDocs().then(renderDocsView);
+    return;
+  }
+  const topo = `<div style="display:flex;align-items:center;margin-bottom:16px">
+      <div class="mg-crumb" style="margin:0">${
+        DVIEW.kind==='home'
+          ? `<b style="color:var(--text)">Visão geral</b>`
+          : `<a onclick="dGo({kind:'home'})">Documentos</a><span>›</span><b style="color:var(--text)">${
+              DVIEW.kind==='client' ? esc(clientName(DVIEW.id)) : esc(docTipo(DVIEW.id).label)}</b>`
+      }</div>
+      <div style="flex:1"></div>
+      ${isAdmin()?`<button class="btn-p" onclick="uploadDoc()">+ Enviar documento</button>`:''}
+    </div>`;
+
+  if(DOCS_LOADED==='erro'){
+    el.innerHTML = topo + `<div class="mg-empty">Não foi possível ler a tabela <b>documents</b>.<br><span style="font-size:12px">${esc(window._docsErr||'')}</span></div>`;
+    return;
+  }
+  if(!DOCS.length){
+    el.innerHTML = topo + `<div class="mg-empty">Nenhum documento publicado ainda.${isAdmin()?' Use “Enviar documento” para publicar o primeiro.':''}</div>`;
+    return;
+  }
+
+  if(DVIEW.kind==='home'){
+    const tipos = DOC_TIPOS.filter(t=>DOCS.some(d=>d.tipo===t.k));
+    DOCS.forEach(d=>{ if(d.tipo && !tipos.some(t=>t.k===d.tipo)) tipos.push(docTipo(d.tipo)); });
+    el.innerHTML = topo
+      + `<div class="dcat-row">` + tipos.map(t=>{
+          const n = DOCS.filter(d=>d.tipo===t.k).length;
+          return `<button class="dcat" onclick="dGo({kind:'cat',id:'${esc(t.k)}'})">
+            <span class="ic" style="background:${hexA(t.hex,.14)};color:${t.hex}">${t.ic}</span>
+            <div class="nm">${esc(t.label)}</div><div class="c">${n} documento${n===1?'':'s'}</div></button>`;
+        }).join('') + `</div>`
+      + `<div class="mg-sec"><span class="t">Pastas por cliente</span></div><div class="dfolders">`
+      + CLIENTS.map(c=>{
+          const ds = DOCS.filter(d=>d.client_id===c.id);
+          if(!ds.length && !isAdmin()) return '';
+          return `<button class="dfolder" onclick="dGo({kind:'client',id:'${esc(c.id)}'})">
+            <div class="cl">${clientChipHTML(c.id)}</div>
+            <div class="mt">${ds.length} documento${ds.length===1?'':'s'}<span class="open">Abrir pasta →</span></div>
+          </button>`;
+        }).join('') + `</div>`;
+  }
+  else if(DVIEW.kind==='client'){
+    const ds = DOCS.filter(d=>d.client_id===DVIEW.id);
+    const tipos = DOC_TIPOS.filter(t=>ds.some(d=>d.tipo===t.k));
+    ds.forEach(d=>{ if(d.tipo && !tipos.some(t=>t.k===d.tipo)) tipos.push(docTipo(d.tipo)); });
+    el.innerHTML = topo + (tipos.length ? tipos.map(t=>{
+      const list = ds.filter(d=>d.tipo===t.k);
+      return `<div class="mg-sec"><span class="sw" style="background:${t.hex}"></span><span class="t">${esc(t.label)}</span><span class="c">${list.length}</span></div>
+        <div class="dgrid">${list.map(docCardHTML).join('')}</div>`;
+    }).join('') : `<div class="mg-empty">Nenhum documento para este cliente ainda.</div>`);
+  }
+  else{
+    const t = docTipo(DVIEW.id);
+    const html = CLIENTS.map(c=>{
+      const list = DOCS.filter(d=>d.client_id===c.id && d.tipo===t.k);
+      if(!list.length) return '';
+      return `<div class="mg-sec">${clientChipHTML(c.id)}<span class="c">${list.length}</span></div>
+        <div class="dgrid">${list.map(docCardHTML).join('')}</div>`;
+    }).join('');
+    el.innerHTML = topo + (html || `<div class="mg-empty">Nenhum documento nesta categoria.</div>`);
+  }
+}
+/* envio de documento (admin) — grava no Storage e na tabela */
+function uploadDoc(){
+  if(!isAdmin()) return;
+  const cliOpts = CLIENTS.map(c=>`<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('');
+  const tpOpts  = DOC_TIPOS.map(t=>`<option value="${t.k}">${esc(t.label)}</option>`).join('');
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div id="mg-upl" style="position:fixed;inset:0;background:rgba(10,10,9,.55);display:grid;place-items:center;z-index:80;padding:20px">
+    <div style="background:var(--paper);border:1px solid var(--line2);border-radius:16px;max-width:440px;width:100%;padding:22px">
+      <h3 style="font-family:var(--font-d);font-size:19px;font-weight:500;margin-bottom:14px">Enviar documento</h3>
+      <label style="display:block;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted);margin:12px 0 6px">Cliente</label>
+      <select id="ud-cli" style="width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)">${cliOpts}</select>
+      <label style="display:block;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted);margin:12px 0 6px">Tipo</label>
+      <select id="ud-tp" style="width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)">${tpOpts}</select>
+      <label style="display:block;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted);margin:12px 0 6px">Título</label>
+      <input id="ud-ti" type="text" placeholder="ex.: Apresentação de resultados · Julho" style="width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)">
+      <label style="display:block;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted);margin:12px 0 6px">Arquivo</label>
+      <input id="ud-f" type="file" style="width:100%;font-size:12.5px;color:var(--muted)">
+      <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px">
+        <button class="btn-g" onclick="document.getElementById('mg-upl').remove()">Cancelar</button>
+        <button class="btn-p" id="ud-go">Enviar</button>
+      </div>
+      <div id="ud-st" style="font-size:12px;color:var(--muted);margin-top:10px"></div>
+    </div></div>`;
+  document.body.appendChild(wrap.firstChild);
+  $('ud-go').onclick = async ()=>{
+    const cid=$('ud-cli').value, tp=$('ud-tp').value, ti=$('ud-ti').value.trim(), f=$('ud-f').files[0];
+    if(!ti){ $('ud-st').textContent='Dê um título ao documento.'; return }
+    if(!f){ $('ud-st').textContent='Escolha um arquivo.'; return }
+    $('ud-st').textContent='Enviando…'; $('ud-go').disabled=true;
+    try{
+      const ext = (f.name.split('.').pop()||'bin').toLowerCase();
+      const path = `${cid}/${(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(16).slice(2))}.${ext}`;
+      const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
+      if(up.error) throw up.error;
+      const ins = await sb.from('documents').insert({client_id:cid, titulo:ti, tipo:tp, storage_path:path});
+      if(ins.error) throw ins.error;
+      $('mg-upl').remove();
+      DOCS_LOADED=false; renderDocsView();
+      toast('Documento publicado ✓');
+    }catch(e){
+      $('ud-st').textContent = 'Erro: '+(e.message||'falhou');
+      $('ud-go').disabled=false;
+    }
+  };
+}
+
+/* =====================================================================
+   CHAT
+   Detecta sozinho se as tabelas (channels / channel_members / messages)
+   já existem no banco. Se existirem → conversa real, com realtime.
+   Se não → mostra o SQL pronto para criar, com um clique para copiar.
+   ===================================================================== */
+let CH_READY = null;      /* null=checando, true=tabelas ok, false=faltam */
+let CHANNELS = [];
+let CHAN = null;
+let CHMSGS = {};
+let CH_SUB = null;
+let CH_FILTER = '';
+
+const CHAT_SQL = `-- Chat da plataforma Modesto — rode no SQL Editor do Supabase
+create table if not exists public.channels (
+  id uuid primary key default gen_random_uuid(),
+  tipo text not null check (tipo in ('client','team','dm')),
+  nome text not null,
+  client_id uuid references public.clients(id) on delete cascade,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+create table if not exists public.channel_members (
+  channel_id uuid not null references public.channels(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  last_read_at timestamptz not null default now(),
+  primary key (channel_id, profile_id)
+);
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  channel_id uuid not null references public.channels(id) on delete cascade,
+  author_id uuid references public.profiles(id),
+  author_name text,
+  body text not null,
+  kind text not null default 'user',
+  created_at timestamptz not null default now()
+);
+create index if not exists messages_ch_idx on public.messages(channel_id, created_at desc);
+
+-- quem pode ver um canal
+create or replace function public.can_see_channel(cid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from public.channel_members m
+                  where m.channel_id = cid and m.profile_id = auth.uid())
+      or public.is_admin()
+      or exists (select 1 from public.channels c
+                  where c.id = cid and c.tipo='client'
+                    and c.client_id = public.current_client_id());
+$$;
+
+alter table public.channels        enable row level security;
+alter table public.channel_members enable row level security;
+alter table public.messages        enable row level security;
+
+create policy ch_sel  on public.channels        for select using (public.can_see_channel(id));
+create policy chm_sel on public.channel_members for select using (public.can_see_channel(channel_id));
+create policy msg_sel on public.messages        for select using (public.can_see_channel(channel_id));
+create policy msg_ins on public.messages        for insert with check (public.can_see_channel(channel_id) and author_id = auth.uid());
+create policy ch_ins  on public.channels        for insert with check (public.is_admin());
+create policy chm_ins on public.channel_members for insert with check (public.is_admin());
+
+-- realtime
+alter publication supabase_realtime add table public.messages;`;
+
+async function checkChatTables(){
+  try{
+    const {error} = await sb.from('channels').select('id').limit(1);
+    CH_READY = !error;
+    if(error) window._chErr = error.message;
+  }catch(e){ CH_READY=false; window._chErr = e.message }
+}
+async function loadChannels(){
+  const {data,error} = await sb.from('channels').select('*').order('tipo').order('nome');
+  if(error) throw error;
+  CHANNELS = data||[];
+  if(!CHAN && CHANNELS.length) CHAN = CHANNELS[0].id;
+}
+async function loadMsgs(cid){
+  const {data,error} = await sb.from('messages').select('*').eq('channel_id',cid).order('created_at',{ascending:true}).limit(200);
+  if(error) throw error;
+  CHMSGS[cid] = data||[];
+}
+function chSubscribe(){
+  if(CH_SUB) return;
+  CH_SUB = sb.channel('chat-rt').on('postgres_changes',
+    {event:'INSERT', schema:'public', table:'messages'},
+    p=>{
+      const m = p.new;
+      (CHMSGS[m.channel_id] = CHMSGS[m.channel_id]||[]).push(m);
+      if(m.channel_id===CHAN && VIEW==='chat') renderChatView();
+    }).subscribe();
+}
+function chFilter(v){ CH_FILTER=(v||'').toLowerCase(); renderChatView(); }
+async function openChan(id){
+  CHAN = id;
+  if(!CHMSGS[id]){ try{ await loadMsgs(id) }catch(e){ console.warn(e) } }
+  renderChatView();
+}
+function chTime(ts){ const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0') }
+function chDay(ts){
+  const d=new Date(ts), h=new Date(), o=new Date(Date.now()-864e5);
+  if(d.toDateString()===h.toDateString()) return 'Hoje';
+  if(d.toDateString()===o.toDateString()) return 'Ontem';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function renderChatView(){
+  const el = $('v-chat');
+  if(CH_READY===null){
+    el.innerHTML = `<div class="mg-load" style="margin:auto">Verificando o chat…</div>`;
+    checkChatTables().then(async()=>{
+      if(CH_READY){ try{ await loadChannels(); if(CHAN) await loadMsgs(CHAN); chSubscribe(); }catch(e){ console.warn(e) } }
+      renderChatView();
+    });
+    return;
+  }
+  if(CH_READY===false){
+    el.innerHTML = `<div class="mgc-setup">
+      <h3>Chat — falta criar as tabelas</h3>
+      <p>O chat usa três tabelas no mesmo banco (<b>channels</b>, <b>channel_members</b> e <b>messages</b>), com as mesmas regras de acesso que já protegem as demandas e os documentos. Rode o SQL abaixo no <b>SQL Editor do Supabase</b> e recarregue esta página — o chat liga sozinho.</p>
+      <div class="mgc-sql" id="mgc-sql">${esc(CHAT_SQL)}</div>
+      <button class="btn-p" onclick="copyChatSQL()">Copiar SQL</button>
+      <p style="margin-top:14px;font-size:12px">${esc(window._chErr||'')}</p>
+    </div>`;
+    return;
+  }
+  /* --- modo real --- */
+  const f = c => !CH_FILTER || (c.nome||'').toLowerCase().includes(CH_FILTER);
+  const grupo = (tipo,label,addable) => {
+    const cs = CHANNELS.filter(c=>c.tipo===tipo && f(c));
+    if(!cs.length && CH_FILTER) return '';
+    return `<div class="mgc-sec">${label}${addable&&isAdmin()?`<button class="add" title="Novo canal" onclick="newChannel('${tipo}')">+</button>`:''}</div>`
+      + (cs.length ? cs.map(c=>`<button class="mgc-i ${c.id===CHAN?'on':''}" onclick="openChan('${c.id}')">
+            <span class="h">${tipo==='dm'?'◍':'#'}</span><span class="nm">${esc(c.nome)}</span></button>`).join('')
+        : `<div style="font-size:11.5px;color:var(--muted2);padding:4px 10px">nenhum</div>`);
+  };
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const msgs = (CHMSGS[CHAN]||[]);
+  let lastDay = '';
+  const msgsHTML = msgs.length ? msgs.map(m=>{
+    let sep = '';
+    const dd = chDay(m.created_at);
+    if(dd!==lastDay){ lastDay=dd; sep = `<div class="mgc-day">${dd}</div>` }
+    if(m.kind==='system'){
+      return sep + `<div class="mgc-sys"><span class="sw" style="background:var(--brass)"></span><span>${esc(m.body)}</span><span class="from">sistema</span></div>`;
+    }
+    const eu = ME && m.author_id===ME.id;
+    return sep + `<div class="mgc-m">
+      <div class="av" style="background:${eu?'var(--brass)':'#7C8A97'}">${esc(initials(m.author_name||'?'))}</div>
+      <div class="bd">
+        <div class="hd"><span class="who">${esc(m.author_name||'—')}</span><span class="tm">${chTime(m.created_at)}</span></div>
+        <div class="tx">${esc(m.body)}</div>
+      </div></div>`;
+  }).join('') : `<div class="mg-empty" style="margin:auto">Nenhuma mensagem ainda. Diga oi!</div>`;
+
+  el.innerHTML = `
+    <aside class="mgc-side">
+      <div class="mgc-search"><span style="opacity:.5">⌕</span><input placeholder="Buscar conversa…" value="${esc(CH_FILTER)}" oninput="chFilter(this.value)"></div>
+      <div class="mgc-list">
+        ${grupo('client','Clientes',true)}
+        ${grupo('team','Equipe',true)}
+        ${grupo('dm','Conversas diretas',false)}
+      </div>
+    </aside>
+    <div class="mgc-main">
+      <div class="mgc-top">
+        <div class="nm">${cur?(cur.tipo==='dm'?'':'#')+esc(cur.nome):'—'}</div>
+        <div class="sub">${cur?(cur.tipo==='client'?'equipe ↔ '+esc(clientName(cur.client_id)):cur.tipo==='team'?'canal interno':'conversa direta'):''}</div>
+        <div class="sp"></div>
+      </div>
+      <div class="mgc-msgs" id="mgc-msgs">${msgsHTML}</div>
+      <div class="mgc-comp">
+        <div class="mgc-box">
+          <textarea id="mgc-in" rows="1" placeholder="${cur?('Mensagem para '+(cur.tipo==='dm'?'':'#')+esc(cur.nome)+'…'):'Mensagem…'}" onkeydown="chKey(event)"></textarea>
+          <button class="snd" onclick="chSend()" title="Enviar">➤</button>
+        </div>
+        <div class="mgc-hint">Enter envia · Shift+Enter quebra linha · digite <b>#adicionardemanda</b> para criar uma demanda no Kanban <button onclick="chExample()">ver exemplo</button></div>
+      </div>
+    </div>`;
+  const box = $('mgc-msgs'); if(box) box.scrollTop = box.scrollHeight;
+}
+function copyChatSQL(){
+  navigator.clipboard.writeText(CHAT_SQL).then(()=>toast('SQL copiado — cole no SQL Editor do Supabase'))
+    .catch(()=>toast('Copie manualmente o bloco acima'));
+}
+function chKey(e){
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); chSend(); return }
+  const ta=e.target; setTimeout(()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px' },0);
+}
+function chExample(){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: '+(CLIENTS[0]?CLIENTS[0].nome:'');
+  const ta=$('mgc-in'); if(!ta) return;
+  ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento'+linhaCli+'\nresponsavel: '+(ASSIGNEE_OPTS[0]||'')+'\nprazo: '+fmtDate(new Date(Date.now()+7*864e5).toISOString().slice(0,10))+'\nprioridade: Alta';
+  ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; ta.focus();
+  toast(cur&&cur.tipo==='client' ? 'Canal de cliente: o cliente já entra automático' : 'Edite e aperte Enter');
+}
+async function chSend(){
+  const ta=$('mgc-in'); if(!ta) return;
+  const v=ta.value.trim(); if(!v || !CHAN) return;
+  ta.value=''; ta.style.height='auto';
+  try{
+    const {data,error} = await sb.from('messages').insert({
+      channel_id:CHAN, author_id:ME.id, author_name:ME.name, body:v
+    }).select().single();
+    if(error) throw error;
+    if(!(CHMSGS[CHAN]||[]).some(m=>m.id===data.id)) (CHMSGS[CHAN]=CHMSGS[CHAN]||[]).push(data);
+    renderChatView();
+  }catch(e){ toast('Não foi possível enviar: '+(e.message||'erro')); return }
+  if(/#adicionardemanda\b/i.test(v)) chCriarDemanda(v);
+}
+/* ---- mensagem → demanda no Kanban ---- */
+async function chCriarDemanda(texto){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const campos = {}; let inline='';
+  texto.split(/\r?\n/).forEach(l=>{
+    l=l.trim(); if(!l) return;
+    const m = l.match(/^(t[íi]tulo|cliente|respons[áa]ve(?:l|is)|prazo|prioridade|descri[çc][ãa]o)\s*:\s*(.+)$/i);
+    if(m){
+      let k=m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      k = k.startsWith('titulo')?'titulo' : k.startsWith('cliente')?'cliente'
+        : k.startsWith('responsave')?'resp' : k.startsWith('prazo')?'prazo'
+        : k.startsWith('priorid')?'prio' : 'desc';
+      campos[k]=m[2].trim();
+    } else if(/#adicionardemanda/i.test(l)){ inline = l.replace(/#adicionardemanda/i,'').trim(); }
+  });
+  const titulo = campos.titulo || inline;
+  if(!titulo){ toast('Informe ao menos um título na demanda'); return }
+
+  let cid = null;
+  if(campos.cliente){
+    const f = CLIENTS.find(c=>(c.nome||'').toLowerCase().includes(campos.cliente.toLowerCase()));
+    if(f) cid=f.id;
+  }
+  if(!cid && cur && cur.tipo==='client') cid = cur.client_id;
+
+  let who=[];
+  if(campos.resp){
+    campos.resp.split(/[,;\/]+/).map(s=>s.trim()).filter(Boolean).forEach(nm=>{
+      const p = (ASSIGNEE_OPTS||[]).find(x=>x.toLowerCase().split(' ')[0]===nm.toLowerCase().split(' ')[0]);
+      if(p) who.push(p);
+    });
+  }
+  let prazo=null;
+  if(campos.prazo){
+    const iso=campos.prazo.match(/^(\d{4})-(\d{2})-(\d{2})$/), br=campos.prazo.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(iso) prazo=campos.prazo; else if(br) prazo=`${br[3]}-${br[2]}-${br[1]}`;
+  }
+  let prio='Média';
+  if(campos.prio){ const p=campos.prio.toLowerCase(); prio = p.startsWith('alt')?'Alta' : p.startsWith('baix')?'Baixa' : 'Média' }
+
+  try{
+    const {error} = await sb.from('tasks').insert({
+      client_id: cid, title: titulo, status:'Não iniciado',
+      assignees: who, prazo: prazo, prioridade: prio,
+      description: campos.desc || ('Criada pelo chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
+    });
+    if(error) throw error;
+    const resumo = [cid?('cliente: '+clientName(cid)):'', who.length?('resp.: '+who.join(', ')):'', prazo?('prazo: '+fmtDate(prazo)):'', 'prioridade: '+prio].filter(Boolean).join(' · ');
+    await sb.from('messages').insert({
+      channel_id: CHAN, author_id: ME.id, author_name:'Tasks', kind:'system',
+      body: `Demanda criada no Kanban: “${titulo}” — ${resumo}`
+    });
+    await loadMsgs(CHAN); renderChatView();
+    if(typeof loadTasks==='function') await loadTasks();
+    toast('Demanda criada no Kanban ✓');
+  }catch(e){ toast('Não foi possível criar a demanda: '+(e.message||'erro')) }
+}
+/* ---- novo canal (admin) ---- */
+async function newChannel(tipo){
+  if(!isAdmin()) return;
+  let nome = prompt(tipo==='client' ? 'Nome do canal (será vinculado a um cliente):' : 'Nome do canal interno:');
+  if(!nome) return;
+  nome = nome.trim().toLowerCase().replace(/\s+/g,'-');
+  let client_id = null;
+  if(tipo==='client'){
+    const lista = CLIENTS.map((c,i)=>`${i+1}. ${c.nome}`).join('\n');
+    const esc2 = prompt('Vincular a qual cliente?\n'+lista+'\n\nDigite o número:');
+    const idx = parseInt(esc2,10)-1;
+    if(isNaN(idx) || !CLIENTS[idx]) { toast('Cliente inválido'); return }
+    client_id = CLIENTS[idx].id;
+  }
+  try{
+    const {data,error} = await sb.from('channels').insert({tipo, nome, client_id, created_by: ME.id}).select().single();
+    if(error) throw error;
+    await sb.from('channel_members').insert({channel_id:data.id, profile_id:ME.id}).then(()=>{}, ()=>{});
+    await loadChannels(); CHAN=data.id; CHMSGS[data.id]=[]; renderChatView();
+    toast('Canal #'+nome+' criado');
+  }catch(e){ toast('Não foi possível criar: '+(e.message||'erro')) }
+}
 </script>
 </body>
 </html>
