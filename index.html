@@ -5519,5 +5519,152 @@ function mgAlternarBloco(btn){
   if(abrindo) bloco.classList.add('aberto');
 }
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 19 — cards do Início maiores, coloridos e com logos girando
+   ===================================================================== */
+
+/* uma linha só nas telas largas; quebra com elegância nas menores */
+.mg-atalhos{gap:16px}
+@media(min-width:1140px){
+  .mg-atalhos{grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important}
+}
+@media(min-width:760px) and (max-width:1139px){
+  .mg-atalhos{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:759px){
+  .mg-atalhos{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* cards maiores e com identidade de cor */
+.mg-atalho{padding:26px 18px 22px;border-radius:18px;position:relative;overflow:hidden;
+  border-color:var(--line)}
+.mg-atalho::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(120% 85% at 50% -20%, var(--tom-fraco), transparent 62%);
+  opacity:.9;transition:opacity .25s}
+.mg-atalho::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:var(--tom);opacity:0;transition:opacity .25s}
+.mg-atalho:hover{border-color:var(--tom-borda);box-shadow:0 16px 34px -10px var(--tom-sombra)}
+.mg-atalho:hover::after{opacity:1}
+.mg-atalho .ic{width:52px;height:52px;border-radius:15px;font-size:22px;margin-bottom:14px;
+  background:var(--tom-chip);color:var(--tom);position:relative;z-index:1;
+  box-shadow:0 4px 12px -4px var(--tom-sombra)}
+.mg-atalho:hover .ic{transform:scale(1.1) rotate(-5deg)}
+.mg-atalho .nm{font-size:18px;position:relative;z-index:1}
+.mg-atalho .ds{font-size:12.5px;min-height:36px;position:relative;z-index:1}
+
+/* o card de Clientes mostra as logos, uma de cada vez */
+.mg-logos{position:relative;width:52px;height:52px;margin:0 auto 14px;z-index:1}
+.mg-logos .lg{position:absolute;inset:0;border-radius:15px;display:grid;place-items:center;
+  overflow:hidden;background:var(--card);border:1px solid var(--line);
+  opacity:0;transform:scale(.86) translateY(6px);
+  transition:opacity .5s ease, transform .5s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 4px 12px -4px rgba(0,0,0,.18)}
+.mg-logos .lg.on{opacity:1;transform:scale(1) translateY(0)}
+.mg-logos .lg img{width:100%;height:100%;object-fit:contain;background:#fff}
+.mg-logos .lg .ini{width:100%;height:100%;display:grid;place-items:center;
+  font-family:var(--font-d);font-weight:600;font-size:21px;color:#fff}
+.mg-atalho:hover .mg-logos{transform:scale(1.06);transition:transform .25s cubic-bezier(.22,1,.36,1)}
+
+/* os painéis do resumo também ganham um toque de cor */
+.mg-painel h3 .cnt{background:var(--tom-chip,rgba(194,161,91,.16));color:var(--tom,var(--brass2))}
+.mg-linha:hover{border-color:var(--tom-borda,var(--line2))}
+
+@media (prefers-reduced-motion: reduce){
+  .mg-logos .lg{transition:none}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 19
+   • cada módulo com sua cor, para a tela não ficar toda igual
+   • cards maiores, cabendo numa linha só nas telas largas
+   • o card de Clientes mostra as logos das empresas, alternando
+   ===================================================================== */
+
+const MG_TONS = {
+  tasks:     {tom:'#C7871E', chip:'rgba(199,135,30,.14)',  borda:'rgba(199,135,30,.45)',  fraco:'rgba(199,135,30,.09)',  sombra:'rgba(199,135,30,.35)'},
+  checklist: {tom:'#2E9E6B', chip:'rgba(46,158,107,.14)',  borda:'rgba(46,158,107,.45)',  fraco:'rgba(46,158,107,.09)',  sombra:'rgba(46,158,107,.32)'},
+  clientes:  {tom:'#8E3FBE', chip:'rgba(142,63,190,.13)',  borda:'rgba(142,63,190,.42)',  fraco:'rgba(142,63,190,.08)',  sombra:'rgba(142,63,190,.30)'},
+  docs:      {tom:'#2D6FCF', chip:'rgba(45,111,207,.13)',  borda:'rgba(45,111,207,.42)',  fraco:'rgba(45,111,207,.08)',  sombra:'rgba(45,111,207,.30)'},
+  chat:      {tom:'#D9531E', chip:'rgba(217,83,30,.13)',   borda:'rgba(217,83,30,.42)',   fraco:'rgba(217,83,30,.08)',   sombra:'rgba(217,83,30,.30)'},
+  settings:  {tom:'#12A38F', chip:'rgba(18,163,143,.14)',  borda:'rgba(18,163,143,.42)',  fraco:'rgba(18,163,143,.08)',  sombra:'rgba(18,163,143,.30)'},
+  home:      {tom:'#9a7b3c', chip:'rgba(154,123,60,.14)',  borda:'rgba(154,123,60,.42)',  fraco:'rgba(154,123,60,.08)',  sombra:'rgba(154,123,60,.30)'},
+};
+function mgTomDe(v){ return MG_TONS[v] || MG_TONS.home }
+function mgEstiloTom(v){
+  const t = mgTomDe(v);
+  return `--tom:${t.tom};--tom-chip:${t.chip};--tom-borda:${t.borda};--tom-fraco:${t.fraco};--tom-sombra:${t.sombra}`;
+}
+
+/* ---- pinta os cards e prepara o desfile de logos ---- */
+const _mg19Home = renderHome;
+renderHome = function(){
+  const r = _mg19Home();
+  if(VIEW!=='home') { mgPararLogos(); return r }
+  const el=$('v-home'); if(!el) return r;
+
+  const cards=[...el.querySelectorAll('.mg-atalho')];
+  /* uma linha só: tantas colunas quantos forem os cards (até 6) */
+  const grade=el.querySelector('.mg-atalhos');
+  if(grade) grade.style.setProperty('--cols', String(Math.min(cards.length,6)));
+
+  cards.forEach(c=>{
+    const m=(c.getAttribute('onclick')||'').match(/showView\('([^']+)'\)/);
+    const v=m?m[1]:'home';
+    c.setAttribute('style', (c.getAttribute('style')||'')+';'+mgEstiloTom(v));
+    if(v==='clientes') mgMontarLogos(c);
+  });
+
+  /* os painéis de resumo herdam a cor do módulo correspondente */
+  const paineis=el.querySelectorAll('.mg-painel');
+  if(paineis[0]) paineis[0].setAttribute('style',(paineis[0].getAttribute('style')||'')+';'+mgEstiloTom('tasks'));
+  if(paineis[1]) paineis[1].setAttribute('style',(paineis[1].getAttribute('style')||'')+';'+mgEstiloTom('chat'));
+
+  return r;
+};
+
+/* ---- desfile de logos no card de Clientes ---- */
+let MG_LOGO_TIMER=null;
+function mgPararLogos(){ if(MG_LOGO_TIMER){ clearInterval(MG_LOGO_TIMER); MG_LOGO_TIMER=null } }
+function mgMontarLogos(card){
+  const ic = card.querySelector('.ic'); if(!ic) return;
+  const lista = (CLIENTS||[]).slice(0,10);
+  if(!lista.length) return;
+
+  const caixa = document.createElement('div');
+  caixa.className='mg-logos';
+  caixa.innerHTML = lista.map((c,i)=>{
+    const dentro = c.logo_url
+      ? `<img src="${esc(c.logo_url)}" alt="${esc(c.nome)}">`
+      : `<span class="ini" style="background:${clientColor(c.id)}">${esc((c.nome||'?')[0].toUpperCase())}</span>`;
+    return `<span class="lg ${i===0?'on':''}" title="${esc(c.nome)}">${dentro}</span>`;
+  }).join('');
+  ic.replaceWith(caixa);
+
+  /* atualiza a descrição para dizer quantas empresas são */
+  const ds = card.querySelector('.ds');
+  if(ds) ds.textContent = `${lista.length} empresa${lista.length===1?'':'s'} · logos, acessos e resumo`;
+
+  mgPararLogos();
+  if(lista.length<2) return;
+  let i=0;
+  MG_LOGO_TIMER = setInterval(()=>{
+    const itens = caixa.querySelectorAll('.lg');
+    if(!document.body.contains(caixa)){ mgPararLogos(); return }
+    itens[i].classList.remove('on');
+    i = (i+1) % itens.length;
+    itens[i].classList.add('on');
+  }, 2200);
+}
+
+/* ao sair do Início, para o desfile */
+const _mg19ShowView = showView;
+showView = function(v){
+  const r = _mg19ShowView(v);
+  if(VIEW!=='home') mgPararLogos();
+  return r;
+};
+</script>
 </body>
 </html>
