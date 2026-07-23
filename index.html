@@ -608,6 +608,65 @@ body.hide-card-av .card-t .avs{display:none}
 .mgc-stack .more{font-size:11px;color:var(--muted);margin-left:7px;font-weight:600}
 .mgc-typing{padding:0 30px 6px;font-size:12px;color:var(--muted2);min-height:20px}
 </style>
+<style>
+/* =====================================================================
+   ADIÇÃO 2 — barra lateral estreita (ícone em cima, rótulo embaixo)
+   + logos de cliente no chat
+   ===================================================================== */
+
+/* ---------- trilho estreito ---------- */
+.side{width:92px!important;align-items:stretch}
+.side-brand{justify-content:center;padding:18px 8px 14px!important;gap:0!important}
+.side-brand>div:last-child{display:none}           /* esconde "Modesto Tasks" */
+.side-brand .logo{width:40px!important;height:40px!important;font-size:20px!important;border-radius:12px!important}
+.side-flow{display:none!important}                  /* curva decorativa não cabe */
+
+.side-nav{padding:4px 8px!important;gap:3px!important}
+.side-nav .nav-i{flex-direction:column!important;gap:5px!important;padding:10px 2px 8px!important;
+  border-radius:13px!important;text-align:center!important;font-size:10.5px!important;font-weight:600!important;line-height:1.15}
+.side-nav .nav-i .ic{width:auto!important;font-size:19px;opacity:.95;line-height:1}
+.side-nav .nav-i .lb{display:block;font-size:10.5px;letter-spacing:.1px;padding:0 2px;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.side-nav .nav-i.on{background:var(--brass)!important;color:var(--ink2)!important;box-shadow:0 3px 10px rgba(194,161,91,.35)}
+body.theme-dark .side-nav .nav-i.on{color:#1a1a18!important}
+.side-nav .nav-i .b{position:absolute;top:5px;right:12px;margin-left:0!important}
+
+/* contadores compactos */
+.side-today,.side-late{margin:6px 10px!important;padding:8px 4px!important;text-align:center;border-radius:12px!important}
+.side-today .big,.side-late .big{font-size:19px!important}
+.side-today .lbl,.side-late .lbl{font-size:9.5px!important;letter-spacing:.2px}
+
+/* rodapé do trilho */
+.side-user{flex-direction:column;gap:6px!important;padding:12px 8px!important;text-align:center}
+.side-user>div:not(.av){display:none}
+.side-user .av{width:38px!important;height:38px!important}
+.side-user .out{margin-left:0!important;font-size:11px!important}
+
+/* o conteúdo ganha o espaço que a barra devolveu */
+@media(min-width:900px){ .content{padding:26px 30px} }
+
+/* ---------- logo de cliente (usada no chat e nos títulos) ---------- */
+.mg-lg{display:inline-grid;place-items:center;border-radius:6px;overflow:hidden;flex-shrink:0;
+  font-weight:700;color:#fff;font-size:10px;line-height:1}
+.mg-lg img{width:100%;height:100%;object-fit:contain;background:#fff}
+.mgc-i .mg-lg{width:20px;height:20px}
+.mgc-top .mg-lg{width:26px;height:26px;border-radius:7px}
+.mgc-m .av .mg-lg{width:100%;height:100%;border-radius:9px}
+
+/* ---------- chat: ajustes ---------- */
+.mgc-i{gap:9px}
+.mgc-i .h{width:18px;text-align:center;display:inline-block}
+.mgc-prov{margin:auto;max-width:430px;text-align:center;padding:26px}
+.mgc-prov h3{font-family:var(--font-d);font-size:19px;font-weight:500;margin-bottom:8px}
+.mgc-prov p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.mgc-badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--brass2);background:rgba(194,161,91,.14);border:1px solid rgba(194,161,91,.3);
+  border-radius:999px;padding:3px 10px}
+.mgc-cmds{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.mgc-cmds button{background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:4px 11px;
+  font-size:11px;font-weight:600;color:var(--muted);font-family:inherit}
+.mgc-cmds button:hover{border-color:var(--brass);color:var(--brass2)}
+</style>
 </head>
 <body>
 
@@ -2492,6 +2551,264 @@ async function newChannel(tipo){
     toast('Canal #'+nome+' criado');
   }catch(e){ toast('Não foi possível criar: '+(e.message||'erro')) }
 }
+</script>
+<script>
+/* =====================================================================
+   ADIÇÃO 2
+   • tira o Dashboard do menu
+   • barra lateral estreita (ícone em cima, rótulo embaixo)
+   • chat já configurado: um canal por cliente + canais da equipe + diretas,
+     com os membros certos — cada conta enxerga só o que é dela (RLS)
+   • comando #adicionardocumento, irmão do #adicionardemanda
+   • logo do cliente sempre que a empresa aparece
+   ===================================================================== */
+
+/* ---------- 1. menu sem Dashboard ---------- */
+(function(){
+  const i = NAV.findIndex(n=>n.v==='dashboard');
+  if(i>=0) NAV.splice(i,1);
+})();
+
+/* trilho: ícone em cima, rótulo embaixo */
+buildNav = function(){
+  $('nav').innerHTML = NAV.filter(n=>!n.admin||isAdmin()).map(n=>
+    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${n.v}')" title="${esc(n.label)}" style="position:relative">
+       <span class="ic">${n.ic}</span><span class="lb">${esc(n.label)}</span></button>`
+  ).join('');
+};
+
+/* quem pedir 'dashboard' (o boot pede) cai no Kanban */
+const _mg2ShowView = showView;
+showView = function(v){ return _mg2ShowView(v==='dashboard' ? 'board' : v) };
+if(typeof $==='function' && $('nav') && $('nav').children.length) buildNav();
+
+/* ---------- 2. logo do cliente ---------- */
+function mgClientLogo(cid, px){
+  const c = CLIENTS.find(x=>x.id===cid);
+  const s = px||20;
+  if(!c) return `<span class="mg-lg" style="width:${s}px;height:${s}px;background:#8a8271">?</span>`;
+  if(c.logo_url) return `<span class="mg-lg" style="width:${s}px;height:${s}px"><img src="${esc(c.logo_url)}" alt=""></span>`;
+  return `<span class="mg-lg" style="width:${s}px;height:${s}px;background:${clientColor(cid)}">${esc((c.nome||'?')[0].toUpperCase())}</span>`;
+}
+
+/* ---------- 3. chat já configurado por conta ---------- */
+let MG_PROFILES = [];
+let CH_PROV = false;
+
+async function mgLoadProfiles(){
+  const {data,error} = await sb.from('profiles').select('id,nome,role,client_id');
+  if(error) throw error;
+  MG_PROFILES = data||[];
+}
+const mgSlug = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+
+/* cria o que faltar: 1 canal por cliente, canais internos e diretas.
+   Só admin provisiona (a RLS exige). Cliente apenas enxerga o que é dele. */
+async function ensureChannels(){
+  if(CH_PROV || !isAdmin()) return;
+  CH_PROV = true;
+  try{
+    if(!MG_PROFILES.length) await mgLoadProfiles();
+    const admins  = MG_PROFILES.filter(p=>p.role==='admin');
+    const criados = [];
+
+    const addMembers = async (chId, ids)=>{
+      const rows = [...new Set(ids)].filter(Boolean).map(pid=>({channel_id:chId, profile_id:pid}));
+      if(!rows.length) return;
+      try{ await sb.from('channel_members').upsert(rows,{onConflict:'channel_id,profile_id'}) }
+      catch(e){ try{ await sb.from('channel_members').insert(rows) }catch(_){} }
+    };
+
+    /* 3.1 — um canal por cliente (equipe ↔ pessoas daquele cliente) */
+    for(const c of CLIENTS){
+      let ch = CHANNELS.find(x=>x.tipo==='client' && x.client_id===c.id);
+      if(!ch){
+        const {data,error} = await sb.from('channels')
+          .insert({tipo:'client', nome:mgSlug(c.nome), client_id:c.id, created_by:ME.id})
+          .select().single();
+        if(error) continue;
+        ch = data; criados.push('#'+ch.nome);
+      }
+      const doCliente = MG_PROFILES.filter(p=>p.client_id===c.id).map(p=>p.id);
+      await addMembers(ch.id, [...admins.map(a=>a.id), ...doCliente]);
+    }
+
+    /* 3.2 — canais internos da equipe */
+    for(const nome of ['geral','entregas']){
+      let ch = CHANNELS.find(x=>x.tipo==='team' && x.nome===nome);
+      if(!ch){
+        const {data,error} = await sb.from('channels')
+          .insert({tipo:'team', nome, client_id:null, created_by:ME.id}).select().single();
+        if(error) continue;
+        ch = data; criados.push('#'+ch.nome);
+      }
+      await addMembers(ch.id, admins.map(a=>a.id));
+    }
+
+    /* 3.3 — conversas diretas entre as pessoas da equipe */
+    for(const p of admins){
+      if(p.id===ME.id) continue;
+      const par = [ME.name||'Eu', p.nome||'—'].sort((a,b)=>a.localeCompare(b,'pt'));
+      const nome = par.join(' ↔ ');
+      let ch = CHANNELS.find(x=>x.tipo==='dm' && x.nome===nome);
+      if(!ch){
+        const {data,error} = await sb.from('channels')
+          .insert({tipo:'dm', nome, client_id:null, created_by:ME.id}).select().single();
+        if(error) continue;
+        ch = data;
+      }
+      await addMembers(ch.id, [ME.id, p.id]);
+    }
+
+    if(criados.length){
+      await loadChannels();
+      toast('Chat configurado: '+criados.slice(0,3).join(', ')+(criados.length>3?' e mais':''));
+    }
+  }catch(e){ console.warn('[chat provisionamento]', e) }
+}
+
+/* nome de exibição: em conversa direta mostra o outro, não você */
+function mgChanNome(c){
+  if(!c) return '—';
+  if(c.tipo==='dm' && c.nome.includes('↔')){
+    const partes = c.nome.split('↔').map(s=>s.trim());
+    const eu = (ME&&ME.name||'').trim();
+    return partes.find(p=>p!==eu) || partes[0];
+  }
+  return c.nome;
+}
+
+/* ---------- 4. chat: redesenho da lista com logo + provisionamento ---------- */
+const _mg2RenderChat = renderChatView;
+renderChatView = function(){
+  _mg2RenderChat();
+  if(CH_READY!==true) return;
+
+  /* provisiona uma vez, depois redesenha */
+  if(!CH_PROV && isAdmin()){
+    ensureChannels().then(()=>{ CH_PROV=true; renderChatView(); });
+    if(!CHANNELS.length){
+      const el=$('v-chat');
+      if(el) el.innerHTML = `<div class="mgc-prov"><h3>Preparando o chat…</h3>
+        <p>Criando um canal para cada cliente, os canais internos da equipe e as conversas diretas.</p></div>`;
+      return;
+    }
+  }
+  /* aplica logo do cliente e nome correto das diretas */
+  document.querySelectorAll('#v-chat .mgc-i').forEach(btn=>{
+    const m = (btn.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
+    if(!m) return;
+    const c = CHANNELS.find(x=>x.id===m[1]); if(!c) return;
+    const h = btn.querySelector('.h'), nm = btn.querySelector('.nm');
+    if(c.tipo==='client' && h) h.outerHTML = mgClientLogo(c.client_id,20);
+    if(nm) nm.textContent = mgChanNome(c);
+  });
+  const top = document.querySelector('#v-chat .mgc-top .nm');
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  if(top && cur){
+    top.innerHTML = (cur.tipo==='client' ? mgClientLogo(cur.client_id,26) : '')
+      + `<span>${cur.tipo==='dm'?'':'#'}${esc(mgChanNome(cur))}</span>`;
+  }
+  /* atalhos dos comandos */
+  const hint = document.querySelector('#v-chat .mgc-hint');
+  if(hint && !hint.dataset.mg){
+    hint.dataset.mg = '1';
+    hint.insertAdjacentHTML('beforeend',
+      `<div class="mgc-cmds">
+         <button onclick="chExample()">#adicionardemanda</button>
+         <button onclick="chDocExample()">#adicionardocumento</button>
+       </div>`);
+  }
+};
+
+/* ---------- 5. comando #adicionardocumento ---------- */
+function chDocExample(){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: '+(CLIENTS[0]?CLIENTS[0].nome:'');
+  const ta=$('mgc-in'); if(!ta) return;
+  ta.value = '#adicionardocumento\ntitulo: Apresentação de resultados · Julho'+linhaCli
+           + '\ntipo: apresentacao\nlink: https://…\ndescricao: Fechamento do mês com destaques.';
+  ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,140)+'px'; ta.focus();
+  toast('Tipos: apresentacao · proposta · diagnostico · weekly · concorrencia');
+}
+async function chCriarDocumento(texto){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const campos={}; let inline='';
+  texto.split(/\r?\n/).forEach(l=>{
+    l=l.trim(); if(!l) return;
+    const m=l.match(/^(t[íi]tulo|cliente|tipo|link|url|descri[çc][ãa]o)\s*:\s*(.+)$/i);
+    if(m){
+      let k=m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      k = k.startsWith('titulo')?'titulo' : k.startsWith('cliente')?'cliente'
+        : k.startsWith('tipo')?'tipo' : (k==='link'||k==='url')?'link' : 'desc';
+      campos[k]=m[2].trim();
+    } else if(/#adicionardocumento/i.test(l)){ inline=l.replace(/#adicionardocumento/i,'').trim() }
+  });
+  const titulo = campos.titulo || inline;
+  if(!titulo){ toast('Informe ao menos um título do documento'); return }
+
+  let cid=null;
+  if(campos.cliente){
+    const f=CLIENTS.find(c=>(c.nome||'').toLowerCase().includes(campos.cliente.toLowerCase()));
+    if(f) cid=f.id;
+  }
+  if(!cid && cur && cur.tipo==='client') cid=cur.client_id;
+  if(!cid){ toast('Diga de qual cliente é o documento (cliente: …)'); return }
+
+  let tipo=(campos.tipo||'apresentacao').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(tipo.startsWith('apres')) tipo='apresentacao';
+  else if(tipo.startsWith('prop')) tipo='proposta';
+  else if(tipo.startsWith('diag')) tipo='diagnostico';
+  else if(tipo.startsWith('week')||tipo.startsWith('semanal')) tipo='weekly';
+  else if(tipo.startsWith('concorr')) tipo='concorrencia';
+
+  try{
+    const {error} = await sb.from('documents').insert({
+      client_id: cid, titulo, tipo,
+      metadata: {origem:'chat', link: campos.link||null, descricao: campos.desc||null, por: ME?ME.name:null}
+    });
+    if(error) throw error;
+    await sb.from('messages').insert({
+      channel_id: CHAN, author_id: ME.id, author_name:'Documentos', kind:'system',
+      body:`Documento adicionado à pasta de ${clientName(cid)}: “${titulo}” (${tipo})`
+    });
+    DOCS_LOADED=false;
+    await loadMsgs(CHAN); renderChatView();
+    toast('Documento adicionado à pasta ✓');
+  }catch(e){
+    const msg = (e.message||'');
+    if(/invalid input value for enum|storage_path/i.test(msg)){
+      toast('O banco ainda não aceita esse campo — veja o aviso no chat');
+      await sb.from('messages').insert({
+        channel_id: CHAN, author_id: ME.id, author_name:'Documentos', kind:'system',
+        body:'Para aceitar este documento, rode no Supabase: '
+           + "alter type doc_tipo add value if not exists 'diagnostico'; "
+           + "alter type doc_tipo add value if not exists 'weekly'; "
+           + 'alter table public.documents alter column storage_path drop not null;'
+      }).catch(()=>{});
+      await loadMsgs(CHAN); renderChatView();
+    } else toast('Não foi possível adicionar: '+msg);
+  }
+}
+/* liga o comando ao envio, sem alterar o chSend original */
+const _mg2ChSend = chSend;
+chSend = async function(){
+  const ta=$('mgc-in');
+  const txt = ta ? ta.value.trim() : '';
+  await _mg2ChSend();
+  if(/#adicionardocumento\b/i.test(txt)) chCriarDocumento(txt);
+};
+
+/* documentos vindos do chat abrem pelo link guardado */
+const _mg2OpenDoc = openDoc;
+openDoc = async function(id){
+  const d = DOCS.find(x=>String(x.id)===String(id));
+  if(d && !d.storage_path && d.metadata && d.metadata.link){
+    window.open(d.metadata.link,'_blank','noopener'); return;
+  }
+  return _mg2OpenDoc(id);
+};
 </script>
 </body>
 </html>
