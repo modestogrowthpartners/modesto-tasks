@@ -4035,5 +4035,137 @@ criarClienteCompleto = async function(){
   }
 };
 </script>
+<style>
+/* ADIÇÃO 10 — mensagens de login claras */
+#li-err{line-height:1.55}
+#li-err b{color:inherit}
+.mg-liberar{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.mg-liberar button{background:none;border:1px solid var(--line2);border-radius:9px;padding:7px 12px;
+  font-size:12px;font-weight:600;color:var(--text);font-family:inherit;transition:border-color .15s,color .15s}
+.mg-liberar button:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-sqlbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:9px;padding:10px 12px;margin-top:8px;text-align:left;
+  white-space:pre-wrap;word-break:break-all;line-height:1.5}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 10 — por que o acesso criado não entrava
+   ---------------------------------------------------------------------
+   Duas causas, tratadas aqui:
+   1) o login dizia sempre "e-mail ou senha inválidos", escondendo o
+      motivo real (quase sempre: e-mail ainda não confirmado);
+   2) com a confirmação ligada, o Supabase manda um link por e-mail —
+      e o envio padrão dele só funciona para membros do projeto, então
+      o cliente nunca recebe e nunca consegue entrar.
+   ===================================================================== */
+
+/* SQL que libera quem ficou preso esperando confirmação */
+const SQL_LIBERAR_TODOS =
+`-- Libera todos os acessos que ficaram presos esperando confirmação
+update auth.users
+   set email_confirmed_at = now()
+ where email_confirmed_at is null;`;
+
+function sqlLiberar(email){
+  return `-- Libera o acesso de ${email}
+update auth.users
+   set email_confirmed_at = now()
+ where email = '${String(email).replace(/'/g,"''")}'
+   and email_confirmed_at is null;`;
+}
+function mgCopiar(txt, aviso){
+  const ok = ()=> toast(aviso||'Copiado — cole no SQL Editor do Supabase');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(()=>mgCopiaManual(txt));
+  } else mgCopiaManual(txt);
+}
+function mgCopiaManual(txt){
+  const ta=document.createElement('textarea');
+  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); toast('Copiado') }catch(_){ toast('Copie o texto mostrado na tela') }
+  ta.remove();
+}
+
+/* ---------- login com a razão verdadeira ---------- */
+signIn = async function(){
+  const email=($('li-email').value||'').trim();
+  const pass=$('li-pass').value||'';
+  const err=$('li-err');
+  err.innerHTML='';
+  if(!email||!pass){ err.textContent='Preencha e-mail e senha.'; return }
+
+  const {error} = await sb.auth.signInWithPassword({email, password:pass});
+  if(!error){ await boot(); return }
+
+  const m = (error.message||'').toLowerCase();
+
+  if(/not confirmed|email_not_confirmed/.test(m)){
+    err.innerHTML = `<b>Este e-mail ainda não foi confirmado.</b><br>
+      O Supabase está exigindo confirmação, e o envio padrão dele costuma não chegar para quem é de fora do projeto.
+      Peça a quem administra para liberar — leva 10 segundos.
+      <div class="mg-liberar">
+        <button onclick="mgCopiar(sqlLiberar('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase e rode')">Copiar SQL que libera este acesso</button>
+        <button onclick="mgVerSQL('${esc(email)}')">Ver o SQL</button>
+      </div>`;
+    return;
+  }
+  if(/invalid login credentials|invalid_credentials/.test(m)){
+    err.innerHTML = `<b>E-mail ou senha incorretos.</b><br>
+      Confira se não sobrou espaço no começo ou no fim ao colar.`;
+    return;
+  }
+  if(/rate limit|too many/.test(m)){
+    err.innerHTML = `<b>Muitas tentativas seguidas.</b><br>Espere um minuto e tente de novo.`;
+    return;
+  }
+  if(/user not found/.test(m)){
+    err.innerHTML = `<b>Não existe conta com este e-mail.</b><br>Confira o endereço ou peça um acesso novo.`;
+    return;
+  }
+  err.innerHTML = `<b>Não foi possível entrar.</b><br>${esc(error.message||'erro desconhecido')}`;
+};
+function mgVerSQL(email){
+  const err=$('li-err');
+  if(err && !err.querySelector('.mg-sqlbox')){
+    err.insertAdjacentHTML('beforeend', `<div class="mg-sqlbox">${esc(sqlLiberar(email))}</div>`);
+  }
+}
+
+/* ---------- ao criar acesso, já oferece a liberação ---------- */
+function mgBlocoLiberacao(email){
+  return `<div style="margin-top:8px">
+      <button class="mini-btn" onclick="mgCopiar(sqlLiberar('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar SQL que libera este acesso</button>
+    </div>
+    <div class="mg-sqlbox">${esc(sqlLiberar(email))}</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:6px">
+      Para não precisar disso nas próximas vezes: Supabase → Authentication → Providers → Email → desligue <b>Confirm email</b>.
+    </div>`;
+}
+/* injeta o bloco sempre que a mensagem falar em confirmação pendente */
+function mgEnriquecerAviso(idCaixa, email){
+  const c = $(idCaixa); if(!c || !email) return;
+  if(/confirma..o de e-mail est./i.test(c.textContent) && !c.querySelector('.mg-sqlbox')){
+    c.insertAdjacentHTML('beforeend', mgBlocoLiberacao(email));
+  }
+}
+const _mg10CriarCli = criarClienteCompleto;
+criarClienteCompleto = async function(){
+  const email = $('nc-email') ? ($('nc-email').value||'').trim() : '';
+  await _mg10CriarCli();
+  setTimeout(()=>mgEnriquecerAviso('nc-res', email), 60);
+};
+const _mg10CriarAc = criarAcessoParaCliente;
+criarAcessoParaCliente = async function(){
+  const email = $('ac2-email') ? ($('ac2-email').value||'').trim() : '';
+  await _mg10CriarAc();
+  setTimeout(()=>mgEnriquecerAviso('ac2-res', email), 60);
+};
+
+/* ---------- atalho para o administrador liberar todos de uma vez ---------- */
+function liberarTodosAcessos(){
+  mgCopiar(SQL_LIBERAR_TODOS, 'SQL copiado — cole no SQL Editor do Supabase e rode');
+}
+</script>
 </body>
 </html>
