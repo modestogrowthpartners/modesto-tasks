@@ -3860,5 +3860,180 @@ renderDocsView = function(){
   };
 })();
 </script>
+<style>
+/* ADIÇÃO 9 — acessos dentro da janela de editar cliente */
+.mg-acessos{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+.mg-acessos .cab{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mg-acessos .cab h4{font-family:var(--font-d);font-size:15px;font-weight:500;flex:1}
+.mg-lista-ac{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+.mg-lista-ac .p{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;font-size:13px;animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
+.mg-lista-ac .p .av{width:26px;height:26px;border-radius:50%;background:var(--brass);color:var(--ink2);
+  display:grid;place-items:center;font-size:10.5px;font-weight:700;flex-shrink:0}
+.mg-lista-ac .p .nm{font-weight:600}
+.mg-lista-ac .p .em{color:var(--muted);font-size:12px;margin-left:auto;text-align:right;word-break:break-all}
+.mg-lista-ac .vazio{font-size:12.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:10px;padding:12px;text-align:center}
+.mg-add-ac{display:inline-flex;align-items:center;gap:7px;background:none;border:1px solid var(--line2);
+  border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--text);
+  transition:border-color .15s,color .15s,transform .15s}
+.mg-add-ac:hover{border-color:var(--brass);color:var(--brass2);transform:translateY(-1px)}
+.mg-add-ac .p{font-size:15px;line-height:1;transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.mg-add-ac:hover .p{transform:rotate(90deg)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 9 — criar o e-mail de acesso do cliente também depois,
+   pela janela de editar, e para mais de uma pessoa por empresa
+   ===================================================================== */
+
+/* a janela de editar ganha a seção de acessos */
+const _mg9Abrir = abrirEditarCliente;
+abrirEditarCliente = function(id){
+  _mg9Abrir(id);
+  const corpo = document.querySelector('#mg-edcli .mg-novocli');
+  if(!corpo) return;
+  let sec = document.getElementById('mg-acessos');
+  if(!sec){
+    sec = document.createElement('div');
+    sec.className = 'mg-acessos'; sec.id = 'mg-acessos';
+    /* entra antes da área de exclusão */
+    const perigo = corpo.querySelector('.mg-perigo');
+    corpo.insertBefore(sec, perigo || null);
+  }
+  sec.innerHTML = `
+    <div class="cab">
+      <h4>Quem acessa esta empresa</h4>
+      <button class="mg-add-ac" onclick="mgMostrarNovoAcesso()"><span class="p">+</span>Adicionar acesso</button>
+    </div>
+    <div class="mg-lista-ac" id="mg-lista-ac"><div class="vazio">carregando…</div></div>
+    <div id="mg-form-ac" class="mg-abre">
+      <div class="mg-novocli" style="padding-top:4px">
+        <div class="par">
+          <div><div class="rot">Nome da pessoa</div><input type="text" id="ac2-nome" placeholder="ex.: Marina Costa"></div>
+          <div><div class="rot">E-mail de acesso</div><input type="text" id="ac2-email" placeholder="marina@empresa.com.br" autocomplete="off"></div>
+        </div>
+        <div>
+          <div class="rot">Senha</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="ac2-senha" placeholder="mínimo 6 caracteres">
+            <button class="mini-btn" onclick="document.getElementById('ac2-senha').value=mgSenhaForte()">Gerar</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn-p" id="ac2-btn" onclick="criarAcessoParaCliente()">Criar acesso</button>
+          <button class="mini-btn ghost" onclick="mgEsconderNovoAcesso()">Cancelar</button>
+        </div>
+        <div id="ac2-res"></div>
+      </div>
+    </div>`;
+  carregarAcessosCliente(id);
+};
+
+function mgMostrarNovoAcesso(){
+  const f = $('mg-form-ac'); if(!f) return;
+  f.classList.add('on');
+  if(!$('ac2-senha').value) $('ac2-senha').value = mgSenhaForte();
+  setTimeout(()=>{ const n=$('ac2-nome'); if(n) n.focus() }, 260);
+}
+function mgEsconderNovoAcesso(){
+  const f = $('mg-form-ac'); if(!f) return;
+  f.classList.remove('on');
+  ['ac2-nome','ac2-email','ac2-senha'].forEach(id=>{ const e=$(id); if(e) e.value='' });
+  const r=$('ac2-res'); if(r) r.innerHTML='';
+}
+
+async function carregarAcessosCliente(id){
+  const box = $('mg-lista-ac'); if(!box) return;
+  try{
+    const {data,error} = await sb.from('profiles').select('id,nome,role,client_id,email').eq('client_id', id);
+    let lista = data;
+    if(error){
+      /* a coluna de e-mail pode não existir; tentamos sem ela */
+      const r2 = await sb.from('profiles').select('id,nome,role,client_id').eq('client_id', id);
+      if(r2.error) throw r2.error;
+      lista = r2.data;
+    }
+    const pessoas = (lista||[]).filter(p=>p.role==='client');
+    box.innerHTML = pessoas.length
+      ? pessoas.map(p=>`<div class="p">
+            <span class="av">${esc(initials(p.nome||'?'))}</span>
+            <span class="nm">${esc(p.nome||'—')}</span>
+            <span class="em">${esc(p.email||'')}</span>
+          </div>`).join('')
+      : `<div class="vazio">Ninguém tem acesso a esta empresa ainda.</div>`;
+  }catch(e){
+    box.innerHTML = `<div class="vazio">Não foi possível carregar (${esc((e&&e.message)||'erro')}).</div>`;
+  }
+}
+
+async function criarAcessoParaCliente(){
+  if(!EC_ID) return;
+  const nome=($('ac2-nome').value||'').trim();
+  const email=($('ac2-email').value||'').trim();
+  const senha=($('ac2-senha').value||'');
+  const res=$('ac2-res');
+  const erro=m=>{ res.innerHTML=`<div class="mg-res err">⚠ ${esc(m)}</div>` };
+  if(!nome) return erro('Informe o nome da pessoa.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('E-mail inválido.');
+  if(senha.length<6) return erro('A senha precisa ter ao menos 6 caracteres.');
+
+  const empresa = CLIENTS.find(c=>c.id===EC_ID);
+  $('ac2-btn').disabled=true;
+  res.innerHTML=`<div class="mg-res">⏳ Criando o acesso…</div>`;
+  try{
+    const {data,error} = await mgSb2().auth.signUp({
+      email, password: senha,
+      options:{ data:{ nome, role:'client', client_id: EC_ID } }
+    });
+    if(error) throw error;
+    const uid = data && data.user ? data.user.id : null;
+
+    let vinculo = {ok:false, motivo:'usuário não retornado'};
+    if(uid){
+      res.innerHTML=`<div class="mg-res">⏳ Amarrando o acesso à empresa…</div>`;
+      vinculo = await mgVincularPerfil(uid, nome, EC_ID);
+      /* guarda o e-mail junto do perfil, se o banco tiver essa coluna */
+      try{ await sb.from('profiles').update({email}).eq('id',uid) }catch(_){}
+    }
+    const precisaConfirmar = data && data.user && !data.user.confirmed_at && !data.session;
+
+    res.innerHTML = `<div class="mg-res ok">✓ <b>Acesso criado para ${esc(nome)}</b> em ${esc(empresa?empresa.nome:'')}.
+      <div class="cred">Endereço: ${location.origin+location.pathname}<br>E-mail: ${esc(email)}<br>Senha: ${esc(senha)}</div>
+      ${precisaConfirmar?`<div style="margin-top:8px">⚠ A confirmação de e-mail está <b>ligada</b> no Supabase — ${esc(nome)} precisa clicar no link recebido antes do primeiro login (Authentication → Providers → Email → desligue <b>Confirm email</b>).</div>`:''}
+      ${vinculo.ok
+        ? `<div style="margin-top:8px">✓ Perfil confirmado: vai enxergar somente os documentos desta empresa.</div>`
+        : `<div style="margin-top:8px">⚠ O login foi criado, mas não consegui confirmar o vínculo (${esc(vinculo.motivo||'')}). Ajuste em Supabase → profiles: <b>role = client</b> e <b>client_id = ${esc(EC_ID)}</b>.</div>`}
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Copie e envie por um canal seguro. A senha não fica guardada aqui.</div>
+    </div>`;
+    ['ac2-nome','ac2-email','ac2-senha'].forEach(id=>{ const e=$(id); if(e) e.value='' });
+    carregarAcessosCliente(EC_ID);
+    toast('Acesso criado ✓');
+  }catch(e){
+    const m=(e&&e.message)||'falha';
+    if(/signups? not allowed|disabled/i.test(m))
+      erro('O cadastro de usuários está desligado no Supabase (Authentication → Providers → Email → "Allow new users to sign up").');
+    else if(/already registered|already exists/i.test(m))
+      erro('Já existe um usuário com esse e-mail.');
+    else erro('Não foi possível criar: '+m);
+  }finally{ $('ac2-btn').disabled=false }
+}
+
+/* no cadastro de empresa nova, o e-mail também fica guardado no perfil */
+const _mg9Criar = criarClienteCompleto;
+criarClienteCompleto = async function(){
+  const email = $('nc-email') ? ($('nc-email').value||'').trim() : '';
+  await _mg9Criar();
+  if(email){
+    try{
+      const {data} = await sb.from('profiles').select('id,client_id,role').order('id');
+      /* grava o e-mail no perfil recém-criado, quando a coluna existir */
+      const alvo = (data||[]).filter(p=>p.role==='client');
+      const ultimo = alvo[alvo.length-1];
+      if(ultimo) await sb.from('profiles').update({email}).eq('id',ultimo.id);
+    }catch(_){}
+  }
+};
+</script>
 </body>
 </html>
