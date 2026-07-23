@@ -6806,5 +6806,68 @@ document.addEventListener('DOMContentLoaded', mgAplicarMarca);
 /* o título da janela também acompanha */
 try{ document.title = 'Portal Modesto'; }catch(_){}
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 26 — marca na aba do navegador e no topo da plataforma
+   ===================================================================== */
+.mg-marca-topo{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;
+  background:var(--brass);color:var(--ink2);font-family:var(--font-d);font-weight:600;font-size:18px;
+  flex-shrink:0;margin-right:4px;overflow:hidden;cursor:pointer;
+  box-shadow:0 3px 9px rgba(194,161,91,.32);
+  transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .2s}
+.mg-marca-topo:hover{transform:translateY(-1px) scale(1.04);box-shadow:0 6px 16px rgba(194,161,91,.42)}
+.mg-marca-topo img{width:100%;height:100%;object-fit:contain}
+body.mg-inicio .mg-marca-topo{display:none}   /* no Início a tela já é a marca */
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 26
+   • ícone na aba do navegador (estava com o globo genérico)
+   • marca no topo da plataforma, ao lado do botão Início
+   ---------------------------------------------------------------------
+   O desenho abaixo é o monograma da Modesto em traço, gerado aqui mesmo
+   — não depende de arquivo nenhum. Quando você me mandar a logo de
+   verdade, é só preencher MG_LOGO_URL (adição anterior) que ela assume
+   o lugar aqui e na tela de entrada.
+   ===================================================================== */
+
+const MG_ICONE_SVG =
+ `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#1a1a18"/>
+    <path d="M17 46V19l15 19 15-19v27" fill="none" stroke="#c2a15b"
+          stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+function mgDefinirIcone(){
+  const href = MG_LOGO_URL || ('data:image/svg+xml,' + encodeURIComponent(MG_ICONE_SVG));
+  /* remove ícones antigos para não conflitar */
+  document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(l=>l.remove());
+  const icone = document.createElement('link');
+  icone.rel = 'icon';
+  icone.type = MG_LOGO_URL ? '' : 'image/svg+xml';
+  icone.href = href;
+  document.head.appendChild(icone);
+  const apple = document.createElement('link');
+  apple.rel = 'apple-touch-icon';
+  apple.href = href;
+  document.head.appendChild(apple);
+}
+mgDefinirIcone();
+
+/* marca no topo, ao lado do botão Início */
+(function(){
+  const topo = document.querySelector('.topbar');
+  if(!topo || document.getElementById('mg-marca-topo')) return;
+  const el = document.createElement('span');
+  el.className = 'mg-marca-topo';
+  el.id = 'mg-marca-topo';
+  el.title = 'Portal Modesto — ir para o Início';
+  el.onclick = ()=>showView('home');
+  el.innerHTML = MG_LOGO_URL
+    ? `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`
+    : 'M';
+  topo.insertBefore(el, topo.firstChild);
+})();
+</script>
 </body>
 </html>
