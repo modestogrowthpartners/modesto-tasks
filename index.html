@@ -3139,12 +3139,6 @@ function mgBlocosExtras(){
       </div>
     </div>
     <div class="set-sec">
-      <h3>Notificações</h3>
-      <div class="desc">O que gera aviso no sino, aqui neste navegador.</div>
-      <div class="set-row"><div class="k">Avisos ligados</div>${segBtns('notif',[['on','Sim'],['off','Não']])}</div>
-      <div class="set-row"><div class="k">Só não lidos</div>${segBtns('notifUnread',[['on','Sim'],['off','Não']])}</div>
-    </div>
-    <div class="set-sec">
       <h3>Sessão</h3>
       <div class="desc">Encerra o acesso neste computador.</div>
       <button class="mini-btn" onclick="fecharConfig();signOut()">Sair da conta</button>
@@ -5172,6 +5166,358 @@ function mgAtualizarEu(){
     setMeAvatar = function(){ const r=_mg17Av(); mgAtualizarEu(); return r; };
   }
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 18 — vários acertos pedidos
+   ===================================================================== */
+
+/* 1. o atalho para o Portal sai do topo */
+.topbar .portal-link{display:none!important}
+
+/* 2. voltar também nas pastas e categorias */
+.mg-voltar-topo{margin-bottom:14px}
+
+/* 3. tamanho dos cards (ajustável nas configurações) */
+body[data-cards="g"]  .dgrid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+body[data-cards="g"]  .dfolders{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+body[data-cards="g"]  .dcard{padding:20px 22px}
+body[data-cards="g"]  .dcard .ti{font-size:17px}
+body[data-cards="g"]  .dfolder{padding:22px 22px 18px}
+body[data-cards="g"]  .dfolder .nm{font-size:18.5px}
+body[data-cards="m"]  .dgrid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+body[data-cards="p"]  .dgrid{grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+body[data-cards="p"]  .dfolders{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+body[data-cards="p"]  .dcard{padding:12px 13px}
+body[data-cards="p"]  .dcard .ti{font-size:13.5px}
+
+/* 4. configurações em blocos que abrem e fecham */
+.mg-bloco{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.mg-bloco > .cabeca{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;
+  padding:16px 18px;font-family:inherit;text-align:left;color:var(--text);transition:background .15s}
+.mg-bloco > .cabeca:hover{background:var(--card2)}
+.mg-bloco > .cabeca .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  background:rgba(194,161,91,.14);color:var(--brass2);font-size:15px;flex-shrink:0}
+.mg-bloco > .cabeca .tt{flex:1;min-width:0}
+.mg-bloco > .cabeca .tt b{font-family:var(--font-d);font-size:16px;font-weight:500;display:block}
+.mg-bloco > .cabeca .tt span{font-size:12px;color:var(--muted);display:block;margin-top:1px}
+.mg-bloco > .cabeca .seta{color:var(--muted);font-size:11px;transition:transform .28s cubic-bezier(.22,1,.36,1)}
+.mg-bloco.aberto > .cabeca .seta{transform:rotate(180deg)}
+.mg-bloco > .corpo{max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .36s cubic-bezier(.22,1,.36,1),opacity .24s ease,padding .3s ease;padding:0 18px}
+.mg-bloco.aberto > .corpo{max-height:1200px;opacity:1;padding:0 18px 18px}
+.mg-bloco .set-sec{background:none;border:0;padding:0;margin:0;box-shadow:none}
+.mg-bloco .set-sec h3{display:none}
+.mg-bloco .set-sec > .desc:first-of-type{margin-top:0}
+
+/* 5. som de aviso — controle */
+.mg-som-linha{display:flex;align-items:center;gap:12px;padding:11px 0;font-size:13.5px;border-top:1px solid var(--line)}
+.mg-som-linha .ds{font-size:11.5px;color:var(--muted);margin-top:1px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 18
+   • tira o botão Portal
+   • "Abrir arquivo" abre mesmo (não baixa); "Baixar" é que baixa
+   • Excluir documento (admin)
+   • Voltar nas pastas e categorias
+   • Tamanho dos cards, ajustável nas configurações
+   • Configurações em blocos que abrem e fecham
+   • CORREÇÃO da foto de perfil (o app chamava uma função inexistente)
+   • Som ao receber aviso
+   ===================================================================== */
+
+/* ---------------- 1. abrir sem baixar ---------------- */
+abrirArquivoEmAba = async function(id){
+  const d = DOCS.find(x=>String(x.id)===String(id)); if(!d) return;
+  if(!d.storage_path && d.metadata && d.metadata.link){ window.open(d.metadata.link,'_blank','noopener'); return }
+  if(!d.storage_path){ toast('Documento sem arquivo anexado'); return }
+  toast('Abrindo…');
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(d.storage_path, 300);
+    if(error) throw error;
+
+    if(ehHTML(d.storage_path)){
+      /* escreve o conteúdo direto na aba nova: renderiza como página,
+         sem passar por download nenhum */
+      const resp = await fetch(data.signedUrl);
+      const txt  = await resp.text();
+      const aba  = window.open('', '_blank');
+      if(!aba){ toast('O navegador bloqueou a nova aba — libere os pop-ups'); return }
+      aba.document.open();
+      aba.document.write(txt);
+      aba.document.close();
+      try{ aba.document.title = d.titulo || 'Documento' }catch(_){}
+      return;
+    }
+    /* PDF, imagem e afins: o próprio navegador exibe */
+    window.open(data.signedUrl, '_blank');
+  }catch(e){ toast('Não foi possível abrir: '+((e&&e.message)||'erro')) }
+};
+
+/* ---------------- 2. excluir documento ---------------- */
+async function excluirDocumento(id){
+  const d = DOCS.find(x=>String(x.id)===String(id)); if(!d) return;
+  if(!confirm(`Excluir “${d.titulo}”?\n\nO arquivo sai da pasta e do armazenamento. Não dá para desfazer.`)) return;
+  try{
+    if(d.storage_path){
+      try{ await sb.storage.from('documents').remove([d.storage_path]) }catch(_){}
+    }
+    const {error} = await sb.from('documents').delete().eq('id', d.id);
+    if(error) throw error;
+    DOCS = DOCS.filter(x=>String(x.id)!==String(d.id));
+    DVIEW = {kind:'client', id:d.client_id};
+    renderDocsView();
+    toast('Documento excluído');
+  }catch(e){ toast('Não foi possível excluir: '+((e&&e.message)||'erro')) }
+}
+
+/* ---------------- 3. voltar nas pastas e categorias ---------------- */
+const _mg18Docs = renderDocsView;
+renderDocsView = function(){
+  const r = _mg18Docs();
+  const el = $('v-docs'); if(!el) return r;
+
+  /* botão de excluir na página do documento (só admin) */
+  if(DVIEW.kind==='doc' && isAdmin()){
+    const acoes = el.querySelector('.mg-doc-acoes');
+    if(acoes && !acoes.querySelector('.mg-excluir')){
+      acoes.insertAdjacentHTML('beforeend',
+        `<button class="mini-btn ghost mg-excluir" style="color:var(--danger);border-color:rgba(184,74,62,.35)"
+           onclick="excluirDocumento('${esc(String(DVIEW.id))}')">Excluir</button>`);
+    }
+  }
+  /* voltar nas pastas de cliente e nas categorias */
+  if((DVIEW.kind==='client' || DVIEW.kind==='cat') && !el.querySelector('.mg-voltar')){
+    el.insertAdjacentHTML('afterbegin',
+      `<button class="mg-voltar mg-voltar-topo" onclick="dGo({kind:'home'})" title="Voltar (Esc)">
+         <span class="seta">←</span> Voltar para Documentos
+       </button>`);
+  }
+  return r;
+};
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  const janela = ['mg-cli','mg-cfg','mg-edcli'].some(id=>{ const m=$(id); return m && m.classList.contains('on') });
+  if(janela) return;
+  if(VIEW==='docs' && (DVIEW.kind==='client'||DVIEW.kind==='cat')) dGo({kind:'home'});
+});
+
+/* ---------------- 4. tamanho dos cards ---------------- */
+const MG_CARDS_KEY='mgp_cards';
+function mgAplicarCards(){
+  const v = localStorage.getItem(MG_CARDS_KEY) || 'm';
+  document.body.setAttribute('data-cards', v);
+  return v;
+}
+function mgDefinirCards(v){
+  localStorage.setItem(MG_CARDS_KEY, v);
+  mgAplicarCards();
+  document.querySelectorAll('[data-cards-op]').forEach(b=>
+    b.classList.toggle('on', b.getAttribute('data-cards-op')===v));
+  toast('Tamanho dos cards atualizado');
+}
+mgAplicarCards();
+
+/* ---------------- 5. som de aviso ---------------- */
+const MG_SOM_KEY='mgp_som';
+function mgSomLigado(){ return localStorage.getItem(MG_SOM_KEY)!=='off' }
+function mgTocarAviso(){
+  if(!mgSomLigado()) return;
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = mgTocarAviso._ctx || (mgTocarAviso._ctx = new Ctx());
+    if(ctx.state==='suspended') ctx.resume();
+    const agora = ctx.currentTime;
+    /* duas notas curtas, discretas */
+    [[880,0],[1174.7,0.11]].forEach(([hz,atraso])=>{
+      const osc = ctx.createOscillator(), vol = ctx.createGain();
+      osc.type='sine'; osc.frequency.value=hz;
+      vol.gain.setValueAtTime(0.0001, agora+atraso);
+      vol.gain.exponentialRampToValueAtTime(0.14, agora+atraso+0.02);
+      vol.gain.exponentialRampToValueAtTime(0.0001, agora+atraso+0.26);
+      osc.connect(vol); vol.connect(ctx.destination);
+      osc.start(agora+atraso); osc.stop(agora+atraso+0.3);
+    });
+  }catch(_){}
+}
+function mgAlternarSom(v){
+  localStorage.setItem(MG_SOM_KEY, v);
+  document.querySelectorAll('[data-som-op]').forEach(b=>
+    b.classList.toggle('on', b.getAttribute('data-som-op')===v));
+  if(v==='on'){ mgTocarAviso(); toast('Som dos avisos ligado') } else toast('Som dos avisos desligado');
+}
+
+/* toca quando o sino ganha aviso novo */
+(function(){
+  let antes = -1;
+  if(typeof updateNotifBadge==='function'){
+    const _mg18Badge = updateNotifBadge;
+    updateNotifBadge = function(){
+      const r = _mg18Badge();
+      const n = (typeof NOTIFS!=='undefined' && NOTIFS) ? NOTIFS.length : 0;
+      if(antes>=0 && n>antes) mgTocarAviso();
+      antes = n;
+      return r;
+    };
+  }
+})();
+/* e quando chega mensagem no chat */
+(function(){
+  if(typeof chSubscribe!=='function') return;
+  const _mg18Sub = chSubscribe;
+  chSubscribe = function(){
+    const r = _mg18Sub();
+    try{
+      if(CH_SUB && CH_SUB.on){
+        CH_SUB.on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, p=>{
+          if(p && p.new && ME && p.new.author_id!==ME.id) mgTocarAviso();
+        });
+      }
+    }catch(_){}
+    return r;
+  };
+})();
+
+/* ---------------- 6. CORREÇÃO da foto e do nome ----------------
+   O app chamava sb.rpc('update_my_profile'), função que não existe
+   neste banco — por isso a foto nunca salvava, sem dar erro visível.
+   Agora grava direto em profiles.                                   */
+pickAvatar = function(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    if(file.size > 6*1024*1024){ toast('Imagem muito grande (máx. 6 MB)'); return }
+    const r=new FileReader();
+    r.onload=ev=>{
+      const img=new Image();
+      img.onload=async()=>{
+        const cv=document.createElement('canvas'); const S=192; cv.width=S; cv.height=S;
+        const ctx=cv.getContext('2d'); const m=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
+        const dataUrl=cv.toDataURL('image/jpeg',0.82);
+        try{
+          const {error} = await sb.from('profiles').update({avatar_url:dataUrl}).eq('id', ME.id);
+          if(error) throw error;
+          ME.avatar_url = dataUrl;
+          setMeAvatar();
+          if(typeof mgAtualizarEu==='function') mgAtualizarEu();
+          const alvo=document.querySelector('#mg-cfg-corpo .avatar-pick');
+          if(alvo) alvo.innerHTML = avatarInner(ME.name, ME.avatar_url);
+          toast('Foto atualizada ✓');
+        }catch(err){
+          const m2=(err&&err.message)||'';
+          if(/row-level security|permission|policy/i.test(m2))
+            toast('O banco não permitiu salvar sua foto — falta a permissão de editar o próprio perfil (veja a Parte 8 do SQL)');
+          else toast('Não foi possível salvar a foto: '+(m2||'erro'));
+          console.error(err);
+        }
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(file);
+  };
+  inp.click();
+};
+saveMyName = async function(){
+  const el=document.querySelector('#mg-cfg-corpo #set-name') || $('set-name');
+  const nm=(el&&el.value||'').trim(); if(!nm) return;
+  try{
+    const {error} = await sb.from('profiles').update({nome:nm}).eq('id', ME.id);
+    if(error) throw error;
+    ME.name=nm;
+    const n=$('me-nm'); if(n) n.textContent=nm;
+    setMeAvatar();
+    if(typeof mgAtualizarEu==='function') mgAtualizarEu();
+    toast('Nome atualizado ✓');
+  }catch(err){
+    const m2=(err&&err.message)||'';
+    if(/row-level security|permission|policy/i.test(m2))
+      toast('O banco não permitiu salvar — falta a permissão de editar o próprio perfil (Parte 8 do SQL)');
+    else toast('Não foi possível salvar: '+(m2||'erro'));
+  }
+};
+
+/* ---------------- 7. configurações em blocos ---------------- */
+const MG_BLOCOS = [
+  {chave:'Aparência',      titulo:'Personalização', ic:'◐', ds:'Tema, cores, tamanho e densidade'},
+  {chave:'Meu perfil',     titulo:'Meu perfil',     ic:'☺', ds:'Sua foto, nome e senha'},
+  {chave:'Conta',          titulo:'Conta',          ic:'⚿', ds:'E-mail, papel e empresa'},
+  {chave:'Notificações',   titulo:'Notificações',   ic:'🔔', ds:'Avisos e som'},
+  {chave:'Sessão',         titulo:'Sessão',         ic:'⏻', ds:'Encerrar o acesso'},
+];
+const _mg18AbrirConfig = abrirConfig;
+abrirConfig = function(){
+  _mg18AbrirConfig();
+  const corpo = $('mg-cfg-corpo'); if(!corpo) return;
+  if(corpo.querySelector('.mg-bloco')) return;
+
+  const secoes = [...corpo.querySelectorAll('.set-sec')];
+  const novo = document.createElement('div');
+
+  secoes.forEach((sec, i)=>{
+    const h3 = sec.querySelector('h3');
+    const nome = h3 ? h3.textContent.trim() : ('Seção '+(i+1));
+    const def = MG_BLOCOS.find(b=>nome.indexOf(b.chave)===0) || {titulo:nome, ic:'•', ds:''};
+    const bloco = document.createElement('div');
+    bloco.className = 'mg-bloco';
+    bloco.innerHTML = `
+      <button class="cabeca" onclick="mgAlternarBloco(this)">
+        <span class="ic">${def.ic}</span>
+        <span class="tt"><b>${esc(def.titulo)}</b><span>${esc(def.ds)}</span></span>
+        <span class="seta">▼</span>
+      </button>
+      <div class="corpo"></div>`;
+    bloco.querySelector('.corpo').appendChild(sec);
+    novo.appendChild(bloco);
+  });
+
+  /* extras: tamanho dos cards e som dos avisos */
+  const atual = mgAplicarCards();
+  const som = mgSomLigado() ? 'on' : 'off';
+  const extra = document.createElement('div');
+  extra.className='mg-bloco';
+  extra.innerHTML = `
+    <button class="cabeca" onclick="mgAlternarBloco(this)">
+      <span class="ic">▣</span>
+      <span class="tt"><b>Cards e avisos</b><span>Tamanho dos cards e som das notificações</span></span>
+      <span class="seta">▼</span>
+    </button>
+    <div class="corpo">
+      <div class="set-row" style="display:flex;align-items:center;gap:12px;padding:12px 0">
+        <div class="k" style="flex:1">Tamanho dos cards<div style="font-size:11.5px;color:var(--muted)">Vale para documentos e pastas</div></div>
+        <div class="seg-l" style="display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px">
+          ${[['p','Pequeno'],['m','Médio'],['g','Grande']].map(([v,l])=>
+            `<button data-cards-op="${v}" class="${v===atual?'on':''}" onclick="mgDefinirCards('${v}')"
+               style="background:${v===atual?'var(--card)':'none'};border:0;border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:600;font-family:inherit;color:${v===atual?'var(--brass2)':'var(--muted)'}">${l}</button>`
+          ).join('')}
+        </div>
+      </div>
+      <div class="mg-som-linha">
+        <div style="flex:1">Som ao receber aviso<div class="ds">Um toque curto quando chega demanda ou mensagem</div></div>
+        <div style="display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px">
+          ${[['on','Ligado'],['off','Desligado']].map(([v,l])=>
+            `<button data-som-op="${v}" class="${v===som?'on':''}" onclick="mgAlternarSom('${v}')"
+               style="background:${v===som?'var(--card)':'none'};border:0;border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:600;font-family:inherit;color:${v===som?'var(--brass2)':'var(--muted)'}">${l}</button>`
+          ).join('')}
+        </div>
+      </div>
+    </div>`;
+  novo.appendChild(extra);
+
+  corpo.innerHTML='';
+  corpo.appendChild(novo);
+  /* o primeiro bloco começa aberto */
+  const primeiro = corpo.querySelector('.mg-bloco');
+  if(primeiro) primeiro.classList.add('aberto');
+};
+function mgAlternarBloco(btn){
+  const bloco = btn.closest('.mg-bloco');
+  const abrindo = !bloco.classList.contains('aberto');
+  bloco.parentNode.querySelectorAll('.mg-bloco').forEach(b=>b.classList.remove('aberto'));
+  if(abrindo) bloco.classList.add('aberto');
+}
 </script>
 </body>
 </html>
