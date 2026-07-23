@@ -5666,5 +5666,166 @@ showView = function(v){
   return r;
 };
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 20 — foto e nome do responsável no card
+   ===================================================================== */
+.mg-resp{display:flex;align-items:center;gap:7px;min-width:0}
+.mg-resp .pilha{display:flex;align-items:center;flex-shrink:0}
+.mg-resp .av{width:24px;height:24px;border-radius:50%;overflow:hidden;flex-shrink:0;
+  display:grid;place-items:center;font-size:9.5px;font-weight:700;color:var(--ink2);
+  background:var(--brass);border:2px solid var(--card);margin-left:-7px;
+  transition:transform .18s cubic-bezier(.22,1,.36,1)}
+.mg-resp .pilha .av:first-child{margin-left:0}
+.mg-resp .av img{width:100%;height:100%;object-fit:cover}
+.mg-resp .av.eu{border-color:var(--brass);box-shadow:0 0 0 2px var(--brass)}
+.card-t:hover .mg-resp .av{transform:translateY(-1px)}
+.mg-resp .quem{font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:104px}
+.mg-resp .quem.eu{color:var(--brass2)}
+.mg-resp .mais{font-size:10.5px;font-weight:700;color:var(--muted2);flex-shrink:0}
+.mg-resp .selo-eu{font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  background:rgba(194,161,91,.18);color:var(--brass2);border-radius:999px;padding:2px 7px;flex-shrink:0}
+body.hide-card-av .mg-resp{display:none}
+
+/* na lista (Quadro) também */
+.mg-resp-linha{display:inline-flex;align-items:center;gap:7px}
+.mg-resp-linha .av{width:22px;height:22px;border-radius:50%;overflow:hidden;display:grid;place-items:center;
+  font-size:9px;font-weight:700;color:var(--ink2);background:var(--brass);flex-shrink:0}
+.mg-resp-linha .av img{width:100%;height:100%;object-fit:cover}
+.mg-resp-linha .av.eu{box-shadow:0 0 0 2px var(--brass)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 20
+   Os cards mostravam só as iniciais do responsável. Agora mostram a
+   FOTO do perfil e o NOME — e destacam quando a demanda é sua.
+   ===================================================================== */
+
+let MG_FOTOS = {};   /* pedaço do nome → {nome, url} */
+
+async function mgCarregarFotos(){
+  try{
+    const {data,error} = await sb.from('profiles').select('id,nome,avatar_url');
+    if(error) throw error;
+    const mapa = {};
+    (data||[]).forEach(p=>{
+      if(!p.nome) return;
+      const partes = mgNorm(p.nome).split(' ').filter(t=>t.length>=3);
+      partes.forEach(t=>{ if(!mapa[t]) mapa[t] = {nome:p.nome, url:p.avatar_url||null} });
+    });
+    MG_FOTOS = mapa;
+  }catch(e){ console.warn('[fotos]', e) }
+}
+function mgFotoDe(nome){
+  const partes = mgNorm(nome).split(' ').filter(Boolean);
+  for(const t of partes){
+    if(MG_FOTOS[t]) return MG_FOTOS[t];
+    /* tolera apelido: "Vini" encontra "vinicius" */
+    if(t.length>=4){
+      const achou = Object.keys(MG_FOTOS).find(k=>k.startsWith(t)||t.startsWith(k));
+      if(achou) return MG_FOTOS[achou];
+    }
+  }
+  return null;
+}
+function mgAvatarResp(nome, tamanho){
+  const f = mgFotoDe(nome);
+  const eu = (typeof mgSouEu==='function') && mgSouEu(nome);
+  const dentro = (f && f.url)
+    ? `<img src="${esc(f.url)}" alt="">`
+    : esc(initials(nome));
+  return `<span class="av ${eu?'eu':''}" title="${esc(nome)}${eu?' (você)':''}">${dentro}</span>`;
+}
+
+/* ---- bloco de responsáveis do card ---- */
+function mgBlocoResp(assignees){
+  const as = (assignees||[]).filter(Boolean);
+  if(!as.length) return '';
+  const meus = as.filter(a=> (typeof mgSouEu==='function') && mgSouEu(a));
+  const souEu = meus.length>0;
+  /* se a demanda é minha, meu nome vem primeiro */
+  const ordem = souEu ? [...meus, ...as.filter(a=>!meus.includes(a))] : as;
+  const mostra = ordem.slice(0,3);
+  const rotulo = (typeof firstName==='function') ? firstName(ordem[0]) : String(ordem[0]).split(' ')[0];
+  return `<div class="mg-resp">
+    <span class="pilha">${mostra.map(a=>mgAvatarResp(a)).join('')}</span>
+    <span class="quem ${souEu?'eu':''}">${esc(rotulo)}</span>
+    ${ordem.length>1?`<span class="mais">+${ordem.length-1}</span>`:''}
+    ${souEu?`<span class="selo-eu">você</span>`:''}
+  </div>`;
+}
+
+/* ---- troca as iniciais pelo bloco novo, sem tocar no resto do card ---- */
+(function(){
+  if(typeof taskCard!=='function') return;
+  const _mg20Card = taskCard;
+  taskCard = function(t, accent){
+    let html = _mg20Card(t, accent);
+    const novo = mgBlocoResp(t.assignees);
+    /* o card original desenha <div class="avs">…</div> */
+    html = html.replace(/<div class="avs">[\s\S]*?<\/div>\s*(?=<\/div>)/,
+                        novo ? novo+'\n        ' : '');
+    if(novo && !html.includes('mg-resp')){
+      /* se o formato mudar, encaixa antes do fim do rodapé */
+      html = html.replace('</div>\n    </div>\n    ', novo+'</div>\n    </div>\n    ');
+    }
+    return html;
+  };
+})();
+
+/* ---- o Quadro (lista) também mostra a foto ---- */
+(function(){
+  if(typeof renderList!=='function') return;
+  const _mg20List = renderList;
+  renderList = function(){
+    const r = _mg20List();
+    const alvo = $('v-list'); if(!alvo) return r;
+    alvo.querySelectorAll('td').forEach(td=>{
+      const txt = (td.textContent||'').trim();
+      if(!txt || td.dataset.mgResp) return;
+      /* célula de responsáveis: bate com algum nome conhecido */
+      const nomes = txt.split(/,\s*/).filter(n=>n && mgFotoDe(n));
+      if(!nomes.length || nomes.join(', ')!==txt) return;
+      td.dataset.mgResp='1';
+      td.innerHTML = nomes.map(n=>{
+        const f=mgFotoDe(n), eu=(typeof mgSouEu==='function')&&mgSouEu(n);
+        const dentro=(f&&f.url)?`<img src="${esc(f.url)}" alt="">`:esc(initials(n));
+        return `<span class="mg-resp-linha"><span class="av ${eu?'eu':''}">${dentro}</span>${esc(n)}</span>`;
+      }).join(' ');
+    });
+    return r;
+  };
+})();
+
+/* ---- mantém as fotos em dia ---- */
+(function(){
+  const _mg20Boot = boot;
+  boot = async function(){
+    const r = await _mg20Boot();
+    await mgCarregarFotos();
+    if(typeof render==='function') render();
+    return r;
+  };
+  /* ao trocar a própria foto, atualiza o mapa e redesenha */
+  const _mg20Pick = pickAvatar;
+  pickAvatar = function(){
+    const r = _mg20Pick();
+    const antes = ME && ME.avatar_url;
+    let tentativas = 0;
+    const conferir = setInterval(async ()=>{
+      tentativas++;
+      if(ME && ME.avatar_url && ME.avatar_url!==antes){
+        clearInterval(conferir);
+        await mgCarregarFotos();
+        if(typeof render==='function') render();
+        toast('Sua foto já aparece nas demandas suas');
+      }
+      if(tentativas>40) clearInterval(conferir);
+    }, 500);
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
