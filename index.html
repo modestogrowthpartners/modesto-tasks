@@ -5827,5 +5827,493 @@ function mgBlocoResp(assignees){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 21 — Preferências em duas colunas, no espírito do Slack
+   ===================================================================== */
+#mg-cfg .cx{max-width:940px;height:min(78vh,660px)}
+#mg-cfg .cc{padding:0;display:flex;overflow:hidden;flex:1}
+
+.mg-pref-lados{display:flex;width:100%;min-height:0}
+.mg-pref-menu{width:238px;flex-shrink:0;border-right:1px solid var(--line);background:var(--card2);
+  padding:12px 10px;overflow:auto}
+.mg-pref-menu button{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;
+  border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13.5px;font-weight:500;color:var(--muted);
+  text-align:left;transition:background .15s,color .15s}
+.mg-pref-menu button:hover{background:var(--card);color:var(--text)}
+.mg-pref-menu button.on{background:var(--brass);color:var(--ink2);font-weight:600}
+.mg-pref-menu button .ic{width:18px;text-align:center;opacity:.9;font-size:14px}
+.mg-pref-menu .grupo{font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted2);
+  font-weight:700;padding:14px 12px 5px}
+.mg-pref-corpo{flex:1;min-width:0;overflow:auto;padding:22px 26px 30px}
+.mg-pref-corpo h3{font-family:var(--font-d);font-size:20px;font-weight:500;margin-bottom:4px}
+.mg-pref-corpo .sub{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:20px}
+.mg-pref-corpo .grupo-tt{font-size:13.5px;font-weight:700;margin:22px 0 6px}
+.mg-pref-corpo .grupo-tt:first-of-type{margin-top:0}
+.mg-pref-corpo .grupo-ds{font-size:12.5px;color:var(--muted);line-height:1.55;margin-bottom:12px}
+.mg-pref-corpo hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.mg-linha-pref{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.mg-linha-pref:last-child{border-bottom:0}
+.mg-linha-pref .txt{flex:1;min-width:0}
+.mg-linha-pref .txt b{font-size:13.5px;font-weight:600;display:block}
+.mg-linha-pref .txt span{font-size:12px;color:var(--muted);display:block;margin-top:2px;line-height:1.45}
+.mg-check{display:flex;align-items:flex-start;gap:10px;padding:9px 0;font-size:13.5px;cursor:pointer}
+.mg-check input{width:16px;height:16px;accent-color:var(--brass);margin-top:2px;flex-shrink:0}
+.mg-check .d{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.mg-mini-seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:3px;gap:3px;flex-shrink:0}
+.mg-mini-seg button{background:none;border:0;border-radius:7px;padding:7px 13px;font-size:12.5px;
+  font-weight:600;color:var(--muted);font-family:inherit;transition:background .2s,color .2s}
+.mg-mini-seg button.on{background:var(--card);color:var(--brass2);box-shadow:0 1px 5px rgba(0,0,0,.09)}
+.mg-tema-cores{display:flex;gap:9px;flex-wrap:wrap}
+.mg-tema-cores .c{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+  transition:transform .15s,border-color .15s}
+.mg-tema-cores .c:hover{transform:scale(1.1)}
+.mg-tema-cores .c.on{border-color:var(--text);box-shadow:0 0 0 2px var(--brass)}
+@media(max-width:820px){
+  .mg-pref-lados{flex-direction:column}
+  .mg-pref-menu{width:100%;border-right:0;border-bottom:1px solid var(--line);display:flex;gap:6px;
+    overflow-x:auto;padding:10px}
+  .mg-pref-menu button{width:auto;white-space:nowrap}
+  .mg-pref-menu .grupo{display:none}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 21 — Preferências no formato de duas colunas
+   ===================================================================== */
+const MG_PREF_ABAS = [
+  {id:'perfil',   ic:'☺', nome:'Meu perfil',      grupo:'Você'},
+  {id:'conta',    ic:'⚿', nome:'Conta',           grupo:'Você'},
+  {id:'notif',    ic:'🔔', nome:'Notificações',    grupo:'Preferências'},
+  {id:'visual',   ic:'◐', nome:'Visual',           grupo:'Preferências'},
+  {id:'inicio',   ic:'⌂', nome:'Início',           grupo:'Preferências'},
+  {id:'msgs',     ic:'✉', nome:'Mensagens',        grupo:'Preferências'},
+  {id:'lidas',    ic:'✓', nome:'Marcar como lida', grupo:'Preferências'},
+  {id:'acess',    ic:'◍', nome:'Acessibilidade',   grupo:'Preferências'},
+  {id:'avanc',    ic:'⚙', nome:'Avançado',         grupo:'Preferências'},
+  {id:'sessao',   ic:'⏻', nome:'Sessão',           grupo:'Conta'},
+];
+let MG_PREF_ABA = 'perfil';
+
+/* preferências próprias, guardadas no navegador */
+const MG_P_KEY='mgp_prefs2';
+let MG_P = {enterEnvia:'on', horas:'on', compacto:'off', abrirLido:'inicio',
+            avisoDemanda:'on', avisoChat:'on', avisoDoc:'off', animacoes:'on'};
+(function(){ try{ Object.assign(MG_P, JSON.parse(localStorage.getItem(MG_P_KEY)||'{}')) }catch(_){} })();
+function mgP(k,v){
+  if(v===undefined) return MG_P[k];
+  MG_P[k]=v; localStorage.setItem(MG_P_KEY, JSON.stringify(MG_P));
+  mgAplicarP(); mgDesenhaPref();
+}
+function mgAplicarP(){
+  document.body.classList.toggle('mg-sem-anim', MG_P.animacoes==='off');
+  document.body.classList.toggle('mg-chat-compacto', MG_P.compacto==='on');
+}
+mgAplicarP();
+
+function mgSeg(valor, opcoes, aoClicar){
+  return `<div class="mg-mini-seg">${opcoes.map(([v,l])=>
+    `<button class="${valor===v?'on':''}" onclick="${aoClicar}('${v}')">${l}</button>`).join('')}</div>`;
+}
+function mgLinha(titulo, desc, controle){
+  return `<div class="mg-linha-pref"><div class="txt"><b>${titulo}</b>${desc?`<span>${desc}</span>`:''}</div>${controle}</div>`;
+}
+
+/* ---- conteúdo de cada aba ---- */
+function mgPrefConteudo(aba){
+  const eu = ME||{};
+  switch(aba){
+
+  case 'perfil': return `
+    <h3>Meu perfil</h3>
+    <div class="sub">Sua foto e seu nome aparecem nas demandas, nas conversas e nos documentos.</div>
+    <div class="avatar-row" style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
+      <div class="avatar-pick" onclick="pickAvatar()" style="width:72px;height:72px;border-radius:50%;overflow:hidden;cursor:pointer;background:var(--brass);color:var(--ink2);display:grid;place-items:center;font-weight:700;font-size:24px">${avatarInner(eu.name, eu.avatar_url)}</div>
+      <div style="font-size:12.5px;color:var(--muted);line-height:1.5">
+        <b style="color:var(--text)">Foto de perfil</b><br>Clique na foto para enviar uma imagem.<br>
+        <span style="font-size:11.5px">Ela é recortada em quadrado automaticamente.</span>
+      </div>
+    </div>
+    <hr>
+    <div class="grupo-tt">Nome exibido</div>
+    <div style="display:flex;gap:8px">
+      <input id="set-name" type="text" value="${esc(eu.name||'')}" style="flex:1;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)">
+      <button class="btn-p" onclick="saveMyName()">Salvar</button>
+    </div>
+    <div class="grupo-tt">Nova senha</div>
+    <div style="display:flex;gap:8px">
+      <input id="set-pass" type="password" placeholder="mín. 6 caracteres" style="flex:1;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)">
+      <button class="btn-p" onclick="saveMyPass()">Trocar</button>
+    </div>`;
+
+  case 'conta': return `
+    <h3>Conta</h3>
+    <div class="sub">Seus dados de acesso nesta plataforma.</div>
+    ${mgLinha('E-mail','O endereço que você usa para entrar', `<span style="font-size:13px;color:var(--muted)">${esc(eu.email||'—')}</span>`)}
+    ${mgLinha('Papel','O que você pode fazer aqui', `<span style="font-size:13px;color:var(--muted)">${isAdmin()?'Equipe · administrador':'Cliente'}</span>`)}
+    ${!isAdmin() ? mgLinha('Empresa','Os documentos que você enxerga', `<span style="font-size:13px;color:var(--muted)">${esc(eu.client_id?clientName(eu.client_id):'—')}</span>`) : ''}`;
+
+  case 'notif': return `
+    <h3>Notificações</h3>
+    <div class="sub">Escolha sobre o que quer ser avisado. Vale neste navegador.</div>
+    <div class="grupo-tt">Sobre o que você recebe aviso</div>
+    <label class="mg-check"><input type="checkbox" ${mgP('avisoDemanda')==='on'?'checked':''} onchange="mgP('avisoDemanda',this.checked?'on':'off')">
+      <span>Demandas atribuídas a você<span class="d">Novas demandas, mudanças de prazo e atrasos</span></span></label>
+    <label class="mg-check"><input type="checkbox" ${mgP('avisoChat')==='on'?'checked':''} onchange="mgP('avisoChat',this.checked?'on':'off')">
+      <span>Mensagens no chat<span class="d">Canais que você participa e conversas diretas</span></span></label>
+    <label class="mg-check"><input type="checkbox" ${mgP('avisoDoc')==='on'?'checked':''} onchange="mgP('avisoDoc',this.checked?'on':'off')">
+      <span>Novos documentos<span class="d">Quando uma entrega é publicada para um cliente</span></span></label>
+    <hr>
+    <div class="grupo-tt">Som</div>
+    ${mgLinha('Tocar um som ao receber aviso','Duas notas curtas, discretas',
+      mgSeg(mgSomLigado()?'on':'off', [['on','Ligado'],['off','Desligado']], 'mgAlternarSom'))}
+    ${mgLinha('Testar o som','Ouça como fica','<button class="mini-btn" onclick="mgTocarAviso()">Tocar</button>')}
+    <hr>
+    <div class="grupo-tt">No sino</div>
+    ${mgLinha('Mostrar o sino de avisos','O contador no topo da tela', segBtns('notif',[['on','Sim'],['off','Não']]))}
+    ${mgLinha('Somente não lidos','Esconde o que você já viu', segBtns('notifUnread',[['on','Sim'],['off','Não']]))}`;
+
+  case 'visual': return `
+    <h3>Visual</h3>
+    <div class="sub">Ajuste a aparência do jeito que você prefere. Vale só para você.</div>
+    <div class="grupo-tt">Modo de cor</div>
+    ${mgLinha('Tema','Claro ou escuro', segBtns('theme',[['light','Claro'],['dark','Escuro']]))}
+    <div class="grupo-tt">Cor de destaque</div>
+    <div class="grupo-ds">Usada nos botões, seleções e realces.</div>
+    <div class="mg-tema-cores">${[['gold','#c2a15b','Brass'],['green','#2e9e6b','Verde'],['blue','#2d6fcf','Azul'],['terra','#d95d39','Terra'],['purple','#8e3fbe','Roxo']]
+      .map(([v,c,n])=>`<span class="c ${PREFS.accent===v?'on':''}" style="background:${c}" title="${n}" onclick="setPref('accent','${v}')"></span>`).join('')}</div>
+    <hr>
+    <div class="grupo-tt">Texto e espaçamento</div>
+    ${mgLinha('Tamanho do texto','', segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']]))}
+    ${mgLinha('Cantos dos cards','', segBtns('round',[['sq','Retos'],['sm','Suaves'],['md','Arredondados']]))}
+    ${mgLinha('Densidade','Espaço entre os elementos', segBtns('density',[['comfy','Confortável'],['compact','Compacto']]))}
+    <hr>
+    <div class="grupo-tt">Cards</div>
+    ${mgLinha('Tamanho dos cards','Documentos e pastas',
+      mgSeg(localStorage.getItem('mgp_cards')||'m', [['p','Pequeno'],['m','Médio'],['g','Grande']], 'mgDefinirCards'))}
+    ${mgLinha('Avatares nos cards','Mostrar a foto de quem é responsável', segBtns('cardav',[['on','Mostrar'],['off','Ocultar']]))}
+    ${mgLinha('Fundo animado','A marca desenhada ao fundo', segBtns('bg',[['on','Ligado'],['off','Desligado']]))}`;
+
+  case 'inicio': return `
+    <h3>Início</h3>
+    <div class="sub">O que aparece na tela de escolha.</div>
+    ${mgLinha('Abrir no Início ao entrar','Em vez de cair direto num módulo','<span style="font-size:13px;color:var(--muted)">Sempre</span>')}
+    <div class="grupo-tt">O que mostrar</div>
+    <label class="mg-check"><input type="checkbox" checked disabled>
+      <span>Suas demandas de hoje<span class="d">Com prazo para hoje ou vencidas, atribuídas a você</span></span></label>
+    <label class="mg-check"><input type="checkbox" checked disabled>
+      <span>Mensagens para você<span class="d">Canais com mensagem não lida</span></span></label>
+    <label class="mg-check"><input type="checkbox" checked disabled>
+      <span>Logos dos clientes girando<span class="d">No card de Clientes</span></span></label>`;
+
+  case 'msgs': return `
+    <h3>Mensagens</h3>
+    <div class="sub">Como o chat se comporta enquanto você escreve e lê.</div>
+    <div class="grupo-tt">Ao escrever</div>
+    ${mgLinha('Enter envia a mensagem','Desligado, Enter quebra linha e Ctrl+Enter envia',
+      mgSeg(mgP('enterEnvia'), [['on','Enviar'],['off','Quebrar linha']], "v=>mgP('enterEnvia',v)".length?'mgSetEnter':'mgSetEnter'))}
+    <div class="grupo-tt">Ao ler</div>
+    ${mgLinha('Mostrar o horário de cada mensagem','', mgSeg(mgP('horas'), [['on','Mostrar'],['off','Ocultar']], 'mgSetHoras'))}
+    ${mgLinha('Modo compacto','Menos espaço entre as mensagens', mgSeg(mgP('compacto'), [['off','Normal'],['on','Compacto']], 'mgSetCompacto'))}`;
+
+  case 'lidas': return `
+    <h3>Marcar como lida</h3>
+    <div class="sub">A plataforma marca um canal como lido assim que você o abre. Dá para mudar.</div>
+    <div class="grupo-tt">Quando eu abrir um canal</div>
+    <label class="mg-check"><input type="radio" name="mg-lido" ${mgP('abrirLido')==='inicio'?'checked':''} onchange="mgP('abrirLido','inicio')">
+      <span>Continuar de onde parei e marcar como lido</span></label>
+    <label class="mg-check"><input type="radio" name="mg-lido" ${mgP('abrirLido')==='fim'?'checked':''} onchange="mgP('abrirLido','fim')">
+      <span>Ir para a mensagem mais recente e marcar como lido</span></label>
+    <label class="mg-check"><input type="radio" name="mg-lido" ${mgP('abrirLido')==='manter'?'checked':''} onchange="mgP('abrirLido','manter')">
+      <span>Ir para a mais recente, mas deixar as não vistas como não lidas</span></label>
+    <hr>
+    <div class="grupo-tt">Atalhos de teclado</div>
+    <div class="grupo-ds">
+      <b>Esc</b> — fecha janelas e volta da leitura de um documento<br>
+      <b>Enter</b> — envia a mensagem no chat<br>
+      <b>Shift + Enter</b> — quebra linha
+    </div>`;
+
+  case 'acess': return `
+    <h3>Acessibilidade</h3>
+    <div class="sub">Ajustes para deixar a plataforma mais confortável de usar.</div>
+    ${mgLinha('Animações','Transições de janelas, cards e menus',
+      mgSeg(mgP('animacoes'), [['on','Ligadas'],['off','Reduzidas']], 'mgSetAnim'))}
+    <div class="grupo-ds" style="margin-top:8px">Se o seu sistema já pede menos animação, a plataforma respeita isso automaticamente.</div>
+    <hr>
+    ${mgLinha('Tamanho do texto','O mesmo ajuste do Visual', segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']]))}`;
+
+  case 'avanc': return `
+    <h3>Avançado</h3>
+    <div class="sub">Ajustes técnicos e manutenção.</div>
+    <div class="grupo-tt">Dados guardados neste navegador</div>
+    <div class="grupo-ds">Preferências de aparência, som e tamanho de card ficam só neste computador — não afetam ninguém mais.</div>
+    <button class="mini-btn" onclick="mgLimparPrefs()">Restaurar preferências padrão</button>
+    <hr>
+    <div class="grupo-tt">Conexão</div>
+    ${mgLinha('Banco de dados','O projeto Supabase em uso', `<span style="font-size:12px;color:var(--muted);font-family:ui-monospace,monospace">${esc(String(SUPABASE_URL).replace('https://','').split('.')[0])}</span>`)}
+    ${isAdmin()?mgLinha('Cadastro de acessos','Confirmação de e-mail no Supabase',
+      `<span style="font-size:12.5px;color:${MG_AUTH&&MG_AUTH.autoconfirma?'var(--st-done)':'var(--danger)'}">${MG_AUTH?(MG_AUTH.autoconfirma?'✓ automático':'⚠ exige confirmação'):'—'}</span>`):''}`;
+
+  case 'sessao': return `
+    <h3>Sessão</h3>
+    <div class="sub">Encerra o acesso neste computador. Você precisará entrar de novo.</div>
+    <button class="mini-btn" style="color:var(--danger);border-color:rgba(184,74,62,.4)" onclick="fecharConfig();signOut()">Sair da conta</button>`;
+  }
+  return '';
+}
+function mgSetEnter(v){ mgP('enterEnvia',v) }
+function mgSetHoras(v){ mgP('horas',v) }
+function mgSetCompacto(v){ mgP('compacto',v) }
+function mgSetAnim(v){ mgP('animacoes',v) }
+function mgLimparPrefs(){
+  if(!confirm('Restaurar as preferências padrão deste navegador?')) return;
+  localStorage.removeItem(MG_P_KEY);
+  localStorage.removeItem('mgp_cards');
+  localStorage.removeItem('mgp_som');
+  location.reload();
+}
+
+/* ---- desenha o painel ---- */
+function mgDesenhaPref(){
+  const corpo=$('mg-cfg-corpo'); if(!corpo) return;
+  const abas = MG_PREF_ABAS.filter(a=> isAdmin() || ['perfil','conta','notif','visual','msgs','acess','sessao'].includes(a.id));
+  let menu='', grupoAtual='';
+  abas.forEach(a=>{
+    if(a.grupo!==grupoAtual){ grupoAtual=a.grupo; menu+=`<div class="grupo">${a.grupo}</div>` }
+    menu+=`<button class="${a.id===MG_PREF_ABA?'on':''}" onclick="mgIrPref('${a.id}')"><span class="ic">${a.ic}</span>${esc(a.nome)}</button>`;
+  });
+  corpo.innerHTML = `<div class="mg-pref-lados">
+      <nav class="mg-pref-menu">${menu}</nav>
+      <div class="mg-pref-corpo" id="mg-pref-corpo">${mgPrefConteudo(MG_PREF_ABA)}</div>
+    </div>`;
+}
+function mgIrPref(id){ MG_PREF_ABA=id; mgDesenhaPref(); const c=$('mg-pref-corpo'); if(c) c.scrollTop=0; }
+
+/* substitui o formato antigo de blocos */
+abrirConfig = function(){
+  const antes = VIEW;
+  VIEW='settings';
+  if(typeof renderSettings==='function'){ renderSettings(); const o=$('v-settings'); if(o) o.innerHTML=''; }
+  VIEW = (antes==='settings') ? 'board' : antes;
+  mgDesenhaPref();
+  $('mg-cfg').classList.add('on');
+};
+/* quando uma preferência do app original muda, redesenha o painel */
+(function(){
+  const _mg21SetPref = setPref;
+  setPref = function(k,v){
+    PREFS[k]=v; if(typeof savePrefs==='function') savePrefs();
+    if(typeof applyPrefs==='function') applyPrefs();
+    if($('mg-cfg') && $('mg-cfg').classList.contains('on')) mgDesenhaPref();
+    else if(typeof renderSettings==='function') renderSettings();
+  };
+  const _mg21Cards = mgDefinirCards;
+  mgDefinirCards = function(v){ _mg21Cards(v); if($('mg-cfg').classList.contains('on')) mgDesenhaPref(); };
+  const _mg21Som = mgAlternarSom;
+  mgAlternarSom = function(v){ _mg21Som(v); if($('mg-cfg').classList.contains('on')) mgDesenhaPref(); };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 22 — chat no espírito do Slack
+   ===================================================================== */
+/* barra lateral de canais */
+.mgc-side{width:236px;background:var(--card2)}
+.mgc-i{padding:6px 10px;border-radius:7px;font-size:13.5px;gap:8px}
+.mgc-i.on{background:var(--brass);color:var(--ink2);font-weight:700}
+.mgc-i.on .h{opacity:1}
+.mgc-i.naolido{font-weight:700;color:var(--text)}
+.mgc-i .h{font-size:14px;font-weight:400}
+.mgc-sec{padding:14px 10px 4px;font-size:11px;letter-spacing:.4px}
+.mgc-sec .add{font-size:16px;width:22px;height:22px}
+
+/* cabeçalho da conversa */
+.mgc-top{padding:11px 20px;gap:8px;border-bottom:1px solid var(--line)}
+.mgc-top .nm{font-size:16px;font-weight:600;font-family:var(--font-b)}
+.mgc-top .sub{font-size:12px;color:var(--muted);padding-left:10px;margin-left:2px;border-left:1px solid var(--line2)}
+
+/* mensagens agrupadas por autor, como no Slack */
+.mgc-m{padding:5px 20px 5px 20px;gap:10px;border-radius:0;max-width:none}
+.mgc-m:hover{background:var(--card2)}
+.mgc-m .av{width:36px;height:36px;border-radius:8px;font-size:13px}
+.mgc-m .av img{width:100%;height:100%;object-fit:cover}
+.mgc-m.seguida{padding-top:1px;padding-bottom:1px}
+.mgc-m.seguida .av{visibility:hidden;height:0;margin:0}
+.mgc-m.seguida .hd{display:none}
+.mgc-m.seguida .hora-lateral{position:absolute;left:20px;top:3px;font-size:10.5px;color:var(--muted2);
+  opacity:0;transition:opacity .12s;width:36px;text-align:center}
+.mgc-m.seguida:hover .hora-lateral{opacity:1}
+.mgc-m .who{font-size:14px;font-weight:700}
+.mgc-m .tx{font-size:14px;line-height:1.52}
+.mgc-m .acts{top:-14px;right:20px;border-radius:8px;padding:2px}
+.mgc-m .acts button{width:30px;height:28px;font-size:15px}
+body.mg-chat-compacto .mgc-m{padding-top:2px;padding-bottom:2px}
+body.mg-chat-compacto .mgc-m .tx{font-size:13.5px;line-height:1.45}
+body.mg-sem-hora .mgc-m .tm{display:none}
+
+/* separador de dia com linha, estilo Slack */
+.mgc-day{align-self:stretch;display:flex;align-items:center;gap:12px;background:none;border:0;
+  border-radius:0;padding:0;margin:16px 20px 8px;color:var(--muted);font-size:12px;font-weight:700}
+.mgc-day::before,.mgc-day::after{content:"";flex:1;height:1px;background:var(--line)}
+.mgc-day span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
+
+/* caixa de escrita com barra de formatação */
+.mgc-comp{padding:8px 20px 18px}
+.mgc-box{flex-direction:column;align-items:stretch;gap:0;padding:0;border-radius:10px;overflow:hidden}
+.mgc-ferramentas{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--line);
+  background:var(--card2)}
+.mgc-ferramentas button{background:none;border:0;width:28px;height:26px;border-radius:5px;color:var(--muted);
+  font-size:13px;font-family:inherit;display:grid;place-items:center;transition:background .15s,color .15s}
+.mgc-ferramentas button:hover{background:var(--card);color:var(--text)}
+.mgc-ferramentas .div{width:1px;height:16px;background:var(--line2);margin:0 5px}
+.mgc-box textarea{padding:11px 13px 4px;font-size:14px}
+.mgc-abaixo{display:flex;align-items:center;gap:6px;padding:4px 8px 8px}
+.mgc-abaixo .esq{display:flex;gap:2px}
+.mgc-abaixo .sp{flex:1}
+.mgc-abaixo .snd{width:32px;height:30px;border-radius:7px;font-size:14px}
+.mgc-abaixo .snd.pronto{background:var(--st-done);color:#fff}
+
+/* respostas em conversa (thread) */
+.mgc-thread{display:inline-flex;align-items:center;gap:7px;margin-top:5px;font-size:12.5px;
+  color:var(--brass2);font-weight:600;cursor:pointer;border-radius:7px;padding:3px 8px 3px 5px;
+  transition:background .15s}
+.mgc-thread:hover{background:var(--card2)}
+.mgc-thread .bolinhas{display:flex}
+.mgc-thread .bolinhas i{width:18px;height:18px;border-radius:5px;background:var(--brass);
+  display:grid;place-items:center;font-size:8px;font-weight:700;color:var(--ink2);
+  border:1.5px solid var(--card);margin-left:-4px;font-style:normal}
+.mgc-thread .bolinhas i:first-child{margin-left:0}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 22 — chat mais parecido com o Slack
+   • mensagens seguidas do mesmo autor se agrupam
+   • canal com mensagem nova fica em negrito
+   • barra de formatação na caixa de escrita
+   • Enter envia (ou quebra linha, conforme a preferência)
+   ===================================================================== */
+
+const _mg22Chat = renderChatView;
+renderChatView = function(){
+  const r = _mg22Chat();
+  if(CH_READY!==true) return r;
+  const el=$('v-chat'); if(!el) return r;
+
+  /* --- agrupa mensagens seguidas do mesmo autor --- */
+  const msgs=[...el.querySelectorAll('.mgc-msgs .mgc-m')];
+  let autorAnterior=null, horaAnterior=0;
+  msgs.forEach(m=>{
+    const quem=m.querySelector('.who'); if(!quem) { autorAnterior=null; return }
+    const nome=quem.textContent.trim();
+    const tm=m.querySelector('.tm');
+    const minutos=(()=>{ const t=(tm&&tm.textContent||'').split(':'); return t.length===2?(+t[0]*60 + +t[1]):0 })();
+    if(nome===autorAnterior && (minutos-horaAnterior)<=5 && !m.previousElementSibling?.classList.contains('mgc-day')){
+      m.classList.add('seguida');
+      m.insertAdjacentHTML('afterbegin', `<span class="hora-lateral">${esc(tm?tm.textContent:'')}</span>`);
+    }
+    autorAnterior=nome; horaAnterior=minutos;
+  });
+
+  /* --- separador de dia com linha --- */
+  el.querySelectorAll('.mgc-day').forEach(d=>{
+    if(!d.querySelector('span')) d.innerHTML = `<span>${esc(d.textContent.trim())}</span>`;
+  });
+
+  /* --- canal com mensagem nova em negrito --- */
+  if(typeof MG_NAOLIDAS!=='undefined' && MG_NAOLIDAS){
+    const comNovas = new Set(MG_NAOLIDAS.map(x=>x.canal && x.canal.id));
+    el.querySelectorAll('.mgc-i').forEach(b=>{
+      const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
+      if(m && comNovas.has(m[1]) && !b.classList.contains('on')) b.classList.add('naolido');
+    });
+  }
+
+  /* --- caixa de escrita com barra de formatação --- */
+  const caixa = el.querySelector('.mgc-box');
+  if(caixa && !caixa.querySelector('.mgc-ferramentas')){
+    const ta = caixa.querySelector('textarea');
+    const antigos = [...caixa.children].filter(c=>c!==ta);
+    antigos.forEach(c=>c.remove());
+    caixa.insertAdjacentHTML('afterbegin', `
+      <div class="mgc-ferramentas">
+        <button title="Negrito" onclick="mgFmt('*')"><b>B</b></button>
+        <button title="Itálico" onclick="mgFmt('_')"><i>I</i></button>
+        <button title="Riscado" onclick="mgFmt('~')"><s>S</s></button>
+        <span class="div"></span>
+        <button title="Lista" onclick="mgFmtLinha('• ')">☰</button>
+        <button title="Citação" onclick="mgFmtLinha('> ')">❝</button>
+        <button title="Código" onclick="mgFmt('\`')">&lt;/&gt;</button>
+      </div>`);
+    caixa.insertAdjacentHTML('beforeend', `
+      <div class="mgc-abaixo">
+        <span class="esq">
+          <button class="tool" title="Anexar" onclick="toast('Anexos entram na próxima fase do chat')">📎</button>
+          <button class="tool" title="Emoji" onclick="mgEmoji()">☺</button>
+          <button class="tool" title="Mencionar alguém" onclick="mgFmtLinha('@')">@</button>
+        </span>
+        <span class="sp"></span>
+        <button class="snd" onclick="chSend()" title="Enviar">➤</button>
+      </div>`);
+    if(ta){
+      ta.addEventListener('input', ()=>{
+        const b=caixa.querySelector('.snd');
+        if(b) b.classList.toggle('pronto', ta.value.trim().length>0);
+      });
+    }
+  }
+  /* respeita a preferência de mostrar horários */
+  document.body.classList.toggle('mg-sem-hora', (typeof mgP==='function') && mgP('horas')==='off');
+  return r;
+};
+
+/* --- ferramentas de escrita --- */
+function mgCaixa(){ return $('mgc-in') }
+function mgFmt(marca){
+  const ta=mgCaixa(); if(!ta) return;
+  const i=ta.selectionStart, f=ta.selectionEnd, t=ta.value;
+  const sel=t.slice(i,f) || 'texto';
+  ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
+  ta.focus();
+  ta.setSelectionRange(i+marca.length, i+marca.length+sel.length);
+}
+function mgFmtLinha(prefixo){
+  const ta=mgCaixa(); if(!ta) return;
+  const i=ta.selectionStart, t=ta.value;
+  const inicio = t.lastIndexOf('\n', i-1)+1;
+  ta.value = t.slice(0,inicio) + prefixo + t.slice(inicio);
+  ta.focus(); ta.setSelectionRange(i+prefixo.length, i+prefixo.length);
+}
+function mgEmoji(){
+  const ta=mgCaixa(); if(!ta) return;
+  const lista=['🙂','👍','🎉','🔥','✅','👀','🙏','💡'];
+  ta.value += ' ' + lista[Math.floor(Math.random()*lista.length)];
+  ta.focus();
+}
+
+/* --- Enter envia ou quebra linha, conforme a preferência --- */
+chKey = function(e){
+  const enterEnvia = (typeof mgP!=='function') || mgP('enterEnvia')!=='off';
+  if(e.key==='Enter'){
+    if(enterEnvia && !e.shiftKey){ e.preventDefault(); chSend(); return }
+    if(!enterEnvia && (e.ctrlKey||e.metaKey)){ e.preventDefault(); chSend(); return }
+  }
+  const ta=e.target;
+  setTimeout(()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,160)+'px' },0);
+};
+
+/* --- ao abrir um canal, respeita a preferência de leitura --- */
+const _mg22Open = openChan;
+openChan = async function(id){
+  const r = await _mg22Open(id);
+  const modo = (typeof mgP==='function') ? mgP('abrirLido') : 'inicio';
+  const cx = $('mgc-msgs');
+  if(cx){
+    if(modo==='fim' || modo==='inicio') cx.scrollTop = cx.scrollHeight;
+  }
+  return r;
+};
+</script>
 </body>
 </html>
