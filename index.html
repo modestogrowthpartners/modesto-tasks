@@ -4817,5 +4817,361 @@ chCriarDemanda = async function(texto){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 15 — Kanban, Quadro e Calendário viram um módulo só
+   ===================================================================== */
+#mg-subnav{display:none;align-items:center;gap:10px;padding:14px 30px 0;flex-wrap:wrap}
+body.mg-tasks #mg-subnav{display:flex;animation:mgSobe .32s cubic-bezier(.22,1,.36,1) both}
+body.mg-inicio #mg-subnav{display:none!important}
+.mg-seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:3px;position:relative}
+.mg-seg button{background:none;border:0;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;
+  color:var(--muted);font-family:inherit;display:inline-flex;align-items:center;gap:7px;
+  transition:color .18s,background .22s cubic-bezier(.22,1,.36,1),transform .15s}
+.mg-seg button .ic{font-size:14px;line-height:1;opacity:.85}
+.mg-seg button:hover{color:var(--text)}
+.mg-seg button.on{background:var(--card);color:var(--brass2);box-shadow:0 2px 8px rgba(0,0,0,.09)}
+.mg-seg button:active{transform:scale(.97)}
+#mg-subnav .conta{font-size:12px;color:var(--muted);margin-left:2px}
+
+/* o conteúdo das três telas entra suave ao trocar */
+body.mg-tasks .view.on{animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 15
+   Kanban, Quadro e Calendário são três jeitos de olhar a mesma coisa.
+   Viram um item só na barra — "Modesto Tasks" — com um seletor de
+   visualização dentro.
+   ===================================================================== */
+
+const MG_TASKS_VIEWS = ['board','list','calendar'];
+const MG_TASKS_ROTULO = {board:'Kanban', list:'Quadro', calendar:'Calendário'};
+const MG_TASKS_ICONE  = {board:'▦', list:'☰', calendar:'▧'};
+let MG_TASKS_SUB = 'board';
+
+/* ---------- 1. um item só na barra ---------- */
+(function(){
+  const iPrimeiro = NAV.findIndex(n=>MG_TASKS_VIEWS.includes(n.v));
+  for(let i=NAV.length-1;i>=0;i--){ if(MG_TASKS_VIEWS.includes(NAV[i].v)) NAV.splice(i,1) }
+  if(!NAV.some(n=>n.v==='tasks')){
+    NAV.splice(iPrimeiro<0?1:iPrimeiro, 0, {v:'tasks', ic:'▦', label:'Modesto Tasks'});
+  }
+  if($('nav') && $('nav').children.length) buildNav();
+})();
+
+/* ---------- 2. o seletor de visualização ---------- */
+(function(){
+  const cont=document.querySelector('.content');
+  if(cont && !document.getElementById('mg-subnav')){
+    const d=document.createElement('div');
+    d.id='mg-subnav';
+    cont.parentNode.insertBefore(d, cont);
+  }
+})();
+function mgDesenhaSubnav(){
+  const el=$('mg-subnav'); if(!el) return;
+  el.innerHTML = `<div class="mg-seg">${
+    MG_TASKS_VIEWS.map(v=>`<button class="${v===MG_TASKS_SUB?'on':''}" onclick="mgVerTasks('${v}')">
+        <span class="ic">${MG_TASKS_ICONE[v]}</span>${MG_TASKS_ROTULO[v]}</button>`).join('')
+  }</div>
+  <span class="conta">${(TASKS||[]).length} demanda(s)</span>`;
+}
+function mgVerTasks(sub){
+  MG_TASKS_SUB = MG_TASKS_VIEWS.includes(sub) ? sub : 'board';
+  showView('tasks');
+}
+
+/* ---------- 3. navegação ---------- */
+const _mg15ShowView = showView;
+showView = function(v){
+  /* pedir "tasks" abre a visualização escolhida por dentro */
+  if(v==='tasks'){
+    const r = _mg15ShowView(MG_TASKS_SUB);
+    mgMarcarTasks();
+    return r;
+  }
+  /* pedir board/list/calendar direto também conta como o módulo Tasks */
+  if(MG_TASKS_VIEWS.includes(v)){
+    MG_TASKS_SUB = v;
+    const r = _mg15ShowView(v);
+    mgMarcarTasks();
+    return r;
+  }
+  const r = _mg15ShowView(v);
+  document.body.classList.remove('mg-tasks');
+  return r;
+};
+function mgMarcarTasks(){
+  document.body.classList.add('mg-tasks');
+  document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on', b.dataset.v==='tasks'));
+  const t=$('view-title'); if(t) t.textContent='Modesto Tasks';
+  mgDesenhaSubnav();
+}
+
+/* mantém o seletor em dia quando as demandas recarregam */
+const _mg15Render = render;
+render = function(){
+  const r = _mg15Render();
+  if(document.body.classList.contains('mg-tasks')) mgDesenhaSubnav();
+  return r;
+};
+
+/* ---------- 4. atalho do Início ---------- */
+const _mg15Atalhos = mgAtalhos;
+mgAtalhos = function(){
+  return _mg15Atalhos().map(a=>{
+    if(a.v==='tasks') return {...a, ds:'Kanban, quadro e calendário das demandas'};
+    return a;
+  });
+};
+
+/* o clique numa demanda do Início abre o Kanban dentro do módulo */
+mgIrParaDemanda = function(id){
+  MG_TASKS_SUB='board';
+  showView('tasks');
+  setTimeout(()=>{ if(typeof openDetail==='function') openDetail(id) }, 260);
+};
+/* "atrasadas" da lateral também */
+const _mg15Overdue = (typeof goOverdue==='function') ? goOverdue : null;
+if(_mg15Overdue){
+  goOverdue = function(){
+    FILTERS.overdue=true;
+    const c=$('f-over'); if(c) c.checked=true;
+    if(typeof updateFilterCount==='function') updateFilterCount();
+    MG_TASKS_SUB='board';
+    showView('tasks');
+  };
+}
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 16 — a pasta do cliente com cara de pasta dele
+   ===================================================================== */
+.mg-capa{display:flex;align-items:center;gap:20px;padding:6px 0 26px;margin-bottom:8px;
+  border-bottom:1px solid var(--line);
+  animation:mgSobe .45s cubic-bezier(.22,1,.36,1) both}
+.mg-capa .marca{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;overflow:hidden;
+  background:var(--card);border:1px solid var(--line);flex-shrink:0;
+  box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.mg-capa .marca img{width:100%;height:100%;object-fit:contain;background:#fff}
+.mg-capa .marca .ini{font-family:var(--font-d);font-size:30px;font-weight:600;color:#fff;
+  width:100%;height:100%;display:grid;place-items:center}
+.mg-capa .txt{min-width:0;flex:1}
+.mg-capa h1{font-family:var(--font-d);font-size:clamp(26px,3.4vw,38px);font-weight:500;
+  letter-spacing:-.5px;line-height:1.12}
+.mg-capa .resumo{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:7px;max-width:660px}
+.mg-capa .conta{font-size:12.5px;color:var(--muted2);margin-top:9px}
+@media(max-width:640px){
+  .mg-capa{flex-direction:column;align-items:flex-start;gap:14px}
+  .mg-capa .marca{width:60px;height:60px}
+}
+.mg-secao-cli{margin-top:26px}
+.mg-secao-cli:first-of-type{margin-top:20px}
+.mg-nada{font-size:13.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:13px;padding:26px;text-align:center;margin-top:20px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 16
+   O cliente tem uma empresa só — mostrar "categorias" e uma "pasta por
+   cliente" com uma pasta dentro não ajuda ninguém. Ele passa a ver o
+   nome da empresa em destaque e, logo abaixo, os documentos dele
+   separados por tipo.
+   ===================================================================== */
+const _mg16Docs = renderDocsView;
+renderDocsView = function(){
+  /* admin e páginas internas seguem como estão */
+  if(isAdmin() || !ME || !ME.client_id || DVIEW.kind!=='home') return _mg16Docs();
+
+  const el = $('v-docs'); if(!el) return;
+
+  if(!DOCS_LOADED){
+    el.innerHTML = `<div class="mg-load">Carregando seus documentos…</div>`;
+    loadDocs().then(renderDocsView);
+    return;
+  }
+
+  const c = CLIENTS.find(x=>x.id===ME.client_id);
+  const nome = c ? c.nome : 'Seus documentos';
+  const meus = DOCS.filter(d=>d.client_id===ME.client_id);
+
+  /* tipos presentes, na ordem definida, mais qualquer outro que apareça */
+  const tipos = DOC_TIPOS.filter(t=>meus.some(d=>d.tipo===t.k));
+  meus.forEach(d=>{ if(d.tipo && !tipos.some(t=>t.k===d.tipo)) tipos.push(docTipo(d.tipo)) });
+
+  const marca = (c && c.logo_url)
+    ? `<img src="${esc(c.logo_url)}" alt="">`
+    : `<span class="ini" style="background:${c?clientColor(c.id):'var(--brass)'}">${esc((nome||'?')[0].toUpperCase())}</span>`;
+
+  el.innerHTML = `
+    <div class="mg-capa">
+      <span class="marca">${marca}</span>
+      <span class="txt">
+        <h1>${esc(nome)}</h1>
+        ${c && c.resumo ? `<div class="resumo">${esc(c.resumo)}</div>` : ''}
+        <div class="conta">${meus.length} documento${meus.length===1?'':'s'} disponíve${meus.length===1?'l':'is'}</div>
+      </span>
+    </div>
+    ${ meus.length
+        ? tipos.map((t,i)=>{
+            const lista = meus.filter(d=>d.tipo===t.k);
+            return `<div class="mg-secao-cli" style="animation:mgSobe .42s cubic-bezier(.22,1,.36,1) ${(0.08+i*0.06).toFixed(2)}s both">
+              <div class="mg-sec">
+                <span class="sw" style="background:${t.hex}"></span>
+                <span class="t">${esc(t.label)}</span>
+                <span class="c">${lista.length}</span>
+              </div>
+              <div class="dgrid">${lista.map(docCardHTML).join('')}</div>
+            </div>`;
+          }).join('')
+        : `<div class="mg-nada">Nenhum documento publicado ainda.<br>
+             <span style="font-size:12.5px">Assim que a equipe publicar algo, aparece aqui.</span></div>`
+    }`;
+};
+
+/* a página de um documento também volta para a capa do cliente */
+const _mg16Voltar = voltarDocs;
+voltarDocs = function(){
+  if(!isAdmin() && ME && ME.client_id){
+    DVIEW = {kind:'home'};
+    renderDocsView();
+    return;
+  }
+  return _mg16Voltar();
+};
+
+/* o caminho de navegação do cliente não precisa citar "Documentos › empresa" */
+const _mg16DocPagina = renderDocsView;
+renderDocsView = function(){
+  const r = _mg16DocPagina();
+  if(isAdmin() || !ME || !ME.client_id || DVIEW.kind!=='doc') return r;
+  const el=$('v-docs'); if(!el) return r;
+  const crumb = el.querySelector('.mg-crumb');
+  if(crumb){
+    const d = DOCS.find(x=>String(x.id)===String(DVIEW.id));
+    crumb.innerHTML = `<a onclick="voltarDocs()">${esc(clientName(ME.client_id))}</a>
+      <span>›</span><b style="color:var(--text)">${esc(d?d.titulo:'Documento')}</b>`;
+  }
+  const voltar = el.querySelector('.mg-voltar');
+  if(voltar) voltar.innerHTML = `<span class="seta">←</span> Voltar para meus documentos`;
+  return r;
+};
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 17 — menu do usuário na barra de cima (com Sair)
+   A barra lateral recolhe quase sempre, então o "Sair" que vivia nela
+   ficava fora de alcance. Agora ele mora no topo, sempre visível.
+   ===================================================================== */
+.mg-eu{position:relative;margin-left:6px}
+.mg-eu-btn{display:inline-flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:999px;padding:5px 12px 5px 5px;font-family:inherit;font-size:13px;font-weight:600;color:var(--text);
+  transition:border-color .15s,transform .15s,box-shadow .18s}
+.mg-eu-btn:hover{border-color:var(--brass);transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.07)}
+.mg-eu-btn .av{width:30px;height:30px;border-radius:50%;background:var(--brass);color:var(--ink2);
+  display:grid;place-items:center;font-size:12px;font-weight:700;overflow:hidden;flex-shrink:0}
+.mg-eu-btn .av img{width:100%;height:100%;object-fit:cover}
+.mg-eu-btn .nm{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-eu-btn .seta{font-size:10px;color:var(--muted);transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.mg-eu.aberto .mg-eu-btn .seta{transform:rotate(180deg)}
+@media(max-width:720px){ .mg-eu-btn .nm{display:none} }
+
+.mg-eu-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:240px;background:var(--paper);
+  border:1px solid var(--line2);border-radius:14px;box-shadow:0 18px 44px -12px rgba(0,0,0,.35);
+  padding:8px;z-index:90;display:none;transform-origin:top right}
+.mg-eu.aberto .mg-eu-menu{display:block;animation:mgMenuEntra .24s cubic-bezier(.22,1,.36,1) both}
+@keyframes mgMenuEntra{
+  from{opacity:0;transform:translateY(-6px) scale(.97)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+.mg-eu-menu .quem{padding:10px 12px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mg-eu-menu .quem .n{font-weight:700;font-size:13.5px;line-height:1.3}
+.mg-eu-menu .quem .e{font-size:11.5px;color:var(--muted);margin-top:2px;word-break:break-all}
+.mg-eu-menu .quem .p{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;margin-top:7px;background:rgba(194,161,91,.16);color:var(--brass2)}
+.mg-eu-menu .quem .p.cli{background:rgba(124,138,151,.18);color:#6f7a85}
+.mg-eu-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:10px;
+  padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:500;color:var(--text);text-align:left;
+  transition:background .15s,color .15s}
+.mg-eu-item:hover{background:var(--card2)}
+.mg-eu-item .ic{width:18px;text-align:center;opacity:.85}
+.mg-eu-item.sair{color:var(--danger)}
+.mg-eu-item.sair:hover{background:rgba(184,74,62,.09)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 17 — menu do usuário, com saída sempre à mão
+   ===================================================================== */
+(function(){
+  const topo=document.querySelector('.topbar');
+  if(!topo || document.getElementById('mg-eu')) return;
+  const el=document.createElement('div');
+  el.className='mg-eu'; el.id='mg-eu';
+  el.innerHTML=`
+    <button class="mg-eu-btn" onclick="mgAlternarMenuEu(event)">
+      <span class="av" id="mg-eu-av">?</span>
+      <span class="nm" id="mg-eu-nm">—</span>
+      <span class="seta">▼</span>
+    </button>
+    <div class="mg-eu-menu" id="mg-eu-menu">
+      <div class="quem">
+        <div class="n" id="mg-eu-nome">—</div>
+        <div class="e" id="mg-eu-email"></div>
+        <span class="p" id="mg-eu-papel">—</span>
+      </div>
+      <button class="mg-eu-item" onclick="mgFecharMenuEu();showView('settings')">
+        <span class="ic">⚙</span> Configurações
+      </button>
+      <button class="mg-eu-item sair" onclick="mgFecharMenuEu();signOut()">
+        <span class="ic">⏻</span> Sair da conta
+      </button>
+    </div>`;
+  topo.appendChild(el);
+})();
+
+function mgAlternarMenuEu(e){
+  if(e) e.stopPropagation();
+  const el=$('mg-eu'); if(!el) return;
+  el.classList.toggle('aberto');
+}
+function mgFecharMenuEu(){ const el=$('mg-eu'); if(el) el.classList.remove('aberto') }
+document.addEventListener('click', e=>{ if(!e.target.closest('#mg-eu')) mgFecharMenuEu() });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') mgFecharMenuEu() });
+
+/* preenche com os dados de quem está logado */
+function mgAtualizarEu(){
+  if(!ME) return;
+  const nome = ME.name || '—';
+  const ini  = (typeof initials==='function') ? initials(nome) : nome.slice(0,2).toUpperCase();
+  const av = $('mg-eu-av');
+  if(av) av.innerHTML = ME.avatar_url ? `<img src="${esc(ME.avatar_url)}" alt="">` : esc(ini);
+  const nm = $('mg-eu-nm');       if(nm) nm.textContent = nome;
+  const n2 = $('mg-eu-nome');     if(n2) n2.textContent = nome;
+  const em = $('mg-eu-email');    if(em) em.textContent = ME.email || '';
+  const pp = $('mg-eu-papel');
+  if(pp){
+    const ehCliente = !isAdmin();
+    pp.textContent = ehCliente
+      ? (ME.client_id ? clientName(ME.client_id) : 'Cliente')
+      : 'Equipe · administrador';
+    pp.className = 'p' + (ehCliente ? ' cli' : '');
+  }
+}
+
+/* mantém em dia após entrar e ao trocar a foto */
+(function(){
+  const _mg17Boot = boot;
+  boot = async function(){
+    const r = await _mg17Boot();
+    mgAtualizarEu();
+    return r;
+  };
+  if(typeof setMeAvatar==='function'){
+    const _mg17Av = setMeAvatar;
+    setMeAvatar = function(){ const r=_mg17Av(); mgAtualizarEu(); return r; };
+  }
+})();
+</script>
 </body>
 </html>
