@@ -2810,5 +2810,24 @@ openDoc = async function(id){
   return _mg2OpenDoc(id);
 };
 </script>
+<style>
+/* ADIÇÃO 3 — nas telas de Documentos e Chat, esconde os controles do Kanban */
+body.mg-sem-tarefas .topbar .search,
+body.mg-sem-tarefas .topbar #cfilter,
+body.mg-sem-tarefas .topbar #filter-btn,
+body.mg-sem-tarefas .topbar .btn-p.admin-only{display:none!important}
+</style>
+<script>
+/* marca o corpo conforme a tela, para o CSS acima agir */
+(function(){
+  const anterior = showView;
+  showView = function(v){
+    const r = anterior(v);
+    document.body.classList.toggle('mg-sem-tarefas', VIEW==='docs' || VIEW==='chat');
+    return r;
+  };
+  document.body.classList.toggle('mg-sem-tarefas', VIEW==='docs' || VIEW==='chat');
+})();
+</script>
 </body>
 </html>
