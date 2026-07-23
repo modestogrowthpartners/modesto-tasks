@@ -6757,5 +6757,54 @@ saveChk = async function(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 25 — Portal Modesto: nome, logo e limpeza da tela de entrada
+   ===================================================================== */
+#login .cross{display:none!important}          /* o link para o Portal sai */
+
+/* a marca aceita imagem; sem imagem, fica o monograma de sempre */
+#login .mark{overflow:hidden;padding:0}
+#login .mark img,.mg-marca img{width:100%;height:100%;object-fit:contain}
+.side-brand .logo{overflow:hidden}
+.side-brand .logo img{width:100%;height:100%;object-fit:contain}
+.rail .logo img{width:100%;height:100%;object-fit:contain}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 25
+   • "Modesto Tasks" passa a ser "Portal Modesto" na tela de entrada
+   • o link "Ir para o Portal de Clientes" sai (a plataforma é o portal)
+   • a logo da empresa entra aqui
+   ---------------------------------------------------------------------
+   SOBRE A LOGO: o site modestogrowth.com.br monta o conteúdo por
+   JavaScript, então não consegui extrair o arquivo de imagem de lá.
+   Deixei o endereço abaixo pronto: basta trocar por um link direto da
+   imagem (ou colar a imagem em base64) que ela aparece na entrada, na
+   barra lateral e no topo. Enquanto estiver vazio, segue o monograma.
+   ===================================================================== */
+const MG_LOGO_URL = '';   /* ex.: 'https://modestogrowth.com.br/logo.png' */
+
+function mgAplicarMarca(){
+  /* nome da plataforma na tela de entrada */
+  const h1 = document.querySelector('#login .auth h1');
+  if(h1) h1.textContent = 'Portal Modesto';
+  const sub = document.querySelector('#login .auth .sub');
+  if(sub) sub.textContent = 'Demandas, documentos e conversas';
+
+  if(!MG_LOGO_URL) return;
+  /* marca na entrada */
+  const marca = document.querySelector('#login .mark');
+  if(marca && !marca.querySelector('img')) marca.innerHTML = `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
+  /* marca na barra lateral */
+  const lado = document.querySelector('.side-brand .logo');
+  if(lado && !lado.querySelector('img')) lado.innerHTML = `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
+}
+mgAplicarMarca();
+document.addEventListener('DOMContentLoaded', mgAplicarMarca);
+
+/* o título da janela também acompanha */
+try{ document.title = 'Portal Modesto'; }catch(_){}
+</script>
 </body>
 </html>
