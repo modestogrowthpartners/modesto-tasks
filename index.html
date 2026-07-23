@@ -7086,5 +7086,252 @@ mgAvatarResp = function(nome){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 30 — fundo discreto, cadastro pela Equipe, nomes editáveis
+   ===================================================================== */
+
+/* ---- o MGP volta a ser marca d'água ----
+   Ao parar o pulsar das letras, elas ficaram sólidas: a opacidade vinha
+   da própria animação. Agora a base é discreta e o conjunto é que
+   escurece devagar.                                                     */
+.bg-marks text{animation:none!important;opacity:.075}
+body.theme-dark .bg-anim .bg-marks text{opacity:.07!important}
+@keyframes mgFundoEscurece{ from{opacity:.5} to{opacity:1} }
+@keyframes mgFundoEscureceNoite{ from{opacity:.5} to{opacity:1} }
+
+/* ---- cadastro pela tela de Equipe ---- */
+.mg-eq-topo{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;max-width:820px}
+.mg-eq-topo .info{flex:1;min-width:200px;font-size:13px;color:var(--muted);line-height:1.5}
+.mg-eq .dados .n{display:flex;align-items:center;gap:7px}
+.mg-eq .dados .n .lapis{background:none;border:0;color:var(--muted2);font-size:12px;padding:2px 4px;
+  border-radius:5px;opacity:0;transition:opacity .15s,background .15s,color .15s}
+.mg-eq:hover .dados .n .lapis{opacity:1}
+.mg-eq .dados .n .lapis:hover{background:var(--card2);color:var(--brass2)}
+.mg-eq .dados .n input{background:var(--card2);border:1px solid var(--brass);border-radius:7px;
+  padding:4px 8px;font-size:13.5px;font-family:inherit;color:var(--text);font-weight:600;max-width:220px}
+.mg-eq .dados .n .sem{color:var(--muted2);font-weight:500;font-style:italic}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 30
+   1) fundo MGP de volta ao tom de marca d'água
+   2) dá para cadastrar gente (equipe ou cliente) pela tela de Equipe
+   3) quem está sem nome mostra o e-mail, e o nome pode ser preenchido ali
+   ===================================================================== */
+
+/* ---------- 1. vincular perfil aceitando o papel ---------- */
+async function mgVincularPerfilPapel(userId, nome, papel, clientId){
+  for(let t=0; t<6; t++){
+    await new Promise(r=>setTimeout(r, t===0?500:700));
+    const {data:atual} = await sb.from('profiles')
+      .select('id,nome,role,client_id').eq('id',userId).maybeSingle();
+    if(atual && atual.role===papel && (papel!=='client' || atual.client_id===clientId)) return {ok:true};
+    if(atual){
+      await sb.from('profiles').update({nome, role:papel, client_id: papel==='client'?clientId:null}).eq('id',userId);
+    }else{
+      const {error} = await sb.from('profiles')
+        .insert({id:userId, nome, role:papel, client_id: papel==='client'?clientId:null});
+      if(error && !/duplicate|already exists/i.test(error.message||'') && t>=3)
+        return {ok:false, motivo:error.message};
+    }
+  }
+  return {ok:false, motivo:'o perfil não ficou com o papel certo'};
+}
+
+/* ---------- 2. janela de cadastro ---------- */
+(function(){
+  if(document.getElementById('mg-nova-pessoa')) return;
+  const el=document.createElement('div');
+  el.className='mg-modal'; el.id='mg-nova-pessoa';
+  el.innerHTML=`<div class="cx" style="max-width:520px">
+    <div class="cb"><h2>Cadastrar pessoa</h2><button class="x" onclick="fecharNovaPessoa()">✕</button></div>
+    <div class="cc">
+      <div class="mg-novocli">
+        <div id="np-alerta"></div>
+        <div>
+          <div class="rot">Tipo de acesso</div>
+          <div class="seg-l" id="np-tipo" style="display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px">
+            <button class="on" onclick="mgNpTipo('admin',this)" style="flex:1;background:var(--card);border:0;border-radius:7px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit;color:var(--brass2)">Equipe Modesto</button>
+            <button onclick="mgNpTipo('client',this)" style="flex:1;background:none;border:0;border-radius:7px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit;color:var(--muted)">Pessoa de cliente</button>
+          </div>
+        </div>
+        <div class="par">
+          <div><div class="rot">Nome</div><input type="text" id="np2-nome" placeholder="ex.: Everton Silva"></div>
+          <div><div class="rot">E-mail</div><input type="text" id="np2-email" placeholder="everton@modestogrowth.com.br" autocomplete="off"></div>
+        </div>
+        <div>
+          <div class="rot">Senha</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="np2-senha" placeholder="mínimo 6 caracteres">
+            <button class="mini-btn" onclick="document.getElementById('np2-senha').value=mgSenhaForte()">Gerar</button>
+          </div>
+        </div>
+        <div id="np2-empresa-linha" style="display:none">
+          <div class="rot">Empresa</div>
+          <select id="np2-empresa" style="width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)"></select>
+        </div>
+        <div style="display:flex;gap:9px;margin-top:4px">
+          <button class="btn-p" id="np2-btn" onclick="mgCriarPessoa()">Cadastrar</button>
+          <button class="mini-btn ghost" onclick="fecharNovaPessoa()">Cancelar</button>
+        </div>
+        <div id="np2-res"></div>
+      </div>
+    </div>
+  </div>`;
+  el.addEventListener('click',e=>{ if(e.target===el) fecharNovaPessoa() });
+  document.body.appendChild(el);
+})();
+
+let MG_NP_TIPO='admin';
+function mgNpTipo(t, btn){
+  MG_NP_TIPO=t;
+  document.querySelectorAll('#np-tipo button').forEach(b=>{
+    b.style.background='none'; b.style.color='var(--muted)';
+  });
+  btn.style.background='var(--card)'; btn.style.color='var(--brass2)';
+  $('np2-empresa-linha').style.display = (t==='client') ? 'block' : 'none';
+}
+function abrirNovaPessoa(){
+  ['np2-nome','np2-email','np2-senha'].forEach(id=>{ const e=$(id); if(e) e.value='' });
+  $('np2-res').innerHTML='';
+  $('np2-senha').value = mgSenhaForte();
+  $('np2-empresa').innerHTML = CLIENTS.map(c=>`<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('');
+  MG_NP_TIPO='admin';
+  const bts=document.querySelectorAll('#np-tipo button');
+  if(bts[0]) mgNpTipo('admin', bts[0]);
+  const al=$('np-alerta');
+  if(al) al.innerHTML = (typeof mgAlertaAcesso==='function') ? mgAlertaAcesso() : '';
+  $('mg-nova-pessoa').classList.add('on');
+  setTimeout(()=>{ const n=$('np2-nome'); if(n) n.focus() },340);
+}
+function fecharNovaPessoa(){ mgFechar('mg-nova-pessoa') }
+
+async function mgCriarPessoa(){
+  const nome=($('np2-nome').value||'').trim();
+  const email=($('np2-email').value||'').trim();
+  const senha=($('np2-senha').value||'');
+  const cid = MG_NP_TIPO==='client' ? $('np2-empresa').value : null;
+  const res=$('np2-res');
+  const erro=m=>{ res.innerHTML=`<div class="mg-res err">⚠ ${esc(m)}</div>` };
+
+  if(!nome) return erro('Informe o nome.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('E-mail inválido.');
+  if(senha.length<6) return erro('A senha precisa ter ao menos 6 caracteres.');
+  if(MG_NP_TIPO==='client' && !cid) return erro('Escolha a empresa.');
+
+  $('np2-btn').disabled=true;
+  res.innerHTML=`<div class="mg-res">⏳ Criando o acesso…</div>`;
+  try{
+    const {data,error} = await mgSb2().auth.signUp({
+      email, password: senha,
+      options:{ data:{ nome, role: MG_NP_TIPO, client_id: cid } }
+    });
+    if(error) throw error;
+    const uid = data && data.user ? data.user.id : null;
+    let vinculo = {ok:false, motivo:'usuário não retornado'};
+    if(uid){
+      res.innerHTML=`<div class="mg-res">⏳ Ajustando o perfil…</div>`;
+      vinculo = await mgVincularPerfilPapel(uid, nome, MG_NP_TIPO, cid);
+      try{ await sb.from('profiles').update({email}).eq('id',uid) }catch(_){}
+    }
+    const precisaConfirmar = data && data.user && !data.user.confirmed_at && !data.session;
+    res.innerHTML = `<div class="mg-res ok">✓ <b>${esc(nome)}</b> cadastrado como
+      ${MG_NP_TIPO==='admin'?'equipe':'cliente de '+esc(clientName(cid))}.
+      <div class="cred">Endereço: ${location.origin+location.pathname}<br>E-mail: ${esc(email)}<br>Senha: ${esc(senha)}</div>
+      ${precisaConfirmar?'<div style="margin-top:8px">⚠ A confirmação de e-mail está ligada no Supabase — a pessoa precisa clicar no link antes do primeiro login.</div>':''}
+      ${vinculo.ok?'<div style="margin-top:8px">✓ Perfil confirmado.</div>'
+                 :`<div style="margin-top:8px">⚠ Não consegui confirmar o perfil (${esc(vinculo.motivo||'')}). Ajuste em Supabase → profiles.</div>`}
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Copie e envie por um canal seguro.</div>
+    </div>`;
+    ['np2-nome','np2-email'].forEach(id=>{ const e=$(id); if(e) e.value='' });
+    $('np2-senha').value = mgSenhaForte();
+    if(VIEW==='equipe') renderEquipeMG();
+    toast('Pessoa cadastrada ✓');
+  }catch(e){
+    const m=(e&&e.message)||'falha';
+    if(/email logins are disabled|provider is disabled/i.test(m))
+      erro('O login por e-mail está desligado no Supabase — religue em Authentication → Providers → Email.');
+    else if(/signups? not allowed|disabled/i.test(m))
+      erro('O cadastro de novos usuários está desligado no Supabase (Allow new users to sign up).');
+    else if(/already registered|already exists/i.test(m))
+      erro('Já existe um usuário com esse e-mail.');
+    else erro('Não foi possível cadastrar: '+m);
+  }finally{ $('np2-btn').disabled=false }
+}
+
+/* ---------- 3. Equipe: botão de cadastrar + nome editável ---------- */
+const _mg30Equipe = renderEquipeMG;
+renderEquipeMG = async function(){
+  await _mg30Equipe();
+  if(VIEW!=='equipe') return;
+  const el=$('v-equipe'); if(!el) return;
+
+  /* topo com o botão de cadastrar */
+  const info = el.querySelector('.mg-eq-lista > div');
+  if(info && !el.querySelector('.mg-eq-topo')){
+    const topo=document.createElement('div');
+    topo.className='mg-eq-topo';
+    topo.innerHTML = `<span class="info">${info.innerHTML}</span>
+      <button class="mg-add" onclick="abrirNovaPessoa()"><span class="p">+</span>Cadastrar pessoa</button>`;
+    info.replaceWith(topo);
+  }
+
+  /* nome: mostra e-mail quando não há nome, e permite preencher ali */
+  el.querySelectorAll('.mg-eq').forEach(linha=>{
+    const bt = linha.querySelector('.apagar');
+    const sel = linha.querySelector('select');
+    const id = (()=>{
+      const alvo = bt || sel;
+      const m = alvo && (alvo.getAttribute('onclick')||alvo.getAttribute('onchange')||'').match(/'([^']+)'/);
+      return m ? m[1] : null;
+    })();
+    const nEl = linha.querySelector('.dados .n');
+    const eEl = linha.querySelector('.dados .e');
+    if(!nEl) return;
+    const semNome = /\(sem nome\)/.test(nEl.textContent);
+    const email = (eEl && eEl.textContent.trim()) || '';
+    if(semNome){
+      nEl.innerHTML = email
+        ? `<span>${esc(email.split('@')[0])}</span><span class="sem">· sem nome</span>`
+        : `<span class="sem">(sem nome)</span>`;
+    }
+    if(id && !nEl.querySelector('.lapis')){
+      nEl.insertAdjacentHTML('beforeend',
+        `<button class="lapis" title="Editar o nome" onclick="mgEditarNome(this,'${esc(id)}')">✎</button>`);
+    }
+  });
+};
+
+function mgEditarNome(btn, id){
+  const nEl = btn.closest('.n');
+  if(nEl.querySelector('input')) return;
+  const atual = nEl.textContent.replace(/·\s*sem nome/,'').replace('✎','').trim();
+  const antes = nEl.innerHTML;
+  nEl.innerHTML = `<input type="text" value="${esc(atual==='(sem nome)'?'':atual)}" placeholder="Nome da pessoa">`;
+  const inp = nEl.querySelector('input');
+  inp.focus(); inp.select();
+  const salvar = async ()=>{
+    const novo = (inp.value||'').trim();
+    if(!novo){ nEl.innerHTML = antes; return }
+    try{
+      const {error} = await sb.from('profiles').update({nome:novo}).eq('id',id);
+      if(error) throw error;
+      toast('Nome atualizado');
+      if(ME && id===ME.id){ ME.name=novo; if(typeof mgAtualizarEu==='function') mgAtualizarEu() }
+      renderEquipeMG();
+      if(typeof mgCarregarFotos==='function') mgCarregarFotos();
+    }catch(e){
+      toast('Não foi possível salvar: '+((e&&e.message)||'erro'));
+      nEl.innerHTML = antes;
+    }
+  };
+  inp.addEventListener('blur', salvar);
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); inp.blur() }
+    if(e.key==='Escape'){ inp.value=''; nEl.innerHTML=antes }
+  });
+}
+</script>
 </body>
 </html>
