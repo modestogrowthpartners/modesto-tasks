@@ -3030,5 +3030,252 @@ async function criarAcesso(){
   }finally{ $('ac-btn').disabled=false }
 }
 </script>
+<style>
+/* ADIÇÃO 5 — configurações em janela, cadastro de cliente completo */
+.mg-modal{position:fixed;inset:0;background:rgba(12,11,9,.55);backdrop-filter:blur(3px);
+  display:none;place-items:center;z-index:120;padding:24px}
+.mg-modal.on{display:grid}
+.mg-modal .cx{background:var(--paper);border:1px solid var(--line2);border-radius:18px;width:100%;
+  max-width:660px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 30px 90px -20px rgba(0,0,0,.55)}
+.mg-modal .cb{display:flex;align-items:center;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.mg-modal .cb h2{font-family:var(--font-d);font-size:21px;font-weight:500;flex:1}
+.mg-modal .cb .x{background:var(--card2);border:1px solid var(--line);border-radius:9px;width:32px;height:32px;
+  color:var(--muted);font-size:15px;line-height:1}
+.mg-modal .cb .x:hover{color:var(--text)}
+.mg-modal .cc{overflow:auto;padding:18px 22px 22px}
+.mg-modal .cc .set-sec{margin-bottom:16px}
+
+/* engrenagem bonita no lugar de logo pixelada */
+.mg-gear{display:inline-grid;place-items:center;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(145deg,var(--brass),var(--brass2));color:#fff}
+.mg-gear svg{width:64%;height:64%;fill:currentColor}
+
+/* cadastro de cliente */
+.mg-novocli{display:grid;gap:10px}
+.mg-novocli .par{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:760px){.mg-novocli .par{grid-template-columns:1fr}}
+.mg-novocli input,.mg-novocli textarea{width:100%;background:var(--card2);border:1px solid var(--line2);
+  border-radius:9px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--text)}
+.mg-novocli textarea{min-height:64px;resize:vertical}
+.mg-novocli input:focus,.mg-novocli textarea:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mg-novocli .rot{font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted);margin-bottom:5px}
+.mg-novocli .op{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text);
+  background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.mg-novocli .op input{width:16px;height:16px;accent-color:var(--brass);flex:0 0 auto}
+.mg-res{font-size:12.5px;line-height:1.55;border-radius:11px;padding:12px 14px;margin-top:10px}
+.mg-res.ok{background:rgba(46,158,107,.09);border:1px solid rgba(46,158,107,.28)}
+.mg-res.err{background:rgba(184,74,62,.09);border:1px solid rgba(184,74,62,.3)}
+.mg-res .cred{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:9px;padding:10px 12px;margin-top:8px;word-break:break-all}
+.mg-conta{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13.5px;align-items:center}
+.mg-conta .r{color:var(--muted);font-size:12px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 5
+   • tira a aba Equipe (o que ela fazia foi para Acessos)
+   • engrenagem decente no canal "Geral"
+   • Configurações vira janela, com conta e notificações
+   • cadastro de cliente com resumo + e-mail e senha de acesso
+   ===================================================================== */
+
+/* ---------- 1. sai a aba Equipe ---------- */
+(function(){
+  const i = NAV.findIndex(n=>n.v==='equipe');
+  if(i>=0) NAV.splice(i,1);
+})();
+
+/* ---------- 2. engrenagem no lugar da logo pixelada ---------- */
+const MG_GEAR_SVG = '<svg viewBox="0 0 24 24"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.6-1.9-3.3-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6h-3.8l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1L2.6 9.4 4.6 11a7.8 7.8 0 0 0 0 2l-2 1.6 1.9 3.3 2.5-1c.5.4 1.1.8 1.7 1l.4 2.6h3.8l.4-2.6c.6-.2 1.2-.6 1.7-1l2.5 1 1.9-3.3-2-1.6zM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z"/></svg>';
+function mgEhGeral(cid){
+  const c = CLIENTS.find(x=>x.id===cid);
+  if(!c) return false;
+  return (c.nome||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'geral';
+}
+const _mg5Logo = mgClientLogo;
+mgClientLogo = function(cid, px){
+  const s = px||20;
+  if(mgEhGeral(cid)) return `<span class="mg-gear" style="width:${s}px;height:${s}px">${MG_GEAR_SVG}</span>`;
+  return _mg5Logo(cid, px);
+};
+
+/* ---------- 3. Configurações em janela ---------- */
+(function(){
+  if(document.getElementById('mg-cfg')) return;
+  const el=document.createElement('div');
+  el.className='mg-modal'; el.id='mg-cfg';
+  el.innerHTML=`<div class="cx">
+      <div class="cb"><h2>Configurações</h2><button class="x" onclick="fecharConfig()">✕</button></div>
+      <div class="cc" id="mg-cfg-corpo"></div>
+    </div>`;
+  el.addEventListener('click',e=>{ if(e.target===el) fecharConfig() });
+  document.body.appendChild(el);
+})();
+
+function abrirConfig(){
+  const antes = VIEW;
+  VIEW='settings';
+  renderSettings();                          /* usa a tela original, inteira */
+  const origem = $('v-settings');
+  const corpo  = $('mg-cfg-corpo');
+  corpo.innerHTML = origem.innerHTML + mgBlocosExtras();
+  origem.innerHTML = '';                     /* evita ids repetidos na página */
+  VIEW = (antes==='settings') ? 'board' : antes;
+  document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on', b.dataset.v===VIEW));
+  $('mg-cfg').classList.add('on');
+}
+function fecharConfig(){ $('mg-cfg').classList.remove('on') }
+
+function mgBlocosExtras(){
+  const empresa = ME && ME.client_id ? clientName(ME.client_id) : '—';
+  return `
+    <div class="set-sec">
+      <h3>Conta</h3>
+      <div class="desc">Seus dados de acesso nesta plataforma.</div>
+      <div class="mg-conta">
+        <span class="r">E-mail</span><span>${esc((ME&&ME.email)||'—')}</span>
+        <span class="r">Papel</span><span>${isAdmin()?'Equipe · administrador':'Cliente'}</span>
+        ${isAdmin()?'':`<span class="r">Empresa</span><span>${esc(empresa)}</span>`}
+      </div>
+    </div>
+    <div class="set-sec">
+      <h3>Notificações</h3>
+      <div class="desc">O que gera aviso no sino, aqui neste navegador.</div>
+      <div class="set-row"><div class="k">Avisos ligados</div>${segBtns('notif',[['on','Sim'],['off','Não']])}</div>
+      <div class="set-row"><div class="k">Só não lidos</div>${segBtns('notifUnread',[['on','Sim'],['off','Não']])}</div>
+    </div>
+    <div class="set-sec">
+      <h3>Sessão</h3>
+      <div class="desc">Encerra o acesso neste computador.</div>
+      <button class="mini-btn" onclick="fecharConfig();signOut()">Sair da conta</button>
+    </div>`;
+}
+/* clicar em Configurações abre a janela em vez de trocar de tela */
+const _mg5ShowView = showView;
+showView = function(v){
+  if(v==='settings'){ abrirConfig(); return }
+  return _mg5ShowView(v);
+};
+
+/* ---------- 4. cadastro de cliente completo ---------- */
+const _mg5RenderClientes = renderClientes;
+renderClientes = async function(){
+  await _mg5RenderClientes();
+  if(VIEW!=='clientes') return;
+  const bloco = document.querySelector('#v-clientes .set-sec');
+  if(!bloco) return;
+  bloco.innerHTML = `
+    <h3>Adicionar cliente</h3>
+    <div class="desc">Cadastre a empresa e, se quiser, já crie o acesso dela — a pessoa entra e vê somente os documentos dessa empresa.</div>
+    <div class="mg-novocli">
+      <div>
+        <div class="rot">Nome da empresa</div>
+        <input type="text" id="nc-nome" placeholder="ex.: Amakha Paris">
+      </div>
+      <div>
+        <div class="rot">Resumo da empresa</div>
+        <textarea id="nc-resumo" placeholder="Ramo, o que fazemos para ela, contexto do contrato…"></textarea>
+      </div>
+      <label class="op"><input type="checkbox" id="nc-criar" onchange="mgToggleAcesso()"> Criar também o acesso do cliente (e-mail e senha)</label>
+      <div id="nc-acesso" style="display:none;gap:10px" class="mg-novocli">
+        <div class="par">
+          <div><div class="rot">Nome da pessoa</div><input type="text" id="nc-pnome" placeholder="ex.: Marina Costa"></div>
+          <div><div class="rot">E-mail de acesso</div><input type="text" id="nc-email" placeholder="marina@empresa.com.br" autocomplete="off"></div>
+        </div>
+        <div>
+          <div class="rot">Senha</div>
+          <div style="display:flex;gap:8px"><input type="text" id="nc-senha" placeholder="mínimo 6 caracteres"><button class="mini-btn" onclick="mgGerarSenhaCli()">Gerar</button></div>
+        </div>
+      </div>
+      <div><button class="btn-p" id="nc-btn" onclick="criarClienteCompleto()">Criar cliente</button></div>
+      <div id="nc-res"></div>
+    </div>`;
+};
+function mgToggleAcesso(){
+  const on = $('nc-criar').checked;
+  $('nc-acesso').style.display = on ? 'grid' : 'none';
+  if(on && !$('nc-senha').value) mgGerarSenhaCli();
+}
+function mgGerarSenhaCli(){ const e=$('nc-senha'); if(e) e.value = mgSenhaForte(); }
+
+async function criarClienteCompleto(){
+  const nome=($('nc-nome').value||'').trim();
+  const resumo=($('nc-resumo').value||'').trim();
+  const criar=$('nc-criar').checked;
+  const res=$('nc-res');
+  const erro=m=>{ res.innerHTML=`<div class="mg-res err">⚠ ${esc(m)}</div>` };
+  if(!nome) return erro('Dê um nome à empresa.');
+
+  let pnome='', email='', senha='';
+  if(criar){
+    pnome=($('nc-pnome').value||'').trim();
+    email=($('nc-email').value||'').trim();
+    senha=($('nc-senha').value||'');
+    if(!pnome) return erro('Informe o nome da pessoa que vai acessar.');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('E-mail de acesso inválido.');
+    if(senha.length<6) return erro('A senha precisa ter ao menos 6 caracteres.');
+  }
+
+  $('nc-btn').disabled=true;
+  res.innerHTML=`<div class="mg-res">⏳ Criando…</div>`;
+  try{
+    /* cria a empresa (com resumo, se a coluna existir) */
+    let novo=null, semColuna=false;
+    let r = await sb.from('clients').insert(resumo?{nome,resumo}:{nome}).select().single();
+    if(r.error && /resumo/i.test(r.error.message||'')){
+      semColuna=true;
+      r = await sb.from('clients').insert({nome}).select().single();
+    }
+    if(r.error) throw r.error;
+    novo = r.data;
+
+    await loadClients(); buildClientFilter();
+
+    let aviso='';
+    if(criar){
+      const {data,error} = await mgSb2().auth.signUp({
+        email, password: senha,
+        options:{ data:{ nome:pnome, role:'client', client_id: novo.id } }
+      });
+      if(error) throw error;
+      if(data && data.user){
+        await new Promise(x=>setTimeout(x,700));
+        try{ await sb.from('profiles').update({nome:pnome, role:'client', client_id:novo.id}).eq('id',data.user.id) }catch(_){}
+      }
+      const precisaConfirmar = data && data.user && !data.user.confirmed_at && !data.session;
+      aviso = `<div class="cred">Endereço: ${location.origin+location.pathname}<br>E-mail: ${esc(email)}<br>Senha: ${esc(senha)}</div>
+        ${precisaConfirmar?'<div style="margin-top:6px">A confirmação de e-mail está ligada no Supabase — a pessoa precisa clicar no link antes do primeiro login.</div>':''}
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Copie e envie por um canal seguro. A senha não fica guardada aqui.</div>`;
+    }
+    res.innerHTML = `<div class="mg-res ok">✓ <b>${esc(nome)}</b> criada${criar?` com acesso para ${esc(pnome)}`:''}.
+      ${semColuna?'<div style="margin-top:6px">O resumo não foi salvo: falta a coluna <b>resumo</b> na tabela <b>clients</b> (veja o SQL que te enviei).</div>':''}
+      ${aviso}</div>`;
+    $('nc-nome').value=''; $('nc-resumo').value=''; $('nc-pnome')&&($('nc-pnome').value=''); $('nc-email')&&($('nc-email').value=''); $('nc-senha')&&($('nc-senha').value='');
+    toast('Cliente criado ✓');
+  }catch(e){
+    const m=(e&&e.message)||'falha';
+    if(/signups? not allowed|disabled/i.test(m)) erro('A empresa foi criada, mas o Supabase está com cadastro de usuários desligado (Authentication → Providers → Email).');
+    else if(/already registered|already exists/i.test(m)) erro('A empresa foi criada, mas já existe usuário com esse e-mail.');
+    else erro('Não foi possível concluir: '+m);
+  }finally{ $('nc-btn').disabled=false }
+}
+
+/* ---------- 5. cliente vê o resumo da própria empresa ---------- */
+const _mg5Docs = renderDocsView;
+renderDocsView = function(){
+  _mg5Docs();
+  if(isAdmin() || !ME || !ME.client_id || DVIEW.kind!=='home') return;
+  const c = CLIENTS.find(x=>x.id===ME.client_id);
+  if(!c || !c.resumo) return;
+  const el=$('v-docs');
+  if(el && !el.querySelector('.mg-resumo')){
+    el.insertAdjacentHTML('afterbegin',
+      `<div class="mg-resumo set-sec" style="margin-bottom:16px">
+         <h3 style="display:flex;align-items:center;gap:9px">${mgClientLogo(c.id,24)} ${esc(c.nome)}</h3>
+         <div class="desc" style="margin:0">${esc(c.resumo)}</div>
+       </div>`);
+  }
+};
+</script>
 </body>
 </html>
