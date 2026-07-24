@@ -7333,5 +7333,131 @@ function mgEditarNome(btn, id){
   });
 }
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 31 — vários cronômetros ao mesmo tempo
+   ===================================================================== */
+.mg-cron{display:none;align-items:center;gap:9px;background:rgba(217,131,36,.12);
+  border:1px solid rgba(217,131,36,.38);border-radius:11px;padding:7px 12px;font-size:12.5px;
+  font-weight:600;color:#a8660f;font-family:inherit;flex-shrink:0;
+  animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
+body.theme-dark .mg-cron{color:#e0a860}
+.mg-cron.on{display:inline-flex}
+.mg-cron .pt{width:8px;height:8px;border-radius:50%;background:#d98324;flex-shrink:0;
+  animation:mgPisca 1.6s ease-in-out infinite}
+@keyframes mgPisca{0%,100%{opacity:1}50%{opacity:.25}}
+.mg-cron .parar{background:none;border:0;color:inherit;font-size:11.5px;font-weight:700;
+  text-decoration:underline;padding:0 0 0 3px;font-family:inherit}
+.mg-cron .parar:hover{opacity:.75}
+@media (prefers-reduced-motion: reduce){ .mg-cron .pt{animation:none} }
+
+/* o card com cronômetro rodando fica marcado */
+.card-t .tchip.mg-rodando{background:rgba(217,131,36,.16);border-color:rgba(217,131,36,.45);color:#a8660f}
+body.theme-dark .card-t .tchip.mg-rodando{color:#e0a860}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 31
+   O app pausava automaticamente qualquer outro cronômetro seu antes de
+   iniciar um novo — por isso só um rodava por vez. Essa trava saiu:
+   agora dá para cronometrar várias demandas ao mesmo tempo.
+   Como isso facilita esquecer um ligado, o topo mostra quantos estão
+   rodando, com um atalho para parar todos.
+   ===================================================================== */
+
+toggleTimer = async function(e, id){
+  if(e && e.stopPropagation) e.stopPropagation();
+  _skipRefreshUntil = Date.now() + 3000;
+  const t = TASKS.find(x=>x.id===id); if(!t) return;
+
+  if(t.timer_start){
+    /* pausar este */
+    const add = (Date.now() - new Date(t.timer_start).getTime())/1000;
+    const {error} = await sb.from('tasks')
+      .update({time_spent: Math.round((t.time_spent||0)+add), timer_start:null, timer_by:null})
+      .eq('id', id);
+    if(error){ toast('Não foi possível pausar'); return }
+    t.time_spent = Math.round((t.time_spent||0)+add);
+    t.timer_start = null; t.timer_by = null;
+    toast('⏸ Cronômetro pausado');
+  }else{
+    /* iniciar — sem mexer nos outros que já estiverem rodando */
+    const patch = {timer_start: new Date().toISOString(), timer_by: ME.id};
+    if(t.status === 'Não iniciado') patch.status = 'Em Andamento';
+    const {error} = await sb.from('tasks').update(patch).eq('id', id);
+    if(error){ toast('Não foi possível iniciar'); return }
+    Object.assign(t, patch);
+    const n = mgCronometrosRodando().length;
+    toast(n>1 ? `▶ Iniciado · ${n} cronômetros rodando` : '▶ Cronômetro iniciado');
+  }
+  render();
+  if(DETAIL_ID) renderDetailBody();
+  mgAtualizarCron();
+};
+
+function mgCronometrosRodando(){
+  return (TASKS||[]).filter(t=>t.timer_start && (!ME || !t.timer_by || t.timer_by===ME.id));
+}
+
+/* ---- aviso no topo ---- */
+(function(){
+  const topo = document.querySelector('.topbar');
+  if(!topo || document.getElementById('mg-cron')) return;
+  const el = document.createElement('span');
+  el.className = 'mg-cron'; el.id = 'mg-cron';
+  topo.insertBefore(el, topo.querySelector('.search') || null);
+})();
+
+function mgAtualizarCron(){
+  const el = $('mg-cron'); if(!el) return;
+  const rodando = mgCronometrosRodando();
+  el.classList.toggle('on', rodando.length>0);
+  if(!rodando.length){ el.innerHTML=''; return }
+  const nomes = rodando.slice(0,3).map(t=>t.title||'sem título').join(' · ');
+  el.title = nomes + (rodando.length>3 ? ` e mais ${rodando.length-3}` : '');
+  el.innerHTML = `<span class="pt"></span>
+    ${rodando.length} cronômetro${rodando.length>1?'s':''} rodando
+    <button class="parar" onclick="mgPararTodos(event)">parar tod${rodando.length>1?'os':'o'}</button>`;
+}
+
+async function mgPararTodos(e){
+  if(e && e.stopPropagation) e.stopPropagation();
+  const rodando = mgCronometrosRodando();
+  if(!rodando.length) return;
+  if(rodando.length>1 && !confirm(`Parar os ${rodando.length} cronômetros que estão rodando?`)) return;
+  _skipRefreshUntil = Date.now() + 3000;
+  for(const t of rodando){
+    const add = (Date.now() - new Date(t.timer_start).getTime())/1000;
+    try{
+      await sb.from('tasks')
+        .update({time_spent: Math.round((t.time_spent||0)+add), timer_start:null, timer_by:null})
+        .eq('id', t.id);
+      t.time_spent = Math.round((t.time_spent||0)+add);
+      t.timer_start = null; t.timer_by = null;
+    }catch(_){}
+  }
+  render();
+  if(DETAIL_ID) renderDetailBody();
+  mgAtualizarCron();
+  toast(rodando.length>1 ? `⏸ ${rodando.length} cronômetros pausados` : '⏸ Cronômetro pausado');
+}
+
+/* ---- marca os cards que estão contando e mantém o aviso em dia ---- */
+(function(){
+  const anterior = render;
+  render = function(){
+    const r = anterior.apply(this, arguments);
+    try{
+      document.querySelectorAll('.card-t .js-timer').forEach(el=>{
+        const chip = el.closest('.tchip');
+        if(chip) chip.classList.toggle('mg-rodando', !!el.dataset.start);
+      });
+      mgAtualizarCron();
+    }catch(_){}
+    return r;
+  };
+})();
+setInterval(()=>{ try{ mgAtualizarCron() }catch(_){} }, 5000);
+</script>
 </body>
 </html>
