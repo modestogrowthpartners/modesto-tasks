@@ -7459,5 +7459,205 @@ async function mgPararTodos(e){
 })();
 setInterval(()=>{ try{ mgAtualizarCron() }catch(_){} }, 5000);
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 32 — painel das demandas no Início
+   ===================================================================== */
+.mg-painel-dash{margin-top:34px;animation:mgSobe .5s cubic-bezier(.22,1,.36,1) .42s both;text-align:left}
+.mg-dash-tt{font-family:var(--font-d);font-size:19px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.mg-dash-sub{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.mg-dash-grade{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:18px}
+@media(max-width:900px){.mg-dash-grade{grid-template-columns:1fr}}
+.mg-caixa{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.mg-caixa h4{font-family:var(--font-d);font-size:15.5px;font-weight:500;margin-bottom:14px}
+
+/* rosca */
+.mg-rosca{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.mg-rosca svg{flex-shrink:0}
+.mg-rosca .leg{flex:1;min-width:150px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.mg-rosca .leg .l{display:flex;align-items:center;gap:8px}
+.mg-rosca .leg .pt{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.mg-rosca .leg .v{margin-left:auto;font-weight:700}
+.mg-rosca .leg .tot{margin-top:5px;padding-top:9px;border-top:1px solid var(--line);display:flex;font-weight:700}
+.mg-rosca .leg .tot .v{margin-left:auto}
+
+/* números rápidos */
+.mg-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:620px){.mg-nums{grid-template-columns:repeat(2,1fr)}}
+.mg-num{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+.mg-num .n{font-family:var(--font-d);font-size:23px;font-weight:600;line-height:1}
+.mg-num .l{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.3}
+
+/* ranking de pessoas */
+.mg-gente{display:flex;flex-direction:column;gap:11px}
+.mg-gente .p{display:grid;grid-template-columns:auto 128px 1fr auto;align-items:center;gap:11px;font-size:13.5px}
+@media(max-width:620px){.mg-gente .p{grid-template-columns:auto 1fr auto}.mg-gente .p .barra{display:none}}
+.mg-gente .av{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--brass);color:var(--ink2);
+  display:grid;place-items:center;font-size:12px;font-weight:700;flex-shrink:0}
+.mg-gente .av img{width:100%;height:100%;object-fit:cover}
+.mg-gente .nome{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-gente .nome .eu{font-size:10.5px;font-weight:700;color:var(--brass2);margin-left:5px}
+.mg-gente .barra{height:9px;background:var(--card2);border-radius:6px;overflow:hidden}
+.mg-gente .barra i{display:block;height:100%;border-radius:6px;background:var(--st-done);
+  transition:width .6s cubic-bezier(.22,1,.36,1)}
+.mg-gente .barra i.abertas{background:var(--brass)}
+.mg-gente .qtd{font-weight:700;min-width:78px;text-align:right;font-size:12.5px;color:var(--muted)}
+.mg-gente .qtd b{color:var(--text);font-size:14px}
+.mg-gente-vazio{font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:12px;padding:18px;text-align:center}
+.mg-abas-dash{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:3px;gap:3px;margin-left:auto}
+.mg-abas-dash button{background:none;border:0;border-radius:7px;padding:6px 12px;font-size:12px;
+  font-weight:600;color:var(--muted);font-family:inherit}
+.mg-abas-dash button.on{background:var(--card);color:var(--brass2);box-shadow:0 1px 5px rgba(0,0,0,.09)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 32 — o Início ganha o panorama das demandas
+   • como estão distribuídas por situação
+   • quem entregou e quanto cada um entregou
+   ===================================================================== */
+
+let MG_DASH_PERIODO = '7';   /* '7' | '30' | 'tudo' */
+
+function mgDiasAtras(n){ const d=new Date(); d.setDate(d.getDate()-n); return d }
+
+function mgDadosDash(){
+  const ts = (TASKS||[]);
+  const concluidas = t => DONE_STATUSES.includes(t.status);
+  const limite = MG_DASH_PERIODO==='tudo' ? null : mgDiasAtras(Number(MG_DASH_PERIODO));
+  const dentro = t => {
+    if(!limite) return true;
+    const q = t.updated_at || t.created_at;
+    return q && new Date(q) >= limite;
+  };
+
+  /* situação de tudo que está em aberto ou fechado */
+  const feitas   = ts.filter(concluidas).length;
+  const andando  = ts.filter(t=>['Em Andamento','Entregas do dia','Impeditivo/Aprovação'].includes(t.status)).length;
+  const paraFazer= ts.filter(t=>t.status==='Não iniciado').length;
+  const atrasadas= ts.filter(t=>t.due && typeof isOverdue==='function' && isOverdue(t.due,t.status)).length;
+  const total    = ts.length || 1;
+
+  /* quem entregou, no período escolhido */
+  const entregues = {}, abertas = {};
+  ts.forEach(t=>{
+    const quem = (t.assignees && t.assignees.length) ? t.assignees : ['Não atribuídas'];
+    quem.forEach(a=>{
+      if(concluidas(t)){ if(dentro(t)) entregues[a] = (entregues[a]||0)+1 }
+      else abertas[a] = (abertas[a]||0)+1;
+    });
+  });
+  const pessoas = [...new Set([...Object.keys(entregues), ...Object.keys(abertas)])]
+    .map(nome=>({nome, feitas:entregues[nome]||0, abertas:abertas[nome]||0}))
+    .filter(p=>p.feitas>0 || p.abertas>0)
+    .sort((a,b)=> b.feitas-a.feitas || b.abertas-a.abertas);
+
+  return {feitas, andando, paraFazer, atrasadas, total, pessoas,
+          totalEntregue: Object.values(entregues).reduce((s,n)=>s+n,0)};
+}
+
+function mgAvatarPessoa(nome){
+  if(nome==='Não atribuídas')
+    return `<span class="av" style="background:var(--card2);color:var(--muted2)">—</span>`;
+  const eu = (typeof mgSouEu==='function') && mgSouEu(nome);
+  let url = null;
+  if(eu && ME && ME.avatar_url) url = ME.avatar_url;
+  else { const f = (typeof mgFotoDe==='function') ? mgFotoDe(nome) : null; if(f && f.url) url = f.url }
+  return `<span class="av">${url?`<img src="${esc(url)}" alt="">`:esc(initials(nome))}</span>`;
+}
+
+function mgTrocarPeriodo(p){ MG_DASH_PERIODO=p; mgDesenhaDash(); }
+
+function mgDesenhaDash(){
+  const alvo = document.getElementById('mg-dash'); if(!alvo) return;
+  const d = mgDadosDash();
+  const pct = Math.round(d.feitas / d.total * 100);
+
+  /* rosca */
+  const R=54, C=2*Math.PI*R;
+  const fatias = [['Concluídas', d.feitas,'var(--st-fin)'],
+                  ['Em andamento', d.andando,'var(--st-prog)'],
+                  ['Não iniciadas', d.paraFazer,'var(--st-todo)']];
+  let off=0;
+  const arcos = fatias.map(([,v,cor])=>{
+    const len = C*(v/d.total);
+    const el = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${cor}" stroke-width="20"
+                 stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
+    off += len; return el;
+  }).join('');
+
+  const maior = Math.max(1, ...d.pessoas.map(p=>Math.max(p.feitas,p.abertas)));
+  const rotuloPeriodo = MG_DASH_PERIODO==='tudo' ? 'desde sempre'
+                      : MG_DASH_PERIODO==='30' ? 'nos últimos 30 dias' : 'nos últimos 7 dias';
+
+  alvo.innerHTML = `
+    <div class="mg-dash-tt">Como estão as demandas
+      <span class="mg-abas-dash">
+        ${[['7','7 dias'],['30','30 dias'],['tudo','Tudo']].map(([v,l])=>
+          `<button class="${MG_DASH_PERIODO===v?'on':''}" onclick="mgTrocarPeriodo('${v}')">${l}</button>`).join('')}
+      </span>
+    </div>
+    <div class="mg-dash-sub">Panorama de toda a agência · entregas contadas ${rotuloPeriodo}.</div>
+
+    <div class="mg-dash-grade">
+      <div class="mg-caixa">
+        <h4>Situação</h4>
+        <div class="mg-rosca">
+          <svg width="140" height="140" viewBox="0 0 140 140">${arcos}
+            <text x="70" y="66" text-anchor="middle" font-family="Fraunces,Georgia,serif"
+                  font-size="26" font-weight="600" fill="currentColor">${pct}%</text>
+            <text x="70" y="85" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">concluído</text>
+          </svg>
+          <div class="leg">
+            ${fatias.map(([l,v,cor])=>`<div class="l"><span class="pt" style="background:${cor}"></span>${l}<span class="v">${v}</span></div>`).join('')}
+            <div class="tot">Total<span class="v">${d.total}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mg-caixa">
+        <h4>Quem entregou</h4>
+        <div class="mg-nums">
+          <div class="mg-num"><div class="n" style="color:var(--st-fin)">${d.totalEntregue}</div><div class="l">entregas ${rotuloPeriodo}</div></div>
+          <div class="mg-num"><div class="n">${d.pessoas.filter(p=>p.feitas>0).length}</div><div class="l">pessoas entregaram</div></div>
+          <div class="mg-num"><div class="n" style="color:var(--st-prog)">${d.andando}</div><div class="l">em andamento agora</div></div>
+          <div class="mg-num"><div class="n" style="color:var(--danger)">${d.atrasadas}</div><div class="l">atrasadas</div></div>
+        </div>
+        <div class="mg-gente">${
+          d.pessoas.length ? d.pessoas.slice(0,8).map(p=>{
+            const eu = (typeof mgSouEu==='function') && p.nome!=='Não atribuídas' && mgSouEu(p.nome);
+            const primeiro = p.nome==='Não atribuídas' ? p.nome
+                           : ((typeof firstName==='function') ? firstName(p.nome) : p.nome.split(' ')[0]);
+            return `<div class="p">
+              ${mgAvatarPessoa(p.nome)}
+              <span class="nome">${esc(primeiro)}${eu?'<span class="eu">você</span>':''}</span>
+              <span class="barra" title="${p.feitas} entregue(s) · ${p.abertas} em aberto">
+                <i style="width:${Math.round(p.feitas/maior*100)}%"></i>
+              </span>
+              <span class="qtd"><b>${p.feitas}</b> feita${p.feitas===1?'':'s'} · ${p.abertas} aberta${p.abertas===1?'':'s'}</span>
+            </div>`;
+          }).join('')
+          : `<div class="mg-gente-vazio">Nenhuma demanda registrada ainda.</div>`
+        }</div>
+      </div>
+    </div>`;
+}
+
+/* encaixa o painel no fim do Início */
+const _mg32Home = renderHome;
+renderHome = function(){
+  const r = _mg32Home();
+  if(VIEW!=='home' || !isAdmin()) return r;
+  const centro = document.querySelector('#v-home .mg-centro'); if(!centro) return r;
+  if(!centro.querySelector('#mg-dash')){
+    const box=document.createElement('div');
+    box.className='mg-painel-dash'; box.id='mg-dash';
+    centro.appendChild(box);
+  }
+  mgDesenhaDash();
+  return r;
+};
+</script>
 </body>
 </html>
