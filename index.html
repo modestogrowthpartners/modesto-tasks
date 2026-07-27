@@ -7676,13 +7676,22 @@ renderHome = function(){
 body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home){
   max-width:var(--mg-larg); margin-left:auto; margin-right:auto; width:100%;
 }
+/* Centralizar só a caixa não bastava: os blocos internos têm largura
+   própria (720px) e continuavam encostados à esquerda dela. */
+body:not(.mg-inicio) #v-clientes > *,
+body:not(.mg-inicio) #v-equipe   > *,
+body:not(.mg-inicio) #v-settings > *,
+body:not(.mg-inicio) #v-checklist> *{margin-left:auto;margin-right:auto}
 .mg-acc{margin-left:auto;margin-right:auto}
 #v-board{margin-left:auto;margin-right:auto;max-width:100%}
 /* o seletor do topo deu lugar ao rodapé */
 #mg-subnav{display:none!important}
-body.mg-dock .content{padding-bottom:104px}
+body.mg-com-dock .content{padding-bottom:104px}
 
 /* ---------- 2. dock inferior ---------- */
+/* O <body> recebe `mg-com-dock`, NÃO `mg-dock`: se o sinalizador do corpo
+   tivesse o mesmo nome da classe do elemento, o próprio body herdaria
+   `.mg-dock{display:none}` e a tela inteira sumiria. */
 /* Sem backdrop-filter aqui de propósito: o dock fica fixo por cima do SVG
    animado do fundo, e o desfoque teria de ser recalculado a cada quadro —
    é caro e trava a aba em máquina ocupada. Fundo opaco resolve igual. */
@@ -7692,7 +7701,7 @@ body.mg-dock .content{padding-bottom:104px}
   border:1px solid rgba(236,231,219,.13);
   box-shadow:0 20px 46px -16px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.22);
   animation:mgDockEntra .34s cubic-bezier(.22,1,.36,1) both}
-body.mg-dock .mg-dock{display:inline-flex}
+body.mg-com-dock .mg-dock{display:inline-flex}
 @keyframes mgDockEntra{from{opacity:0;transform:translateX(-50%) translateY(16px)}
                          to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .mg-dock button{background:none;border:0;border-radius:13px;padding:9px 16px;font-family:inherit;
@@ -7710,7 +7719,7 @@ body.mg-dock .mg-dock{display:inline-flex}
     justify-content:center;overflow-x:auto}
   .mg-dock button{padding:9px 12px;font-size:12.5px}
   .mg-dock .conta{display:none}
-  body.mg-dock .content{padding-bottom:88px}
+  body.mg-com-dock .content{padding-bottom:88px}
 }
 @media (prefers-reduced-motion: reduce){
   .mg-dock{animation:none}
@@ -7913,7 +7922,7 @@ function mgDock(){
   try{
     let html='';
     try{ html = mgDockItens() }catch(e){ html='' }
-    document.body.classList.toggle('mg-dock', !!html);
+    document.body.classList.toggle('mg-com-dock', !!html);
     if(html && html !== _mgDockHTML){ el.innerHTML = html; _mgDockHTML = html }
   } finally { _mgDockRodando = false }
 }
