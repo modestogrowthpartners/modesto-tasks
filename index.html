@@ -10734,5 +10734,463 @@ async function mgPacingAtualizar(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 39
+   1) a barra de baixo some no login e nas boas-vindas
+   2) boas-vindas viram "Modesto Portal" e dá para revê-las
+   3) filtro por cliente (vários) e por data de criação no Kanban
+   4) toda demanda atribuída a você entra nas notificações, com som
+   5) fundo da plataforma com imagem, cor ou nada
+   6) mais opções de personalização
+   ===================================================================== */
+
+/* ---------- 1. barra fora do login e das boas-vindas ---------- */
+body.mg-sem-app .mg-dock,
+body.mg-sem-app .mg-busca,
+body.mg-boas-vindas .mg-dock,
+body.mg-boas-vindas .mg-busca{display:none!important}
+
+/* ---------- 3. filtros ---------- */
+.mg-f-clientes{display:flex;flex-direction:column;gap:2px;max-height:210px;overflow:auto;
+  margin:-2px 0 4px;padding-right:2px}
+.mg-f-cli{display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:8px;
+  font-size:12.5px;cursor:pointer;color:var(--text)}
+.mg-f-cli:hover{background:var(--card2)}
+.mg-f-cli input{width:15px;height:15px;accent-color:var(--brass);flex-shrink:0;margin:0}
+.mg-f-cli .pt{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.mg-f-cli img{width:16px;height:16px;border-radius:4px;object-fit:contain;background:#fff;
+  border:1px solid var(--line);flex-shrink:0}
+.mg-f-cli .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-f-cli .qt{font-size:10.5px;color:var(--muted2);font-weight:700}
+.mg-f-acoes{display:flex;gap:6px;margin-bottom:8px}
+.mg-f-acoes button{flex:1;background:var(--card2);border:1px solid var(--line2);border-radius:8px;
+  padding:5px 8px;font-family:inherit;font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.3px;text-transform:uppercase}
+.mg-f-acoes button:hover{border-color:var(--brass);color:var(--brass2)}
+
+/* ---------- 5. fundo da plataforma ---------- */
+#mg-fundo{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-size:cover;background-position:center;background-repeat:no-repeat}
+#mg-fundo::after{content:"";position:absolute;inset:0;
+  background:var(--mg-veu,rgba(248,245,239,.72))}
+body.mg-fundo-foto .bg-anim{display:none!important}
+body.mg-fundo-foto{background-color:transparent}
+body.mg-fundo-foto .side,
+body.mg-fundo-foto .topbar{background:color-mix(in srgb, var(--card) 88%, transparent)}
+
+/* ---------- 6. personalização ---------- */
+body.mg-sem-transp .mg-dock{background:#211f1c}
+body.mg-sem-transp #mg-fundo::after{background:var(--paper)}
+body.mg-barras-visiveis *{scrollbar-width:auto}
+body.mg-barras-visiveis ::-webkit-scrollbar{width:12px;height:12px}
+body.mg-barras-visiveis ::-webkit-scrollbar-thumb{background:rgba(26,26,24,.32);border-radius:8px}
+body.mg-contraste{--muted:#5d574a;--muted2:#6f6858;--line:rgba(26,26,24,.18);--line2:rgba(26,26,24,.3)}
+body.mg-contraste.theme-dark{--muted:#c9c2b2;--muted2:#b3ab99;--line:rgba(236,231,219,.22);--line2:rgba(236,231,219,.34)}
+body.mg-contraste .card-t,body.mg-contraste .mg-atalho{border-width:1.5px}
+body.mg-larg-estreita{--mg-larg:900px}
+body.mg-larg-larga{--mg-larg:1440px}
+body.mg-larg-total{--mg-larg:100%}
+
+.mg-fundo-previa{display:flex;gap:10px;align-items:center;margin-top:10px}
+.mg-fundo-previa .mini{width:96px;height:58px;border-radius:9px;border:1px solid var(--line2);
+  background-size:cover;background-position:center;flex-shrink:0;background-color:var(--card2)}
+.mg-fundo-previa .txt{font-size:11.5px;color:var(--muted);line-height:1.5}
+.mg-veu-range{width:100%;accent-color:var(--brass);margin-top:4px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 39
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — a barra de baixo não aparece antes de entrar
+   ===================================================================== */
+function mgEstadoDaTela(){
+  const app = document.getElementById('app');
+  const tour = document.getElementById('tour');
+  const semApp = !app || getComputedStyle(app).display === 'none';
+  const emBoasVindas = !!(tour && tour.classList.contains('on'));
+  document.body.classList.toggle('mg-sem-app', semApp);
+  document.body.classList.toggle('mg-boas-vindas', emBoasVindas);
+}
+(function(){
+  const _dock = mgDock;
+  mgDock = function(){ mgEstadoDaTela(); return _dock() };
+  setInterval(mgEstadoDaTela, 700);
+  mgEstadoDaTela();
+})();
+
+/* =====================================================================
+   PARTE 2 — boas-vindas: nome e como rever
+   ===================================================================== */
+(function(){
+  if(typeof TOUR==='undefined' || !TOUR.length) return;
+  TOUR.forEach(p=>{ if(p.t) p.t = p.t.replace(/Modesto Tasks/g, 'Modesto Portal') });
+  TOUR[0].p = 'Demandas, documentos, plano de mídia, pacing e conversas da equipe num lugar só — '
+            + 'tudo salvo na nuvem e sincronizado em tempo real entre todo mundo.';
+})();
+/* o cabeçalho do cartão é montado dentro de renderTour, fora do array TOUR */
+(function(){
+  if(typeof renderTour!=='function') return;
+  const _rt = renderTour;
+  renderTour = function(){
+    const r = _rt();
+    const marca = document.querySelector('#tour-card .tour-brand span:last-child');
+    if(marca) marca.innerHTML = 'Modesto Portal<small>DEMANDAS · DOCUMENTOS · MÍDIA</small>';
+    return r;
+  };
+})();
+
+function mgVerBoasVindas(){
+  try{ localStorage.removeItem('mgp_tour_done') }catch(e){}
+  _tourI = 0;
+  if(typeof fecharConfig==='function') fecharConfig();
+  if(typeof mgFechar==='function') mgFechar('mg-cfg');
+  setTimeout(()=>{ if(typeof openTour==='function') openTour(); mgEstadoDaTela() }, 260);
+}
+
+/* =====================================================================
+   PARTE 3 — filtros: vários clientes e data de criação
+   ===================================================================== */
+let MG_F_CLIENTES = new Set();          /* vazio = todos */
+let MG_F_CRIADA   = '';                 /* '' | hoje | 7d | 30d | mes | antigas */
+
+function mgFCliente(id, marcado){
+  if(marcado) MG_F_CLIENTES.add(id); else MG_F_CLIENTES.delete(id);
+  mgFAtualizar();
+}
+function mgFTodos(){ MG_F_CLIENTES.clear(); mgFDesenhar(); mgFAtualizar() }
+function mgFNenhum(){ MG_F_CLIENTES = new Set((CLIENTS||[]).map(c=>c.id)); mgFDesenhar(); mgFAtualizar() }
+function mgFCriada(v){ MG_F_CRIADA = (MG_F_CRIADA===v) ? '' : v; mgFDesenhar(); mgFAtualizar() }
+function mgFAtualizar(){
+  if(typeof updateFilterCount==='function') updateFilterCount();
+  if(typeof render==='function') render();
+}
+
+/* aplica os dois filtros novos junto com os que já existiam */
+(function(){
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    let ts = _vis();
+    if(MG_F_CLIENTES.size) ts = ts.filter(t=>MG_F_CLIENTES.has(t.client_id));
+    if(MG_F_CRIADA){
+      const agora = Date.now();
+      const dia = 86400000;
+      ts = ts.filter(t=>{
+        if(!t.created_at) return false;
+        const q = new Date(t.created_at).getTime();
+        if(MG_F_CRIADA==='hoje')  return new Date(t.created_at).toDateString()===new Date().toDateString();
+        if(MG_F_CRIADA==='7d')    return (agora-q) <= 7*dia;
+        if(MG_F_CRIADA==='30d')   return (agora-q) <= 30*dia;
+        if(MG_F_CRIADA==='mes'){
+          const d=new Date(t.created_at), h=new Date();
+          return d.getMonth()===h.getMonth() && d.getFullYear()===h.getFullYear();
+        }
+        if(MG_F_CRIADA==='antigas') return (agora-q) > 30*dia;
+        return true;
+      });
+    }
+    return ts;
+  };
+})();
+/* conta os filtros novos no numerozinho do botão */
+(function(){
+  if(typeof updateFilterCount!=='function') return;
+  const _uc = updateFilterCount;
+  updateFilterCount = function(){
+    const r = _uc();
+    const b = document.getElementById('filter-count');
+    if(!b) return r;
+    let n = Number(b.textContent||0) || 0;
+    if(MG_F_CLIENTES.size) n++;
+    if(MG_F_CRIADA) n++;
+    b.style.display = n ? '' : 'none';
+    b.textContent = n;
+    return r;
+  };
+})();
+
+const MG_CRIADA_OPS = [['hoje','Criadas hoje'],['7d','Últimos 7 dias'],['30d','Últimos 30 dias'],
+                       ['mes','Este mês'],['antigas','Com mais de 30 dias']];
+
+function mgFDesenhar(){
+  const corpo = document.querySelector('#filter-panel .dp-body'); if(!corpo) return;
+  let bloco = document.getElementById('mg-f-bloco');
+  if(!bloco){
+    bloco = document.createElement('div');
+    bloco.id = 'mg-f-bloco';
+    corpo.insertBefore(bloco, corpo.firstChild);
+  }
+  const contagem = {};
+  (TASKS||[]).forEach(t=>{ contagem[t.client_id]=(contagem[t.client_id]||0)+1 });
+  const todos = MG_F_CLIENTES.size===0;
+
+  bloco.innerHTML = `
+    <div class="dp-sec" style="margin-top:0">Clientes</div>
+    <div class="mg-f-acoes">
+      <button onclick="mgFTodos()">${todos?'✓ Todos':'Todos'}</button>
+      <button onclick="mgFNenhum()">Inverter</button>
+    </div>
+    <div class="mg-f-clientes">
+      ${(CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>{
+        const on = todos || MG_F_CLIENTES.has(c.id);
+        const lg = (typeof clientLogo==='function') ? clientLogo(c.id) : null;
+        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+                         : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
+        return `<label class="mg-f-cli">
+          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${esc(c.id)}',this.checked)">
+          ${marca}<span class="nm">${esc(c.nome)}</span>
+          <span class="qt">${contagem[c.id]||0}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div class="dp-sec">Quando foi criada</div>
+    ${MG_CRIADA_OPS.map(([v,l])=>`<label class="chk">
+      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${v}')"> ${l}
+    </label>`).join('')}
+  `;
+}
+/* desenha ao abrir o painel e mantém em dia */
+(function(){
+  if(typeof toggleFilterPanel==='function'){
+    const _tf = toggleFilterPanel;
+    toggleFilterPanel = function(e){ const r=_tf(e); mgFDesenhar(); return r };
+  }
+  if(typeof clearFilters==='function'){
+    const _cf = clearFilters;
+    clearFilters = function(){ MG_F_CLIENTES.clear(); MG_F_CRIADA=''; const r=_cf(); mgFDesenhar(); return r };
+  }
+  setTimeout(mgFDesenhar, 1200);
+})();
+
+/* =====================================================================
+   PARTE 4 — toda demanda atribuída a você vira aviso, com som
+   Antes o aviso dependia da data de criação e o som só tocava quando a
+   tela recarregava sozinha. Agora guardamos quais demandas você já viu:
+   qualquer uma nova atribuída a você entra como não lida e toca.
+   ===================================================================== */
+const MG_VISTAS_KEY = 'mgp_demandas_vistas';
+let MG_VISTAS = new Set();
+(function(){ try{ MG_VISTAS = new Set(JSON.parse(localStorage.getItem(MG_VISTAS_KEY)||'[]')) }catch(e){} })();
+function mgGuardarVistas(){
+  try{ localStorage.setItem(MG_VISTAS_KEY, JSON.stringify([...MG_VISTAS].slice(-800))) }catch(e){}
+}
+function mgMinhas(){
+  if(!ME) return [];
+  const meu = (ME.name||'').split(' ')[0].toLowerCase();
+  return (TASKS||[]).filter(t=>(t.assignees||[]).some(a=>(a||'').toLowerCase().includes(meu)));
+}
+/* na primeira vez, marca tudo como visto para não disparar um monte de aviso */
+let MG_VISTAS_INICIADO = false;
+function mgSemearVistas(){
+  if(MG_VISTAS_INICIADO) return;
+  MG_VISTAS_INICIADO = true;
+  if(MG_VISTAS.size) return;                 /* já havia histórico */
+  mgMinhas().forEach(t=>MG_VISTAS.add(t.id));
+  mgGuardarVistas();
+}
+function mgNovasParaMim(){
+  return mgMinhas().filter(t=>!MG_VISTAS.has(t.id));
+}
+/* acrescenta as não vistas à central de notificações */
+(function(){
+  if(typeof buildNotifs!=='function') return;
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn();
+    if(!ME) return r;
+    const novas = mgNovasParaMim();
+    novas.forEach(t=>{
+      const jaTem = NOTIFS.some(n=>n.taskId===t.id);
+      const item = {ts:t.created_at||new Date().toISOString(), icon:'📌',
+        text:'Demanda atribuída a você: <b>'+esc(t.title)+'</b>', taskId:t.id, unread:true};
+      if(jaTem){ NOTIFS.forEach(n=>{ if(n.taskId===t.id) n.unread = true }) }
+      else NOTIFS.unshift(item);
+    });
+    return r;
+  };
+})();
+/* toca e avisa quando aparecer alguma nova */
+function mgConferirMinhas(){
+  if(!ME) return;
+  mgSemearVistas();
+  const novas = mgNovasParaMim();
+  if(!novas.length) return;
+  novas.forEach(t=>MG_VISTAS.add(t.id));
+  mgGuardarVistas();
+  if(typeof mgSom==='function') mgSom('nova');
+  if(typeof buildNotifs==='function') buildNotifs();
+  if(typeof updateNotifBadge==='function') updateNotifBadge();
+  toast(novas.length===1
+    ? '📌 Nova demanda para você: '+String(novas[0].title||'').slice(0,42)
+    : '📌 '+novas.length+' novas demandas atribuídas a você');
+}
+(function(){
+  const _rf = refresh;
+  refresh = async function(){ const r = await _rf(); mgConferirMinhas(); return r };
+  const _bt = boot;
+  boot = async function(){ const r = await _bt(); mgSemearVistas(); mgConferirMinhas(); return r };
+  setTimeout(()=>{ mgSemearVistas(); mgConferirMinhas() }, 2500);
+})();
+
+/* =====================================================================
+   PARTE 5 — fundo da plataforma
+   A imagem fica no navegador, não no banco: é preferência de tela e
+   costuma ser pesada demais para trafegar a cada carregamento.
+   ===================================================================== */
+const MG_FUNDO_KEY = 'mgp_fundo_img';
+function mgFundoImg(){ try{ return localStorage.getItem(MG_FUNDO_KEY) }catch(e){ return null } }
+
+function mgAplicarFundoPlataforma(){
+  let el = document.getElementById('mg-fundo');
+  if(!el){ el=document.createElement('div'); el.id='mg-fundo'; document.body.appendChild(el) }
+  const img = mgFundoImg();
+  const modo = PREFS.fundoModo || (img ? 'foto' : 'marca');
+  document.body.classList.toggle('mg-fundo-foto', modo==='foto' && !!img);
+  if(modo==='foto' && img){
+    el.style.display='block';
+    el.style.backgroundImage = `url("${img}")`;
+    const veu = (PREFS.fundoVeu==null) ? 72 : Number(PREFS.fundoVeu);
+    const escuro = document.body.classList.contains('theme-dark');
+    el.style.setProperty('--mg-veu', escuro
+      ? `rgba(26,25,23,${(veu/100).toFixed(2)})`
+      : `rgba(248,245,239,${(veu/100).toFixed(2)})`);
+  }else{
+    el.style.display='none';
+    el.style.backgroundImage='none';
+  }
+}
+function mgEscolherFundo(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = e => {
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload = ev => {
+      const img=new Image();
+      img.onload = ()=>{
+        /* reduz para caber no armazenamento do navegador */
+        const larg = Math.min(img.width, 1920);
+        const esc2 = larg/img.width;
+        const cv=document.createElement('canvas');
+        cv.width=larg; cv.height=Math.round(img.height*esc2);
+        cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+        const dado = cv.toDataURL('image/jpeg', 0.78);
+        try{
+          localStorage.setItem(MG_FUNDO_KEY, dado);
+          PREFS.fundoModo='foto'; savePrefs();
+          mgAplicarFundoPlataforma(); mgDesenhaPref();
+          toast('Fundo aplicado ✓');
+        }catch(err){
+          toast('A imagem ficou grande demais para o navegador — tente uma menor');
+        }
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+function mgTirarFundo(){
+  try{ localStorage.removeItem(MG_FUNDO_KEY) }catch(e){}
+  PREFS.fundoModo='marca'; savePrefs();
+  mgAplicarFundoPlataforma(); mgDesenhaPref();
+}
+function mgFundoModo(v){
+  PREFS.fundoModo=v; savePrefs();
+  if(typeof mgAplicarFundo==='function' && v!=='foto') mgAplicarFundo();
+  mgAplicarFundoPlataforma(); mgDesenhaPref();
+}
+function mgFundoVeu(v){
+  PREFS.fundoVeu=Number(v); savePrefs(); mgAplicarFundoPlataforma();
+}
+mgAplicarFundoPlataforma();
+
+/* =====================================================================
+   PARTE 6 — mais opções de personalização
+   ===================================================================== */
+function mgAplicarExtras(){
+  const p = (k)=> (typeof mgP==='function') ? mgP(k) : null;
+  document.body.classList.toggle('mg-sem-transp',    p('transparencia')==='off');
+  document.body.classList.toggle('mg-barras-visiveis', p('barras')==='on');
+  document.body.classList.toggle('mg-contraste',     p('contraste')==='on');
+  const larg = p('largura') || 'media';
+  ['estreita','larga','total'].forEach(x=>document.body.classList.toggle('mg-larg-'+x, larg===x));
+}
+(function(){
+  if(typeof MG_P!=='object' || !MG_P) return;
+  if(MG_P.transparencia===undefined) MG_P.transparencia='on';
+  if(MG_P.barras===undefined)        MG_P.barras='off';
+  if(MG_P.contraste===undefined)     MG_P.contraste='off';
+  if(MG_P.largura===undefined)       MG_P.largura='media';
+  if(typeof mgAplicarP==='function'){
+    const _ap = mgAplicarP;
+    mgAplicarP = function(){ const r=_ap(); mgAplicarExtras(); return r };
+  }
+  mgAplicarExtras();
+})();
+
+/* acrescenta o conteúdo novo nas abas que já existem */
+(function(){
+  if(typeof mgPrefConteudo!=='function') return;
+  const _pc = mgPrefConteudo;
+  mgPrefConteudo = function(aba){
+    let html = _pc(aba);
+
+    if(aba==='visual'){
+      const img  = mgFundoImg();
+      const modo = PREFS.fundoModo || (img?'foto':'marca');
+      const veu  = (PREFS.fundoVeu==null) ? 72 : Number(PREFS.fundoVeu);
+      html += `
+        <hr><div class="grupo-tt">Fundo da plataforma</div>
+        ${mgLinha('Como é o fundo','A marca desenhada, uma imagem sua, ou nada',
+          mgSeg(modo, [['marca','Marca'],['foto','Imagem'],['limpo','Limpo']], 'mgFundoModo'))}
+        ${modo==='foto' ? `
+          <div class="mg-fundo-previa">
+            <span class="mini" style="background-image:${img?`url("${img}")`:'none'}"></span>
+            <span class="txt">
+              <button class="btn-p" onclick="mgEscolherFundo()">${img?'Trocar imagem':'Escolher imagem'}</button>
+              ${img?`<button class="mini-btn ghost" style="margin-left:6px" onclick="mgTirarFundo()">Remover</button>`:''}
+              <br><span style="font-size:11px">A imagem fica só neste navegador e é reduzida automaticamente.</span>
+            </span>
+          </div>
+          ${mgLinha('Véu sobre a imagem','Quanto clarear para o texto continuar legível',
+            `<input class="mg-veu-range" type="range" min="30" max="95" value="${veu}"
+                    oninput="mgFundoVeu(this.value)" style="width:160px">`)}
+        ` : ''}
+
+        <hr><div class="grupo-tt">Ajuste fino</div>
+        ${mgLinha('Largura do conteúdo','Quanto as páginas ocupam da tela',
+          mgSeg(mgP('largura')||'media',
+            [['estreita','Estreita'],['media','Média'],['larga','Larga'],['total','Cheia']],
+            "(v=>mgP('largura',v))"))}
+        ${mgLinha('Efeitos de transparência','Desfoque e camadas translúcidas',
+          mgSeg(mgP('transparencia')||'on', [['on','Ligado'],['off','Desligado']], "(v=>mgP('transparencia',v))"))}
+      `;
+    }
+
+    if(aba==='acess'){
+      html += `
+        <hr><div class="grupo-tt">Leitura</div>
+        ${mgLinha('Mais contraste','Reforça bordas e escurece textos secundários',
+          mgSeg(mgP('contraste')||'off', [['on','Ligado'],['off','Desligado']], "(v=>mgP('contraste',v))"))}
+        ${mgLinha('Sempre mostrar barras de rolagem','Em vez de aparecerem só ao rolar',
+          mgSeg(mgP('barras')||'off', [['on','Ligado'],['off','Desligado']], "(v=>mgP('barras',v))"))}
+      `;
+    }
+
+    if(aba==='inicio'){
+      html += `
+        <hr><div class="grupo-tt">Boas-vindas</div>
+        ${mgLinha('Rever a apresentação','Aquela sequência de telas que aparece no primeiro acesso',
+          `<button class="btn-p" onclick="mgVerBoasVindas()">Ver de novo</button>`)}
+        ${mgLinha('Som das demandas','Toca quando uma demanda sua é criada ou alterada',
+          mgSeg((PREFS.som==='off')?'off':'on', [['on','Ligado'],['off','Desligado']], "(v=>{PREFS.som=v;savePrefs();mgDesenhaPref();if(v==='on')mgSom('nova')})"))}
+      `;
+    }
+    return html;
+  };
+})();
+</script>
 </body>
 </html>
