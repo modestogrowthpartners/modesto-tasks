@@ -7659,5 +7659,757 @@ renderHome = function(){
   return r;
 };
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 33
+   1) páginas centralizadas (a de Clientes vivia encostada na esquerda)
+   2) seletor de visualização no rodapé, no lugar do segmento do topo
+   3) menu do quadro (⋯): classificar, recolher listas, arquivadas,
+      tela de fundo, atividade e exportação
+   4) nomes dos cards do Início cabendo dentro do card
+   5) Histórico: linha do tempo do que já foi publicado para o cliente
+   6) Modo cliente: ver a plataforma pelos olhos de cada empresa
+   ===================================================================== */
+
+/* ---------- 1. páginas centralizadas ---------- */
+:root{ --mg-larg:1180px }
+body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home){
+  max-width:var(--mg-larg); margin-left:auto; margin-right:auto; width:100%;
+}
+.mg-acc{margin-left:auto;margin-right:auto}
+#v-board{margin-left:auto;margin-right:auto;max-width:100%}
+/* o seletor do topo deu lugar ao rodapé */
+#mg-subnav{display:none!important}
+body.mg-dock .content{padding-bottom:104px}
+
+/* ---------- 2. dock inferior ---------- */
+.mg-dock{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:95;
+  display:none;align-items:center;gap:3px;padding:6px;border-radius:18px;
+  background:rgba(28,26,23,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(236,231,219,.13);
+  box-shadow:0 20px 46px -16px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.22);
+  animation:mgDockEntra .34s cubic-bezier(.22,1,.36,1) both}
+body.mg-dock .mg-dock{display:inline-flex}
+@keyframes mgDockEntra{from{opacity:0;transform:translateX(-50%) translateY(16px)}
+                         to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.mg-dock button{background:none;border:0;border-radius:13px;padding:9px 16px;font-family:inherit;
+  font-size:13px;font-weight:600;color:#a49d8f;display:inline-flex;align-items:center;gap:8px;
+  white-space:nowrap;transition:color .16s,background .2s,transform .14s}
+.mg-dock button .ic{font-size:14px;line-height:1;opacity:.9}
+.mg-dock button:hover{color:#ece7db;background:rgba(236,231,219,.07)}
+.mg-dock button.on{background:rgba(194,161,91,.2);color:var(--brass-soft)}
+.mg-dock button:active{transform:scale(.96)}
+.mg-dock button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.mg-dock .sep{width:1px;height:22px;background:rgba(236,231,219,.15);margin:0 5px;flex-shrink:0}
+.mg-dock .conta{font-size:11.5px;color:#8a8271;padding:0 13px 0 5px;letter-spacing:.2px;white-space:nowrap}
+@media(max-width:760px){
+  .mg-dock{left:10px;right:10px;bottom:10px;transform:none;animation:none;
+    justify-content:center;overflow-x:auto}
+  .mg-dock button{padding:9px 12px;font-size:12.5px}
+  .mg-dock .conta{display:none}
+  body.mg-dock .content{padding-bottom:88px}
+}
+@media (prefers-reduced-motion: reduce){ .mg-dock{animation:none} }
+
+/* ---------- 3. menu do quadro ---------- */
+.mg-qm-ov{position:fixed;inset:0;background:rgba(12,11,9,.44);backdrop-filter:blur(2px);
+  z-index:118;opacity:0;pointer-events:none;transition:opacity .24s}
+.mg-qm-ov.on{opacity:1;pointer-events:auto}
+.mg-qmenu{position:fixed;top:0;right:0;height:100vh;width:min(370px,92vw);z-index:119;
+  background:var(--card);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  transform:translateX(103%);transition:transform .34s cubic-bezier(.22,1,.36,1);
+  box-shadow:-26px 0 64px -32px rgba(0,0,0,.5)}
+.mg-qmenu.on{transform:none}
+.mg-qmenu .cab{display:flex;align-items:center;gap:10px;padding:19px 18px 15px;border-bottom:1px solid var(--line)}
+.mg-qmenu .cab .t{font-family:var(--font-d);font-size:17.5px;font-weight:500;flex:1}
+.mg-qmenu .cab .x{background:none;border:0;font-size:15px;color:var(--muted);border-radius:8px;padding:5px 9px}
+.mg-qmenu .cab .x:hover{background:var(--card2);color:var(--text)}
+.mg-qmenu .corpo{flex:1;overflow:auto;padding:8px 10px 30px}
+.mg-qm-g{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;font-weight:700;
+  color:var(--muted2);padding:15px 10px 6px}
+.mg-qm-item{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-radius:11px;
+  padding:11px 10px;font-family:inherit;font-size:13.5px;color:var(--text);text-align:left;
+  transition:background .16s}
+.mg-qm-item:hover{background:var(--card2)}
+.mg-qm-item:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.mg-qm-item .ic{width:22px;text-align:center;font-size:14px;color:var(--muted);flex-shrink:0}
+.mg-qm-item .txt{flex:1;min-width:0}
+.mg-qm-item .txt small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.4}
+.mg-qm-item .est{font-size:11.5px;color:var(--brass2);font-weight:700;flex-shrink:0}
+.mg-qm-item .seta{color:var(--muted2);font-size:11px;transition:transform .22s}
+.mg-qm-item.aberto .seta{transform:rotate(90deg)}
+.mg-qm-sub{display:none;padding:2px 8px 8px 42px}
+.mg-qm-sub.on{display:block;animation:mgSobe .26s cubic-bezier(.22,1,.36,1) both}
+.mg-qm-op{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;border-radius:9px;
+  padding:8px 10px;font-family:inherit;font-size:13px;color:var(--text);text-align:left}
+.mg-qm-op:hover{background:var(--card2)}
+.mg-qm-op .marca{width:14px;color:var(--brass2);font-weight:700}
+.mg-fundos{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:4px 10px 10px 42px}
+.mg-fundo-op{height:48px;border-radius:11px;border:1.5px solid var(--line2);padding:0;cursor:pointer;
+  position:relative;overflow:hidden;background:var(--paper)}
+.mg-fundo-op.on{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.2)}
+.mg-fundo-op span{position:absolute;inset:0}
+.mg-arq-i{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;font-size:12.5px}
+.mg-arq-i:hover{background:var(--card2)}
+.mg-arq-i .ti{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-arq-i .rest{background:none;border:1px solid var(--line2);border-radius:8px;padding:4px 10px;
+  font-size:11.5px;font-weight:600;font-family:inherit;color:var(--brass2);flex-shrink:0}
+.mg-arq-i .rest:hover{border-color:var(--brass);background:rgba(194,161,91,.09)}
+.mg-ativ-i{display:flex;gap:10px;padding:9px 10px;border-radius:10px;font-size:12.5px;line-height:1.5}
+.mg-ativ-i:hover{background:var(--card2)}
+.mg-ativ-i .q{font-size:14px;opacity:.85;flex-shrink:0}
+.mg-ativ-i .qd{color:var(--muted2);font-size:11px;margin-top:2px}
+.mg-qm-nada{font-size:12.5px;color:var(--muted);padding:10px 12px}
+
+/* ---------- 4. colunas recolhidas ---------- */
+#v-board .col.mg-recolhida{width:54px!important;min-width:54px}
+#v-board .col.mg-recolhida .cards,
+#v-board .col.mg-recolhida .addcard{display:none}
+#v-board .col.mg-recolhida .col-h{writing-mode:vertical-rl;height:100%;align-items:center;
+  justify-content:flex-start;padding:14px 0;gap:12px;border-radius:12px}
+#v-board .col.mg-recolhida .col-h .t{letter-spacing:1px}
+.mg-col-tog{background:none;border:0;color:var(--muted2);font-size:11px;padding:3px 5px;
+  border-radius:6px;margin-left:auto;font-family:inherit;flex-shrink:0}
+.mg-col-tog:hover{background:var(--card);color:var(--text)}
+#v-board .col.mg-recolhida .mg-col-tog{margin:0}
+
+/* ---------- 5. telas de fundo ---------- */
+body.mg-fundo-limpo .bg-anim{display:none!important}
+body.mg-fundo-linhas .bg-anim{display:none!important}
+body.mg-fundo-linhas{background-image:
+  linear-gradient(rgba(26,26,24,.045) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(26,26,24,.045) 1px,transparent 1px);
+  background-size:34px 34px}
+body.mg-fundo-brasa{background-image:
+  radial-gradient(90% 60% at 12% 0%, rgba(194,161,91,.16), transparent 62%),
+  radial-gradient(70% 55% at 100% 100%, rgba(217,131,36,.12), transparent 60%);
+  background-attachment:fixed}
+body.theme-dark.mg-fundo-linhas{background-image:
+  linear-gradient(rgba(236,231,219,.05) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(236,231,219,.05) 1px,transparent 1px)}
+
+/* ---------- 6. nomes que cabem no card do Início ---------- */
+.mg-atalho{padding-left:14px;padding-right:14px;min-width:0}
+.mg-atalho .nm{font-size:clamp(14.5px,.5vw + 11.6px,18px);line-height:1.2;
+  overflow-wrap:anywhere;hyphens:auto;text-wrap:balance}
+.mg-atalho .ds{font-size:clamp(11px,.2vw + 9.7px,12.5px);line-height:1.42;
+  overflow-wrap:anywhere;hyphens:auto;min-height:34px}
+
+/* ---------- 7. histórico ---------- */
+.mg-hist{max-width:780px;margin:0 auto}
+.mg-hist-cab{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mg-hist-cab .n{font-family:var(--font-d);font-size:23px;font-weight:500;letter-spacing:-.3px}
+.mg-hist-cab .sb{font-size:12.5px;color:var(--muted);margin-top:3px}
+.mg-hist-num{margin-left:auto;display:flex;gap:22px}
+.mg-hist-num div{text-align:right}
+.mg-hist-num b{font-family:var(--font-d);font-size:21px;font-weight:600;display:block;line-height:1.1}
+.mg-hist-num span{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted2);font-weight:700}
+.mg-hist-mes{font-family:var(--font-d);font-size:13.5px;font-weight:600;color:var(--muted);
+  margin:28px 0 13px;display:flex;align-items:center;gap:13px;text-transform:capitalize}
+.mg-hist-mes::after{content:"";flex:1;height:1px;background:var(--line)}
+.mg-hist-l{position:relative;padding-left:26px}
+.mg-hist-l::before{content:"";position:absolute;left:6px;top:4px;bottom:8px;width:1px;background:var(--line2)}
+.mg-hist-i{position:relative;display:flex;gap:14px;align-items:flex-start;width:100%;
+  background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 16px;
+  margin-bottom:10px;text-align:left;font-family:inherit;color:var(--text);cursor:pointer;
+  transition:transform .16s cubic-bezier(.22,1,.36,1),box-shadow .2s,border-color .16s;
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-hist-i:hover{transform:translateX(3px);box-shadow:0 9px 22px rgba(0,0,0,.07);border-color:var(--line2)}
+.mg-hist-i::before{content:"";position:absolute;left:-25px;top:19px;width:10px;height:10px;border-radius:50%;
+  background:var(--pt,var(--brass));box-shadow:0 0 0 3px var(--paper)}
+.mg-hist-i .tp{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:4px 9px;border-radius:999px;flex-shrink:0;margin-top:2px}
+.mg-hist-i .meio{flex:1;min-width:0}
+.mg-hist-i .ti{font-weight:600;font-size:14px;line-height:1.35}
+.mg-hist-i .sb{font-size:11.5px;color:var(--muted);margin-top:4px}
+.mg-hist-i .dia{flex-shrink:0;font-size:11.5px;color:var(--muted2);text-align:right;min-width:62px;margin-top:3px}
+.mg-hist-vazio{font-size:13.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:13px;padding:34px 26px;text-align:center;margin-top:24px}
+@media(max-width:640px){
+  .mg-hist-num{margin-left:0;width:100%;justify-content:flex-start}
+  .mg-hist-i .dia{display:none}
+}
+
+/* ---------- 8. modo cliente ---------- */
+.mg-espelho{position:fixed;top:0;left:0;right:0;height:38px;z-index:130;display:none;
+  align-items:center;justify-content:center;gap:14px;padding:0 14px;
+  font-size:12.5px;font-weight:600;letter-spacing:.2px;
+  background:linear-gradient(90deg,var(--brass2),var(--brass));color:#221f1a;
+  box-shadow:0 2px 16px rgba(0,0,0,.2)}
+body.mg-espelhando .mg-espelho{display:flex}
+body.mg-espelhando{padding-top:38px}
+body.mg-espelhando .side{height:calc(100vh - 38px)}
+body.mg-espelhando .mg-qmenu{height:calc(100vh - 38px);top:38px}
+.mg-espelho .olho{font-size:14px}
+.mg-espelho .sair{background:rgba(34,31,26,.15);border:1px solid rgba(34,31,26,.24);border-radius:8px;
+  padding:4px 13px;font-size:12px;font-weight:700;color:#221f1a;font-family:inherit}
+.mg-espelho .sair:hover{background:rgba(34,31,26,.24)}
+@media(max-width:520px){ .mg-espelho .rot{display:none} }
+.mg-eu-sub{display:none;max-height:280px;overflow:auto;border-top:1px solid var(--line);
+  margin-top:5px;padding-top:5px}
+.mg-eu-sub.on{display:block}
+.mg-eu-cli{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
+  padding:8px 12px;font-family:inherit;font-size:13px;color:var(--text);text-align:left;border-radius:9px}
+.mg-eu-cli:hover{background:var(--card2)}
+.mg-eu-cli img{width:20px;height:20px;border-radius:5px;object-fit:contain;background:#fff;
+  border:1px solid var(--line);flex-shrink:0}
+.mg-eu-cli .pt{width:11px;height:11px;border-radius:3px;flex-shrink:0;margin:0 4px}
+.mg-eu-cli .nm2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-eu-cli .qt{font-size:11px;color:var(--muted2)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 33 — ver o cabeçalho do bloco de estilo acima
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — dock inferior (o seletor que ficava no topo desceu)
+   ===================================================================== */
+(function(){
+  if(document.getElementById('mg-dock')) return;
+  const d=document.createElement('div');
+  d.className='mg-dock'; d.id='mg-dock';
+  d.setAttribute('role','tablist');
+  document.body.appendChild(d);
+})();
+
+function mgDockItens(){
+  /* módulo de demandas: Kanban · Quadro · Calendário + menu */
+  if(document.body.classList.contains('mg-tasks')){
+    const abas = MG_TASKS_VIEWS.map(v=>
+      `<button role="tab" class="${v===MG_TASKS_SUB?'on':''}" aria-selected="${v===MG_TASKS_SUB}"
+         onclick="mgVerTasks('${v}')"><span class="ic">${MG_TASKS_ICONE[v]}</span>${MG_TASKS_ROTULO[v]}</button>`
+    ).join('');
+    const n = (typeof visibleTasks==='function') ? visibleTasks().length : (TASKS||[]).length;
+    return abas
+      + `<span class="sep"></span>`
+      + `<button onclick="mgAbrirQMenu()" title="Menu do quadro"><span class="ic">⋯</span>Menu</button>`
+      + `<span class="conta">${n} demanda${n===1?'':'s'}</span>`;
+  }
+  /* módulo de documentos: Pastas · Histórico */
+  if(VIEW==='docs' && (DVIEW.kind==='home' || DVIEW.kind==='client')){
+    const n = mgDocsDoEscopo().length;
+    return ['pastas','historico'].map(a=>
+      `<button role="tab" class="${a===MG_DOCS_ABA?'on':''}" aria-selected="${a===MG_DOCS_ABA}"
+         onclick="mgVerDocs('${a}')"><span class="ic">${a==='pastas'?'▤':'◷'}</span>${a==='pastas'?'Pastas':'Histórico'}</button>`
+    ).join('') + `<span class="conta">${n} documento${n===1?'':'s'}</span>`;
+  }
+  return '';
+}
+function mgDock(){
+  const el=document.getElementById('mg-dock'); if(!el) return;
+  let html='';
+  try{ html = mgDockItens() }catch(e){ html='' }
+  document.body.classList.toggle('mg-dock', !!html);
+  if(html) el.innerHTML = html;
+}
+
+/* redesenha o dock sempre que a tela muda */
+(function(){
+  const _sv = showView;
+  showView = function(v){ const r=_sv(v); mgDock(); return r };
+  const _rd = render;
+  render = function(){ const r=_rd(); mgDock(); return r };
+})();
+
+/* =====================================================================
+   PARTE 2 — menu do quadro (⋯)
+   ===================================================================== */
+let MG_ORDEM = 'padrao';
+let MG_COLS_FECHADAS = new Set();
+const MG_ORDENS = [
+  ['padrao',    'Ordem do quadro'],
+  ['prazo',     'Prazo mais próximo'],
+  ['prioridade','Prioridade'],
+  ['titulo',    'Título (A–Z)'],
+  ['recentes',  'Criadas por último'],
+  ['resp',      'Responsável'],
+];
+const MG_FUNDOS = [
+  ['marca',  'Marca',  'radial-gradient(120% 90% at 50% 10%, rgba(194,161,91,.22), transparent 62%)'],
+  ['limpo',  'Limpo',  'none'],
+  ['linhas', 'Linhas', 'linear-gradient(rgba(26,26,24,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(26,26,24,.14) 1px,transparent 1px)'],
+  ['brasa',  'Brasa',  'radial-gradient(90% 70% at 15% 0%, rgba(194,161,91,.4), transparent 60%),radial-gradient(80% 60% at 100% 100%, rgba(217,131,36,.34), transparent 58%)'],
+];
+
+/* ---- ordenação e demandas arquivadas valem para todas as visualizações ---- */
+(function(){
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    let ts = _vis().filter(t=>!t.archived);
+    if(MG_ORDEM==='padrao') return ts;
+    const P={'Alta':0,'Média':1,'Baixa':2};
+    return [...ts].sort((a,b)=>{
+      if(MG_ORDEM==='prazo')      return (a.due||'9999-12-31').localeCompare(b.due||'9999-12-31');
+      if(MG_ORDEM==='prioridade') return (P[a.priority]??9)-(P[b.priority]??9);
+      if(MG_ORDEM==='titulo')     return (a.title||'').localeCompare(b.title||'','pt');
+      if(MG_ORDEM==='recentes')   return new Date(b.created_at||0)-new Date(a.created_at||0);
+      if(MG_ORDEM==='resp')       return (((a.assignees||[])[0])||'zzz').localeCompare(((b.assignees||[])[0])||'zzz','pt');
+      return 0;
+    });
+  };
+})();
+
+/* ---- a janela ---- */
+(function(){
+  if(document.getElementById('mg-qmenu')) return;
+  const ov=document.createElement('div'); ov.className='mg-qm-ov'; ov.id='mg-qm-ov';
+  ov.onclick=()=>mgFecharQMenu();
+  const el=document.createElement('aside'); el.className='mg-qmenu'; el.id='mg-qmenu';
+  el.innerHTML=`<div class="cab">
+      <span class="t">Menu do quadro</span>
+      <button class="x" onclick="mgFecharQMenu()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="corpo" id="mg-qm-corpo"></div>`;
+  document.body.appendChild(ov); document.body.appendChild(el);
+})();
+function mgAbrirQMenu(){
+  mgDesenharQMenu();
+  document.getElementById('mg-qm-ov').classList.add('on');
+  document.getElementById('mg-qmenu').classList.add('on');
+}
+function mgFecharQMenu(){
+  document.getElementById('mg-qm-ov').classList.remove('on');
+  document.getElementById('mg-qmenu').classList.remove('on');
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && document.getElementById('mg-qmenu').classList.contains('on')) mgFecharQMenu();
+});
+function mgAbreSecao(id, botao){
+  const s=document.getElementById(id); if(!s) return;
+  const abrindo = !s.classList.contains('on');
+  document.querySelectorAll('#mg-qm-corpo .mg-qm-sub').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('#mg-qm-corpo .mg-qm-item').forEach(x=>x.classList.remove('aberto'));
+  if(abrindo){ s.classList.add('on'); if(botao) botao.classList.add('aberto') }
+}
+
+function mgDesenharQMenu(){
+  const c=document.getElementById('mg-qm-corpo'); if(!c) return;
+  const ordem = (MG_ORDENS.find(o=>o[0]===MG_ORDEM)||MG_ORDENS[0])[1];
+  const fundo = (PREFS.fundo||'marca');
+  const nomeFundo = (MG_FUNDOS.find(f=>f[0]===fundo)||MG_FUNDOS[0])[1];
+  const arq = (TASKS||[]).filter(t=>t.archived);
+  const recolhidas = MG_COLS_FECHADAS.size;
+
+  c.innerHTML = `
+    <div class="mg-qm-g">Organizar</div>
+
+    <button class="mg-qm-item" onclick="mgAbreSecao('mg-qm-ordem',this)">
+      <span class="ic">⇅</span>
+      <span class="txt">Classificar<small>Vale para o Kanban, o Quadro e o Calendário</small></span>
+      <span class="est">${esc(ordem)}</span><span class="seta">›</span>
+    </button>
+    <div class="mg-qm-sub" id="mg-qm-ordem">
+      ${MG_ORDENS.map(([v,l])=>`<button class="mg-qm-op" onclick="mgClassificar('${v}')">
+        <span class="marca">${v===MG_ORDEM?'✓':''}</span>${esc(l)}</button>`).join('')}
+    </div>
+
+    <button class="mg-qm-item" onclick="mgRecolherTudo()">
+      <span class="ic">⇤⇥</span>
+      <span class="txt">${recolhidas?'Expandir todas as listas':'Recolher todas as listas'}
+        <small>${recolhidas?recolhidas+' lista(s) recolhida(s)':'Deixa só os títulos das colunas'}</small></span>
+    </button>
+
+    <div class="mg-qm-g">Demandas</div>
+
+    <button class="mg-qm-item" onclick="mgAbreSecao('mg-qm-arq',this)">
+      <span class="ic">▤</span>
+      <span class="txt">Demandas arquivadas<small>Somem do quadro sem serem excluídas</small></span>
+      <span class="est">${arq.length}</span><span class="seta">›</span>
+    </button>
+    <div class="mg-qm-sub" id="mg-qm-arq">
+      ${arq.length
+        ? arq.map(t=>`<div class="mg-arq-i">
+            <span class="ti" title="${esc(t.title)}">${esc(t.title)}</span>
+            <button class="rest" onclick="mgArquivar('${t.id}',false)">Restaurar</button>
+          </div>`).join('')
+        : `<div class="mg-qm-nada">Nada arquivado por aqui.</div>`}
+    </div>
+
+    ${isAdmin()?`<button class="mg-qm-item" onclick="mgArquivarConcluidas()">
+      <span class="ic">⇩</span>
+      <span class="txt">Arquivar as concluídas<small>Limpa as colunas Feito e Concluído</small></span>
+    </button>`:''}
+
+    <button class="mg-qm-item" onclick="mgExportarCSV()">
+      <span class="ic">⤓</span>
+      <span class="txt">Exportar para planilha<small>Baixa o que está na tela em .csv</small></span>
+    </button>
+
+    <div class="mg-qm-g">Aparência</div>
+
+    <button class="mg-qm-item" onclick="mgAbreSecao('mg-qm-fundo',this)">
+      <span class="ic">◨</span>
+      <span class="txt">Alterar tela de fundo</span>
+      <span class="est">${esc(nomeFundo)}</span><span class="seta">›</span>
+    </button>
+    <div class="mg-qm-sub" id="mg-qm-fundo">
+      <div class="mg-fundos">
+        ${MG_FUNDOS.map(([v,l,bg])=>`<button class="mg-fundo-op ${v===fundo?'on':''}" title="${esc(l)}"
+          onclick="mgTrocarFundo('${v}')"><span style="background-image:${bg};background-size:${v==='linhas'?'9px 9px':'auto'}"></span></button>`).join('')}
+      </div>
+    </div>
+
+    <button class="mg-qm-item" onclick="mgFecharQMenu();showView('settings')">
+      <span class="ic">⚙</span>
+      <span class="txt">Configurações<small>Tema, tamanho da letra e notificações</small></span>
+    </button>
+
+    <div class="mg-qm-g">Atividade</div>
+    <div id="mg-qm-ativ">${mgAtividadeHTML()}</div>
+  `;
+}
+
+function mgClassificar(v){ MG_ORDEM=v; render(); mgDesenharQMenu(); toast('Classificado por: '+(MG_ORDENS.find(o=>o[0]===v)||[,''])[1]); }
+function mgRecolherTudo(){
+  const cols = isAdmin()?COLS:CLIENT_COLS;
+  if(MG_COLS_FECHADAS.size){ MG_COLS_FECHADAS.clear() }
+  else { cols.forEach(c=>MG_COLS_FECHADAS.add(c.key)) }
+  mgAplicarColunas(); mgDesenharQMenu();
+}
+function mgTrocarFundo(v){
+  PREFS.fundo=v;
+  PREFS.bg = (v==='limpo') ? 'off' : 'on';
+  savePrefs(); mgAplicarFundo(); mgDesenharQMenu();
+}
+function mgAplicarFundo(){
+  const v = PREFS.fundo || 'marca';
+  ['marca','limpo','linhas','brasa'].forEach(x=>document.body.classList.toggle('mg-fundo-'+x, x===v));
+  if(typeof applyPrefs==='function') applyPrefs();
+}
+mgAplicarFundo();
+
+/* ---- recolher colunas ---- */
+function mgAplicarColunas(){
+  document.querySelectorAll('#v-board .col').forEach(col=>{
+    const st = col.dataset.status;
+    col.classList.toggle('mg-recolhida', MG_COLS_FECHADAS.has(st));
+    let b = col.querySelector('.mg-col-tog');
+    if(!b){
+      b=document.createElement('button');
+      b.className='mg-col-tog'; b.type='button';
+      b.onclick=(e)=>{ e.stopPropagation(); mgToggleColuna(st) };
+      const h=col.querySelector('.col-h'); if(h) h.appendChild(b);
+    }
+    if(b){
+      b.textContent = MG_COLS_FECHADAS.has(st) ? '»' : '«';
+      b.title = MG_COLS_FECHADAS.has(st) ? 'Expandir esta lista' : 'Recolher esta lista';
+    }
+  });
+}
+function mgToggleColuna(st){
+  if(MG_COLS_FECHADAS.has(st)) MG_COLS_FECHADAS.delete(st); else MG_COLS_FECHADAS.add(st);
+  mgAplicarColunas();
+}
+(function(){ const _r=render; render=function(){ const r=_r(); mgAplicarColunas(); return r } })();
+
+/* ---- arquivar ---- */
+async function mgArquivar(id, valor){
+  const {error} = await sb.from('tasks').update({archived:!!valor}).eq('id',id);
+  if(error){
+    if(/column .*archived|archived.* does not exist/i.test(error.message||'')){
+      toast('Rode antes o SQL da ADIÇÃO 33 (coluna "archived")');
+    } else toast('Não foi possível arquivar');
+    console.error(error); return;
+  }
+  const t=TASKS.find(x=>x.id===id); if(t) t.archived=!!valor;
+  render(); mgDesenharQMenu();
+  toast(valor?'Demanda arquivada':'Demanda restaurada');
+}
+async function mgArquivarConcluidas(){
+  const alvos = (TASKS||[]).filter(t=>!t.archived && DONE_STATUSES.includes(t.status));
+  if(!alvos.length){ toast('Nenhuma demanda concluída para arquivar'); return }
+  if(!confirm(`Arquivar ${alvos.length} demanda(s) concluída(s)? Elas somem do quadro, mas continuam no banco.`)) return;
+  const {error} = await sb.from('tasks').update({archived:true}).in('id', alvos.map(t=>t.id));
+  if(error){
+    if(/column .*archived|archived.* does not exist/i.test(error.message||'')) toast('Rode antes o SQL da ADIÇÃO 33 (coluna "archived")');
+    else toast('Não foi possível arquivar');
+    console.error(error); return;
+  }
+  alvos.forEach(t=>t.archived=true);
+  render(); mgDesenharQMenu(); toast(alvos.length+' demanda(s) arquivada(s)');
+}
+/* botão de arquivar dentro do detalhe da demanda */
+(function(){
+  if(typeof renderDetailBody!=='function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r=_rdb();
+    if(!isAdmin()) return r;
+    const pe=document.querySelector('#slide .slide-foot');
+    const t=TASKS.find(x=>x.id===DETAIL_ID);
+    if(pe && t && !pe.querySelector('.mg-arquivar')){
+      pe.insertAdjacentHTML('afterbegin',
+        `<button class="mini-btn ghost mg-arquivar" style="margin-right:auto"
+           onclick="mgArquivar('${t.id}',${t.archived?'false':'true'})">${t.archived?'Restaurar':'Arquivar'}</button>`);
+    }
+    return r;
+  };
+})();
+
+/* ---- atividade recente ---- */
+function mgAtividadeHTML(){
+  const itens=[];
+  (TASKS||[]).forEach(t=>{
+    if(t.created_at) itens.push({ts:t.created_at, q:'＋',
+      txt:`<b>${esc(t.title)}</b> criada`, sub:clientName(t.client_id)});
+    if(t.completed_at) itens.push({ts:t.completed_at, q:'✓',
+      txt:`<b>${esc(t.title)}</b> concluída`, sub:clientName(t.client_id)});
+  });
+  (typeof _recentNotes!=='undefined' ? _recentNotes : []).forEach(n=>{
+    if((n.visibility||'public')!=='public') return;
+    const t=(TASKS||[]).find(x=>x.id===n.task_id);
+    itens.push({ts:n.created_at, q:'💬',
+      txt:`<b>${esc(n.author_name||'Alguém')}</b> anotou em ${esc(t?t.title:'uma demanda')}`, sub:''});
+  });
+  itens.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  const top=itens.slice(0,14);
+  if(!top.length) return `<div class="mg-qm-nada">Sem movimento por enquanto.</div>`;
+  return top.map(i=>`<div class="mg-ativ-i">
+      <span class="q">${i.q}</span>
+      <span>${i.txt}<div class="qd">${esc(i.sub)}${i.sub?' · ':''}${timeAgo(i.ts)}</div></span>
+    </div>`).join('');
+}
+
+/* ---- exportar ---- */
+function mgExportarCSV(){
+  const ts = visibleTasks();
+  if(!ts.length){ toast('Nada para exportar com os filtros atuais'); return }
+  const cab=['Título','Cliente','Situação','Prioridade','Responsáveis','Prazo','Criada em','Tempo (h)'];
+  const linha = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const corpo = ts.map(t=>[
+    t.title, clientName(t.client_id), t.status, t.priority,
+    (t.assignees||[]).join(' / '), t.due?fmtDate(t.due):'',
+    t.created_at?new Date(t.created_at).toLocaleDateString('pt-BR'):'',
+    ((t.time_spent||0)/3600).toFixed(2).replace('.',',')
+  ].map(linha).join(';'));
+  const csv='\ufeff'+[cab.map(linha).join(';'), ...corpo].join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a');
+  a.href=url; a.download='modesto-demandas-'+todayISO()+'.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('Planilha baixada ✓');
+}
+
+/* =====================================================================
+   PARTE 3 — Histórico dos documentos publicados
+   ===================================================================== */
+let MG_DOCS_ABA = 'pastas';
+function mgVerDocs(aba){ MG_DOCS_ABA = (aba==='historico')?'historico':'pastas'; renderDocsView(); mgDock(); }
+
+/* de quem é o histórico que estamos olhando */
+function mgEscopoDocs(){
+  if(DVIEW.kind==='client') return DVIEW.id;
+  if(!isAdmin() && ME && ME.client_id) return ME.client_id;
+  return null;                                   /* null = todos os clientes */
+}
+function mgDocsDoEscopo(){
+  const cid = mgEscopoDocs();
+  const lista = (DOCS||[]).filter(d=>!cid || d.client_id===cid);
+  return [...lista].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+}
+function mgMesDe(ts){
+  const d=new Date(ts||Date.now());
+  return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+}
+function mgDiaDe(ts){
+  const d=new Date(ts||Date.now());
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace('.','');
+}
+
+function mgDesenharHistorico(){
+  const el=$('v-docs'); if(!el) return;
+  const cid   = mgEscopoDocs();
+  const lista = mgDocsDoEscopo();
+  const nome  = cid ? clientName(cid) : 'Todos os clientes';
+  const ultimo = lista[0];
+
+  /* quantos de cada tipo */
+  const porTipo = {};
+  lista.forEach(d=>{ porTipo[d.tipo]=(porTipo[d.tipo]||0)+1 });
+  const tipos = Object.keys(porTipo).length;
+
+  /* agrupa por mês, mantendo a ordem */
+  const meses=[]; const mapa={};
+  lista.forEach(d=>{
+    const k=mgMesDe(d.created_at);
+    if(!mapa[k]){ mapa[k]=[]; meses.push(k) }
+    mapa[k].push(d);
+  });
+
+  const voltar = (isAdmin() && cid)
+    ? `<button class="mg-voltar mg-voltar-topo" onclick="dGo({kind:'home'})"><span class="seta">←</span> Voltar para Documentos</button>`
+    : '';
+
+  el.innerHTML = `${voltar}
+    <div class="mg-hist">
+      <div class="mg-hist-cab">
+        <div>
+          <div class="n">Histórico${cid?'':' geral'}</div>
+          <div class="sb">${esc(nome)}${ultimo?' · último envio em '+new Date(ultimo.created_at).toLocaleDateString('pt-BR'):''}</div>
+        </div>
+        <div class="mg-hist-num">
+          <div><b>${lista.length}</b><span>Documentos</span></div>
+          <div><b>${tipos}</b><span>Categorias</span></div>
+        </div>
+      </div>
+      ${ lista.length ? meses.map(m=>`
+        <div class="mg-hist-mes">${esc(m)}</div>
+        <div class="mg-hist-l">${mapa[m].map((d,i)=>{
+          const t=docTipo(d.tipo);
+          const por=(d.metadata&&d.metadata.por)?d.metadata.por:null;
+          const semArquivo = !d.storage_path && d.metadata && d.metadata.link;
+          return `<button class="mg-hist-i" style="--pt:${t.hex};animation-delay:${(i*0.04).toFixed(2)}s"
+                     onclick="openDoc('${esc(String(d.id))}')">
+            <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
+            <span class="meio">
+              <span class="ti">${esc(d.titulo||'(sem título)')}</span>
+              <span class="sb">${!cid?esc(clientName(d.client_id))+' · ':''}${por?'publicado por '+esc(por):(semArquivo?'link externo':'arquivo')}</span>
+            </span>
+            <span class="dia">${esc(mgDiaDe(d.created_at))}</span>
+          </button>`;
+        }).join('')}</div>`).join('')
+      : `<div class="mg-hist-vazio">Nada publicado ainda.<br>
+           <span style="font-size:12.5px">Quando a equipe enviar o primeiro documento, ele abre esta linha do tempo.</span></div>` }
+    </div>`;
+}
+
+/* liga o histórico ao módulo de documentos */
+(function(){
+  const _docs = renderDocsView;
+  renderDocsView = function(){
+    const naTela = (DVIEW.kind==='home' || DVIEW.kind==='client');
+    if(MG_DOCS_ABA==='historico' && naTela){
+      if(!DOCS_LOADED){
+        $('v-docs').innerHTML = `<div class="mg-load">Carregando o histórico…</div>`;
+        loadDocs().then(()=>{ renderDocsView(); mgDock() });
+        return;
+      }
+      mgDesenharHistorico();
+      mgDock();
+      return;
+    }
+    const r=_docs();
+    mgDock();
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 4 — Modo cliente: ver a plataforma como cada empresa a vê
+   Disponível só para o dono da conta (abaixo, MG_DONOS).
+   ===================================================================== */
+const MG_DONOS = ['vinicius.reis'];             /* e-mail antes do @, ou e-mail inteiro */
+let MG_ESPELHO = {on:false, clientId:null, clientIdReal:null};
+
+function mgEhDono(){
+  if(!ME) return false;
+  const e=(ME.email||'').toLowerCase();
+  return MG_DONOS.some(d=>{
+    const dd=d.toLowerCase();
+    return e===dd || e.split('@')[0]===dd;
+  });
+}
+
+/* enquanto espelha, o app inteiro trata você como cliente */
+(function(){
+  const _isAdmin = isAdmin;
+  isAdmin = function(){ return MG_ESPELHO.on ? false : _isAdmin() };
+  window.mgSouAdminDeVerdade = _isAdmin;
+})();
+
+(function(){
+  if(document.getElementById('mg-espelho')) return;
+  const b=document.createElement('div');
+  b.className='mg-espelho'; b.id='mg-espelho';
+  b.innerHTML=`<span class="olho">◉</span>
+    <span class="rot">Você está vendo a plataforma como</span>
+    <b id="mg-espelho-nm">—</b>
+    <button class="sair" onclick="mgSairEspelho()">Voltar ao modo equipe</button>`;
+  document.body.appendChild(b);
+})();
+
+function mgEntrarEspelho(clientId){
+  if(!mgEhDono()){ toast('Este recurso é do administrador da conta'); return }
+  if(!MG_ESPELHO.on) MG_ESPELHO.clientIdReal = ME.client_id;
+  MG_ESPELHO.on = true;
+  MG_ESPELHO.clientId = clientId;
+  ME.client_id = clientId;
+
+  document.body.classList.add('mg-espelhando');
+  const nm=document.getElementById('mg-espelho-nm');
+  if(nm) nm.textContent = clientName(clientId);
+
+  document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none');
+  DVIEW = {kind:'home'}; MG_DOCS_ABA='pastas';
+  buildNav();
+  if(typeof mgAtualizarEu==='function') mgAtualizarEu();
+  showView('docs');
+  mgFecharMenuEu();
+  toast('Modo cliente · '+clientName(clientId));
+}
+function mgSairEspelho(){
+  MG_ESPELHO.on = false;
+  ME.client_id = MG_ESPELHO.clientIdReal;
+  MG_ESPELHO.clientId = null;
+
+  document.body.classList.remove('mg-espelhando','mg-cliente');
+  document.querySelectorAll('.admin-only').forEach(e=>e.style.display='');
+  DVIEW = {kind:'home'}; MG_DOCS_ABA='pastas';
+  buildNav();
+  if(typeof buildClientFilter==='function') buildClientFilter();
+  if(typeof mgAtualizarEu==='function') mgAtualizarEu();
+  showView('home');
+  toast('De volta ao modo equipe');
+}
+
+/* ---- entrada pelo menu do usuário ---- */
+function mgMontarEspelhoNoMenu(){
+  const menu=document.getElementById('mg-eu-menu');
+  if(!menu || !mgEhDono() || document.getElementById('mg-eu-espelho')) return;
+  const sair = menu.querySelector('.mg-eu-item.sair');
+  const bloco=document.createElement('div');
+  bloco.id='mg-eu-espelho';
+  bloco.innerHTML=`
+    <button class="mg-eu-item" onclick="mgAbrirListaEspelho(event)">
+      <span class="ic">◉</span> Ver como cliente
+    </button>
+    <div class="mg-eu-sub" id="mg-eu-clientes"></div>`;
+  menu.insertBefore(bloco, sair);
+}
+function mgAbrirListaEspelho(e){
+  if(e) e.stopPropagation();
+  const cx=document.getElementById('mg-eu-clientes'); if(!cx) return;
+  if(cx.classList.contains('on')){ cx.classList.remove('on'); return }
+  const docsPorCliente = {};
+  (DOCS||[]).forEach(d=>{ docsPorCliente[d.client_id]=(docsPorCliente[d.client_id]||0)+1 });
+  cx.innerHTML = (CLIENTS||[]).map(c=>{
+    const lg=clientLogo(c.id);
+    const marca = lg ? `<img src="${esc(lg)}" alt="">`
+                     : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
+    const n=docsPorCliente[c.id]||0;
+    return `<button class="mg-eu-cli" onclick="mgEntrarEspelho('${esc(c.id)}')">
+      ${marca}<span class="nm2">${esc(c.nome)}</span>
+      <span class="qt">${n} doc${n===1?'':'s'}</span>
+    </button>`;
+  }).join('') || `<div class="mg-qm-nada">Nenhum cliente cadastrado.</div>`;
+  cx.classList.add('on');
+  if(!DOCS_LOADED) loadDocs().then(()=>{ if(cx.classList.contains('on')) mgAbrirListaEspelho() });
+}
+
+/* o menu do usuário é montado no boot — encaixamos o item depois dele */
+(function(){
+  const _boot = boot;
+  boot = async function(){
+    const r = await _boot();
+    mgMontarEspelhoNoMenu();
+    mgAplicarFundo();
+    mgDock();
+    return r;
+  };
+  setTimeout(mgMontarEspelhoNoMenu, 1200);
+})();
+</script>
 </body>
 </html>
