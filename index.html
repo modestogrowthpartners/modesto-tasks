@@ -7683,9 +7683,12 @@ body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home){
 body.mg-dock .content{padding-bottom:104px}
 
 /* ---------- 2. dock inferior ---------- */
+/* Sem backdrop-filter aqui de propósito: o dock fica fixo por cima do SVG
+   animado do fundo, e o desfoque teria de ser recalculado a cada quadro —
+   é caro e trava a aba em máquina ocupada. Fundo opaco resolve igual. */
 .mg-dock{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:95;
   display:none;align-items:center;gap:3px;padding:6px;border-radius:18px;
-  background:rgba(28,26,23,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  background:#211f1c;
   border:1px solid rgba(236,231,219,.13);
   box-shadow:0 20px 46px -16px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.22);
   animation:mgDockEntra .34s cubic-bezier(.22,1,.36,1) both}
@@ -7709,10 +7712,15 @@ body.mg-dock .mg-dock{display:inline-flex}
   .mg-dock .conta{display:none}
   body.mg-dock .content{padding-bottom:88px}
 }
-@media (prefers-reduced-motion: reduce){ .mg-dock{animation:none} }
+@media (prefers-reduced-motion: reduce){
+  .mg-dock{animation:none}
+  .mg-hist-i,.mg-qm-sub.on{animation:none}
+  .mg-hist-i:hover{transform:none}
+  .mg-qmenu{transition:none}
+}
 
 /* ---------- 3. menu do quadro ---------- */
-.mg-qm-ov{position:fixed;inset:0;background:rgba(12,11,9,.44);backdrop-filter:blur(2px);
+.mg-qm-ov{position:fixed;inset:0;background:rgba(12,11,9,.46);
   z-index:118;opacity:0;pointer-events:none;transition:opacity .24s}
 .mg-qm-ov.on{opacity:1;pointer-events:auto}
 .mg-qmenu{position:fixed;top:0;right:0;height:100vh;width:min(370px,92vw);z-index:119;
@@ -7765,7 +7773,7 @@ body.mg-dock .mg-dock{display:inline-flex}
 #v-board .col.mg-recolhida{width:54px!important;min-width:54px}
 #v-board .col.mg-recolhida .cards,
 #v-board .col.mg-recolhida .addcard{display:none}
-#v-board .col.mg-recolhida .col-h{writing-mode:vertical-rl;height:100%;align-items:center;
+#v-board .col.mg-recolhida .col-h{writing-mode:vertical-rl;flex:1;align-items:center;
   justify-content:flex-start;padding:14px 0;gap:12px;border-radius:12px}
 #v-board .col.mg-recolhida .col-h .t{letter-spacing:1px}
 .mg-col-tog{background:none;border:0;color:var(--muted2);font-size:11px;padding:3px 5px;
@@ -7782,8 +7790,7 @@ body.mg-fundo-linhas{background-image:
   background-size:34px 34px}
 body.mg-fundo-brasa{background-image:
   radial-gradient(90% 60% at 12% 0%, rgba(194,161,91,.16), transparent 62%),
-  radial-gradient(70% 55% at 100% 100%, rgba(217,131,36,.12), transparent 60%);
-  background-attachment:fixed}
+  radial-gradient(70% 55% at 100% 100%, rgba(217,131,36,.12), transparent 60%)}
 body.theme-dark.mg-fundo-linhas{background-image:
   linear-gradient(rgba(236,231,219,.05) 1px,transparent 1px),
   linear-gradient(90deg,rgba(236,231,219,.05) 1px,transparent 1px)}
@@ -7897,12 +7904,18 @@ function mgDockItens(){
   }
   return '';
 }
+let _mgDockHTML = null;      /* último conteúdo desenhado, para não repintar à toa */
+let _mgDockRodando = false;  /* trava de reentrada */
 function mgDock(){
+  if(_mgDockRodando) return;
   const el=document.getElementById('mg-dock'); if(!el) return;
-  let html='';
-  try{ html = mgDockItens() }catch(e){ html='' }
-  document.body.classList.toggle('mg-dock', !!html);
-  if(html) el.innerHTML = html;
+  _mgDockRodando = true;
+  try{
+    let html='';
+    try{ html = mgDockItens() }catch(e){ html='' }
+    document.body.classList.toggle('mg-dock', !!html);
+    if(html && html !== _mgDockHTML){ el.innerHTML = html; _mgDockHTML = html }
+  } finally { _mgDockRodando = false }
 }
 
 /* redesenha o dock sempre que a tela muda */
@@ -8260,7 +8273,7 @@ function mgDesenharHistorico(){
           const t=docTipo(d.tipo);
           const por=(d.metadata&&d.metadata.por)?d.metadata.por:null;
           const semArquivo = !d.storage_path && d.metadata && d.metadata.link;
-          return `<button class="mg-hist-i" style="--pt:${t.hex};animation-delay:${(i*0.04).toFixed(2)}s"
+          return `<button class="mg-hist-i" style="--pt:${t.hex};animation-delay:${(Math.min(i,8)*0.04).toFixed(2)}s"
                      onclick="openDoc('${esc(String(d.id))}')">
             <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
             <span class="meio">
@@ -8382,6 +8395,13 @@ function mgAbrirListaEspelho(e){
   if(e) e.stopPropagation();
   const cx=document.getElementById('mg-eu-clientes'); if(!cx) return;
   if(cx.classList.contains('on')){ cx.classList.remove('on'); return }
+  cx.classList.add('on');
+  mgDesenharListaEspelho();
+  if(!DOCS_LOADED) loadDocs().then(mgDesenharListaEspelho);
+}
+function mgDesenharListaEspelho(){
+  const cx=document.getElementById('mg-eu-clientes');
+  if(!cx || !cx.classList.contains('on')) return;
   const docsPorCliente = {};
   (DOCS||[]).forEach(d=>{ docsPorCliente[d.client_id]=(docsPorCliente[d.client_id]||0)+1 });
   cx.innerHTML = (CLIENTS||[]).map(c=>{
@@ -8394,8 +8414,6 @@ function mgAbrirListaEspelho(e){
       <span class="qt">${n} doc${n===1?'':'s'}</span>
     </button>`;
   }).join('') || `<div class="mg-qm-nada">Nenhum cliente cadastrado.</div>`;
-  cx.classList.add('on');
-  if(!DOCS_LOADED) loadDocs().then(()=>{ if(cx.classList.contains('on')) mgAbrirListaEspelho() });
 }
 
 /* o menu do usuário é montado no boot — encaixamos o item depois dele */
