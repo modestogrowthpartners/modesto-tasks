@@ -11192,5 +11192,134 @@ function mgAplicarExtras(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 40 — reconhecer "falta no banco" em qualquer sotaque
+   ===================================================================== */
+.mg-falta{font-size:13.5px;color:var(--muted);background:var(--card2);
+  border:1px dashed var(--line2);border-radius:14px;padding:30px 26px;text-align:center;
+  margin-top:22px;line-height:1.7;max-width:640px;margin-left:auto;margin-right:auto}
+.mg-falta b{color:var(--text)}
+.mg-falta code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  background:rgba(26,26,24,.07);border-radius:5px;padding:1px 6px}
+.mg-falta .passos{text-align:left;display:inline-block;margin-top:12px;font-size:12.5px}
+.mg-falta .passos li{margin:5px 0}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 40
+   O PostgREST (a camada que o Supabase usa) não fala como o Postgres:
+   quando falta uma tabela ele responde
+       "Could not find the table 'public.pacing' in the schema cache"
+   e quando falta uma coluna,
+       "Could not find the 'plano_midia' column of 'clients' in the schema cache"
+   Todos os avisos amigáveis que escrevi procuram pela frase do Postgres
+   ("does not exist"), então caíam no erro genérico.
+
+   Em vez de sair corrigindo cada verificação uma a uma, normalizamos a
+   mensagem na entrada: toda resposta do banco passa por aqui e ganha
+   também a forma clássica. Assim as verificações que já existem — e as
+   futuras — funcionam sem precisar saber desse detalhe.
+   ===================================================================== */
+
+function mgNormalizarErro(resposta){
+  const e = resposta && resposta.error;
+  if(!e || !e.message) return resposta;
+  const m = e.message;
+
+  /* tabela ausente */
+  let achou = m.match(/Could not find the table '([^']+)' in the schema cache/i);
+  if(achou && !/does not exist/i.test(m)){
+    e.message = `relation "${achou[1]}" does not exist — ${m}`;
+    return resposta;
+  }
+  /* coluna ausente */
+  achou = m.match(/Could not find the '([^']+)' column of '([^']+)' in the schema cache/i);
+  if(achou && !/does not exist/i.test(m)){
+    e.message = `column "${achou[1]}" of relation "${achou[2]}" does not exist — ${m}`;
+    return resposta;
+  }
+  /* função ausente (usada por algumas telas) */
+  achou = m.match(/Could not find the function ([^ ]+) in the schema cache/i);
+  if(achou && !/does not exist/i.test(m)){
+    e.message = `function ${achou[1]} does not exist — ${m}`;
+  }
+  return resposta;
+}
+
+/* Liga a normalização no ponto por onde TODA consulta passa.
+   O construtor de consultas do supabase-js é "thenable": o await cai no
+   `then` do protótipo. Encontramos esse protótipo e embrulhamos o método
+   uma única vez — vale para select, insert, update, upsert e delete. */
+(function(){
+  try{
+    let obj = sb.from('clients').select('id');     /* nunca executada: só serve de amostra */
+    let proto = Object.getPrototypeOf(obj);
+    while(proto && !Object.prototype.hasOwnProperty.call(proto, 'then')){
+      proto = Object.getPrototypeOf(proto);
+    }
+    if(!proto){ console.warn('[erros] não encontrei onde ligar a normalização'); return }
+    if(proto.__mgNormalizado) return;
+    const _then = proto.then;
+    proto.then = function(aoResolver, aoFalhar){
+      return _then.call(this,
+        r => (typeof aoResolver === 'function') ? aoResolver(mgNormalizarErro(r)) : r,
+        aoFalhar);
+    };
+    proto.__mgNormalizado = true;
+  }catch(e){ console.warn('[erros]', e) }
+})();
+
+/* ---------------------------------------------------------------------
+   Aviso melhor quando falta rodar um script — inclui o projeto certo,
+   já que essa confusão custou algumas idas e voltas.
+   --------------------------------------------------------------------- */
+function mgAvisoFalta(oQue, arquivo){
+  return `<div class="mg-falta">
+    <b>${esc(oQue)} ainda não existe neste banco.</b>
+    <ol class="passos">
+      <li>Abra o Supabase e confirme que está no projeto
+          <code>eeqaabwsheaiwyhujcqj</code> — é o que esta plataforma lê.</li>
+      <li>Rode o <code>${esc(arquivo)}</code> no SQL Editor.</li>
+      <li>Volte aqui e atualize a página.</li>
+    </ol>
+  </div>`;
+}
+
+/* pacing */
+(function(){
+  if(typeof mgPacingDesenhar!=='function') return;
+  const _d = mgPacingDesenhar;
+  mgPacingDesenhar = function(){
+    const r = _d();
+    if(MG_PC_ERRO && MG_PC_ERRO!=='tabela'){
+      /* sobrou algum erro que ainda parece "falta de tabela"? */
+      if(/pacing/i.test(MG_PC_ERRO) && /schema cache|does not exist/i.test(MG_PC_ERRO)){
+        const el=document.getElementById('v-pacing');
+        if(el) el.innerHTML = `<div class="mg-pc">${mgAvisoFalta('A tabela pacing','supabase-adicao-38.sql')}</div>`;
+      }
+    }else if(MG_PC_ERRO==='tabela'){
+      const el=document.getElementById('v-pacing');
+      if(el) el.innerHTML = `<div class="mg-pc">${mgAvisoFalta('A tabela pacing','supabase-adicao-38.sql')}</div>`;
+    }
+    return r;
+  };
+})();
+
+/* plano de mídia */
+(function(){
+  if(typeof mgPMDesenhar!=='function') return;
+  const _d = mgPMDesenhar;
+  mgPMDesenhar = function(){
+    const r = _d();
+    if(MG_PM_ERRO && (MG_PM_ERRO==='tabela' ||
+       (/media_plans/i.test(MG_PM_ERRO) && /schema cache|does not exist/i.test(MG_PM_ERRO)))){
+      const el=document.getElementById('v-plano');
+      if(el) el.innerHTML = `<div class="mg-pm">${mgAvisoFalta('A tabela media_plans','supabase-adicao-34.sql')}</div>`;
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
