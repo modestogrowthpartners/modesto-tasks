@@ -10317,5 +10317,124 @@ function mgPersDesenhar(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 37
+   • o interruptor do plano volta para depois dos campos (antes dos botões)
+   • quando o banco recusa gravar o plano, a janela DIZ isso, em vez de
+     mostrar "salvo" em verde e esconder o problema num toast
+   ===================================================================== */
+
+/* a ADIÇÃO 35 tinha jogado o interruptor para o topo com `order:-1`,
+   brigando com o script que move os botões para baixo dele. Sem o order,
+   a ordem fica: campos → plano de mídia → Salvar/Cancelar. */
+#mg-edcli .mg-pm-liga{order:0}
+
+.mg-res-plano{display:flex;gap:10px;align-items:flex-start;border-radius:11px;padding:12px 14px;
+  font-size:12.5px;line-height:1.55;margin-top:10px}
+.mg-res-plano.err{background:rgba(184,74,62,.09);border:1px solid rgba(184,74,62,.32)}
+.mg-res-plano.ok{background:rgba(46,158,107,.09);border:1px solid rgba(46,158,107,.3)}
+.mg-res-plano code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;
+  background:rgba(26,26,24,.07);border-radius:5px;padding:1px 5px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 37 — ver o cabeçalho do bloco de estilo acima
+   ===================================================================== */
+
+/* A ADIÇÃO 34 avisava a falha só por toast, que some antes da janela
+   fechar. Agora a mensagem fica dentro da janela, junto do resultado. */
+(function(){
+  if(typeof salvarCliente!=='function') return;
+  const _sv = salvarCliente;
+
+  salvarCliente = async function(){
+    const cx  = document.getElementById('mg-pm-liga');
+    const quer = cx ? cx.checked : null;
+    const id   = (typeof EC_ID!=='undefined') ? EC_ID : null;
+    /* segura o fechamento automático até sabermos se o plano gravou */
+    if(quer!==null && id) MG_SEGURA_ATE = Date.now() + 6000;
+
+    /* deixa a versão anterior fazer o trabalho dela (nome, resumo e o
+       próprio plano); depois conferimos se o plano realmente gravou */
+    const r = await _sv();
+    if(quer===null || !id) return r;
+
+    const res = document.getElementById('ec-res');
+
+    try{
+      const {data,error} = await sb.from('clients')
+        .select('id,plano_midia').eq('id',id).maybeSingle();
+      if(error) throw error;
+
+      const gravado = !!(data && data.plano_midia);
+      if(gravado === !!quer){
+        const c=(CLIENTS||[]).find(x=>x.id===id); if(c) c.plano_midia = gravado;
+        if(typeof mgPMAjustarAbasCliente==='function') mgPMAjustarAbasCliente();
+        MG_SEGURA_ATE = 0;
+        if(typeof fecharEditarCliente==='function') fecharEditarCliente();
+        return r;   /* deu certo: fechamos nós mesmos */
+      }
+      /* pediu uma coisa, o banco ficou com outra */
+      if(res) res.insertAdjacentHTML('beforeend', mgAvisoPlanoFalhou(
+        'O banco não registrou a mudança do plano de mídia.'));
+    }catch(e){
+      const m = (e && e.message) || '';
+      const semColuna = /column .*plano_midia|plano_midia.* does not exist/i.test(m);
+      if(res) res.insertAdjacentHTML('beforeend', mgAvisoPlanoFalhou(
+        semColuna
+          ? 'A coluna <code>plano_midia</code> não existe neste banco.'
+          : 'Não foi possível confirmar o plano de mídia: ' + esc(m)));
+    }
+    return r;   /* deu errado: a janela fica aberta com a explicação */
+  };
+})();
+
+/* A versão anterior agenda `fecharEditarCliente` 700 ms depois de salvar.
+   Como a conferência no banco pode demorar mais que isso, a janela fechava
+   por cima da explicação. Aqui ela só fecha quando nós mandarmos. */
+let MG_SEGURA_ATE = 0;
+(function(){
+  if(typeof fecharEditarCliente!=='function') return;
+  const _fec = fecharEditarCliente;
+  fecharEditarCliente = function(){
+    if(Date.now() < MG_SEGURA_ATE) return;   /* fechamento automático: ignorado */
+    return _fec();
+  };
+})();
+
+function mgAvisoPlanoFalhou(motivo){
+  return `<div class="mg-res-plano err">
+    <span style="font-size:15px">⚠</span>
+    <span><b>O nome foi salvo, mas o plano de mídia não.</b><br>
+    ${motivo}<br>
+    Rode o <code>supabase-adicao-34.sql</code> — e confirme que está no projeto
+    <code>eeqaabwsheaiwyhujcqj</code>, que é o que esta plataforma lê.</span>
+  </div>`;
+}
+
+/* O mesmo cuidado na tela do plano: se a coluna não existir, a lista de
+   empresas com plano vem sempre vazia e a tela parecia só "sem nada". */
+(function(){
+  if(typeof mgPMDesenhar!=='function') return;
+  const _des = mgPMDesenhar;
+  mgPMDesenhar = function(){
+    const r = _des();
+    if(!isAdmin()) return r;
+    const el = document.getElementById('v-plano'); if(!el) return r;
+    const semNenhuma = (CLIENTS||[]).length && !(CLIENTS||[]).some(c=>'plano_midia' in c);
+    if(semNenhuma && !el.querySelector('.mg-res-plano')){
+      const caixa = el.querySelector('.mg-pm-nada');
+      if(caixa) caixa.insertAdjacentHTML('afterend', `<div class="mg-res-plano err" style="max-width:640px;margin:14px auto 0">
+        <span style="font-size:15px">⚠</span>
+        <span><b>A coluna <code>plano_midia</code> não existe neste banco.</b><br>
+        Por isso nenhuma empresa aparece aqui, mesmo marcando a caixa em Clientes.
+        Rode o <code>supabase-adicao-34.sql</code> no projeto
+        <code>eeqaabwsheaiwyhujcqj</code>.</span></div>`);
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
