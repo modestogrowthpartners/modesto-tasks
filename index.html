@@ -9186,5 +9186,1136 @@ function mgPMInterruptorHTML(marcado){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 35
+   1) Salvar no rodapé da janela de editar cliente
+   2) chat ocupando a tela inteira
+   3) a barra de cima sai — fica só a barra de baixo, em todas as telas,
+      com as ações de cada uma
+   4) som quando uma demanda sua é criada ou alterada
+   5) canais do chat agrupados por cliente, que abrem e fecham
+   6) mensagem com responder, reagir e ações ao passar o mouse
+   ===================================================================== */
+
+/* ---------- 1. janela de editar cliente ---------- */
+#mg-edcli .mg-pm-liga{order:-1;margin-top:0;margin-bottom:14px}
+#mg-edcli .mg-ed-acoes{display:flex;gap:10px;margin-top:4px}
+
+/* ---------- 2. chat em tela cheia ---------- */
+body #v-chat.on{max-width:none!important;width:100%!important}
+body.mg-e-chat .content{padding:0}
+body.mg-e-chat #v-chat{height:calc(100vh - 92px);min-height:0;border-radius:0;
+  border-left:0;border-right:0;border-top:0}
+body.mg-e-chat.mg-com-dock .content{padding-bottom:0}
+.mgc-msgs{padding-bottom:14px}
+
+/* ---------- 3. barra de baixo única ---------- */
+body.mg-sem-topo .topbar{display:none}
+body.mg-sem-topo .content{padding-top:22px}
+body.mg-sem-topo.mg-inicio .content{padding-top:0}
+/* os painéis que saíam da barra de cima passam a abrir por cima da de baixo */
+body.mg-sem-topo #notif-panel,
+body.mg-sem-topo #filter-panel{top:auto;bottom:86px;right:22px}
+@media(max-width:760px){
+  body.mg-sem-topo #notif-panel,
+  body.mg-sem-topo #filter-panel{left:12px;right:12px;width:auto;bottom:78px}
+}
+/* o menu do usuário mudou de casa: agora mora na barra de baixo */
+.mg-dock .mg-eu{margin-left:2px}
+.mg-dock .mg-eu-btn{background:rgba(236,231,219,.08);border-color:rgba(236,231,219,.16);color:#ece7db}
+.mg-dock .mg-eu-btn:hover{background:rgba(236,231,219,.14)}
+.mg-dock .mg-eu-btn .nm{color:#ece7db}
+.mg-dock .mg-eu-btn .seta{color:#a49d8f}
+.mg-dock .mg-eu-menu{top:auto;bottom:calc(100% + 10px);right:0}
+.mg-dock .mg-eu-menu::after{display:none}
+/* busca flutuante, acima da barra */
+.mg-busca{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(8px);z-index:96;
+  display:none;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line2);
+  border-radius:13px;padding:9px 13px;width:min(460px,92vw);
+  box-shadow:0 18px 40px -16px rgba(0,0,0,.4);opacity:0;transition:opacity .2s,transform .2s}
+.mg-busca.on{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
+.mg-busca input{flex:1;min-width:0;border:0;background:none;outline:none;font-family:inherit;
+  font-size:14px;color:var(--text)}
+.mg-busca .lupa{opacity:.5}
+.mg-busca .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 6px;border-radius:6px}
+.mg-busca .x:hover{background:var(--card2);color:var(--text)}
+@media(max-width:760px){ .mg-busca{bottom:76px} }
+/* contagem some antes dos botões quando falta espaço */
+@media(max-width:900px){ .mg-dock .conta{display:none} }
+@media(max-width:640px){ .mg-dock .rot{display:none} .mg-dock button{padding:9px 11px} }
+
+/* ---------- 5. canais agrupados por cliente ---------- */
+.mgc-emp{margin-bottom:2px}
+.mgc-emp .cab{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
+  padding:7px 10px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;
+  color:var(--text);text-align:left;transition:background .15s}
+.mgc-emp .cab:hover{background:rgba(26,26,24,.05)}
+.mgc-emp .cab .seta{font-size:9px;color:var(--muted2);transition:transform .2s;width:10px;flex-shrink:0}
+.mgc-emp.aberta .cab .seta{transform:rotate(90deg)}
+.mgc-emp .cab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgc-emp .cab .qt{font-size:10.5px;font-weight:700;color:var(--muted2);
+  background:rgba(26,26,24,.06);border-radius:999px;padding:1px 7px}
+.mgc-emp .cab .mais{opacity:0;font-size:14px;color:var(--muted);padding:0 4px;border-radius:6px}
+.mgc-emp .cab:hover .mais{opacity:1}
+.mgc-emp .canais{display:none;padding-left:10px;margin-left:9px;border-left:1px solid var(--line)}
+.mgc-emp.aberta .canais{display:block;animation:mgSobe .22s cubic-bezier(.22,1,.36,1) both}
+.mgc-emp .canais .mgc-i{font-size:12.5px;padding-left:8px}
+
+/* ---------- 6. mensagens ---------- */
+.mgc-m{position:relative}
+.mgc-acoes{position:absolute;top:-12px;right:10px;display:none;align-items:center;gap:1px;
+  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.28);z-index:4}
+.mgc-m:hover .mgc-acoes,
+.mgc-acoes:focus-within{display:flex}
+.mgc-acoes button{background:none;border:0;font-size:14px;line-height:1;padding:5px 7px;
+  border-radius:7px;color:var(--muted);font-family:inherit}
+.mgc-acoes button:hover{background:var(--card2);color:var(--text)}
+.mgc-acoes .div{width:1px;height:16px;background:var(--line);margin:0 3px}
+
+.mgc-resp-cit{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
+  margin-bottom:3px;padding-left:2px;cursor:pointer;max-width:100%}
+.mgc-resp-cit::before{content:"";width:22px;height:9px;border-left:2px solid var(--line2);
+  border-top:2px solid var(--line2);border-top-left-radius:6px;margin-left:4px;flex-shrink:0;
+  align-self:flex-end;margin-bottom:2px}
+.mgc-resp-cit .av2{width:15px;height:15px;border-radius:50%;display:grid;place-items:center;
+  font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
+.mgc-resp-cit .qn{font-weight:700;color:var(--text);flex-shrink:0}
+.mgc-resp-cit .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
+.mgc-resp-cit:hover .tt{opacity:1;text-decoration:underline}
+
+.mgc-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.mgc-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:999px;padding:2px 9px;font-size:12px;
+  font-family:inherit;color:var(--text);line-height:1.6}
+.mgc-rea:hover{border-color:var(--line2);background:var(--card)}
+.mgc-rea.minha{background:rgba(194,161,91,.16);border-color:var(--brass)}
+.mgc-rea .n{font-size:11px;font-weight:700;color:var(--muted)}
+.mgc-rea.minha .n{color:var(--brass2)}
+.mgc-rea-add{border-style:dashed;color:var(--muted2);padding:2px 8px}
+
+.mgc-emojis{position:absolute;z-index:80;background:var(--card);border:1px solid var(--line2);
+  border-radius:13px;padding:9px;display:none;grid-template-columns:repeat(6,1fr);gap:3px;
+  box-shadow:0 20px 46px -18px rgba(0,0,0,.4)}
+.mgc-emojis.on{display:grid}
+.mgc-emojis button{background:none;border:0;font-size:19px;padding:6px;border-radius:8px;line-height:1}
+.mgc-emojis button:hover{background:var(--card2)}
+
+.mgc-respondendo{display:flex;align-items:center;gap:10px;background:var(--card2);
+  border:1px solid var(--line2);border-bottom:0;border-radius:11px 11px 0 0;
+  padding:8px 13px;font-size:12.5px;color:var(--muted);
+  animation:mgSobe .22s cubic-bezier(.22,1,.36,1) both}
+.mgc-respondendo b{color:var(--text)}
+.mgc-respondendo .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgc-respondendo .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 7px;border-radius:6px}
+.mgc-respondendo .x:hover{background:var(--card);color:var(--text)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 35 — ver o cabeçalho do bloco de estilo acima
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — Salvar no rodapé da janela de editar cliente
+   O interruptor do plano de mídia estava caindo depois dos botões.
+   Agora a ordem é: dados → plano de mídia → Salvar/Cancelar.
+   ===================================================================== */
+(function(){
+  if(typeof abrirEditarCliente!=='function') return;
+  const _ab = abrirEditarCliente;
+  abrirEditarCliente = function(id){
+    const r = _ab(id);
+    setTimeout(()=>{
+      const jan = document.getElementById('mg-edcli'); if(!jan) return;
+      const salvar = jan.querySelector('#ec-btn') || jan.querySelector('button.mg-b-ok');
+      if(!salvar) return;
+      const linha = salvar.parentElement;
+      const liga  = jan.querySelector('.mg-pm-liga');
+      if(liga && linha && liga.compareDocumentPosition(linha) & Node.DOCUMENT_POSITION_PRECEDING){
+        /* os botões estão ANTES do interruptor: joga-os para depois */
+        liga.insertAdjacentElement('afterend', linha);
+        linha.classList.add('mg-ed-acoes');
+      }
+    }, 20);
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 2 — o chat ocupa a tela
+   ===================================================================== */
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    document.body.classList.toggle('mg-e-chat', VIEW==='chat');
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 3 — a barra de baixo passa a ser a única
+   A barra de cima continua no documento (várias partes do app leem os
+   campos dela), mas fica escondida. A de baixo ganha o que era dela.
+   ===================================================================== */
+document.body.classList.add('mg-sem-topo');
+
+/* o menu do usuário muda de casa: sem isso ele abriria dentro da barra escondida */
+function mgMudarEuParaDock(){
+  const eu = document.getElementById('mg-eu');
+  const dock = document.getElementById('mg-dock');
+  if(eu && dock && eu.parentElement !== dock){
+    dock.appendChild(eu);
+    if(typeof mgAtualizarEu==='function') try{ mgAtualizarEu() }catch(e){}
+  }
+}
+document.addEventListener('DOMContentLoaded', mgMudarEuParaDock);
+
+/* busca flutuante ligada ao campo original */
+(function(){
+  if(document.getElementById('mg-busca')) return;
+  const d=document.createElement('div');
+  d.className='mg-busca'; d.id='mg-busca';
+  d.innerHTML = `<span class="lupa">⌕</span>
+    <input id="mg-busca-in" placeholder="Buscar demanda…" autocomplete="off">
+    <button class="x" onclick="mgFecharBusca()" aria-label="Fechar busca">✕</button>`;
+  document.body.appendChild(d);
+  const inp = d.querySelector('#mg-busca-in');
+  let t=null;
+  inp.addEventListener('input', ()=>{
+    const q=document.getElementById('q'); if(q) q.value = inp.value;
+    clearTimeout(t); t=setTimeout(()=>{ try{ render() }catch(e){} }, 200);
+  });
+  inp.addEventListener('keydown', e=>{ if(e.key==='Escape') mgFecharBusca() });
+})();
+function mgAbrirBusca(){
+  const d=document.getElementById('mg-busca'); if(!d) return;
+  const q=document.getElementById('q');
+  const inp=document.getElementById('mg-busca-in');
+  if(q && inp) inp.value = q.value || '';
+  d.classList.add('on');
+  setTimeout(()=>inp && inp.focus(), 40);
+}
+function mgFecharBusca(){
+  const d=document.getElementById('mg-busca'); if(d) d.classList.remove('on');
+}
+function mgAlternarBusca(){
+  const d=document.getElementById('mg-busca');
+  if(d && d.classList.contains('on')) mgFecharBusca(); else mgAbrirBusca();
+}
+document.addEventListener('click', e=>{
+  if(e.target.closest('#mg-busca') || e.target.closest('.mg-dock')) return;
+  mgFecharBusca();
+});
+
+/* atalhos que apenas repassam o clique para os controles originais */
+function mgTocarNotifs(e){
+  if(e) e.stopPropagation();
+  const b=document.getElementById('notif-btn'); if(b) b.click();
+}
+function mgTocarFiltros(e){
+  if(e) e.stopPropagation();
+  if(typeof toggleFilterPanel==='function') toggleFilterPanel(e);
+}
+
+/* ---- a barra de baixo, agora com as ações de cada tela ---- */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+
+  function inicio(){
+    if(VIEW==='home') return '';
+    return `<button onclick="showView('home')" title="Início"><span class="ic">⌂</span><span class="rot">Início</span></button>`;
+  }
+  function acoesDaTela(){
+    const a=[];
+    if(document.body.classList.contains('mg-tasks')){
+      if(isAdmin()) a.push(`<button onclick="openTaskModal()" title="Nova demanda"><span class="ic">＋</span><span class="rot">Nova demanda</span></button>`);
+      a.push(`<button onclick="mgTocarFiltros(event)" title="Filtros"><span class="ic">⛃</span><span class="rot">Filtros</span></button>`);
+      a.push(`<button onclick="mgAlternarBusca()" title="Buscar"><span class="ic">⌕</span></button>`);
+    }
+    if(VIEW==='clientes' && isAdmin())
+      a.push(`<button onclick="abrirNovoCliente()" title="Adicionar cliente"><span class="ic">＋</span><span class="rot">Adicionar cliente</span></button>`);
+    if(VIEW==='chat')
+      a.push(`<button onclick="mgChatBuscar()" title="Buscar conversa"><span class="ic">⌕</span><span class="rot">Conversas</span></button>`);
+    if(VIEW==='checklist')
+      a.push(`<button onclick="(document.getElementById('chk-in')||{focus(){}}).focus()" title="Novo item"><span class="ic">＋</span><span class="rot">Novo item</span></button>`);
+    return a.join('');
+  }
+  function direita(){
+    const n = (typeof NOTIFS!=='undefined' && NOTIFS) ? NOTIFS.filter(i=>i.unread).length : 0;
+    const sino = `<button onclick="mgTocarNotifs(event)" title="Notificações" style="position:relative">
+        <span class="ic">🔔</span>${n?`<span style="position:absolute;top:3px;right:6px;min-width:15px;height:15px;
+          border-radius:8px;background:var(--danger);color:#fff;font-size:9.5px;font-weight:700;
+          display:grid;place-items:center;padding:0 4px">${n}</span>`:''}</button>`;
+    return `<span class="sep"></span>${sino}`;
+  }
+
+  mgDockItens = function(){
+    let meio = '';
+    try{ meio = _d() }catch(e){ meio = '' }
+    const partes = [inicio(), meio, acoesDaTela(), direita()].filter(Boolean);
+    return partes.join('');
+  };
+})();
+
+/* A barra passa a aparecer em toda tela.
+   Atenção: o desenho da barra reescreve o innerHTML dela. Se o menu do
+   usuário morasse solto ali dentro, seria APAGADO no primeiro redesenho
+   (foi o que aconteceu na primeira tentativa). Por isso os itens passam a
+   ser escritos num contêiner próprio, e o menu vive ao lado dele. */
+let MG_DOCK_HTML = null;
+mgDock = function(){
+  const dock = document.getElementById('mg-dock'); if(!dock) return;
+  let alvo = document.getElementById('mg-dock-itens');
+  if(!alvo){
+    alvo = document.createElement('span');
+    alvo.id = 'mg-dock-itens';
+    alvo.style.display = 'contents';   /* não interfere no alinhamento */
+    dock.insertBefore(alvo, dock.firstChild);
+  }
+  let html = '';
+  try{ html = mgDockItens() }catch(e){ html = '' }
+  if(!html.trim()) html = `<button onclick="showView('home')"><span class="ic">⌂</span><span class="rot">Início</span></button>`;
+  document.body.classList.add('mg-com-dock');
+  if(html !== MG_DOCK_HTML){ alvo.innerHTML = html; MG_DOCK_HTML = html }
+  mgMudarEuParaDock();
+};
+[120, 400, 900, 2000].forEach(ms=>setTimeout(mgDock, ms));
+
+/* =====================================================================
+   PARTE 4 — som quando uma demanda sua muda
+   Sem arquivo de áudio: dois tons curtos gerados na hora.
+   Liga e desliga em Configurações → Notificações (preferência `som`).
+   ===================================================================== */
+let MG_AUDIO = null;
+function mgSom(tipo){
+  if(typeof mgP==='function' && mgP('som')==='off') return;
+  if(PREFS && PREFS.som==='off') return;
+  try{
+    MG_AUDIO = MG_AUDIO || new (window.AudioContext||window.webkitAudioContext)();
+    if(MG_AUDIO.state==='suspended') MG_AUDIO.resume();
+    const notas = tipo==='nova' ? [660, 880] : [520, 700];
+    notas.forEach((f,i)=>{
+      const o = MG_AUDIO.createOscillator();
+      const g = MG_AUDIO.createGain();
+      o.type='sine'; o.frequency.value=f;
+      const t0 = MG_AUDIO.currentTime + i*0.11;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.16, t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+0.20);
+      o.connect(g); g.connect(MG_AUDIO.destination);
+      o.start(t0); o.stop(t0+0.22);
+    });
+  }catch(e){ /* navegador sem áudio ou sem permissão ainda */ }
+}
+/* o navegador só libera áudio depois de um clique — aquecemos no primeiro */
+document.addEventListener('click', function liberar(){
+  try{ MG_AUDIO = MG_AUDIO || new (window.AudioContext||window.webkitAudioContext)();
+       if(MG_AUDIO.state==='suspended') MG_AUDIO.resume() }catch(e){}
+  document.removeEventListener('click', liberar);
+}, {once:true});
+
+/* compara a foto anterior das demandas com a nova */
+let MG_FOTO_TASKS = null;
+function mgFotoTasks(){
+  const m = {};
+  (TASKS||[]).forEach(t=>{ m[t.id] = [t.status,t.title,t.due,(t.assignees||[]).join(','),t.priority].join('|') });
+  return m;
+}
+function mgMinhaTarefa(t){
+  if(!ME) return false;
+  const meu = (ME.name||'').split(' ')[0].toLowerCase();
+  return (t.assignees||[]).some(a=>(a||'').toLowerCase().includes(meu));
+}
+(function(){
+  if(typeof refresh!=='function') return;
+  const _rf = refresh;
+  refresh = async function(){
+    const antes = MG_FOTO_TASKS;
+    const r = await _rf();
+    const agora = mgFotoTasks();
+    if(antes){
+      let novas=0, mudadas=0, titulo='';
+      (TASKS||[]).forEach(t=>{
+        if(!mgMinhaTarefa(t)) return;
+        if(!(t.id in antes)){ novas++; titulo = titulo || t.title }
+        else if(antes[t.id] !== agora[t.id]){ mudadas++; titulo = titulo || t.title }
+      });
+      if(novas){
+        mgSom('nova');
+        toast('🔔 Nova demanda para você: '+(titulo||'').slice(0,40));
+      }else if(mudadas){
+        mgSom('mudou');
+        toast('🔔 Demanda sua foi atualizada: '+(titulo||'').slice(0,40));
+      }
+    }
+    MG_FOTO_TASKS = agora;
+    return r;
+  };
+  const _bt = boot;
+  boot = async function(){ const r = await _bt(); MG_FOTO_TASKS = mgFotoTasks(); return r };
+})();
+/* preferência liga/desliga */
+if(typeof PREFS==='object' && PREFS && PREFS.som===undefined){ PREFS.som='on'; }
+function mgAlternarSom(){
+  PREFS.som = (PREFS.som==='off') ? 'on' : 'off';
+  if(typeof savePrefs==='function') savePrefs();
+  if(PREFS.som==='on') mgSom('nova');
+  toast(PREFS.som==='on' ? 'Som das demandas ligado' : 'Som das demandas desligado');
+}
+
+/* =====================================================================
+   PARTE 5 — canais agrupados por cliente
+   Cada empresa vira uma pasta que abre e fecha, com os canais dela
+   dentro. Dá para ter mais de um canal por empresa.
+   ===================================================================== */
+let MG_EMP_ABERTAS = new Set();
+
+function mgChatAlternarEmpresa(cid){
+  if(MG_EMP_ABERTAS.has(cid)) MG_EMP_ABERTAS.delete(cid); else MG_EMP_ABERTAS.add(cid);
+  const el = document.querySelector('.mgc-emp[data-emp="'+cid+'"]');
+  if(el) el.classList.toggle('aberta', MG_EMP_ABERTAS.has(cid));
+}
+async function mgChatNovoCanal(cid, ev){
+  if(ev) ev.stopPropagation();
+  const nome = prompt('Nome do novo canal para '+clientName(cid)+':', 'assunto');
+  if(!nome || !nome.trim()) return;
+  try{
+    const {data,error} = await sb.from('channels')
+      .insert({tipo:'client', nome:nome.trim().toLowerCase().replace(/\s+/g,'-'),
+               client_id:cid, created_by: ME?ME.id:null}).select().single();
+    if(error) throw error;
+    MG_EMP_ABERTAS.add(cid);
+    if(typeof loadChannels==='function') await loadChannels();
+    renderChatView();
+    if(data && data.id) openChan(data.id);
+    toast('Canal criado ✓');
+  }catch(e){ toast('Não foi possível criar o canal: '+((e&&e.message)||'')) }
+}
+
+function mgChatAgrupar(){
+  const el = document.getElementById('v-chat'); if(!el) return;
+  const lista = el.querySelector('.mgc-list'); if(!lista) return;
+  if(typeof CHANNELS==='undefined' || !CHANNELS) return;
+
+  /* acha a seção "Clientes" e os botões de canal de cliente */
+  const secs = [...lista.querySelectorAll('.mgc-sec')];
+  const secCli = secs.find(s=>/cliente/i.test(s.textContent||''));
+  if(!secCli || secCli.dataset.mgAgrupado==='1') return;
+
+  const doCliente = CHANNELS.filter(c=>c.tipo==='client');
+  if(!doCliente.length) return;
+
+  /* remove os botões antigos que estão entre esta seção e a próxima */
+  let n = secCli.nextElementSibling;
+  const remover = [];
+  while(n && !n.classList.contains('mgc-sec')){ remover.push(n); n = n.nextElementSibling }
+  remover.forEach(x=>x.remove());
+
+  /* agrupa por empresa */
+  const porEmpresa = new Map();
+  doCliente.forEach(c=>{
+    if(!porEmpresa.has(c.client_id)) porEmpresa.set(c.client_id, []);
+    porEmpresa.get(c.client_id).push(c);
+  });
+
+  const filtro = (typeof CH_FILTER!=='undefined' && CH_FILTER) ? CH_FILTER.toLowerCase() : '';
+  const html = [...porEmpresa.entries()]
+    .map(([cid, canais])=>({cid, canais, nome: clientName(cid)}))
+    .filter(g => !filtro || g.nome.toLowerCase().includes(filtro) ||
+                 g.canais.some(c=>(c.nome||'').toLowerCase().includes(filtro)))
+    .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'))
+    .map(g=>{
+      const temAtual = g.canais.some(c=>c.id===CHAN);
+      const aberta = MG_EMP_ABERTAS.has(g.cid) || temAtual || !!filtro;
+      if(aberta) MG_EMP_ABERTAS.add(g.cid);
+      const marca = (typeof mgClientLogo==='function')
+        ? mgClientLogo(g.cid, 18)
+        : `<span style="width:11px;height:11px;border-radius:3px;background:${clientColor(g.cid)}"></span>`;
+      return `<div class="mgc-emp ${aberta?'aberta':''}" data-emp="${esc(g.cid)}">
+        <button class="cab" onclick="mgChatAlternarEmpresa('${esc(g.cid)}')">
+          <span class="seta">▶</span>${marca}
+          <span class="nm">${esc(g.nome)}</span>
+          <span class="qt">${g.canais.length}</span>
+          ${isAdmin()?`<span class="mais" title="Novo canal desta empresa"
+             onclick="mgChatNovoCanal('${esc(g.cid)}',event)">＋</span>`:''}
+        </button>
+        <div class="canais">
+          ${g.canais.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>
+            `<button class="mgc-i ${c.id===CHAN?'on':''}" onclick="openChan('${esc(c.id)}')">
+               <span class="h">#</span><span class="nm">${esc(c.nome||'')}</span></button>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+
+  secCli.insertAdjacentHTML('afterend', html || `<div style="font-size:11.5px;color:var(--muted2);padding:4px 10px">nenhum</div>`);
+  secCli.dataset.mgAgrupado = '1';
+}
+
+function mgChatBuscar(){
+  const i = document.querySelector('#v-chat .mgc-search input');
+  if(i) i.focus();
+}
+
+/* =====================================================================
+   PARTE 6 — mensagem: responder, reagir e ações ao passar o mouse
+   ===================================================================== */
+let MG_RESP = null;                /* mensagem sendo respondida */
+const MG_EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡','🚀','😮','👏'];
+
+function mgMsgPorId(id){
+  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
+  return lista.find(m=>String(m.id)===String(id));
+}
+function mgResponder(id){
+  const m = mgMsgPorId(id); if(!m) return;
+  MG_RESP = {id:m.id, autor:m.author_name||'—', texto:(m.body||'').slice(0,120)};
+  mgDesenharResposta();
+  const ta=document.getElementById('mgc-in'); if(ta) ta.focus();
+}
+function mgCancelarResposta(){ MG_RESP=null; mgDesenharResposta() }
+function mgDesenharResposta(){
+  const comp = document.querySelector('#v-chat .mgc-comp'); if(!comp) return;
+  const antiga = comp.querySelector('.mgc-respondendo');
+  if(antiga) antiga.remove();
+  if(!MG_RESP) return;
+  comp.insertAdjacentHTML('afterbegin',
+    `<div class="mgc-respondendo">
+       <span>↩</span><span class="tt">Respondendo <b>${esc(MG_RESP.autor)}</b> · ${esc(MG_RESP.texto)}</span>
+       <button class="x" onclick="mgCancelarResposta()" aria-label="Cancelar resposta">✕</button>
+     </div>`);
+}
+function mgIrParaMensagem(id){
+  const el = document.querySelector(`.mgc-m[data-mid="${CSS.escape(String(id))}"]`);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.style.transition='background .25s';
+  el.style.background='rgba(194,161,91,.14)';
+  setTimeout(()=>{ el.style.background='' }, 900);
+}
+function mgCopiarMsg(id){
+  const m = mgMsgPorId(id); if(!m) return;
+  navigator.clipboard.writeText(m.body||'').then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
+}
+async function mgExcluirMsg(id){
+  if(!confirm('Excluir esta mensagem?')) return;
+  try{
+    const {error} = await sb.from('messages').delete().eq('id',id);
+    if(error) throw error;
+    if(typeof loadMsgs==='function') await loadMsgs(CHAN);
+    renderChatView(); toast('Mensagem excluída');
+  }catch(e){ toast('Não foi possível excluir') }
+}
+
+/* ---- reações ---- */
+async function mgReagir(id, emoji){
+  const m = mgMsgPorId(id); if(!m || !ME) return;
+  const r = Object.assign({}, m.reactions||{});
+  const quem = (r[emoji]||[]).slice();
+  const i = quem.indexOf(ME.id);
+  if(i>=0) quem.splice(i,1); else quem.push(ME.id);
+  if(quem.length) r[emoji]=quem; else delete r[emoji];
+  m.reactions = r;
+  mgPintarReacoes(id);
+  try{
+    const {error} = await sb.from('messages').update({reactions:r}).eq('id',id);
+    if(error) throw error;
+  }catch(e){
+    const msg=(e&&e.message)||'';
+    if(/column .*reactions/i.test(msg)) toast('Rode antes o SQL da ADIÇÃO 35');
+    else toast('Não foi possível reagir');
+  }
+}
+function mgPintarReacoes(id){
+  const el = document.querySelector(`.mgc-m[data-mid="${CSS.escape(String(id))}"] .mgc-reacoes`);
+  const m = mgMsgPorId(id);
+  if(!el || !m) return;
+  el.innerHTML = mgReacoesHTML(m);
+}
+function mgReacoesHTML(m){
+  const r = m.reactions||{};
+  const chaves = Object.keys(r).filter(k=>(r[k]||[]).length);
+  if(!chaves.length) return '';
+  return chaves.map(k=>{
+    const gente = r[k]||[];
+    const minha = ME && gente.includes(ME.id);
+    return `<button class="mgc-rea ${minha?'minha':''}" onclick="mgReagir('${esc(String(m.id))}','${k}')"
+       title="${gente.length} pessoa(s)">${k}<span class="n">${gente.length}</span></button>`;
+  }).join('') + `<button class="mgc-rea mgc-rea-add" onclick="mgAbrirEmojis('${esc(String(m.id))}',event)" title="Reagir">＋</button>`;
+}
+function mgAbrirEmojis(id, ev){
+  if(ev) ev.stopPropagation();
+  let p = document.getElementById('mgc-emojis');
+  if(!p){
+    p=document.createElement('div'); p.className='mgc-emojis'; p.id='mgc-emojis';
+    document.body.appendChild(p);
+  }
+  p.innerHTML = MG_EMOJIS.map(e=>`<button onclick="mgReagir('${esc(String(id))}','${e}');mgFecharEmojis()">${e}</button>`).join('');
+  p.classList.add('on');
+  const r = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : {left:100, top:100, bottom:100};
+  const larg = 250, alt = 130;
+  p.style.left = Math.max(10, Math.min(window.innerWidth-larg-10, r.left-larg/2)) + 'px';
+  p.style.top  = Math.max(10, r.top - alt - 6) + 'px';
+}
+function mgFecharEmojis(){ const p=document.getElementById('mgc-emojis'); if(p) p.classList.remove('on') }
+document.addEventListener('click', e=>{ if(!e.target.closest('#mgc-emojis')) mgFecharEmojis() });
+
+/* ---- enfeita as mensagens depois que o chat desenha ---- */
+(function(){
+  const _rc = renderChatView;
+  renderChatView = function(){
+    const r = _rc();
+    try{ mgChatAgrupar() }catch(e){ console.warn('[chat] agrupar', e) }
+    try{ mgEnfeitarMensagens() }catch(e){ console.warn('[chat] mensagens', e) }
+    try{ mgDesenharResposta() }catch(e){}
+    return r;
+  };
+})();
+
+function mgEnfeitarMensagens(){
+  const el = document.getElementById('v-chat'); if(!el) return;
+  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
+  if(!lista.length) return;
+  const nos = [...el.querySelectorAll('.mgc-msgs .mgc-m')];
+  /* as mensagens de sistema não entram em .mgc-m, então a ordem bate */
+  const reais = lista.filter(m=>m.kind!=='system');
+  nos.forEach((no, i)=>{
+    const m = reais[i]; if(!m) return;
+    no.dataset.mid = m.id;
+
+    /* citação de resposta */
+    if(m.reply_to && !no.querySelector('.mgc-resp-cit')){
+      const pai = lista.find(x=>String(x.id)===String(m.reply_to));
+      const bd = no.querySelector('.bd');
+      if(bd){
+        const autor = pai ? (pai.author_name||'—') : 'mensagem removida';
+        const texto = pai ? (pai.body||'').slice(0,90) : '';
+        bd.insertAdjacentHTML('afterbegin',
+          `<div class="mgc-resp-cit" ${pai?`onclick="mgIrParaMensagem('${esc(String(pai.id))}')"`:''}>
+             <span class="av2" style="background:#7C8A97">${esc(initials(autor))}</span>
+             <span class="qn">${esc(autor)}</span>
+             <span class="tt">${esc(texto)}</span>
+           </div>`);
+      }
+    }
+
+    /* reações */
+    if(!no.querySelector('.mgc-reacoes')){
+      const bd = no.querySelector('.bd');
+      if(bd) bd.insertAdjacentHTML('beforeend', `<div class="mgc-reacoes">${mgReacoesHTML(m)}</div>`);
+    }
+
+    /* ações ao passar o mouse */
+    if(!no.querySelector('.mgc-acoes')){
+      const meu = ME && m.author_id===ME.id;
+      no.insertAdjacentHTML('beforeend', `<div class="mgc-acoes">
+        <button title="Reagir" onclick="mgAbrirEmojis('${esc(String(m.id))}',event)">☺</button>
+        <button title="Responder" onclick="mgResponder('${esc(String(m.id))}')">↩</button>
+        <button title="Copiar" onclick="mgCopiarMsg('${esc(String(m.id))}')">⧉</button>
+        ${(meu||isAdmin())?`<span class="div"></span><button title="Excluir" onclick="mgExcluirMsg('${esc(String(m.id))}')">🗑</button>`:''}
+      </div>`);
+    }
+  });
+}
+
+/* ---- enviar respondendo ---- */
+(function(){
+  if(typeof chSend!=='function') return;
+  const _send = chSend;
+  chSend = async function(){
+    if(!MG_RESP) return _send();
+    const ta = document.getElementById('mgc-in');
+    const corpo = ta ? ta.value.trim() : '';
+    if(!corpo) return;
+    const alvo = MG_RESP.id;
+    MG_RESP = null; mgDesenharResposta();
+    if(ta){ ta.value=''; ta.style.height='auto' }
+    try{
+      const {error} = await sb.from('messages').insert({
+        channel_id: CHAN, author_id: ME.id, author_name: ME.name,
+        body: corpo, reply_to: alvo
+      });
+      if(error) throw error;
+      if(typeof loadMsgs==='function') await loadMsgs(CHAN);
+      renderChatView();
+    }catch(e){
+      const msg=(e&&e.message)||'';
+      if(/column .*reply_to/i.test(msg)){
+        toast('Rode o SQL da ADIÇÃO 35 — enviando sem a citação');
+        if(ta) ta.value = corpo;
+        return _send();
+      }
+      toast('Não foi possível enviar: '+msg);
+      if(ta) ta.value = corpo;
+    }
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 36 — personalização do chat
+   • tema próprio do chat (independente do tema do app)
+   • densidade das mensagens
+   • ordem das conversas
+   • cor por canal
+   • seu apelido e sua foto em cada canal
+   ===================================================================== */
+
+/* ---------- tema próprio do chat ----------
+   O app inteiro usa variáveis de cor, então trocar o tema do chat é
+   redefinir essas variáveis só dentro de #v-chat. */
+body.mg-chat-escuro #v-chat{
+  --card:#211f1c; --card2:#1a1917; --paper:#1a1917;
+  --text:#ece7db; --muted:#a49d8f; --muted2:#8a8271;
+  --line:rgba(236,231,219,.10); --line2:rgba(236,231,219,.18);
+  background:#1a1917; color:#ece7db}
+body.mg-chat-escuro #v-chat .mgc-side{background:#181715}
+body.mg-chat-escuro #v-chat .mgc-i:hover{background:rgba(236,231,219,.06)}
+body.mg-chat-escuro #v-chat .mgc-emp .cab:hover{background:rgba(236,231,219,.06)}
+body.mg-chat-escuro #v-chat textarea,
+body.mg-chat-escuro #v-chat input{background:#14130f;color:#ece7db}
+body.mg-chat-claro #v-chat{
+  --card:#ffffff; --card2:#f3efe6; --paper:#f8f5ef;
+  --text:#23211d; --muted:#8a8271; --muted2:#a49d8f;
+  --line:rgba(26,26,24,.075); --line2:rgba(26,26,24,.13);
+  background:#ffffff; color:#23211d}
+
+/* ---------- densidade ---------- */
+body.mg-chat-compacto #v-chat .mgc-m{padding-top:2px;padding-bottom:2px;gap:9px}
+body.mg-chat-compacto #v-chat .mgc-m .av{width:26px;height:26px;font-size:10px}
+body.mg-chat-compacto #v-chat .mgc-m .tx{line-height:1.42;font-size:13px}
+body.mg-chat-compacto #v-chat .mgc-m .hd{margin-bottom:0}
+body.mg-chat-compacto #v-chat .mgc-msgs{padding-top:10px}
+body.mg-chat-folgado #v-chat .mgc-m{padding-top:9px;padding-bottom:9px}
+body.mg-chat-folgado #v-chat .mgc-m .tx{line-height:1.72}
+
+/* ---------- cor do canal ---------- */
+#v-chat .mgc-i.on{box-shadow:inset 3px 0 0 var(--cor-canal,var(--brass))}
+.mgc-emp .cab .pt-cor{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+#v-chat .mgc-top{border-left:3px solid var(--cor-canal,transparent)}
+.mgc-cor-ponto{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+/* ---------- painel de personalização ---------- */
+.mgc-pers-ov{position:fixed;inset:0;background:rgba(12,11,9,.46);z-index:118;
+  opacity:0;pointer-events:none;transition:opacity .24s}
+.mgc-pers-ov.on{opacity:1;pointer-events:auto}
+.mgc-pers{position:fixed;top:0;right:0;height:100vh;width:min(380px,94vw);z-index:119;
+  background:var(--card);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  transform:translateX(103%);transition:transform .34s cubic-bezier(.22,1,.36,1);
+  box-shadow:-26px 0 64px -32px rgba(0,0,0,.5)}
+.mgc-pers.on{transform:none}
+.mgc-pers .cab{display:flex;align-items:center;gap:10px;padding:19px 18px 15px;border-bottom:1px solid var(--line)}
+.mgc-pers .cab .t{font-family:var(--font-d);font-size:17.5px;font-weight:500;flex:1}
+.mgc-pers .cab .x{background:none;border:0;font-size:15px;color:var(--muted);border-radius:8px;padding:5px 9px}
+.mgc-pers .cab .x:hover{background:var(--card2);color:var(--text)}
+.mgc-pers .corpo{flex:1;overflow:auto;padding:6px 16px 30px}
+.mgc-pers .grupo{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;font-weight:700;
+  color:var(--muted2);padding:18px 0 9px}
+.mgc-pers .rot{font-size:12.5px;font-weight:600;margin-bottom:7px;display:block}
+.mgc-pers .dica{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:6px}
+.mgc-op{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+.mgc-op button{flex:1;min-width:88px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:10px;padding:9px 11px;font-family:inherit;font-size:12.5px;font-weight:600;
+  color:var(--text);transition:border-color .16s,background .16s}
+.mgc-op button:hover{border-color:var(--brass)}
+.mgc-op button.on{background:rgba(194,161,91,.16);border-color:var(--brass);color:var(--brass2)}
+.mgc-cores{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}
+.mgc-cores button{aspect-ratio:1;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer}
+.mgc-cores button.on{border-color:var(--text);box-shadow:0 0 0 3px rgba(194,161,91,.24)}
+.mgc-cores button.limpar{background:var(--card2);border:1px dashed var(--line2);font-size:12px;color:var(--muted)}
+.mgc-campo{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;
+  padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--text)}
+.mgc-campo:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgc-eu-canal{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mgc-eu-canal .foto{width:52px;height:52px;border-radius:50%;overflow:hidden;flex-shrink:0;
+  display:grid;place-items:center;background:var(--brass);color:var(--ink2);
+  font-weight:700;font-size:17px;cursor:pointer;border:1px solid var(--line2)}
+.mgc-eu-canal .foto img{width:100%;height:100%;object-fit:cover}
+.mgc-eu-canal .txt{flex:1;min-width:0}
+.mgc-eu-canal .txt b{font-size:13.5px}
+.mgc-eu-canal .txt span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.mgc-pers-salvar{width:100%;background:var(--brass);color:var(--ink2);border:0;border-radius:11px;
+  padding:12px;font-family:inherit;font-weight:700;font-size:13.5px;margin-top:14px}
+.mgc-pers-salvar:hover{background:var(--brass2);color:#fff}
+.mgc-pers-salvar:disabled{opacity:.5}
+.mgc-aviso-sql{font-size:11.5px;line-height:1.55;color:var(--muted);background:var(--card2);
+  border:1px dashed var(--line2);border-radius:10px;padding:11px 13px;margin-top:12px}
+
+/* botão de personalizar no topo do chat */
+.mgc-pers-btn{background:none;border:1px solid var(--line2);border-radius:9px;padding:6px 12px;
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);margin-left:auto}
+.mgc-pers-btn:hover{border-color:var(--brass);color:var(--brass2)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 36 — personalização do chat
+   ===================================================================== */
+
+/* ---------- preferências de tela (ficam no navegador) ---------- */
+const MG_CP_PADRAO = {tema:'auto', densidade:'confortavel', ordem:'padrao'};
+function mgCP(){
+  if(!PREFS.chat) PREFS.chat = Object.assign({}, MG_CP_PADRAO);
+  return PREFS.chat;
+}
+function mgCPSet(chave, valor){
+  mgCP()[chave] = valor;
+  if(typeof savePrefs==='function') savePrefs();
+  mgCPAplicar();
+  mgPersDesenhar();
+  if(chave==='ordem' && VIEW==='chat') renderChatView();
+}
+function mgCPAplicar(){
+  const c = mgCP();
+  document.body.classList.toggle('mg-chat-escuro', c.tema==='escuro');
+  document.body.classList.toggle('mg-chat-claro',  c.tema==='claro');
+  document.body.classList.toggle('mg-chat-compacto', c.densidade==='compacta');
+  document.body.classList.toggle('mg-chat-folgado',  c.densidade==='folgada');
+}
+mgCPAplicar();
+
+/* =====================================================================
+   COR DO CANAL
+   ===================================================================== */
+const MG_CORES_CANAL = ['#C7871E','#D9531E','#2E9E6B','#2D6FCF','#8E3FBE','#12A38F','#D01F45','#7C8A97'];
+
+function mgCorDoCanal(c){
+  if(!c) return null;
+  if(c.cor) return c.cor;
+  if(c.tipo==='client' && c.client_id && typeof clientColor==='function') return clientColor(c.client_id);
+  return null;
+}
+async function mgPintarCanal(cor){
+  const c = (CHANNELS||[]).find(x=>x.id===CHAN); if(!c) return;
+  c.cor = cor || null;
+  mgAplicarCorCanal();
+  mgPersDesenhar();
+  try{
+    const {error} = await sb.from('channels').update({cor: cor||null}).eq('id', c.id);
+    if(error) throw error;
+  }catch(e){
+    const m=(e&&e.message)||'';
+    if(/column .*cor/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 36');
+    else if(/row-level security|permission/i.test(m)) toast('Só a equipe pode mudar a cor do canal');
+    else toast('Não foi possível salvar a cor');
+  }
+}
+function mgAplicarCorCanal(){
+  const el = document.getElementById('v-chat'); if(!el) return;
+  const c = (CHANNELS||[]).find(x=>x.id===CHAN);
+  const cor = mgCorDoCanal(c);
+  el.style.setProperty('--cor-canal', cor || 'var(--brass)');
+  const topo = el.querySelector('.mgc-top');
+  if(topo) topo.style.borderLeftColor = cor || 'transparent';
+  /* ponto colorido em cada canal da lista */
+  el.querySelectorAll('.mgc-i').forEach(b=>{
+    const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/); if(!m) return;
+    const ch=(CHANNELS||[]).find(x=>x.id===m[1]); if(!ch) return;
+    const cc = mgCorDoCanal(ch);
+    if(cc) b.style.setProperty('--cor-canal', cc);
+  });
+}
+
+/* =====================================================================
+   APELIDO E FOTO POR CANAL
+   ===================================================================== */
+let MG_MEMBROS = {};      /* {canalId: {perfilId:{apelido, avatar_url}}} */
+let MG_MEU_APELIDO = '';  /* rascunho do painel */
+let MG_MINHA_FOTO   = null;
+
+async function mgCarregarMembros(canalId){
+  if(!canalId) return;
+  try{
+    const {data,error} = await sb.from('channel_members').select('*').eq('channel_id', canalId);
+    if(error) throw error;
+    const m = {};
+    (data||[]).forEach(x=>{ m[x.profile_id] = {apelido:x.apelido||null, avatar_url:x.avatar_url||null} });
+    MG_MEMBROS[canalId] = m;
+  }catch(e){
+    MG_MEMBROS[canalId] = MG_MEMBROS[canalId] || {};
+    if(!/column .*(apelido|avatar_url)/i.test((e&&e.message)||'')) console.warn('[chat] membros', e);
+  }
+}
+function mgIdentidade(canalId, perfilId){
+  const m = MG_MEMBROS[canalId];
+  return (m && m[perfilId]) ? m[perfilId] : null;
+}
+async function mgSalvarIdentidade(){
+  if(!CHAN || !ME) return;
+  const btn = document.getElementById('mgc-pers-salvar');
+  if(btn) btn.disabled = true;
+  const apelido = (MG_MEU_APELIDO||'').trim() || null;
+  const foto    = MG_MINHA_FOTO || null;
+  try{
+    const {error} = await sb.from('channel_members').upsert({
+      channel_id: CHAN, profile_id: ME.id, apelido, avatar_url: foto
+    }, {onConflict:'channel_id,profile_id'});
+    if(error) throw error;
+    MG_MEMBROS[CHAN] = MG_MEMBROS[CHAN] || {};
+    MG_MEMBROS[CHAN][ME.id] = {apelido, avatar_url:foto};
+    toast('Salvo neste canal ✓');
+    renderChatView();
+    mgPersDesenhar();
+  }catch(e){
+    const m=(e&&e.message)||'';
+    if(/column .*(apelido|avatar_url)/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 36');
+    else if(/row-level security|permission/i.test(m)) toast('O banco recusou — confira a Parte 3 do SQL da ADIÇÃO 36');
+    else toast('Não foi possível salvar: '+m);
+  }finally{ if(btn) btn.disabled=false }
+}
+function mgEscolherFotoCanal(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange = e => {
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload = ev => {
+      const img=new Image();
+      img.onload = ()=>{
+        const lado=Math.min(img.width,img.height), cv=document.createElement('canvas');
+        cv.width=cv.height=128;
+        const cx=cv.getContext('2d');
+        cx.drawImage(img,(img.width-lado)/2,(img.height-lado)/2,lado,lado,0,0,128,128);
+        MG_MINHA_FOTO = cv.toDataURL('image/jpeg',0.82);
+        mgPersDesenhar();
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+/* aplica apelido e foto nas mensagens já desenhadas */
+function mgAplicarIdentidades(){
+  const el=document.getElementById('v-chat'); if(!el) return;
+  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
+  const reais = lista.filter(m=>m.kind!=='system');
+  const nos = [...el.querySelectorAll('.mgc-msgs .mgc-m')];
+  nos.forEach((no,i)=>{
+    const m = reais[i]; if(!m || !m.author_id) return;
+    const id = mgIdentidade(CHAN, m.author_id); if(!id) return;
+    if(id.apelido){
+      const quem = no.querySelector('.who');
+      if(quem) quem.textContent = id.apelido;
+    }
+    if(id.avatar_url){
+      const av = no.querySelector('.av');
+      if(av && !av.querySelector('img')){
+        av.innerHTML = `<img src="${esc(id.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
+        av.style.padding='0'; av.style.overflow='hidden';
+      }
+    }
+  });
+}
+
+/* =====================================================================
+   ORDEM DAS CONVERSAS
+   ===================================================================== */
+let MG_ULTIMA_MSG = {};   /* {canalId: timestamp} */
+async function mgCarregarRecencia(){
+  try{
+    const {data,error} = await sb.from('messages')
+      .select('channel_id,created_at').order('created_at',{ascending:false}).limit(400);
+    if(error) throw error;
+    const m={};
+    (data||[]).forEach(x=>{ if(!m[x.channel_id]) m[x.channel_id]=x.created_at });
+    MG_ULTIMA_MSG = m;
+  }catch(e){ /* sem recência: a ordem cai no padrão */ }
+}
+function mgNaoLidoNoCanal(id){
+  if(typeof MG_NAOLIDAS==='undefined' || !MG_NAOLIDAS) return 0;
+  const x = MG_NAOLIDAS.find(n=>n.canal && n.canal.id===id);
+  return x ? (x.qtd || 1) : 0;
+}
+function mgOrdenarCanais(lista){
+  const ordem = mgCP().ordem;
+  const arr = [...lista];
+  if(ordem==='alfabetica')
+    return arr.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  if(ordem==='recentes')
+    return arr.sort((a,b)=> new Date(MG_ULTIMA_MSG[b.id]||0) - new Date(MG_ULTIMA_MSG[a.id]||0));
+  if(ordem==='naolidas')
+    return arr.sort((a,b)=>{
+      const d = mgNaoLidoNoCanal(b.id) - mgNaoLidoNoCanal(a.id);
+      return d !== 0 ? d : (a.nome||'').localeCompare(b.nome||'','pt');
+    });
+  return arr;
+}
+/* reordena as listas de Equipe e Conversas diretas já desenhadas */
+function mgReordenarListas(){
+  const el=document.getElementById('v-chat'); if(!el) return;
+  const lista = el.querySelector('.mgc-list'); if(!lista) return;
+  const secs=[...lista.querySelectorAll('.mgc-sec')];
+  secs.forEach(sec=>{
+    if(/cliente/i.test(sec.textContent||'')) return;   /* clientes têm agrupamento próprio */
+    const botoes=[]; let n=sec.nextElementSibling;
+    while(n && !n.classList.contains('mgc-sec')){
+      if(n.classList.contains('mgc-i')) botoes.push(n);
+      n=n.nextElementSibling;
+    }
+    if(botoes.length<2) return;
+    const comCanal = botoes.map(b=>{
+      const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
+      return {el:b, canal:(CHANNELS||[]).find(x=>x.id===(m&&m[1])) || {id:'',nome:b.textContent}};
+    });
+    /* recoloca os botões logo depois do cabeçalho, na ordem calculada */
+    const ordenados = mgOrdenarCanais(comCanal.map(x=>x.canal));
+    let ancora = sec;
+    ordenados.forEach(c=>{
+      const achou = comCanal.find(x=>x.canal.id===c.id);
+      if(achou){ ancora.insertAdjacentElement('afterend', achou.el); ancora = achou.el }
+    });
+  });
+}
+
+/* =====================================================================
+   PAINEL "PERSONALIZAR"
+   ===================================================================== */
+(function(){
+  if(document.getElementById('mgc-pers')) return;
+  const ov=document.createElement('div'); ov.className='mgc-pers-ov'; ov.id='mgc-pers-ov';
+  ov.onclick=()=>mgPersFechar();
+  const el=document.createElement('aside'); el.className='mgc-pers'; el.id='mgc-pers';
+  el.innerHTML=`<div class="cab">
+      <span class="t">Personalizar o chat</span>
+      <button class="x" onclick="mgPersFechar()" aria-label="Fechar">✕</button>
+    </div><div class="corpo" id="mgc-pers-corpo"></div>`;
+  document.body.appendChild(ov); document.body.appendChild(el);
+})();
+function mgPersAbrir(){
+  const c=(CHANNELS||[]).find(x=>x.id===CHAN);
+  const id = ME ? mgIdentidade(CHAN, ME.id) : null;
+  MG_MEU_APELIDO = id && id.apelido ? id.apelido : '';
+  MG_MINHA_FOTO  = id && id.avatar_url ? id.avatar_url : null;
+  mgPersDesenhar();
+  document.getElementById('mgc-pers-ov').classList.add('on');
+  document.getElementById('mgc-pers').classList.add('on');
+}
+function mgPersFechar(){
+  document.getElementById('mgc-pers-ov').classList.remove('on');
+  document.getElementById('mgc-pers').classList.remove('on');
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ const p=document.getElementById('mgc-pers'); if(p && p.classList.contains('on')) mgPersFechar() }
+});
+
+function mgPersDesenhar(){
+  const cx=document.getElementById('mgc-pers-corpo'); if(!cx) return;
+  const c = mgCP();
+  const canal = (CHANNELS||[]).find(x=>x.id===CHAN);
+  const cor = canal ? mgCorDoCanal(canal) : null;
+  const opc = (chave, valor, rotulo) =>
+    `<button class="${c[chave]===valor?'on':''}" onclick="mgCPSet('${chave}','${valor}')">${rotulo}</button>`;
+
+  const ini = (typeof initials==='function' && ME) ? initials(MG_MEU_APELIDO || ME.name) : '?';
+
+  cx.innerHTML = `
+    <div class="grupo">Aparência</div>
+    <span class="rot">Tema do chat</span>
+    <div class="mgc-op">
+      ${opc('tema','auto','Como o app')}${opc('tema','claro','Claro')}${opc('tema','escuro','Escuro')}
+    </div>
+    <div class="dica">Vale só para a área de conversa — o resto da plataforma segue o tema que você escolheu em Configurações.</div>
+
+    <span class="rot" style="margin-top:18px">Espaçamento das mensagens</span>
+    <div class="mgc-op">
+      ${opc('densidade','compacta','Compacta')}${opc('densidade','confortavel','Confortável')}${opc('densidade','folgada','Folgada')}
+    </div>
+
+    <div class="grupo">Conversas</div>
+    <span class="rot">Ordem da lista</span>
+    <div class="mgc-op">
+      ${opc('ordem','padrao','Padrão')}${opc('ordem','recentes','Recentes')}
+      ${opc('ordem','alfabetica','A–Z')}${opc('ordem','naolidas','Não lidas')}
+    </div>
+
+    ${canal ? `
+      <div class="grupo">Canal ${esc(canal.nome||'')}</div>
+
+      ${isAdmin() ? `
+        <span class="rot">Cor do canal</span>
+        <div class="mgc-cores">
+          ${MG_CORES_CANAL.map(x=>`<button style="background:${x}" class="${cor===x?'on':''}"
+             title="${x}" onclick="mgPintarCanal('${x}')"></button>`).join('')}
+          <button class="limpar" title="Sem cor própria" onclick="mgPintarCanal(null)">✕</button>
+        </div>
+        <div class="dica">A cor é a mesma para todo mundo. Canais de cliente já nascem com a cor da empresa.</div>
+      ` : (cor ? `<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)">
+            <span class="mgc-cor-ponto" style="background:${cor}"></span> Cor definida pela equipe</div>` : '')}
+
+      <span class="rot" style="margin-top:18px">Como você aparece aqui</span>
+      <div class="mgc-eu-canal">
+        <span class="foto" onclick="mgEscolherFotoCanal()" title="Trocar foto neste canal">
+          ${MG_MINHA_FOTO ? `<img src="${esc(MG_MINHA_FOTO)}" alt="">` : esc(ini)}
+        </span>
+        <span class="txt">
+          <b>${esc(MG_MEU_APELIDO || (ME?ME.name:'—'))}</b>
+          <span>Clique na foto para trocar só neste canal</span>
+        </span>
+      </div>
+      <input class="mgc-campo" id="mgc-apelido" placeholder="${esc(ME?ME.name:'Seu nome')}"
+             value="${esc(MG_MEU_APELIDO)}" oninput="MG_MEU_APELIDO=this.value">
+      <div class="dica">Deixe vazio para usar o seu nome de sempre. Vale só neste canal.</div>
+      <button class="mgc-pers-salvar" id="mgc-pers-salvar" onclick="mgSalvarIdentidade()">Salvar neste canal</button>
+    ` : `<div class="dica" style="margin-top:18px">Abra um canal para personalizar a sua identidade nele.</div>`}
+  `;
+}
+
+/* ---------- entradas: botão no topo do chat e na barra de baixo ---------- */
+(function(){
+  const _rc = renderChatView;
+  renderChatView = function(){
+    const r = _rc();
+    try{
+      const topo = document.querySelector('#v-chat .mgc-top');
+      if(topo && !topo.querySelector('.mgc-pers-btn')){
+        topo.insertAdjacentHTML('beforeend',
+          `<button class="mgc-pers-btn" onclick="mgPersAbrir()" title="Personalizar o chat">⚙ Personalizar</button>`);
+      }
+      mgAplicarCorCanal();
+      mgReordenarListas();
+      mgAplicarIdentidades();
+    }catch(e){ console.warn('[chat] personalização', e) }
+    return r;
+  };
+})();
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW!=='chat') return base;
+    return base.replace('<span class="sep"></span>',
+      `<button onclick="mgPersAbrir()" title="Personalizar"><span class="ic">⚙</span><span class="rot">Personalizar</span></button><span class="sep"></span>`);
+  };
+})();
+
+/* ---------- carrega o que o painel precisa ao abrir um canal ---------- */
+(function(){
+  if(typeof openChan!=='function') return;
+  const _open = openChan;
+  openChan = async function(id){
+    const r = await _open(id);
+    await mgCarregarMembros(id);
+    try{ mgAplicarIdentidades(); mgAplicarCorCanal() }catch(e){}
+    if(document.getElementById('mgc-pers').classList.contains('on')) mgPersAbrir();
+    return r;
+  };
+})();
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW==='chat'){
+      mgCPAplicar();
+      if(!Object.keys(MG_ULTIMA_MSG).length) mgCarregarRecencia().then(()=>{ if(VIEW==='chat') renderChatView() });
+      if(CHAN && !MG_MEMBROS[CHAN]) mgCarregarMembros(CHAN).then(()=>{ try{ mgAplicarIdentidades() }catch(e){} });
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
