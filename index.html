@@ -10436,5 +10436,303 @@ function mgAvisoPlanoFalhou(motivo){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 38 — Pacing diário na plataforma
+   Lê a tabela `pacing`, alimentada pelo Apps Script que hoje monta o
+   relatório do Slack.
+   ===================================================================== */
+.mg-pc{max-width:1080px;margin:0 auto}
+.mg-pc-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mg-pc-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
+.mg-pc-cab .sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mg-pc-dias{margin-left:auto;text-align:right}
+.mg-pc-dias b{font-family:var(--font-d);font-size:24px;font-weight:600;display:block;line-height:1.1}
+.mg-pc-dias span{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted2);font-weight:700}
+@media(max-width:640px){ .mg-pc-dias{margin-left:0;text-align:left;width:100%} }
+
+.mg-pc-conta{background:var(--card);border:1px solid var(--line);border-radius:15px;
+  margin-top:18px;overflow:hidden;animation:mgSobe .42s cubic-bezier(.22,1,.36,1) both}
+.mg-pc-conta .ch{display:flex;align-items:center;gap:11px;padding:14px 18px;
+  border-bottom:1px solid var(--line);background:var(--card2)}
+.mg-pc-conta .ch .nm{font-weight:700;font-size:14px;flex:1;min-width:0}
+.mg-pc-conta .ch .emp{font-size:11.5px;color:var(--muted);font-weight:400}
+.mg-pc-conta .ch .mo{font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted2);
+  background:rgba(26,26,24,.06);border-radius:999px;padding:2px 9px}
+
+.mg-pc-canal{padding:15px 18px;border-bottom:1px solid var(--line)}
+.mg-pc-canal:last-child{border-bottom:0}
+.mg-pc-linha{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.mg-pc-linha .cn{font-weight:700;font-size:13px}
+.mg-pc-linha .vl{font-size:13px;color:var(--text)}
+.mg-pc-linha .vl b{font-variant-numeric:tabular-nums}
+.mg-pc-linha .de{color:var(--muted)}
+.mg-pc-st{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  padding:3px 10px;border-radius:999px;white-space:nowrap}
+.mg-pc-st.ok{background:rgba(46,158,107,.14);color:#1f7d52}
+.mg-pc-st.abaixo{background:rgba(217,131,36,.16);color:#a8660f}
+.mg-pc-st.acima{background:rgba(184,74,62,.13);color:var(--danger)}
+
+/* A barra é a peça principal: o preenchimento é o que já foi gasto e o
+   traço vertical é onde o gasto DEVERIA estar hoje. A distância entre os
+   dois é o pacing — dá para ler sem number-crunching. */
+.mg-pc-barra{position:relative;height:12px;border-radius:7px;background:var(--card2);
+  border:1px solid var(--line2);overflow:visible}
+.mg-pc-barra .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;
+  transition:width .5s cubic-bezier(.22,1,.36,1)}
+.mg-pc-barra .marca{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);
+  border-radius:2px;opacity:.65}
+.mg-pc-barra .marca::after{content:"hoje";position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+  font-size:9px;font-weight:700;letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
+.mg-pc-sob{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:var(--muted)}
+.mg-pc-sob .seta{color:var(--brass2);font-weight:700}
+.mg-pc-sob b{color:var(--text)}
+
+.mg-pc-res{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:14px 18px;
+  background:var(--card2);border-top:1px solid var(--line)}
+.mg-pc-res .it b{font-family:var(--font-d);font-size:18px;font-weight:600;display:block;line-height:1.15}
+.mg-pc-res .it span{font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted2);font-weight:700}
+.mg-pc-res .it.alerta b{color:var(--danger)}
+.mg-pc-res .obs{margin-left:auto;font-size:11.5px;color:var(--muted);max-width:280px;text-align:right}
+@media(max-width:640px){ .mg-pc-res .obs{margin-left:0;text-align:left;max-width:none} }
+
+.mg-pc-spark{margin-left:auto;flex-shrink:0}
+.mg-pc-spark svg{display:block;overflow:visible}
+.mg-pc-nada{font-size:13.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:14px;padding:34px 26px;text-align:center;margin-top:22px;line-height:1.65}
+.mg-pc-nada code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  background:rgba(26,26,24,.07);border-radius:5px;padding:1px 6px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 38 — Pacing
+   ===================================================================== */
+let MG_PC        = [];     /* linhas cruas, últimos dias */
+let MG_PC_DIA    = null;   /* dia sendo exibido */
+let MG_PC_ERRO   = null;
+let MG_PC_LIDO   = false;
+
+async function mgPacingCarregar(){
+  MG_PC_ERRO = null;
+  try{
+    const limite = new Date(Date.now() - 45*86400000).toISOString().slice(0,10);
+    const {data,error} = await sb.from('pacing').select('*')
+      .gte('dia', limite).order('dia',{ascending:false});
+    if(error) throw error;
+    MG_PC = data || [];
+    MG_PC_LIDO = true;
+    if(MG_PC.length && !MG_PC_DIA) MG_PC_DIA = MG_PC[0].dia;
+  }catch(e){
+    const m=(e&&e.message)||'';
+    MG_PC_ERRO = /relation .*pacing|does not exist/i.test(m) ? 'tabela' : m;
+    MG_PC_LIDO = true;
+  }
+}
+
+function mgPcDinheiro(v, moeda){
+  if(v==null) return '—';
+  const n=Number(v)||0;
+  try{ return n.toLocaleString('pt-BR',{style:'currency',currency:moeda||'BRL',maximumFractionDigits:0}) }
+  catch(e){ return (moeda==='USD'?'US$ ':'R$ ')+n.toLocaleString('pt-BR',{maximumFractionDigits:0}) }
+}
+function mgPcRotuloSituacao(s){
+  if(s==='acima')  return ['acima','Gastando rápido'];
+  if(s==='abaixo') return ['abaixo','Abaixo do ritmo'];
+  return ['ok','No ritmo'];
+}
+/* mini gráfico do investimento dos últimos dias, sem depender de serviço externo */
+function mgPcSpark(conta, canal, moeda){
+  const pontos = MG_PC.filter(r=>r.conta===conta)
+    .map(r=>{ const c=(r.canais||[]).find(x=>x.canal===canal); return c?{dia:r.dia, v:Number(c.investido)||0}:null })
+    .filter(Boolean).sort((a,b)=>a.dia.localeCompare(b.dia)).slice(-14);
+  if(pontos.length<3) return '';
+  const vs=pontos.map(p=>p.v), max=Math.max(...vs), min=Math.min(...vs);
+  const faixa=(max-min)||1, L=96, A=26;
+  const d=pontos.map((p,i)=>{
+    const x=(i/(pontos.length-1))*L;
+    const y=A - ((p.v-min)/faixa)*A;
+    return (i?'L':'M')+x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  return `<span class="mg-pc-spark" title="Investimento acumulado nos últimos ${pontos.length} dias">
+    <svg width="${L}" height="${A}" viewBox="0 0 ${L} ${A}" aria-hidden="true">
+      <path d="${d}" fill="none" stroke="var(--brass)" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      <circle cx="${L}" cy="${(A-((vs[vs.length-1]-min)/faixa)*A).toFixed(1)}" r="2.4" fill="var(--brass2)"/>
+    </svg></span>`;
+}
+
+function mgPacingDesenhar(){
+  const el = document.getElementById('v-pacing'); if(!el) return;
+
+  if(!MG_PC_LIDO){
+    el.innerHTML = `<div class="mg-load">Carregando o pacing…</div>`;
+    mgPacingCarregar().then(mgPacingDesenhar);
+    return;
+  }
+  if(MG_PC_ERRO==='tabela'){
+    el.innerHTML = `<div class="mg-pc"><div class="mg-pc-nada">
+      A tabela <code>pacing</code> ainda não existe neste banco.<br>
+      <span style="font-size:12.5px">Rode o <code>supabase-adicao-38.sql</code> e ligue o envio no Apps Script.</span>
+    </div></div>`;
+    return;
+  }
+  if(MG_PC_ERRO){
+    el.innerHTML = `<div class="mg-pc"><div class="mg-pc-nada">Não foi possível carregar o pacing.<br>
+      <span style="font-size:12.5px">${esc(MG_PC_ERRO)}</span></div></div>`;
+    return;
+  }
+  if(!MG_PC.length){
+    el.innerHTML = `<div class="mg-pc"><div class="mg-pc-nada">
+      Nenhum envio recebido ainda.<br>
+      <span style="font-size:12.5px">Assim que o Apps Script rodar pela primeira vez, o dia aparece aqui.
+      O relatório do Slack continua saindo normalmente enquanto isso.</span>
+    </div></div>`;
+    return;
+  }
+
+  const dias = [...new Set(MG_PC.map(r=>r.dia))].sort().reverse();
+  if(!dias.includes(MG_PC_DIA)) MG_PC_DIA = dias[0];
+  const doDia = MG_PC.filter(r=>r.dia===MG_PC_DIA)
+                     .sort((a,b)=>(a.conta||'').localeCompare(b.conta||'','pt'));
+  const ref = doDia[0] || {};
+  const dt = new Date(MG_PC_DIA + 'T12:00:00');
+
+  el.innerHTML = `
+    <div class="mg-pc">
+      <div class="mg-pc-cab">
+        <div>
+          <div class="tit">Pacing diário</div>
+          <div class="sub">${dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}
+            · ${doDia.length} conta${doDia.length===1?'':'s'}</div>
+        </div>
+        <div class="mg-pc-dias">
+          <b>${ref.dias_fechados||'—'}<span style="font-family:var(--font-b);font-size:15px;color:var(--muted)">/${ref.dias_no_mes||'—'}</span></b>
+          <span>Dias fechados</span>
+        </div>
+      </div>
+
+      ${doDia.map((r,i)=>{
+        const moeda = r.moeda||'BRL';
+        const prop  = (r.dias_no_mes ? (r.dias_fechados/r.dias_no_mes) : 0);
+        return `<div class="mg-pc-conta" style="animation-delay:${(0.04+i*0.05).toFixed(2)}s">
+          <div class="ch">
+            <span class="nm">${esc(r.conta)}
+              ${r.client_id?`<span class="emp">· ${esc(clientName(r.client_id))}</span>`:''}</span>
+            <span class="mo">${esc(moeda)}</span>
+          </div>
+
+          ${(r.canais||[]).map(c=>{
+            const meta = Number(c.meta)||0;
+            const inv  = Number(c.investido)||0;
+            const pct  = meta ? Math.min(inv/meta, 1.15) : 0;
+            const [cls,rot] = mgPcRotuloSituacao(c.situacao);
+            const cor = cls==='ok' ? 'var(--st-done)' : cls==='abaixo' ? 'var(--st-day)' : 'var(--danger)';
+            return `<div class="mg-pc-canal">
+              <div class="mg-pc-linha">
+                <span class="cn">${esc(c.canal||'—')}</span>
+                <span class="vl"><b>${mgPcDinheiro(inv,moeda)}</b>${meta?`<span class="de"> de ${mgPcDinheiro(meta,moeda)}</span>`:'<span class="de"> · sem meta</span>'}</span>
+                ${meta?`<span class="mg-pc-st ${cls}">${rot}</span>`:''}
+                ${mgPcSpark(r.conta, c.canal, moeda)}
+              </div>
+              ${meta?`<div class="mg-pc-barra">
+                <span class="fill" style="width:${(pct*100).toFixed(1)}%;background:${cor}"></span>
+                <span class="marca" style="left:${(prop*100).toFixed(1)}%"></span>
+              </div>`:''}
+              ${c.sugestao_dia?`<div class="mg-pc-sob">
+                <span class="seta">${c.situacao==='acima'?'↓':'↑'}</span>
+                <span>${c.situacao==='acima'?'Reduzir':'Subir'} o teto para
+                <b>${mgPcDinheiro(c.sugestao_dia,moeda)}/dia</b> para fechar o mês na meta</span>
+              </div>`:''}
+            </div>`;
+          }).join('')}
+
+          ${(r.receita!=null || r.conversoes!=null) ? `<div class="mg-pc-res">
+            ${r.receita!=null?`<span class="it"><b>${mgPcDinheiro(r.receita,moeda)}</b><span>Receita</span></span>`:''}
+            ${r.pedidos!=null?`<span class="it"><b>${r.pedidos}</b><span>Pedidos</span></span>`:''}
+            ${r.roas!=null?`<span class="it ${(r.roas_piso && r.roas<r.roas_piso)?'alerta':''}">
+              <b>${Number(r.roas).toFixed(2)}x</b><span>ROAS${r.roas_piso?' · piso '+Number(r.roas_piso).toFixed(1)+'x':''}</span></span>`:''}
+            ${r.conversoes!=null?`<span class="it"><b>${r.conversoes}</b><span>Conversões</span></span>`:''}
+            ${(r.roas!=null && r.roas_piso && r.roas<r.roas_piso)
+              ? `<span class="obs">ROAS abaixo do piso combinado.</span>`
+              : (r.conversoes!=null && r.receita==null ? `<span class="obs">Lead-gen: sem receita monetária, ROAS não se aplica.</span>` : '')}
+          </div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------- navegação entre dias ---------- */
+function mgPacingDia(passo){
+  const dias = [...new Set(MG_PC.map(r=>r.dia))].sort().reverse();
+  const i = dias.indexOf(MG_PC_DIA);
+  const novo = dias[i + passo];
+  if(!novo) return;
+  MG_PC_DIA = novo;
+  mgPacingDesenhar(); mgDock();
+}
+async function mgPacingAtualizar(){
+  MG_PC_LIDO = false; MG_PC_DIA = null;
+  mgPacingDesenhar();
+  toast('Buscando o envio mais recente…');
+}
+
+/* ---------- encaixe na plataforma ---------- */
+(function(){
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-pacing')){
+    const d=document.createElement('div'); d.className='view'; d.id='v-pacing';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n=>n.v==='pacing')){
+    const i = NAV.findIndex(n=>n.v==='plano');
+    NAV.splice(i<0?NAV.length:i+1, 0, {v:'pacing', ic:'◔', label:'Pacing'});
+  }
+})();
+(function(){
+  const _r = render;
+  render = function(){
+    if(VIEW==='pacing') return mgPacingDesenhar();
+    return _r();
+  };
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW==='pacing'){
+      const t=document.getElementById('view-title'); if(t) t.textContent='Pacing';
+    }
+    return r;
+  };
+})();
+/* cor e descrição do atalho no Início */
+(function(){
+  if(typeof MG_TONS==='object' && MG_TONS) MG_TONS.pacing =
+    {tom:'#D95D39', chip:'rgba(217,93,57,.14)', borda:'rgba(217,93,57,.45)',
+     fraco:'rgba(217,93,57,.09)', sombra:'rgba(217,93,57,.34)'};
+  if(typeof mgAtalhos!=='function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().map(a => a.v==='pacing' ? {...a, ds:'Ritmo do investimento contra a meta'} : a);
+  };
+})();
+/* barra de baixo: navegar entre os dias */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW!=='pacing') return base;
+    const dias = [...new Set(MG_PC.map(r=>r.dia))].sort().reverse();
+    const i = dias.indexOf(MG_PC_DIA);
+    const rotulo = MG_PC_DIA ? new Date(MG_PC_DIA+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '—';
+    const extra =
+      `<button onclick="mgPacingDia(1)" title="Dia anterior" ${i>=dias.length-1?'disabled style="opacity:.35"':''}><span class="ic">‹</span></button>`
+    + `<button onclick="mgPacingAtualizar()" title="Buscar o envio mais recente"><span class="ic">↻</span><span class="rot">${esc(rotulo)}</span></button>`
+    + `<button onclick="mgPacingDia(-1)" title="Dia seguinte" ${i<=0?'disabled style="opacity:.35"':''}><span class="ic">›</span></button>`
+    + `<span class="sep"></span>`;
+    return base.replace('<span class="sep"></span>', extra);
+  };
+})();
+</script>
 </body>
 </html>
