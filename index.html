@@ -11321,5 +11321,134 @@ function mgAvisoFalta(oQue, arquivo){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 41 — a tela diz com qual banco está falando
+   ===================================================================== */
+.mg-diag{margin-top:16px;text-align:left;display:inline-block;max-width:100%}
+.mg-diag-btn{background:var(--card);border:1px solid var(--line2);border-radius:10px;
+  padding:9px 16px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text)}
+.mg-diag-btn:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-diag-res{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px;font-size:12.5px;line-height:1.7;min-width:min(460px,86vw)}
+.mg-diag-res .ln{display:flex;align-items:center;gap:9px;padding:3px 0}
+.mg-diag-res .ln .ic{width:16px;text-align:center;flex-shrink:0}
+.mg-diag-res .ln .nm{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;flex:1}
+.mg-diag-res .ln .st{font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.mg-diag-res .ln.ok .st{color:#1f7d52}
+.mg-diag-res .ln.falta .st{color:var(--danger)}
+.mg-diag-res .ln.bloq .st{color:#a8660f}
+.mg-diag-proj{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  background:rgba(26,26,24,.07);border-radius:5px;padding:2px 7px}
+.mg-diag-cab{font-weight:700;margin-bottom:8px;font-size:12.5px}
+.mg-diag-nota{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 41
+   Quando falta alguma coisa no banco, a dúvida sempre é a mesma: foi
+   esquecido, ou foi rodado no projeto errado? A tela passa a responder
+   isso sozinha.
+   ===================================================================== */
+
+function mgProjetoRef(){
+  try{ return (SUPABASE_URL||'').replace(/^https?:\/\//,'').split('.')[0] || '(desconhecido)' }
+  catch(e){ return '(desconhecido)' }
+}
+
+const MG_DIAG_TABELAS = [
+  ['clients','empresas'], ['profiles','pessoas'], ['tasks','demandas'],
+  ['documents','documentos'], ['channels','canais do chat'], ['messages','mensagens'],
+  ['media_plans','plano de mídia'], ['pacing','pacing'],
+];
+
+async function mgTestarBanco(){
+  const cx = document.getElementById('mg-diag-res');
+  if(cx) cx.innerHTML = '<div class="mg-diag-cab">Conferindo…</div>';
+
+  const linhas = [];
+  for(const [tabela, apelido] of MG_DIAG_TABELAS){
+    let estado = 'ok', detalhe = '';
+    try{
+      const {error, data} = await sb.from(tabela).select('*').limit(1);
+      if(error){
+        const m = error.message || '';
+        if(/does not exist|schema cache/i.test(m)) { estado='falta'; detalhe='não existe' }
+        else if(/permission|row-level/i.test(m))   { estado='bloq';  detalhe='sem permissão' }
+        else { estado='bloq'; detalhe = m.slice(0,40) }
+      }else{
+        detalhe = (data && data.length) ? 'com dados' : 'vazia';
+      }
+    }catch(e){ estado='bloq'; detalhe='erro' }
+    linhas.push({tabela, apelido, estado, detalhe});
+  }
+
+  /* quantas empresas este banco enxerga — serve para comparar com a tela */
+  let empresas = '—';
+  try{
+    const {count} = await sb.from('clients').select('*',{count:'exact',head:true});
+    if(count!=null) empresas = count;
+  }catch(e){}
+
+  const faltando = linhas.filter(l=>l.estado==='falta');
+  if(!cx) return linhas;
+  cx.innerHTML = `
+    <div class="mg-diag-cab">Esta tela está falando com o projeto
+      <span class="mg-diag-proj">${esc(mgProjetoRef())}</span></div>
+    ${linhas.map(l=>`<div class="ln ${l.estado}">
+        <span class="ic">${l.estado==='ok'?'✓':l.estado==='falta'?'✕':'!'}</span>
+        <span class="nm">${esc(l.tabela)}</span>
+        <span class="st">${esc(l.detalhe)}</span>
+      </div>`).join('')}
+    <div class="mg-diag-nota">
+      Este banco enxerga <b>${empresas}</b> empresa(s).
+      Se a tela de Clientes mostra outro número, o SQL foi rodado em outro projeto.
+      ${faltando.length
+        ? `<br>Falta(m) aqui: <b>${faltando.map(l=>l.tabela).join(', ')}</b>.`
+        : `<br>Todas as tabelas respondem neste projeto.`}
+    </div>`;
+  return linhas;
+}
+
+/* ---- encaixa o diagnóstico no aviso de "falta no banco" ---- */
+(function(){
+  if(typeof mgAvisoFalta!=='function') return;
+  const _av = mgAvisoFalta;
+  mgAvisoFalta = function(oQue, arquivo){
+    const base = _av(oQue, arquivo);
+    const extra = `
+      <div class="mg-diag">
+        <button class="mg-diag-btn" onclick="mgTestarBanco()">Conferir a conexão com o banco</button>
+        <div id="mg-diag-res"></div>
+        <div class="mg-diag-nota">
+          Já rodou o script e mesmo assim aparece isto? Rode no SQL Editor
+          <code>notify pgrst, 'reload schema';</code> — o Supabase guarda um
+          retrato das tabelas e às vezes ele demora a ser refeito.
+        </div>
+      </div>`;
+    return base.replace('</div>', extra + '</div>');
+  };
+})();
+
+/* ---- e deixa disponível em Configurações → Avançado ---- */
+(function(){
+  if(typeof mgPrefConteudo!=='function') return;
+  const _pc = mgPrefConteudo;
+  mgPrefConteudo = function(aba){
+    let html = _pc(aba);
+    if(aba==='avanc'){
+      html += `
+        <hr><div class="grupo-tt">Conexão com o banco</div>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:10px">
+          Mostra com qual projeto do Supabase esta tela está falando e quais tabelas
+          respondem. Útil quando um script SQL parece não ter surtido efeito.
+        </div>
+        <button class="mg-diag-btn" onclick="mgTestarBanco()">Conferir agora</button>
+        <div id="mg-diag-res"></div>`;
+    }
+    return html;
+  };
+})();
+</script>
 </body>
 </html>
