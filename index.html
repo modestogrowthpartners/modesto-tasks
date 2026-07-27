@@ -8438,5 +8438,753 @@ function mgDesenharListaEspelho(){
   setTimeout(mgMontarEspelhoNoMenu, 1200);
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 34
+   1) calendário que cabe na página
+   2) desempenho: menos conta repetida e menos pintura
+   3) celular: a plataforma inteira utilizável no telefone
+   4) plano de mídia do cliente, com orçamento que ele mesmo ajusta
+   ===================================================================== */
+
+/* ---------- 1. calendário ----------
+   As colunas eram `repeat(7,1fr)`, que na prática é `minmax(auto,1fr)`:
+   cada dia exigia a largura do título mais comprido (os eventos usam
+   `white-space:nowrap`), e a grade estourava a página. `minmax(0,1fr)`
+   deixa a coluna encolher e o texto ser cortado com reticências. */
+.cal-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-d{min-width:0}
+.cal-ev{max-width:100%}
+
+/* ---------- 2. desempenho ----------
+   Cards fora da área visível não são medidos nem pintados. */
+.card-t{content-visibility:auto;contain-intrinsic-size:auto 172px}
+.cal-d{content-visibility:auto;contain-intrinsic-size:auto 88px}
+.dcard{content-visibility:auto;contain-intrinsic-size:auto 132px}
+/* animação de fundo parada quando a aba está em segundo plano */
+body.mg-oculto .bg-anim *{animation-play-state:paused!important}
+
+/* ---------- 3. celular ---------- */
+@media (max-width:760px){
+  .topbar{flex-wrap:wrap;gap:9px;padding:11px 14px}
+  .topbar .title{font-size:17px;order:1}
+  .topbar .spacer{display:none}
+  .topbar .search{order:9;flex:1 1 100%;min-width:0}
+  .topbar .search input{width:100%;min-width:0}
+  .topbar .tsel,.topbar .icon-btn,.topbar .btn-p{font-size:12.5px;padding:7px 11px}
+  .topbar .btn-p{order:8}
+  .content{padding:16px 13px}
+  :root{--mg-larg:100%}
+
+  /* quadro: uma coluna por vez, com encaixe ao arrastar */
+  .board{gap:11px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    min-height:auto;padding-bottom:8px}
+  .col{width:84vw;scroll-snap-align:center;height:auto;min-height:52vh;max-height:72vh}
+  .col .cards{overflow-y:auto}
+
+  /* calendário: rola na horizontal em vez de espremer o mês */
+  #v-calendar .cal{overflow-x:auto;padding:12px}
+  .cal-grid{min-width:640px}
+  .cal-legend{gap:8px;font-size:11px}
+
+  /* Início */
+  .mg-atalhos{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:11px}
+  .mg-atalho{padding:18px 12px 15px}
+  .mg-duas{grid-template-columns:1fr!important}
+  .mg-ola{font-size:24px}
+
+  /* janelas ocupam a tela, sem beliscar as bordas */
+  .modal{padding:12px}
+  .modal-c{padding:20px 16px;max-height:88vh}
+  .mg-qmenu{width:100vw}
+  .slide{width:100vw;max-width:100vw;max-height:94vh}
+
+  /* campos com 16px: abaixo disso o iOS dá zoom sozinho ao focar.
+     Precisa de especificidade maior que `.search input` e `.fld`. */
+  body .topbar .search input,
+  body .fld, body .tsel, body .mg-pm-val, body .mg-pm-sel,
+  body .mg-novocli input, body .mg-novocli textarea,
+  body .mg-acc input, body .mg-acc select,
+  body input[type=text], body input[type=email], body input[type=password],
+  body input[type=date], body input[type=month], body input[type=number],
+  body input[type=search], body select, body textarea{font-size:16px}
+
+  /* páginas de conteúdo ocupam a largura toda */
+  body:not(.mg-inicio) #v-clientes > *,
+  body:not(.mg-inicio) #v-equipe   > *,
+  body:not(.mg-inicio) #v-settings > *,
+  body:not(.mg-inicio) #v-checklist> *{max-width:100%}
+}
+@media (max-width:420px){
+  .mg-atalhos{grid-template-columns:1fr!important}
+  .col{width:90vw}
+}
+
+/* ---------- 4. plano de mídia ---------- */
+.mg-pm{max-width:1080px;margin:0 auto}
+.mg-pm-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
+  padding-bottom:17px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mg-pm-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
+.mg-pm-cab .sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mg-pm-total{margin-left:auto;text-align:right}
+.mg-pm-total b{font-family:var(--font-d);font-size:27px;font-weight:600;display:block;line-height:1.1;
+  color:var(--brass2)}
+.mg-pm-total span{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted2);font-weight:700}
+@media(max-width:640px){ .mg-pm-total{margin-left:0;text-align:left;width:100%} }
+
+.mg-pm-canal{background:var(--card);border:1px solid var(--line);border-radius:15px;
+  margin-top:20px;overflow:hidden;
+  animation:mgSobe .42s cubic-bezier(.22,1,.36,1) both}
+.mg-pm-canal .ch{display:flex;align-items:center;gap:11px;padding:14px 18px;
+  border-bottom:1px solid var(--line);background:var(--card2)}
+.mg-pm-canal .ch .pt{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.mg-pm-canal .ch .nm{font-weight:700;font-size:13.5px;letter-spacing:.2px;flex:1;min-width:0}
+.mg-pm-canal .ch .vl{font-weight:700;font-size:13.5px;color:var(--brass2)}
+.mg-pm-canal .ch input.nmc{background:transparent;border:1px dashed var(--line2);border-radius:7px;
+  padding:4px 8px;font-family:inherit;font-weight:700;font-size:13.5px;color:var(--text);flex:1;min-width:0}
+
+.mg-pm-tab{width:100%;border-collapse:collapse;font-size:13px}
+.mg-pm-tab th{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted2);
+  font-weight:700;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+.mg-pm-tab th.num,.mg-pm-tab td.num{text-align:right}
+.mg-pm-tab td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.mg-pm-tab tr:last-child td{border-bottom:0}
+.mg-pm-tab .camp{font-weight:600}
+.mg-pm-tab .obj{font-size:11.5px;color:var(--muted);margin-top:2px}
+.mg-pm-val{width:132px;text-align:right;background:var(--card2);border:1px solid var(--line2);
+  border-radius:9px;padding:8px 11px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text)}
+.mg-pm-val:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.16);background:var(--card)}
+.mg-pm-val:disabled{background:transparent;border-color:transparent;box-shadow:none;padding-right:0}
+.mg-pm-pct{font-variant-numeric:tabular-nums;color:var(--muted)}
+.mg-pm-dia{font-variant-numeric:tabular-nums;color:var(--muted)}
+.mg-pm-st{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;background:rgba(46,158,107,.14);color:#1f7d52;white-space:nowrap}
+.mg-pm-st.pausada{background:rgba(124,138,151,.16);color:#6f7a85}
+.mg-pm-st.teste{background:rgba(217,131,36,.16);color:#a8660f}
+.mg-pm-sub{background:var(--card2);font-weight:700}
+.mg-pm-sub td{border-top:1px solid var(--line2)}
+.mg-pm-x{background:none;border:0;color:var(--muted2);font-size:14px;padding:3px 7px;border-radius:7px;font-family:inherit}
+.mg-pm-x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+
+.mg-pm-acoes{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:22px;
+  position:sticky;bottom:14px;z-index:10}
+.mg-pm-salvar{background:var(--brass);color:var(--ink2);border:0;border-radius:11px;padding:12px 22px;
+  font-family:inherit;font-weight:700;font-size:13.5px;
+  box-shadow:0 10px 26px -10px rgba(194,161,91,.7)}
+.mg-pm-salvar:hover{background:var(--brass2);color:#fff}
+.mg-pm-salvar:disabled{opacity:.5}
+.mg-pm-aviso{font-size:12px;color:var(--muted)}
+.mg-pm-add{background:var(--card);border:1px dashed var(--line2);border-radius:10px;padding:9px 14px;
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted)}
+.mg-pm-add:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-pm-nada{font-size:13.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:14px;padding:34px 26px;text-align:center;margin-top:22px;line-height:1.6}
+.mg-pm-sel{background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:8px 12px;
+  font-family:inherit;font-size:13px;color:var(--text)}
+
+/* no celular a tabela vira uma lista empilhada */
+@media(max-width:720px){
+  .mg-pm-tab thead{display:none}
+  .mg-pm-tab,.mg-pm-tab tbody,.mg-pm-tab tr,.mg-pm-tab td{display:block;width:100%}
+  .mg-pm-tab tr{border-bottom:1px solid var(--line);padding:12px 14px}
+  .mg-pm-tab tr:last-child{border-bottom:0}
+  .mg-pm-tab td{border:0;padding:3px 0;text-align:left!important}
+  .mg-pm-tab td.num{text-align:left!important}
+  .mg-pm-tab td[data-rot]::before{content:attr(data-rot) " · ";font-size:11px;color:var(--muted2);
+    text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+  .mg-pm-val{width:100%}
+  .mg-pm-sub{padding:12px 14px}
+}
+
+/* interruptor do plano nas janelas de cliente */
+.mg-pm-liga{display:flex;align-items:flex-start;gap:10px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:11px;padding:12px 14px;margin-top:12px;font-size:13px}
+.mg-pm-liga input{width:17px;height:17px;accent-color:var(--brass);margin-top:1px;flex:0 0 auto}
+.mg-pm-liga .d{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 34 — ver o cabeçalho do bloco de estilo acima
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — DESEMPENHO
+   O gargalo era a estimativa automática de tempo: ela roda em cada card
+   e, por dentro, tokeniza o título de TODAS as demandas. Com 230 demandas
+   isso dava ~53 mil tokenizações por desenho de tela. Guardamos o
+   resultado em memória e a conta passa a ser feita uma vez só.
+   ===================================================================== */
+
+/* ---------- 1.1 tokenização com memória ---------- */
+(function(){
+  if(typeof tokz!=='function') return;
+  const _tokz = tokz;
+  const memoria = new Map();
+  tokz = function(s){
+    const chave = s || '';
+    const guardado = memoria.get(chave);
+    if(guardado) return guardado;
+    const v = _tokz(chave);
+    if(memoria.size > 3000) memoria.clear();
+    memoria.set(chave, v);
+    return v;
+  };
+})();
+
+/* ---------- 1.2 estimativa com memória, refeita quando as demandas mudam ---------- */
+(function(){
+  if(typeof estimateFor!=='function') return;
+  const _est = estimateFor;
+  let memoria = new Map(), assinatura = null;
+  function assinar(){
+    const ts = TASKS || [];
+    let soma = 0;
+    for(let i=0;i<ts.length;i++) soma += (ts[i].time_spent||0);
+    return ts.length + ':' + soma;
+  }
+  estimateFor = function(t){
+    const a = assinar();
+    if(a !== assinatura){ memoria.clear(); assinatura = a }
+    const chave = t.id;
+    if(memoria.has(chave)) return memoria.get(chave);
+    const v = _est(t);
+    memoria.set(chave, v);
+    return v;
+  };
+})();
+
+/* ---------- 1.3 busca sem redesenhar a cada tecla ---------- */
+(function(){
+  const q = document.getElementById('q'); if(!q) return;
+  let t = null;
+  q.oninput = function(){
+    clearTimeout(t);
+    t = setTimeout(()=>{ try{ render() }catch(e){} }, 200);
+  };
+})();
+
+/* ---------- 1.4 fundo animado pausa fora de foco ---------- */
+document.addEventListener('visibilitychange', ()=>{
+  document.body.classList.toggle('mg-oculto', document.hidden);
+});
+
+/* =====================================================================
+   PARTE 2 — PLANO DE MÍDIA
+   Uma linha por cliente na tabela `media_plans`, com o plano inteiro
+   guardado em JSON. O cliente ajusta o investimento mensal de cada
+   campanha; a porcentagem e o valor diário se recalculam na hora.
+   ===================================================================== */
+
+let MG_PM        = null;    /* plano em edição */
+let MG_PM_CLI    = null;    /* de qual empresa */
+let MG_PM_SUJO   = false;   /* há alteração não salva? */
+let MG_PM_ERRO   = null;
+
+const MG_PM_MODELO = {
+  mes:'', moeda:'BRL', observacao:'',
+  canais:[
+    {nome:'Google Ads', campanhas:[
+      {nome:'Search | Marca', objetivo:'BOF · Search Marca', mensal:0, status:'Ativa', obs:''},
+    ]},
+    {nome:'Meta Ads', campanhas:[
+      {nome:'Prospecção', objetivo:'TOPO · Conversão', mensal:0, status:'Ativa', obs:''},
+    ]},
+  ]
+};
+
+function mgPMMesAtual(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') }
+function mgPMDiasDoMes(mes){
+  const [a,m] = (mes||mgPMMesAtual()).split('-').map(Number);
+  if(!a||!m) return 30;
+  return new Date(a, m, 0).getDate();
+}
+function mgPMMesPorExtenso(mes){
+  const [a,m] = (mes||mgPMMesAtual()).split('-').map(Number);
+  if(!a||!m) return '';
+  return new Date(a, m-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+}
+function mgPMDinheiro(v, moeda){
+  const n = Number(v)||0;
+  try{ return n.toLocaleString('pt-BR',{style:'currency',currency:moeda||'BRL',maximumFractionDigits:0}) }
+  catch(e){ return (moeda==='USD'?'$':'R$') + ' ' + n.toLocaleString('pt-BR',{maximumFractionDigits:0}) }
+}
+function mgPMTotal(plano){
+  let t=0; (plano.canais||[]).forEach(c=>(c.campanhas||[]).forEach(k=>{ t += Number(k.mensal)||0 }));
+  return t;
+}
+function mgPMTotalCanal(canal){
+  let t=0; (canal.campanhas||[]).forEach(k=>{ t += Number(k.mensal)||0 }); return t;
+}
+function mgPMPodeEditarEstrutura(){ return isAdmin() }
+
+/* ---------- 2.1 quais empresas têm plano ---------- */
+function mgPMClienteTemPlano(id){
+  const c = (CLIENTS||[]).find(x=>x.id===id);
+  return !!(c && c.plano_midia);
+}
+
+/* ---------- 2.2 carregar e salvar ---------- */
+async function mgPMCarregar(clientId){
+  MG_PM_CLI = clientId; MG_PM = null; MG_PM_ERRO = null; MG_PM_SUJO = false;
+  if(!clientId) return;
+  try{
+    const {data,error} = await sb.from('media_plans').select('*').eq('client_id',clientId).maybeSingle();
+    if(error) throw error;
+    if(data && data.plano && data.plano.canais){
+      MG_PM = data.plano;
+      MG_PM.atualizado_em  = data.atualizado_em;
+      MG_PM.atualizado_por = data.atualizado_por;
+    }else{
+      MG_PM = JSON.parse(JSON.stringify(MG_PM_MODELO));
+      MG_PM.mes = mgPMMesAtual();
+      MG_PM.novo = true;
+    }
+  }catch(e){
+    const m = (e && e.message) || '';
+    MG_PM_ERRO = /relation .*media_plans|does not exist/i.test(m)
+      ? 'tabela'
+      : m;
+    console.warn('[plano de mídia]', e);
+  }
+}
+async function mgPMSalvar(){
+  if(!MG_PM || !MG_PM_CLI) return;
+  const btn = document.getElementById('mg-pm-salvar');
+  if(btn) btn.disabled = true;
+  const corpo = JSON.parse(JSON.stringify(MG_PM));
+  delete corpo.novo; delete corpo.atualizado_em; delete corpo.atualizado_por;
+  try{
+    const {error} = await sb.from('media_plans').upsert({
+      client_id: MG_PM_CLI,
+      plano: corpo,
+      atualizado_em: new Date().toISOString(),
+      atualizado_por: ME ? ME.name : null,
+    }, {onConflict:'client_id'});
+    if(error) throw error;
+    MG_PM.novo = false;
+    MG_PM.atualizado_em = new Date().toISOString();
+    MG_PM.atualizado_por = ME ? ME.name : null;
+    MG_PM_SUJO = false;
+    toast('Plano de mídia salvo ✓');
+    mgPMDesenhar();
+  }catch(e){
+    const m=(e&&e.message)||'';
+    if(/relation .*media_plans|does not exist/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 34');
+    else if(/row-level security|permission/i.test(m))    toast('Sem permissão para salvar este plano');
+    else toast('Não foi possível salvar: '+m);
+    console.error(e);
+  }finally{ if(btn) btn.disabled = false }
+}
+
+/* ---------- 2.3 edição dos valores ---------- */
+function mgPMMudou(ci, ki, valor){
+  if(!MG_PM) return;
+  const c = MG_PM.canais[ci]; if(!c) return;
+  const k = c.campanhas[ki];  if(!k) return;
+  k.mensal = Math.max(0, Number(String(valor).replace(',','.')) || 0);
+  MG_PM_SUJO = true;
+  mgPMAtualizarContas();
+}
+/* recalcula só os números derivados, sem redesenhar (não perde o foco) */
+function mgPMAtualizarContas(){
+  if(!MG_PM) return;
+  const dias  = mgPMDiasDoMes(MG_PM.mes);
+  const moeda = MG_PM.moeda || 'BRL';
+  const total = mgPMTotal(MG_PM);
+
+  (MG_PM.canais||[]).forEach((c,ci)=>{
+    const subtotal = mgPMTotalCanal(c);
+    (c.campanhas||[]).forEach((k,ki)=>{
+      const v = Number(k.mensal)||0;
+      const pct = document.querySelector(`[data-pct="${ci}-${ki}"]`);
+      const dia = document.querySelector(`[data-dia="${ci}-${ki}"]`);
+      if(pct) pct.textContent = subtotal ? (v/subtotal*100).toFixed(1).replace('.',',')+'%' : '—';
+      if(dia) dia.textContent = mgPMDinheiro(v/dias, moeda);
+    });
+    const st = document.querySelector(`[data-sub="${ci}"]`);
+    if(st) st.textContent = mgPMDinheiro(subtotal, moeda);
+    const sd = document.querySelector(`[data-subdia="${ci}"]`);
+    if(sd) sd.textContent = mgPMDinheiro(subtotal/dias, moeda);
+    const ch = document.querySelector(`[data-canaltot="${ci}"]`);
+    if(ch) ch.textContent = mgPMDinheiro(subtotal, moeda);
+  });
+
+  const tt = document.getElementById('mg-pm-geral');
+  if(tt) tt.textContent = mgPMDinheiro(total, moeda);
+  const av = document.getElementById('mg-pm-aviso');
+  if(av) av.textContent = MG_PM_SUJO ? 'Há alterações não salvas.' : '';
+}
+
+/* estrutura (só administrador) */
+function mgPMAddCampanha(ci){
+  MG_PM.canais[ci].campanhas.push({nome:'Nova campanha', objetivo:'', mensal:0, status:'Ativa', obs:''});
+  MG_PM_SUJO = true; mgPMDesenhar();
+}
+function mgPMDelCampanha(ci,ki){
+  MG_PM.canais[ci].campanhas.splice(ki,1);
+  MG_PM_SUJO = true; mgPMDesenhar();
+}
+function mgPMAddCanal(){
+  MG_PM.canais.push({nome:'Novo canal', campanhas:[]});
+  MG_PM_SUJO = true; mgPMDesenhar();
+}
+function mgPMDelCanal(ci){
+  if(!confirm('Remover este canal e todas as campanhas dele?')) return;
+  MG_PM.canais.splice(ci,1);
+  MG_PM_SUJO = true; mgPMDesenhar();
+}
+function mgPMCampo(ci,ki,campo,valor){
+  if(ki===null) MG_PM.canais[ci][campo] = valor;
+  else MG_PM.canais[ci].campanhas[ki][campo] = valor;
+  MG_PM_SUJO = true;
+  const av = document.getElementById('mg-pm-aviso');
+  if(av) av.textContent = 'Há alterações não salvas.';
+}
+function mgPMMeta(campo,valor){
+  MG_PM[campo] = valor; MG_PM_SUJO = true; mgPMDesenhar();
+}
+
+/* ---------- 2.4 desenho da tela ---------- */
+const MG_PM_CORES = ['#2D6FCF','#D9531E','#2E9E6B','#8E3FBE','#C7871E','#12A38F'];
+
+function mgPMDesenhar(){
+  const el = document.getElementById('v-plano'); if(!el) return;
+
+  /* quem é o cliente da vez */
+  if(!isAdmin()){
+    if(!ME || !ME.client_id){ el.innerHTML = `<div class="mg-pm-nada">Nenhuma empresa vinculada a este acesso.</div>`; return }
+    if(MG_PM_CLI !== ME.client_id){ mgPMCarregar(ME.client_id).then(mgPMDesenhar); el.innerHTML=`<div class="mg-load">Carregando seu plano…</div>`; return }
+  }else{
+    const comPlano = (CLIENTS||[]).filter(c=>c.plano_midia);
+    if(!comPlano.length){
+      el.innerHTML = `<div class="mg-pm"><div class="mg-pm-nada">
+        Nenhuma empresa está com plano de mídia ativado.<br>
+        <span style="font-size:12.5px">Abra <b>Clientes → Editar</b> e marque “Ativar plano de mídia” para a empresa que já tem plano formalizado.</span>
+      </div></div>`;
+      return;
+    }
+    if(!MG_PM_CLI || !comPlano.some(c=>c.id===MG_PM_CLI)){
+      mgPMCarregar(comPlano[0].id).then(mgPMDesenhar);
+      el.innerHTML=`<div class="mg-load">Carregando plano…</div>`;
+      return;
+    }
+  }
+
+  if(MG_PM_ERRO==='tabela'){
+    el.innerHTML = `<div class="mg-pm"><div class="mg-pm-nada">
+      A tabela do plano de mídia ainda não existe no banco.<br>
+      <span style="font-size:12.5px">Rode o arquivo <b>supabase-adicao-34.sql</b> no SQL Editor do Supabase.</span>
+    </div></div>`;
+    return;
+  }
+  if(MG_PM_ERRO){
+    el.innerHTML = `<div class="mg-pm"><div class="mg-pm-nada">Não foi possível carregar o plano.<br>
+      <span style="font-size:12.5px">${esc(MG_PM_ERRO)}</span></div></div>`;
+    return;
+  }
+  if(!MG_PM){ el.innerHTML = `<div class="mg-load">Carregando…</div>`; return }
+
+  const admin = isAdmin();
+  const moeda = MG_PM.moeda || 'BRL';
+  const dias  = mgPMDiasDoMes(MG_PM.mes);
+  const total = mgPMTotal(MG_PM);
+  const comPlano = (CLIENTS||[]).filter(c=>c.plano_midia);
+
+  const seletor = admin && comPlano.length>1
+    ? `<select class="mg-pm-sel" onchange="mgPMTrocarCliente(this.value)">${
+        comPlano.map(c=>`<option value="${esc(c.id)}" ${c.id===MG_PM_CLI?'selected':''}>${esc(c.nome)}</option>`).join('')
+      }</select>` : '';
+
+  const controlesAdmin = admin ? `
+    <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:12px">
+      ${seletor}
+      <input class="mg-pm-sel" type="month" value="${esc(MG_PM.mes||mgPMMesAtual())}"
+             onchange="mgPMMeta('mes',this.value)" title="Mês do plano">
+      <select class="mg-pm-sel" onchange="mgPMMeta('moeda',this.value)" title="Moeda">
+        <option value="BRL" ${moeda==='BRL'?'selected':''}>Real (R$)</option>
+        <option value="USD" ${moeda==='USD'?'selected':''}>Dólar ($)</option>
+      </select>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div class="mg-pm">
+      <div class="mg-pm-cab">
+        <div>
+          <div class="tit">Plano de mídia</div>
+          <div class="sub">${esc(clientName(MG_PM_CLI))} · ${esc(mgPMMesPorExtenso(MG_PM.mes))} · ${dias} dias${
+            MG_PM.atualizado_em ? ' · atualizado por '+esc(MG_PM.atualizado_por||'—')+' em '+new Date(MG_PM.atualizado_em).toLocaleDateString('pt-BR') : ''
+          }</div>
+        </div>
+        <div class="mg-pm-total">
+          <b id="mg-pm-geral">${mgPMDinheiro(total,moeda)}</b>
+          <span>Investimento do mês</span>
+        </div>
+      </div>
+      ${controlesAdmin}
+
+      ${!admin ? `<div class="mg-pm-liga" style="margin-top:18px">
+        <span style="font-size:15px">✎</span>
+        <span><b>Ajuste o investimento de cada campanha.</b>
+        <span class="d">Digite o valor mensal e a porcentagem e o valor por dia se atualizam sozinhos.
+        Quando terminar, clique em Salvar — a equipe recebe o plano com os seus números.</span></span>
+      </div>` : ''}
+
+      ${(MG_PM.canais||[]).map((c,ci)=>{
+        const cor = MG_PM_CORES[ci % MG_PM_CORES.length];
+        const sub = mgPMTotalCanal(c);
+        return `<div class="mg-pm-canal" style="animation-delay:${(0.05+ci*0.05).toFixed(2)}s">
+          <div class="ch">
+            <span class="pt" style="background:${cor}"></span>
+            ${admin
+              ? `<input class="nmc" value="${esc(c.nome||'')}" onchange="mgPMCampo(${ci},null,'nome',this.value)">`
+              : `<span class="nm">${esc(c.nome||'')}</span>`}
+            <span class="vl" data-canaltot="${ci}">${mgPMDinheiro(sub,moeda)}</span>
+            ${admin?`<button class="mg-pm-x" title="Remover canal" onclick="mgPMDelCanal(${ci})">✕</button>`:''}
+          </div>
+          <table class="mg-pm-tab">
+            <thead><tr>
+              <th>Campanha</th>
+              <th class="num">Investimento no mês</th>
+              <th class="num">% do canal</th>
+              <th class="num">Por dia</th>
+              <th>Situação</th>
+              ${admin?'<th></th>':''}
+            </tr></thead>
+            <tbody>
+              ${(c.campanhas||[]).map((k,ki)=>{
+                const v = Number(k.mensal)||0;
+                const pct = sub ? (v/sub*100).toFixed(1).replace('.',',')+'%' : '—';
+                const cls = /pausa/i.test(k.status||'') ? 'pausada' : (/teste|sugest/i.test(k.status||'') ? 'teste' : '');
+                return `<tr>
+                  <td data-rot="Campanha">
+                    ${admin
+                      ? `<input class="mg-pm-val" style="width:100%;text-align:left;font-weight:600" value="${esc(k.nome||'')}"
+                           onchange="mgPMCampo(${ci},${ki},'nome',this.value)">
+                         <input class="mg-pm-val" style="width:100%;text-align:left;font-weight:400;font-size:12px;margin-top:5px"
+                           value="${esc(k.objetivo||'')}" placeholder="Funil / objetivo"
+                           onchange="mgPMCampo(${ci},${ki},'objetivo',this.value)">`
+                      : `<div class="camp">${esc(k.nome||'')}</div>
+                         ${k.objetivo?`<div class="obj">${esc(k.objetivo)}</div>`:''}`}
+                  </td>
+                  <td class="num" data-rot="Investimento">
+                    <input class="mg-pm-val" type="text" inputmode="decimal" value="${v}"
+                      aria-label="Investimento mensal de ${esc(k.nome||'')}"
+                      oninput="mgPMMudou(${ci},${ki},this.value)">
+                  </td>
+                  <td class="num mg-pm-pct" data-rot="% do canal"><span data-pct="${ci}-${ki}">${pct}</span></td>
+                  <td class="num mg-pm-dia" data-rot="Por dia"><span data-dia="${ci}-${ki}">${mgPMDinheiro(v/dias,moeda)}</span></td>
+                  <td data-rot="Situação">
+                    ${admin
+                      ? `<select class="mg-pm-sel" style="padding:6px 9px;font-size:12px" onchange="mgPMCampo(${ci},${ki},'status',this.value)">
+                          ${['Ativa','Pausada','Em teste'].map(s=>`<option ${((k.status||'Ativa')===s)?'selected':''}>${s}</option>`).join('')}
+                         </select>`
+                      : `<span class="mg-pm-st ${cls}">${esc(k.status||'Ativa')}</span>`}
+                  </td>
+                  ${admin?`<td><button class="mg-pm-x" title="Remover campanha" onclick="mgPMDelCampanha(${ci},${ki})">✕</button></td>`:''}
+                </tr>`;
+              }).join('')}
+              <tr class="mg-pm-sub">
+                <td data-rot="Subtotal">Subtotal ${esc(c.nome||'')}</td>
+                <td class="num" data-rot="No mês"><span data-sub="${ci}">${mgPMDinheiro(sub,moeda)}</span></td>
+                <td class="num">${sub&&total?(sub/total*100).toFixed(1).replace('.',',')+'% do plano':''}</td>
+                <td class="num" data-rot="Por dia"><span data-subdia="${ci}">${mgPMDinheiro(sub/dias,moeda)}</span></td>
+                <td></td>${admin?'<td></td>':''}
+              </tr>
+            </tbody>
+          </table>
+          ${admin?`<div style="padding:12px 14px"><button class="mg-pm-add" onclick="mgPMAddCampanha(${ci})">+ Adicionar campanha</button></div>`:''}
+        </div>`;
+      }).join('')}
+
+      ${admin?`<div style="margin-top:16px"><button class="mg-pm-add" onclick="mgPMAddCanal()">+ Adicionar canal</button></div>`:''}
+
+      <div class="mg-pm-acoes">
+        <button class="mg-pm-salvar" id="mg-pm-salvar" onclick="mgPMSalvar()">Salvar plano</button>
+        <span class="mg-pm-aviso" id="mg-pm-aviso">${MG_PM_SUJO?'Há alterações não salvas.':''}</span>
+      </div>
+    </div>`;
+}
+function mgPMTrocarCliente(id){
+  if(MG_PM_SUJO && !confirm('Há alterações não salvas neste plano. Trocar de empresa mesmo assim?')) { mgPMDesenhar(); return }
+  mgPMCarregar(id).then(mgPMDesenhar);
+}
+
+/* ---------- 2.5 encaixe na navegação ---------- */
+(function(){
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-plano')){
+    const d=document.createElement('div'); d.className='view'; d.id='v-plano';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n=>n.v==='plano')){
+    const i = NAV.findIndex(n=>n.v==='settings');
+    NAV.splice(i<0?NAV.length:i, 0, {v:'plano', ic:'◎', label:'Plano de mídia'});
+  }
+})();
+
+/* render e título */
+(function(){
+  const _r = render;
+  render = function(){
+    if(VIEW==='plano') return mgPMDesenhar();
+    return _r();
+  };
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW==='plano'){
+      const t=document.getElementById('view-title');
+      if(t) t.textContent='Plano de mídia';
+    }
+    return r;
+  };
+})();
+
+/* o cliente só enxerga a aba se a empresa dele tiver plano ativado */
+function mgPMAjustarAbasCliente(){
+  if(typeof ABAS_DO_CLIENTE==='undefined') return;
+  const temPlano = ME && ME.client_id && mgPMClienteTemPlano(ME.client_id);
+  const i = ABAS_DO_CLIENTE.indexOf('plano');
+  if(temPlano && i<0) ABAS_DO_CLIENTE.push('plano');
+  if(!temPlano && i>=0) ABAS_DO_CLIENTE.splice(i,1);
+  if(typeof buildNav==='function' && ME) buildNav();
+}
+(function(){
+  const _boot = boot;
+  boot = async function(){
+    const r = await _boot();
+    mgPMAjustarAbasCliente();
+    return r;
+  };
+})();
+/* ao entrar/sair do modo cliente, as abas mudam junto */
+(function(){
+  if(typeof mgEntrarEspelho!=='function') return;
+  const _ent = mgEntrarEspelho, _sai = mgSairEspelho;
+  mgEntrarEspelho = function(id){ const r=_ent(id); mgPMAjustarAbasCliente(); return r };
+  mgSairEspelho  = function(){ MG_PM_CLI=null; MG_PM=null; const r=_sai(); mgPMAjustarAbasCliente(); return r };
+})();
+
+/* descrição do atalho no Início */
+(function(){
+  if(typeof mgAtalhos!=='function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().map(a => a.v==='plano'
+      ? {...a, ds:'Orçamento das campanhas por canal'} : a);
+  };
+})();
+
+/* o dock também serve o plano */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    if(VIEW==='plano' && MG_PM){
+      const moeda = MG_PM.moeda||'BRL';
+      return `<button class="on"><span class="ic">◎</span>Plano de mídia</button>`
+           + `<span class="sep"></span>`
+           + `<button onclick="mgPMSalvar()"><span class="ic">✓</span>Salvar</button>`
+           + `<span class="conta">${mgPMDinheiro(mgPMTotal(MG_PM),moeda)}</span>`;
+    }
+    return _d();
+  };
+})();
+
+/* =====================================================================
+   PARTE 3 — LIGAR O PLANO NA FICHA DA EMPRESA
+   ===================================================================== */
+function mgPMInterruptorHTML(marcado){
+  return `<label class="mg-pm-liga">
+    <input type="checkbox" id="mg-pm-liga" ${marcado?'checked':''}>
+    <span><b>Ativar plano de mídia</b>
+      <span class="d">Só marque para empresas com plano já formalizado. Quando ativado, a empresa
+      passa a ver uma aba onde acompanha e ajusta o orçamento de cada campanha.</span>
+    </span>
+  </label>`;
+}
+
+/* ---- janela de editar cliente ---- */
+(function(){
+  if(typeof abrirEditarCliente!=='function') return;
+  const _ab = abrirEditarCliente;
+  abrirEditarCliente = function(id){
+    const r = _ab(id);
+    const c = (CLIENTS||[]).find(x=>x.id===id);
+    const res = document.getElementById('ec-res');
+    if(res && !document.getElementById('mg-pm-liga')){
+      res.insertAdjacentHTML('beforebegin', mgPMInterruptorHTML(c && c.plano_midia));
+    }else if(document.getElementById('mg-pm-liga')){
+      document.getElementById('mg-pm-liga').checked = !!(c && c.plano_midia);
+    }
+    return r;
+  };
+})();
+(function(){
+  if(typeof salvarCliente!=='function') return;
+  const _sv = salvarCliente;
+  salvarCliente = async function(){
+    const cx = document.getElementById('mg-pm-liga');
+    const querPlano = cx ? cx.checked : null;
+    const id = EC_ID;
+    const r = await _sv();
+    if(querPlano!==null && id){
+      try{
+        const {error} = await sb.from('clients').update({plano_midia:querPlano}).eq('id',id);
+        if(error) throw error;
+        const c=(CLIENTS||[]).find(x=>x.id===id); if(c) c.plano_midia=querPlano;
+        mgPMAjustarAbasCliente();
+      }catch(e){
+        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Rode antes o SQL da ADIÇÃO 34');
+        else console.warn('[plano de mídia]', e);
+      }
+    }
+    return r;
+  };
+})();
+
+/* ---- janela de adicionar cliente ---- */
+(function(){
+  if(typeof abrirNovoCliente!=='function') return;
+  const _ab = abrirNovoCliente;
+  abrirNovoCliente = function(){
+    const r = _ab();
+    const corpo = document.querySelector('#mg-cli .mg-novocli');
+    const marca = document.querySelector('#mg-cli label.op');
+    if(corpo && !document.getElementById('mg-pm-liga')){
+      const html = mgPMInterruptorHTML(false);
+      if(marca) marca.insertAdjacentHTML('beforebegin', html);
+      else corpo.insertAdjacentHTML('beforeend', html);
+    }
+    return r;
+  };
+})();
+(function(){
+  if(typeof criarClienteCompleto!=='function') return;
+  const _cr = criarClienteCompleto;
+  criarClienteCompleto = async function(){
+    const cx   = document.getElementById('mg-pm-liga');
+    const quer = cx ? cx.checked : false;
+    const nome = document.getElementById('nc-nome') ? (document.getElementById('nc-nome').value||'').trim() : '';
+    const r = await _cr();
+    if(quer && nome){
+      try{
+        await loadClients();
+        const c = (CLIENTS||[]).find(x=>x.nome===nome);
+        if(c){
+          const {error} = await sb.from('clients').update({plano_midia:true}).eq('id',c.id);
+          if(error) throw error;
+          c.plano_midia = true;
+          toast('Plano de mídia ativado para '+nome);
+        }
+      }catch(e){
+        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Empresa criada — mas rode o SQL da ADIÇÃO 34 para o plano de mídia');
+        else console.warn('[plano de mídia]', e);
+      }
+    }
+    return r;
+  };
+})();
+</script>
 </body>
 </html>
