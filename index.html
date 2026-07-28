@@ -11450,5 +11450,424 @@ async function mgTestarBanco(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 42 — o plano de mídia ganha duas leituras novas
+   • Resumo visual: fluxograma semana a semana, no espírito do plano
+     tático que as agências mandam em slide
+   • Cronograma: os marcos da operação, do briefing ao encerramento
+   Nada disso precisa de banco: cabe no mesmo JSON do plano.
+   ===================================================================== */
+
+/* ---------- abas ---------- */
+.mg-pm-abas{display:flex;gap:5px;padding:5px;background:var(--card2);border:1px solid var(--line);
+  border-radius:13px;margin:18px 0 6px;width:max-content;max-width:100%;overflow:auto}
+.mg-pm-abas button{background:none;border:0;border-radius:9px;padding:8px 16px;font-family:inherit;
+  font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap;transition:background .18s,color .18s}
+.mg-pm-abas button:hover{color:var(--text)}
+.mg-pm-abas button.on{background:var(--card);color:var(--text);
+  box-shadow:0 2px 8px rgba(0,0,0,.06)}
+
+/* ---------- fluxograma ---------- */
+.mg-fx{overflow-x:auto;padding-bottom:6px}
+.mg-fx-int{min-width:760px}
+.mg-fx-grade{display:grid;align-items:stretch}
+.mg-fx-mes{background:var(--brass);color:var(--ink2);font-weight:700;font-size:11.5px;
+  letter-spacing:.6px;text-transform:uppercase;text-align:center;padding:7px 6px;border-radius:7px;
+  margin:0 2px 4px}
+.mg-fx-sem{background:var(--card2);border:1px solid var(--line2);border-radius:7px;margin:0 2px 8px;
+  padding:6px 4px;text-align:center;line-height:1.3}
+.mg-fx-sem b{display:block;font-size:11px;font-weight:700;letter-spacing:.3px}
+.mg-fx-sem span{font-size:10px;color:var(--muted)}
+.mg-fx-sem.destaque{background:rgba(194,161,91,.16);border-color:var(--brass)}
+
+.mg-fx-faixa{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--muted2);padding:14px 0 7px}
+.mg-fx-linha{display:grid;align-items:center;min-height:34px;margin-bottom:5px}
+.mg-fx-rot{font-size:12px;padding-right:12px;overflow:hidden}
+.mg-fx-rot b{display:block;font-weight:600;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-fx-rot span{font-size:10.5px;color:var(--muted)}
+.mg-fx-barra{border-radius:8px;min-height:28px;display:flex;align-items:center;justify-content:center;
+  gap:7px;padding:5px 11px;font-size:11.5px;font-weight:700;color:#fff;text-align:center;
+  line-height:1.25;overflow:hidden;position:relative;
+  animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-fx-barra .vl{font-weight:600;opacity:.85;font-size:10.5px;white-space:nowrap}
+.mg-fx-barra.vazia{background:var(--card2)!important;border:1px dashed var(--line2);color:var(--muted)}
+.mg-fx-cel{border-left:1px dashed var(--line);height:100%}
+.mg-fx-cel:last-child{border-right:1px dashed var(--line)}
+
+.mg-fx-marca{position:absolute;top:-6px;width:11px;height:11px;border-radius:3px;
+  background:var(--card);border:2px solid var(--brass2);transform:rotate(45deg)}
+.mg-fx-criativo{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);
+  background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:2px 8px;margin:2px 3px 0 0}
+.mg-fx-criativo .dt{font-weight:700;color:var(--brass2)}
+
+.mg-fx-total{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--muted);
+  padding-left:10px;white-space:nowrap}
+.mg-fx-total b{color:var(--text);font-size:12.5px}
+.mg-fx-vazio{font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:13px;padding:26px;text-align:center;margin-top:16px;line-height:1.6}
+
+.mg-fx-datas{display:flex;gap:5px;margin-top:4px}
+.mg-fx-datas input{background:var(--card2);border:1px solid var(--line2);border-radius:7px;
+  padding:3px 6px;font-family:inherit;font-size:10.5px;color:var(--text);width:112px}
+.mg-fx-datas input:focus{outline:none;border-color:var(--brass)}
+
+/* ---------- cronograma ---------- */
+.mg-cr{max-width:720px}
+.mg-cr-linha{position:relative;padding-left:30px}
+.mg-cr-linha::before{content:"";position:absolute;left:8px;top:8px;bottom:22px;width:2px;
+  background:var(--line2);border-radius:2px}
+.mg-cr-i{position:relative;display:flex;align-items:flex-start;gap:13px;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:9px;
+  animation:mgSobe .38s cubic-bezier(.22,1,.36,1) both}
+.mg-cr-i::before{content:"";position:absolute;left:-27px;top:17px;width:12px;height:12px;
+  border-radius:50%;background:var(--card);border:2px solid var(--line2);box-shadow:0 0 0 3px var(--paper)}
+.mg-cr-i.feito::before{background:var(--st-done);border-color:var(--st-done)}
+.mg-cr-i.hoje::before{border-color:var(--brass);box-shadow:0 0 0 3px var(--paper),0 0 0 6px rgba(194,161,91,.22)}
+.mg-cr-i .marca{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line2);
+  display:grid;place-items:center;cursor:pointer;flex-shrink:0;margin-top:1px;
+  font-size:12px;color:transparent;background:var(--card2)}
+.mg-cr-i.feito .marca{background:var(--st-done);border-color:var(--st-done);color:#fff}
+.mg-cr-i .txt{flex:1;min-width:0}
+.mg-cr-i .txt b{font-size:13.5px;font-weight:600;display:block}
+.mg-cr-i.feito .txt b{text-decoration:line-through;opacity:.6}
+.mg-cr-i .txt input{width:100%;background:none;border:0;border-bottom:1px dashed var(--line2);
+  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);padding:2px 0}
+.mg-cr-i .txt input:focus{outline:none;border-color:var(--brass)}
+.mg-cr-i .dt{font-size:12px;color:var(--muted);flex-shrink:0;text-align:right}
+.mg-cr-i .dt input{background:var(--card2);border:1px solid var(--line2);border-radius:7px;
+  padding:5px 8px;font-family:inherit;font-size:11.5px;color:var(--text)}
+.mg-cr-i .atraso{display:block;font-size:10.5px;font-weight:700;color:var(--danger);margin-top:3px}
+.mg-cr-i .x{background:none;border:0;color:var(--muted2);font-size:13px;padding:3px 6px;border-radius:6px}
+.mg-cr-i .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-cr-add{background:var(--card);border:1px dashed var(--line2);border-radius:10px;padding:10px 15px;
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);margin-left:30px}
+.mg-cr-add:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-cr-resumo{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:16px;
+  border-bottom:1px solid var(--line)}
+.mg-cr-resumo .it b{font-family:var(--font-d);font-size:20px;font-weight:600;display:block;line-height:1.15}
+.mg-cr-resumo .it span{font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--muted2);font-weight:700}
+
+@media(max-width:640px){
+  .mg-fx-int{min-width:660px}
+  .mg-cr-i .dt input{width:118px}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 42 — resumo visual e cronograma
+   ===================================================================== */
+let MG_PM_ABA = 'tatico';
+
+function mgPMVerAba(a){ MG_PM_ABA = a; mgPMDesenhar(); mgDock(); }
+
+/* ---------------------------------------------------------------------
+   Período do plano. O plano nasceu mensal, mas um fluxograma costuma
+   atravessar meses (o exemplo vai de setembro a novembro). Quando não há
+   período definido, assumimos o mês do plano.
+   --------------------------------------------------------------------- */
+function mgPMPeriodo(){
+  if(!MG_PM) return null;
+  if(MG_PM.periodo && MG_PM.periodo.inicio && MG_PM.periodo.fim) return MG_PM.periodo;
+  const mes = MG_PM.mes || mgPMMesAtual();
+  const [a,m] = mes.split('-').map(Number);
+  return {inicio: `${mes}-01`, fim: `${mes}-${String(new Date(a,m,0).getDate()).padStart(2,'0')}`};
+}
+function mgPMSetPeriodo(campo, valor){
+  if(!MG_PM.periodo) MG_PM.periodo = mgPMPeriodo();
+  MG_PM.periodo[campo] = valor;
+  MG_PM_SUJO = true; mgPMDesenhar();
+}
+function mgSegunda(d){
+  const x = new Date(d + 'T12:00:00');
+  const dia = (x.getDay() + 6) % 7;      /* segunda = 0 */
+  x.setDate(x.getDate() - dia);
+  return x;
+}
+function mgISO(d){ return d.toISOString().slice(0,10) }
+
+/* lista de semanas do período, no formato do fluxograma */
+function mgPMSemanas(){
+  const p = mgPMPeriodo(); if(!p) return [];
+  const ini = mgSegunda(p.inicio);
+  const fim = new Date(p.fim + 'T12:00:00');
+  const semanas = [];
+  let cur = new Date(ini), guarda = 0;
+  while(cur <= fim && guarda++ < 60){
+    const sex = new Date(cur); sex.setDate(sex.getDate() + 4);
+    semanas.push({
+      inicio: mgISO(cur), fim: mgISO(sex),
+      mes: cur.toLocaleDateString('pt-BR',{month:'long'}),
+      ano: cur.getFullYear(),
+      rot: cur.getDate() + ' a ' + sex.getDate(),
+    });
+    cur = new Date(cur); cur.setDate(cur.getDate() + 7);
+  }
+  /* numera as semanas dentro de cada mês, como W1, W2… */
+  const contagem = {};
+  semanas.forEach(s=>{
+    const chave = s.mes + s.ano;
+    contagem[chave] = (contagem[chave] || 0) + 1;
+    s.w = 'W' + contagem[chave];
+  });
+  return semanas;
+}
+/* em quais colunas a campanha entra */
+function mgPMFaixa(camp, semanas){
+  const p = mgPMPeriodo();
+  const ini = camp.inicio || p.inicio;
+  const fim = camp.fim    || p.fim;
+  let a = semanas.findIndex(s=>s.fim >= ini);
+  let b = semanas.findIndex(s=>s.inicio > fim);
+  if(a < 0) a = 0;
+  b = (b < 0) ? semanas.length : b;
+  if(b <= a) b = a + 1;
+  return {de: a + 1, ate: b + 1};      /* 1-based para o grid */
+}
+
+/* =====================================================================
+   RESUMO VISUAL
+   ===================================================================== */
+function mgPMDesenharVisual(){
+  const el = document.getElementById('v-plano'); if(!el || !MG_PM) return;
+  const admin  = isAdmin();
+  const moeda  = MG_PM.moeda || 'BRL';
+  const semanas = mgPMSemanas();
+  const p = mgPMPeriodo();
+  const hoje = new Date().toISOString().slice(0,10);
+
+  if(!semanas.length){
+    el.innerHTML = mgPMCabecalho() + `<div class="mg-fx-vazio">Defina o período do plano para montar o fluxograma.</div>`;
+    return;
+  }
+
+  /* cabeçalho: meses agrupando as semanas que pertencem a eles */
+  const meses = [];
+  semanas.forEach((s,i)=>{
+    const ult = meses[meses.length-1];
+    if(ult && ult.nome===s.mes && ult.ano===s.ano) ult.qtd++;
+    else meses.push({nome:s.mes, ano:s.ano, qtd:1, de:i});
+  });
+
+  const colunas = `220px repeat(${semanas.length}, minmax(74px,1fr)) 150px`;
+
+  el.innerHTML = mgPMCabecalho() + `
+    <div class="mg-fx"><div class="mg-fx-int">
+
+      <div class="mg-fx-grade" style="grid-template-columns:${colunas}">
+        <div></div>
+        ${meses.map(m=>`<div class="mg-fx-mes" style="grid-column:span ${m.qtd}">${esc(m.nome)}</div>`).join('')}
+        <div></div>
+        <div></div>
+        ${semanas.map(s=>`<div class="mg-fx-sem ${(hoje>=s.inicio&&hoje<=s.fim)?'destaque':''}">
+            <b>${s.w}</b><span>${esc(s.rot)}</span></div>`).join('')}
+        <div></div>
+      </div>
+
+      ${(MG_PM.canais||[]).map((c,ci)=>{
+        const cor = MG_PM_CORES[ci % MG_PM_CORES.length];
+        const sub = mgPMTotalCanal(c);
+        return `<div class="mg-fx-faixa">${esc(c.nome||'')} · ${mgPMDinheiro(sub,moeda)}</div>
+        ${(c.campanhas||[]).map((k,ki)=>{
+          const f = mgPMFaixa(k, semanas);
+          const pausada = /pausa/i.test(k.status||'');
+          return `<div class="mg-fx-linha" style="grid-template-columns:${colunas}">
+            <div class="mg-fx-rot">
+              <b title="${esc(k.nome||'')}">${esc(k.nome||'')}</b>
+              <span>${esc(k.objetivo||'')}</span>
+              ${admin?`<span class="mg-fx-datas">
+                <input type="date" value="${esc(k.inicio||p.inicio)}" title="Início"
+                  onchange="mgPMCampoData(${ci},${ki},'inicio',this.value)">
+                <input type="date" value="${esc(k.fim||p.fim)}" title="Fim"
+                  onchange="mgPMCampoData(${ci},${ki},'fim',this.value)">
+              </span>`:''}
+            </div>
+            ${semanas.map((s,i)=>{
+              /* coluna 1 é o rótulo, então a semana i mora na coluna i+2 */
+              const col = i + 2;
+              if(i+1 === f.de) return `<div class="mg-fx-barra ${pausada?'vazia':''}"
+                  style="grid-column:${f.de+1} / ${f.ate+1};background:${pausada?'':cor}">
+                  <span>${esc(k.nome||'')}</span>
+                  <span class="vl">${mgPMDinheiro(k.mensal,moeda)}</span></div>`;
+              const dentro = (i+1) > f.de && (i+1) < f.ate;
+              return dentro ? '' : `<div class="mg-fx-cel" style="grid-column:${col}"></div>`;
+            }).join('')}
+            <div class="mg-fx-total">${(k.criativos||[]).length
+              ? (k.criativos||[]).map(cr=>`<span class="mg-fx-criativo">
+                   <span class="dt">${esc(mgPMDiaCurto(cr.data))}</span>${esc(cr.nome||'criativo')}</span>`).join('')
+              : ''}</div>
+          </div>`;
+        }).join('')}`;
+      }).join('')}
+
+    </div></div>
+
+    ${admin?`<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:18px">
+      <span style="font-size:12px;color:var(--muted)">Período do fluxograma</span>
+      <input class="mg-pm-sel" type="date" value="${esc(p.inicio)}" onchange="mgPMSetPeriodo('inicio',this.value)">
+      <span style="color:var(--muted)">até</span>
+      <input class="mg-pm-sel" type="date" value="${esc(p.fim)}" onchange="mgPMSetPeriodo('fim',this.value)">
+    </div>`:''}
+
+    <div class="mg-pm-acoes">
+      <button class="mg-pm-salvar" id="mg-pm-salvar" onclick="mgPMSalvar()">Salvar plano</button>
+      <span class="mg-pm-aviso" id="mg-pm-aviso">${MG_PM_SUJO?'Há alterações não salvas.':''}</span>
+    </div>`;
+}
+function mgPMDiaCurto(d){
+  if(!d) return '';
+  const x = new Date(d+'T12:00:00');
+  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0');
+}
+function mgPMCampoData(ci,ki,campo,valor){
+  MG_PM.canais[ci].campanhas[ki][campo] = valor;
+  MG_PM_SUJO = true;
+  mgPMDesenharVisual();
+}
+
+/* =====================================================================
+   CRONOGRAMA
+   ===================================================================== */
+const MG_CR_MODELO = [
+  {nome:'Briefing recebido',      data:'', feito:false},
+  {nome:'Aprovação do plano',     data:'', feito:false},
+  {nome:'Envio dos criativos',    data:'', feito:false},
+  {nome:'Aprovação de textos',    data:'', feito:false},
+  {nome:'Subida das campanhas',   data:'', feito:false},
+  {nome:'Encerramento',           data:'', feito:false},
+];
+function mgCRMarcos(){
+  if(!MG_PM) return [];
+  if(!MG_PM.marcos) MG_PM.marcos = JSON.parse(JSON.stringify(MG_CR_MODELO));
+  return MG_PM.marcos;
+}
+function mgCRAlternar(i){
+  const m = mgCRMarcos(); if(!m[i]) return;
+  m[i].feito = !m[i].feito; MG_PM_SUJO = true; mgPMDesenharCronograma();
+}
+function mgCRCampo(i,campo,valor){
+  const m = mgCRMarcos(); if(!m[i]) return;
+  m[i][campo] = valor; MG_PM_SUJO = true;
+  if(campo==='data') mgPMDesenharCronograma();
+  else { const av=document.getElementById('mg-pm-aviso'); if(av) av.textContent='Há alterações não salvas.' }
+}
+function mgCRAdd(){
+  mgCRMarcos().push({nome:'Nova etapa', data:'', feito:false});
+  MG_PM_SUJO = true; mgPMDesenharCronograma();
+}
+function mgCRRemover(i){
+  mgCRMarcos().splice(i,1); MG_PM_SUJO = true; mgPMDesenharCronograma();
+}
+
+function mgPMDesenharCronograma(){
+  const el = document.getElementById('v-plano'); if(!el || !MG_PM) return;
+  const admin = isAdmin();
+  const marcos = mgCRMarcos();
+  const hoje = new Date().toISOString().slice(0,10);
+  const feitos = marcos.filter(m=>m.feito).length;
+  const atrasados = marcos.filter(m=>!m.feito && m.data && m.data < hoje).length;
+  const proximo = marcos.filter(m=>!m.feito && m.data && m.data >= hoje)
+                        .sort((a,b)=>a.data.localeCompare(b.data))[0];
+
+  el.innerHTML = mgPMCabecalho() + `
+    <div class="mg-cr">
+      <div class="mg-cr-resumo">
+        <span class="it"><b>${feitos}/${marcos.length}</b><span>Concluídas</span></span>
+        <span class="it"><b style="${atrasados?'color:var(--danger)':''}">${atrasados}</b><span>Em atraso</span></span>
+        <span class="it"><b>${proximo?mgPMDiaCurto(proximo.data):'—'}</b><span>Próxima etapa</span></span>
+      </div>
+
+      <div class="mg-cr-linha">
+        ${marcos.map((m,i)=>{
+          const atrasado = !m.feito && m.data && m.data < hoje;
+          const eHoje = m.data === hoje;
+          return `<div class="mg-cr-i ${m.feito?'feito':''} ${eHoje?'hoje':''}"
+                      style="animation-delay:${(i*0.04).toFixed(2)}s">
+            <span class="marca" onclick="mgCRAlternar(${i})" title="Marcar como concluída">✓</span>
+            <span class="txt">
+              ${admin
+                ? `<input value="${esc(m.nome||'')}" onchange="mgCRCampo(${i},'nome',this.value)">`
+                : `<b>${esc(m.nome||'')}</b>`}
+              ${atrasado?`<span class="atraso">Passou do prazo</span>`:''}
+            </span>
+            <span class="dt">
+              ${admin
+                ? `<input type="date" value="${esc(m.data||'')}" onchange="mgCRCampo(${i},'data',this.value)">`
+                : (m.data ? new Date(m.data+'T12:00:00').toLocaleDateString('pt-BR') : '—')}
+            </span>
+            ${admin?`<button class="x" title="Remover etapa" onclick="mgCRRemover(${i})">✕</button>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+      ${admin?`<button class="mg-cr-add" onclick="mgCRAdd()">+ Adicionar etapa</button>`:''}
+
+      <div class="mg-pm-acoes">
+        <button class="mg-pm-salvar" id="mg-pm-salvar" onclick="mgPMSalvar()">Salvar plano</button>
+        <span class="mg-pm-aviso" id="mg-pm-aviso">${MG_PM_SUJO?'Há alterações não salvas.':''}</span>
+      </div>
+    </div>`;
+}
+
+/* =====================================================================
+   CABEÇALHO COMUM E TROCA DE ABAS
+   ===================================================================== */
+function mgPMCabecalho(){
+  const moeda = MG_PM.moeda || 'BRL';
+  const total = mgPMTotal(MG_PM);
+  const abas = [['tatico','Tático'],['visual','Resumo visual'],['cronograma','Cronograma']];
+  return `
+    <div class="mg-pm-cab">
+      <div>
+        <div class="tit">Plano de mídia</div>
+        <div class="sub">${esc(clientName(MG_PM_CLI))} · ${esc(mgPMMesPorExtenso(MG_PM.mes))}</div>
+      </div>
+      <div class="mg-pm-total"><b>${mgPMDinheiro(total,moeda)}</b><span>Investimento do mês</span></div>
+    </div>
+    <div class="mg-pm-abas">
+      ${abas.map(([v,l])=>`<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">${l}</button>`).join('')}
+    </div>`;
+}
+
+/* liga as abas novas ao módulo que já existia */
+(function(){
+  const _des = mgPMDesenhar;
+  mgPMDesenhar = function(){
+    if(MG_PM_ABA==='tatico' || !MG_PM){
+      const r = _des();
+      /* injeta as abas no topo do tático, sem refazer a tela */
+      const el = document.getElementById('v-plano');
+      const cab = el && el.querySelector('.mg-pm-cab');
+      if(cab && !el.querySelector('.mg-pm-abas')){
+        const abas = [['tatico','Tático'],['visual','Resumo visual'],['cronograma','Cronograma']];
+        cab.insertAdjacentHTML('afterend',
+          `<div class="mg-pm-abas">${abas.map(([v,l])=>
+            `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">${l}</button>`).join('')}</div>`);
+      }
+      return r;
+    }
+    if(MG_PM_ABA==='visual')     return mgPMDesenharVisual();
+    if(MG_PM_ABA==='cronograma') return mgPMDesenharCronograma();
+    return _des();
+  };
+})();
+
+/* barra de baixo acompanha a aba */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW!=='plano' || !MG_PM) return base;
+    const abas = [['tatico','▤','Tático'],['visual','▦','Resumo'],['cronograma','◷','Cronograma']];
+    const btns = abas.map(([v,ic,l])=>
+      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">
+         <span class="ic">${ic}</span><span class="rot">${l}</span></button>`).join('');
+    return base.replace(/<button class="on"><span class="ic">◎<\/span>Plano de mídia<\/button>/, btns);
+  };
+})();
+</script>
 </body>
 </html>
