@@ -11869,5 +11869,181 @@ function mgPMCabecalho(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 43 — o plano de mídia passa a abrir no formato novo
+   O fluxograma vira a leitura principal; a tabela continua a um clique,
+   porque é nela que o cliente ajusta o orçamento.
+   ===================================================================== */
+.mg-pm-abas button.principal.on{background:var(--brass);color:var(--ink2)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 43
+   ===================================================================== */
+
+/* o plano abre no resumo visual */
+MG_PM_ABA = 'visual';
+
+/* nova ordem: o fluxograma primeiro */
+const MG_PM_ABAS = [
+  ['visual',     'Resumo visual', '▦', true ],
+  ['tatico',     'Tático',        '▤', false],
+  ['cronograma', 'Cronograma',    '◷', false],
+];
+function mgPMAbasHTML(){
+  return MG_PM_ABAS.map(([v,l,,principal])=>
+    `<button class="${principal?'principal ':''}${MG_PM_ABA===v?'on':''}"
+       onclick="mgPMVerAba('${v}')">${l}</button>`).join('');
+}
+
+/* usa a ordem nova em todas as três telas, inclusive na tabela tática,
+   onde as abas são injetadas depois que o desenho antigo termina */
+(function(){
+  const _cab = mgPMCabecalho;
+  mgPMCabecalho = function(){
+    let html = _cab();
+    html = html.replace(/<div class="mg-pm-abas">[\s\S]*?<\/div>/,
+      `<div class="mg-pm-abas">${mgPMAbasHTML()}</div>`);
+    /* o total precisa do mesmo identificador em todas as abas: é ele que
+       o recálculo ao vivo procura quando você digita um orçamento */
+    html = html.replace('<div class="mg-pm-total"><b>', '<div class="mg-pm-total"><b id="mg-pm-geral">');
+    return html;
+  };
+  const _des = mgPMDesenhar;
+  mgPMDesenhar = function(){
+    const r = _des();
+    const abas = document.querySelector('#v-plano .mg-pm-abas');
+    if(abas) abas.innerHTML = mgPMAbasHTML();
+    return r;
+  };
+})();
+
+/* O cliente abre no fluxograma, mas o que ele faz aqui é ajustar
+   orçamento. Em vez de deixar isso escondido atrás de uma aba, o resumo
+   visual mostra o caminho. */
+(function(){
+  if(typeof mgPMDesenharVisual!=='function') return;
+  const _vis = mgPMDesenharVisual;
+  mgPMDesenharVisual = function(){
+    const r = _vis();
+    if(isAdmin()) return r;
+    const el = document.getElementById('v-plano');
+    const abas = el && el.querySelector('.mg-pm-abas');
+    if(abas && !el.querySelector('.mg-pm-chamada')){
+      abas.insertAdjacentHTML('afterend', `
+        <div class="mg-pm-liga mg-pm-chamada" style="margin-top:14px">
+          <span style="font-size:15px">✎</span>
+          <span><b>Quer ajustar o investimento?</b>
+            <span class="d">Os valores de cada campanha ficam na aba Tático — lá você edita
+            e a porcentagem e o valor por dia se atualizam sozinhos.</span>
+          </span>
+          <button class="btn-p" style="margin-left:auto;align-self:center;white-space:nowrap"
+                  onclick="mgPMVerAba('tatico')">Abrir Tático</button>
+        </div>`);
+    }
+    return r;
+  };
+})();
+
+/* barra de baixo na mesma ordem */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW!=='plano' || !MG_PM) return base;
+    const novos = MG_PM_ABAS.map(([v,l,ic])=>
+      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">
+         <span class="ic">${ic}</span><span class="rot">${l}</span></button>`).join('');
+    /* troca o conjunto de abas que a adição anterior tinha montado */
+    return base.replace(/<button class="(?:on)?"><span class="ic">▤<\/span><span class="rot">Tático<\/span><\/button>[\s\S]*?<span class="rot">Cronograma<\/span><\/button>/, novos);
+  };
+})();
+
+/* =====================================================================
+   O MODELO DE UM PLANO NOVO
+   Quando uma empresa ainda não tem plano, a plataforma monta um esqueleto.
+   Ele agora nasce no formato atual: com período, datas por campanha e o
+   cronograma da operação já esboçado — em vez de duas linhas soltas.
+   ===================================================================== */
+(function(){
+  if(typeof MG_PM_MODELO!=='object' || !MG_PM_MODELO) return;
+
+  MG_PM_MODELO.canais = [
+    {nome:'Google Ads', campanhas:[
+      {nome:'PMax | Curva A',        objetivo:'BOF · Performance Max', mensal:0, status:'Ativa', criativos:[]},
+      {nome:'Search | Marca',        objetivo:'BOF · Search Marca',    mensal:0, status:'Ativa', criativos:[]},
+      {nome:'Demand Gen | Topo',     objetivo:'TOPO · Demand Gen',     mensal:0, status:'Ativa', criativos:[]},
+    ]},
+    {nome:'Meta Ads', campanhas:[
+      {nome:'Prospecção',            objetivo:'TOPO · Conversão',      mensal:0, status:'Ativa', criativos:[]},
+      {nome:'Remarketing',           objetivo:'BOF · Conversão',       mensal:0, status:'Ativa', criativos:[]},
+    ]},
+  ];
+  MG_PM_MODELO.marcos = [
+    {nome:'Briefing recebido',    data:'', feito:false},
+    {nome:'Aprovação do plano',   data:'', feito:false},
+    {nome:'Envio dos criativos',  data:'', feito:false},
+    {nome:'Aprovação de textos',  data:'', feito:false},
+    {nome:'Subida das campanhas', data:'', feito:false},
+    {nome:'Encerramento',         data:'', feito:false},
+  ];
+})();
+
+/* preenche período e datas na hora de criar o plano, com base no mês */
+(function(){
+  if(typeof mgPMCarregar!=='function') return;
+  const _car = mgPMCarregar;
+  mgPMCarregar = async function(clientId){
+    const r = await _car(clientId);
+    if(!MG_PM || !MG_PM.novo) return r;
+
+    const mes = MG_PM.mes || mgPMMesAtual();
+    const [a,m] = mes.split('-').map(Number);
+    const ultimo = new Date(a, m, 0).getDate();
+    const ini = `${mes}-01`;
+    const fim = `${mes}-${String(ultimo).padStart(2,'0')}`;
+
+    if(!MG_PM.periodo) MG_PM.periodo = {inicio: ini, fim: fim};
+    (MG_PM.canais||[]).forEach(c=>(c.campanhas||[]).forEach(k=>{
+      if(!k.inicio) k.inicio = ini;
+      if(!k.fim)    k.fim    = fim;
+      if(!k.criativos) k.criativos = [];
+    }));
+    /* datas sugeridas para as etapas: nada é imposto, só um ponto de partida */
+    const dia = n => {
+      const d = new Date(a, m-1, Math.min(Math.max(n,1), ultimo));
+      return d.toISOString().slice(0,10);
+    };
+    const sugestao = {'Briefing recebido':1,'Aprovação do plano':3,'Envio dos criativos':5,
+                      'Aprovação de textos':7,'Subida das campanhas':ultimo>=10?10:ultimo,
+                      'Encerramento':ultimo};
+    (MG_PM.marcos||[]).forEach(x=>{ if(!x.data && sugestao[x.nome]) x.data = dia(sugestao[x.nome]) });
+    return r;
+  };
+})();
+
+/* planos que já existem ganham os campos novos ao serem abertos, sem
+   precisar refazer nada à mão */
+(function(){
+  if(typeof mgPMDesenhar!=='function') return;
+  const _des = mgPMDesenhar;
+  mgPMDesenhar = function(){
+    if(MG_PM && !MG_PM.novo){
+      let mexeu = false;
+      if(!MG_PM.periodo){ MG_PM.periodo = mgPMPeriodo(); mexeu = true }
+      if(!MG_PM.marcos){  MG_PM.marcos = JSON.parse(JSON.stringify(MG_PM_MODELO.marcos)); mexeu = true }
+      (MG_PM.canais||[]).forEach(c=>(c.campanhas||[]).forEach(k=>{
+        if(!k.criativos){ k.criativos = []; mexeu = true }
+      }));
+      /* não marcamos como alteração pendente: são só campos vazios que
+         passam a existir, e só viram gravação quando você salvar de fato */
+      if(mexeu && typeof console!=='undefined') { /* silencioso de propósito */ }
+    }
+    return _des();
+  };
+})();
+</script>
 </body>
 </html>
