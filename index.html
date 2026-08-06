@@ -12202,11 +12202,11 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 47;
-const MG_VERSAO_DATA = '2026-07-28';
+const MG_VERSAO = 49;
+const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
-console.log('%cModesto Portal', 'font-weight:700',
+console.log('%cMGP Tasks', 'font-weight:700',
             '— versão ' + MG_VERSAO + ' (' + MG_VERSAO_DATA + ')');
 
 /* e fica disponível para conferir a qualquer momento */
@@ -12623,6 +12623,886 @@ mgFDesenhar = function(){
   };
 })();
 setTimeout(mgFDesenhar, 1400);
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 48
+   1) anexar arquivos à demanda
+   2) seção Projetos — demanda dentro de demanda
+   3) demanda urgente, em vermelho, visível para todo mundo
+   ===================================================================== */
+
+/* ---------- 1. anexos ---------- */
+.mg-anx{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.mg-anx-i{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;font-size:12.5px}
+.mg-anx-i:hover{border-color:var(--line2)}
+.mg-anx-i .ic{font-size:15px;flex-shrink:0;opacity:.75}
+.mg-anx-i .txt{flex:1;min-width:0}
+.mg-anx-i .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.mg-anx-i .sb{font-size:11px;color:var(--muted);margin-top:2px}
+.mg-anx-i button{background:none;border:0;font-size:12px;font-family:inherit;font-weight:600;
+  color:var(--brass2);padding:4px 8px;border-radius:7px;flex-shrink:0}
+.mg-anx-i button:hover{background:rgba(194,161,91,.12)}
+.mg-anx-i button.x{color:var(--muted2)}
+.mg-anx-i button.x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-anx-add{display:flex;align-items:center;gap:9px;background:var(--card2);
+  border:1px dashed var(--line2);border-radius:10px;padding:10px 13px;font-family:inherit;
+  font-size:12.5px;font-weight:600;color:var(--muted);width:100%}
+.mg-anx-add:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-anx-add:disabled{opacity:.55}
+.card-t .mg-clipe{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:3px}
+
+/* ---------- 2. projetos ---------- */
+.mg-pj{max-width:1080px;margin:0 auto}
+.mg-pj-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mg-pj-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
+.mg-pj-cab .sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mg-pj-card{background:var(--card);border:1px solid var(--line);border-radius:15px;margin-top:16px;
+  overflow:hidden;animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-pj-card.mg-alvo{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.18)}
+.mg-pj-h{display:flex;align-items:center;gap:11px;padding:14px 18px;background:var(--card2);
+  border-bottom:1px solid var(--line);cursor:pointer}
+.mg-pj-h .seta{font-size:10px;color:var(--muted2);transition:transform .2s;width:11px;flex-shrink:0}
+.mg-pj-card.aberto .mg-pj-h .seta{transform:rotate(90deg)}
+.mg-pj-h .nm{font-weight:700;font-size:14px;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-pj-h .qt{font-size:11px;font-weight:700;color:var(--muted2);
+  background:rgba(26,26,24,.06);border-radius:999px;padding:2px 9px;flex-shrink:0}
+.mg-pj-barra{width:120px;height:6px;border-radius:4px;background:var(--line);overflow:hidden;flex-shrink:0}
+.mg-pj-barra span{display:block;height:100%;background:var(--st-done);border-radius:4px;
+  transition:width .45s cubic-bezier(.22,1,.36,1)}
+.mg-pj-filhos{display:none;padding:6px}
+.mg-pj-card.aberto .mg-pj-filhos{display:block}
+.mg-pj-f{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:10px;
+  font-size:13px;cursor:pointer}
+.mg-pj-f:hover{background:var(--card2)}
+.mg-pj-f .pt{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mg-pj-f .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-pj-f .st{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap}
+.mg-pj-f .x{background:none;border:0;color:var(--muted2);font-size:12px;padding:3px 7px;border-radius:6px}
+.mg-pj-f .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-pj-soltas{margin-top:26px}
+.mg-pj-solta{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:10px 13px;margin-bottom:7px;font-size:13px;cursor:grab}
+.mg-pj-solta:active{cursor:grabbing}
+.mg-pj-solta.dragging{opacity:.4}
+.mg-pj-nada{font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);
+  border-radius:13px;padding:30px 24px;text-align:center;margin-top:18px;line-height:1.65}
+.mg-pj-sel{background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:8px 11px;
+  font-family:inherit;font-size:12.5px;color:var(--text);width:100%}
+
+/* ---------- 3. urgente ---------- */
+#v-board .card-t.mg-urg,
+#v-list .card-t.mg-urg{border-left:4px solid var(--danger)!important;
+  background:linear-gradient(90deg, rgba(184,74,62,.09), transparent 42%)}
+#v-board .col[data-status="Feito"] .card-t.mg-urg{opacity:.75}
+.mg-urg-selo{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;
+  letter-spacing:.7px;text-transform:uppercase;background:var(--danger);color:#fff;
+  border-radius:999px;padding:2px 8px;margin-right:6px;vertical-align:middle}
+.mg-urg-selo .p{width:5px;height:5px;border-radius:50%;background:#fff;animation:mgUrgPisca 1.4s ease-in-out infinite}
+@keyframes mgUrgPisca{0%,100%{opacity:.35}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){ .mg-urg-selo .p{animation:none;opacity:.8} }
+
+.mg-urg-faixa{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(90deg, rgba(184,74,62,.14), rgba(184,74,62,.05));
+  border:1px solid rgba(184,74,62,.42);border-left:4px solid var(--danger);
+  border-radius:12px;padding:12px 16px;margin-bottom:16px;
+  animation:mgSobe .38s cubic-bezier(.22,1,.36,1) both}
+.mg-urg-faixa .sino{font-size:16px}
+.mg-urg-faixa .tt{font-weight:700;font-size:13px;color:var(--danger)}
+.mg-urg-faixa .lst{display:flex;gap:7px;flex-wrap:wrap;flex:1;min-width:0}
+.mg-urg-faixa .lst button{background:var(--card);border:1px solid rgba(184,74,62,.35);border-radius:8px;
+  padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;color:var(--text);
+  max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-urg-faixa .lst button:hover{border-color:var(--danger);background:rgba(184,74,62,.07)}
+.mg-urg-faixa .x{background:none;border:0;color:var(--muted);font-size:14px;padding:4px 8px;border-radius:7px}
+.mg-urg-faixa .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+
+.mg-urg-chave{display:flex;align-items:flex-start;gap:10px;background:rgba(184,74,62,.06);
+  border:1px solid rgba(184,74,62,.3);border-radius:11px;padding:11px 14px;margin-top:10px;font-size:13px}
+.mg-urg-chave input{width:17px;height:17px;accent-color:var(--danger);margin-top:1px;flex:0 0 auto}
+.mg-urg-chave .d{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 48
+   ===================================================================== */
+
+function mgFalta(e, campo){
+  const m = (e && e.message) || '';
+  return new RegExp('column .*'+campo+'|'+campo+'.* does not exist', 'i').test(m);
+}
+function mgTamanho(b){
+  if(!b) return '';
+  if(b < 1024) return b + ' B';
+  if(b < 1048576) return (b/1024).toFixed(0) + ' KB';
+  return (b/1048576).toFixed(1).replace('.',',') + ' MB';
+}
+
+/* =====================================================================
+   PARTE 1 — ANEXOS NA DEMANDA
+   Os arquivos vão para o mesmo bucket dos documentos, com o id do
+   cliente como pasta raiz — o mesmo padrão que já existe ali. Assim as
+   permissões do Storage valem sem precisar de regra nova.
+   ===================================================================== */
+function mgAnexos(t){ return Array.isArray(t && t.anexos) ? t.anexos : [] }
+
+async function mgAnexar(){
+  const t = TASKS.find(x=>x.id===DETAIL_ID); if(!t) return;
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true;
+  inp.onchange = async e => {
+    const arqs = [...e.target.files]; if(!arqs.length) return;
+    const btn = document.getElementById('mg-anx-add');
+    if(btn){ btn.disabled = true; btn.textContent = 'Enviando…' }
+    const novos = [];
+    try{
+      for(const f of arqs){
+        if(f.size > 25*1024*1024){ toast('“'+f.name+'” passa de 25 MB'); continue }
+        const ext = (f.name.split('.').pop()||'bin').toLowerCase();
+        const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(16).slice(2));
+        const path = `${t.client_id}/tarefas/${id}.${ext}`;
+        const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
+        if(up.error) throw up.error;
+        novos.push({nome:f.name, path, tipo:f.type||'', tamanho:f.size,
+                    por: ME ? ME.name : null, em: new Date().toISOString()});
+      }
+      if(!novos.length) return;
+      const lista = mgAnexos(t).concat(novos);
+      const {error} = await sb.from('tasks').update({anexos:lista}).eq('id', t.id);
+      if(error) throw error;
+      t.anexos = lista;
+      renderDetailBody();
+      toast(novos.length===1 ? 'Arquivo anexado ✓' : novos.length+' arquivos anexados ✓');
+    }catch(err){
+      if(mgFalta(err,'anexos')) toast('Rode antes o SQL da ADIÇÃO 48');
+      else toast('Não foi possível anexar: ' + ((err&&err.message)||''));
+      console.error(err);
+    }finally{
+      const b2 = document.getElementById('mg-anx-add');
+      if(b2){ b2.disabled = false; b2.textContent = '＋ Anexar arquivo' }
+    }
+  };
+  inp.click();
+}
+async function mgAbrirAnexo(path){
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(path, 120);
+    if(error) throw error;
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }catch(e){ toast('Não foi possível abrir o arquivo') }
+}
+async function mgTirarAnexo(i){
+  const t = TASKS.find(x=>x.id===DETAIL_ID); if(!t) return;
+  const lista = mgAnexos(t).slice();
+  const alvo = lista[i]; if(!alvo) return;
+  if(!confirm('Remover “'+alvo.nome+'” desta demanda?')) return;
+  lista.splice(i,1);
+  try{
+    const {error} = await sb.from('tasks').update({anexos:lista}).eq('id', t.id);
+    if(error) throw error;
+    t.anexos = lista;
+    sb.storage.from('documents').remove([alvo.path]).catch(()=>{});
+    renderDetailBody(); toast('Arquivo removido');
+  }catch(e){ toast('Não foi possível remover') }
+}
+function mgIconeArquivo(nome, tipo){
+  const e = (nome||'').split('.').pop().toLowerCase();
+  if(/pdf/.test(e)) return '📕';
+  if(/(png|jpe?g|gif|webp|svg)/.test(e)) return '🖼️';
+  if(/(xlsx?|csv)/.test(e)) return '📊';
+  if(/(docx?|txt|md)/.test(e)) return '📄';
+  if(/(pptx?|key)/.test(e)) return '📽️';
+  if(/(zip|rar|7z)/.test(e)) return '🗜️';
+  return '📎';
+}
+function mgAnexosHTML(t){
+  const lista = mgAnexos(t);
+  return `<div class="sect-t">📎 Arquivos ${lista.length?`<span style="font-size:12px;color:var(--muted);font-weight:400">(${lista.length})</span>`:''}</div>
+    <div class="mg-anx">
+      ${lista.length ? lista.map((a,i)=>`<div class="mg-anx-i">
+          <span class="ic">${mgIconeArquivo(a.nome,a.tipo)}</span>
+          <span class="txt">
+            <span class="nm" title="${esc(a.nome||'')}">${esc(a.nome||'')}</span>
+            <span class="sb">${mgTamanho(a.tamanho)}${a.por?' · '+esc(a.por):''}${a.em?' · '+new Date(a.em).toLocaleDateString('pt-BR'):''}</span>
+          </span>
+          <button onclick="mgAbrirAnexo('${esc(a.path)}')">Abrir</button>
+          ${isAdmin()?`<button class="x" title="Remover" onclick="mgTirarAnexo(${i})">✕</button>`:''}
+        </div>`).join('')
+        : `<div style="color:var(--muted);font-size:13px">Nenhum arquivo ainda.</div>`}
+    </div>
+    ${isAdmin()?`<button class="mg-anx-add" id="mg-anx-add" onclick="mgAnexar()">＋ Anexar arquivo</button>`:''}`;
+}
+
+/* =====================================================================
+   PARTE 2 — PROJETOS
+   Qualquer demanda pode conter outras. A que contém vira projeto; as de
+   dentro continuam demandas normais, aparecendo no quadro como sempre.
+   Serve para separar etapas: revisão, double check, aprovação.
+   ===================================================================== */
+let MG_PJ_ABERTOS = new Set();
+
+function mgFilhos(id){ return (TASKS||[]).filter(t=>t.parent_id===id) }
+function mgProjetos(){
+  const comFilho = new Set((TASKS||[]).map(t=>t.parent_id).filter(Boolean));
+  return (TASKS||[]).filter(t=>comFilho.has(t.id))
+    .sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt'));
+}
+async function mgVincular(idFilho, idPai){
+  const t = (TASKS||[]).find(x=>x.id===idFilho); if(!t) return;
+  if(idPai === idFilho){ toast('Uma demanda não pode conter ela mesma'); return }
+  try{
+    const {error} = await sb.from('tasks').update({parent_id: idPai || null}).eq('id', idFilho);
+    if(error) throw error;
+    t.parent_id = idPai || null;
+    if(idPai) MG_PJ_ABERTOS.add(idPai);
+    if(VIEW==='projetos') mgProjetosDesenhar(); else render();
+    toast(idPai ? 'Demanda agrupada no projeto' : 'Demanda solta do projeto');
+  }catch(e){
+    if(mgFalta(e,'parent_id')) toast('Rode antes o SQL da ADIÇÃO 48');
+    else toast('Não foi possível agrupar');
+  }
+}
+function mgPJAlternar(id){
+  if(MG_PJ_ABERTOS.has(id)) MG_PJ_ABERTOS.delete(id); else MG_PJ_ABERTOS.add(id);
+  const el = document.querySelector('.mg-pj-card[data-id="'+id+'"]');
+  if(el) el.classList.toggle('aberto', MG_PJ_ABERTOS.has(id));
+}
+
+let MG_PJ_DRAG = null;
+function mgProjetosDesenhar(){
+  const el = document.getElementById('v-projetos'); if(!el) return;
+  const projetos = mgProjetos();
+  const soltas = (TASKS||[]).filter(t=>!t.parent_id && !mgFilhos(t.id).length);
+  const admin = isAdmin();
+
+  el.innerHTML = `<div class="mg-pj">
+    <div class="mg-pj-cab">
+      <div>
+        <div class="tit">Projetos</div>
+        <div class="sub">Uma demanda que contém outras vira projeto — útil para separar
+          execução, revisão e double check.</div>
+      </div>
+    </div>
+
+    ${projetos.length ? projetos.map(p=>{
+      const filhos = mgFilhos(p.id);
+      const prontos = filhos.filter(f=>DONE_STATUSES.includes(f.status)).length;
+      const pct = filhos.length ? Math.round(prontos/filhos.length*100) : 0;
+      const aberto = MG_PJ_ABERTOS.has(p.id);
+      return `<div class="mg-pj-card ${aberto?'aberto':''}" data-id="${esc(p.id)}"
+           ondragover="event.preventDefault();this.classList.add('mg-alvo')"
+           ondragleave="this.classList.remove('mg-alvo')"
+           ondrop="mgPJSoltar(event,'${esc(p.id)}')">
+        <div class="mg-pj-h" onclick="mgPJAlternar('${esc(p.id)}')">
+          <span class="seta">▶</span>
+          <span class="nm">${p.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(p.title||'')}</span>
+          <span class="mg-pj-barra"><span style="width:${pct}%"></span></span>
+          <span class="qt">${prontos}/${filhos.length}</span>
+        </div>
+        <div class="mg-pj-filhos">
+          ${filhos.map(f=>`<div class="mg-pj-f" onclick="openDetail('${esc(f.id)}')">
+            <span class="pt" style="background:${colColor(f.status)}"></span>
+            <span class="nm">${f.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(f.title||'')}</span>
+            <span class="st">${esc(f.status||'')}</span>
+            ${admin?`<button class="x" title="Tirar do projeto"
+               onclick="event.stopPropagation();mgVincular('${esc(f.id)}',null)">✕</button>`:''}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('') : `<div class="mg-pj-nada">
+      Nenhum projeto ainda.<br>
+      <span style="font-size:12.5px">Arraste uma demanda de baixo para cima de outra, ou abra uma demanda
+      e escolha em <b>Faz parte de</b> qual projeto ela integra.</span>
+    </div>`}
+
+    ${admin && soltas.length ? `<div class="mg-pj-soltas">
+      <div class="mg-fx-faixa" style="padding-top:0">Demandas fora de projeto — arraste para dentro de um</div>
+      ${soltas.slice(0,40).map(t=>`<div class="mg-pj-solta" draggable="true"
+          ondragstart="mgPJArrastar(event,'${esc(t.id)}')"
+          ondragend="this.classList.remove('dragging')"
+          onclick="openDetail('${esc(t.id)}')">
+        <span class="pt" style="width:9px;height:9px;border-radius:50%;background:${colColor(t.status)}"></span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${t.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(t.title||'')}</span>
+        <span style="font-size:11px;color:var(--muted)">${esc(clientName(t.client_id))}</span>
+      </div>`).join('')}
+      ${soltas.length>40?`<div style="font-size:11.5px;color:var(--muted);padding:6px 4px">
+        e mais ${soltas.length-40} — use a busca para achar uma específica.</div>`:''}
+    </div>` : ''}
+  </div>`;
+}
+function mgPJArrastar(e, id){
+  MG_PJ_DRAG = id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function mgPJSoltar(e, idPai){
+  e.preventDefault();
+  document.querySelectorAll('.mg-pj-card').forEach(c=>c.classList.remove('mg-alvo'));
+  if(!MG_PJ_DRAG) return;
+  const id = MG_PJ_DRAG; MG_PJ_DRAG = null;
+  mgVincular(id, idPai);
+}
+
+/* seletor "Faz parte de" e lista de sub-demandas, dentro do detalhe */
+function mgProjetoHTML(t){
+  const admin = isAdmin();
+  const filhos = mgFilhos(t.id);
+  const candidatos = (TASKS||[]).filter(x=>
+    x.id!==t.id && x.client_id===t.client_id && x.parent_id!==t.id);
+  return `<div class="sect-t">🗂 Projeto</div>
+    ${admin ? `<select class="mg-pj-sel" onchange="mgVincular('${esc(t.id)}',this.value)">
+        <option value="">— não faz parte de nenhum projeto —</option>
+        ${candidatos.map(c=>`<option value="${esc(c.id)}" ${t.parent_id===c.id?'selected':''}>${esc(c.title||'')}</option>`).join('')}
+      </select>`
+      : (t.parent_id ? `<div style="font-size:13px">Faz parte de <b>${esc((TASKS.find(x=>x.id===t.parent_id)||{}).title||'—')}</b></div>`
+                     : `<div style="font-size:13px;color:var(--muted)">Demanda avulsa.</div>`)}
+    ${filhos.length ? `<div style="margin-top:10px">
+      <div class="fl" style="margin-bottom:6px">Contém ${filhos.length} demanda(s)</div>
+      ${filhos.map(f=>`<div class="mg-pj-f" style="padding:8px 10px" onclick="openDetail('${esc(f.id)}')">
+        <span class="pt" style="background:${colColor(f.status)}"></span>
+        <span class="nm">${esc(f.title||'')}</span>
+        <span class="st">${esc(f.status||'')}</span>
+      </div>`).join('')}
+    </div>` : ''}`;
+}
+
+/* =====================================================================
+   PARTE 3 — URGENTE
+   ===================================================================== */
+let MG_URG_ESCONDIDA = false;
+
+function mgUrgentes(){ return (TASKS||[]).filter(t=>t.urgente && !DONE_STATUSES.includes(t.status)) }
+
+async function mgMarcarUrgente(id, valor){
+  const t = (TASKS||[]).find(x=>x.id===id); if(!t) return;
+  t.urgente = !!valor;
+  try{
+    const {error} = await sb.from('tasks').update({urgente: !!valor}).eq('id', id);
+    if(error) throw error;
+    MG_URG_ESCONDIDA = false;
+    render();
+    if(valor){ if(typeof mgSom==='function') mgSom('nova'); toast('🚨 Marcada como urgente — todo mundo vai ver') }
+    else toast('Urgência removida');
+  }catch(e){
+    t.urgente = !valor;
+    if(mgFalta(e,'urgente')) toast('Rode antes o SQL da ADIÇÃO 48');
+    else toast('Não foi possível marcar');
+  }
+}
+function mgUrgFaixa(){
+  const urg = mgUrgentes();
+  const cont = document.querySelector('.content'); if(!cont) return;
+  let faixa = document.getElementById('mg-urg-faixa');
+  if(!urg.length || MG_URG_ESCONDIDA){ if(faixa) faixa.remove(); return }
+  if(!faixa){
+    faixa = document.createElement('div');
+    faixa.className = 'mg-urg-faixa'; faixa.id = 'mg-urg-faixa';
+    cont.insertBefore(faixa, cont.firstChild);
+  }else if(faixa.parentElement !== cont || faixa !== cont.firstChild){
+    cont.insertBefore(faixa, cont.firstChild);
+  }
+  faixa.innerHTML = `<span class="sino">🚨</span>
+    <span class="tt">${urg.length} demanda${urg.length===1?'':'s'} urgente${urg.length===1?'':'s'}</span>
+    <span class="lst">${urg.slice(0,6).map(t=>`<button onclick="openDetail('${esc(t.id)}')"
+      title="${esc(t.title||'')}">${esc(clientName(t.client_id))} · ${esc(t.title||'')}</button>`).join('')}
+      ${urg.length>6?`<span style="font-size:11.5px;color:var(--muted);align-self:center">e mais ${urg.length-6}</span>`:''}</span>
+    <button class="x" title="Ocultar até a próxima" onclick="mgUrgOcultar()">✕</button>`;
+}
+function mgUrgOcultar(){ MG_URG_ESCONDIDA = true; mgUrgFaixa() }
+
+/* aviso e som quando aparece uma urgente nova */
+let MG_URG_VISTAS = new Set();
+function mgUrgConferir(){
+  const atuais = mgUrgentes().map(t=>t.id);
+  const novas = atuais.filter(id=>!MG_URG_VISTAS.has(id));
+  const primeiraVez = MG_URG_VISTAS.size === 0 && !MG_URG_VISTAS.semeado;
+  atuais.forEach(id=>MG_URG_VISTAS.add(id));
+  MG_URG_VISTAS.semeado = true;
+  if(primeiraVez || !novas.length) return;
+  MG_URG_ESCONDIDA = false;
+  if(typeof mgSom==='function') mgSom('nova');
+  const t = (TASKS||[]).find(x=>x.id===novas[0]);
+  toast('🚨 Urgente: ' + String((t&&t.title)||'').slice(0,42));
+}
+
+/* =====================================================================
+   ENCAIXE NA PLATAFORMA
+   ===================================================================== */
+
+/* --- a tela de Projetos --- */
+(function(){
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-projetos')){
+    const d = document.createElement('div'); d.className='view'; d.id='v-projetos';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n=>n.v==='projetos')){
+    const i = NAV.findIndex(n=>n.v==='checklist');
+    NAV.splice(i<0?1:i, 0, {v:'projetos', ic:'🗂', label:'Projetos', admin:true});
+  }
+  if(typeof MG_TONS==='object' && MG_TONS) MG_TONS.projetos =
+    {tom:'#5B7C99', chip:'rgba(91,124,153,.14)', borda:'rgba(91,124,153,.45)',
+     fraco:'rgba(91,124,153,.09)', sombra:'rgba(91,124,153,.34)'};
+})();
+(function(){
+  const _r = render;
+  render = function(){
+    if(VIEW==='projetos'){ const r = mgProjetosDesenhar(); mgUrgFaixa(); return r }
+    const r = _r();
+    try{ mgUrgFaixa() }catch(e){}
+    return r;
+  };
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW==='projetos'){ const t=document.getElementById('view-title'); if(t) t.textContent='Projetos' }
+    return r;
+  };
+})();
+(function(){
+  if(typeof mgAtalhos!=='function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().map(a => a.v==='projetos' ? {...a, ds:'Demandas agrupadas por etapa'} : a);
+  };
+})();
+
+/* --- anexos, projeto e urgente dentro do painel de detalhe --- */
+(function(){
+  if(typeof renderDetailBody!=='function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{
+      const t = (TASKS||[]).find(x=>x.id===DETAIL_ID); if(!t) return r;
+      const corpo = document.querySelector('#slide .slide-b'); if(!corpo) return r;
+      const esq = corpo.querySelector('.mg-det-col');
+
+      /* chave de urgente, logo abaixo dos campos */
+      if(isAdmin() && !corpo.querySelector('.mg-urg-chave')){
+        const grade = corpo.querySelector('.mg-det-grade');
+        const html = `<label class="mg-urg-chave">
+          <input type="checkbox" ${t.urgente?'checked':''}
+                 onchange="mgMarcarUrgente('${esc(t.id)}',this.checked)">
+          <span><b>Marcar como urgente</b>
+            <span class="d">A demanda aparece em vermelho para todo mundo, com um aviso no topo
+            de qualquer tela até ser concluída.</span></span></label>`;
+        if(grade) grade.insertAdjacentHTML('beforebegin', html);
+        else corpo.insertAdjacentHTML('beforeend', html);
+      }
+
+      /* arquivos e projeto na coluna da esquerda */
+      if(esq && !esq.querySelector('.mg-anx')){
+        const tempo = esq.querySelector('.timebox');
+        const bloco = mgAnexosHTML(t) + mgProjetoHTML(t);
+        if(tempo) tempo.insertAdjacentHTML('beforebegin', bloco);
+        else esq.insertAdjacentHTML('beforeend', bloco);
+      }
+    }catch(e){ console.warn('[detalhe] adição 48', e) }
+    return r;
+  };
+})();
+
+/* --- selo e clipe no card do quadro --- */
+(function(){
+  if(typeof taskCard!=='function') return;
+  const _tc = taskCard;
+  taskCard = function(t, cor){
+    let html = _tc(t, cor);
+    /* o título é .tt e os selos ficam em .card-meta — nomes conferidos no
+       HTML gerado por taskCard, não chutados */
+    if(t.urgente){
+      html = html.replace('class="card-t', 'class="card-t mg-urg');
+      html = html.replace('<div class="tt">',
+        '<div class="tt"><span class="mg-urg-selo"><span class="p"></span>Urgente</span>');
+    }
+    const n = mgAnexos(t).length;
+    const filhos = mgFilhos(t.id).length;
+    if(n || filhos){
+      const extra = (n ? `<span class="mg-clipe">📎 ${n}</span>` : '')
+                  + (filhos ? `<span class="mg-clipe">🗂 ${filhos}</span>` : '');
+      html = html.replace('<div class="card-meta">', '<div class="card-meta">' + extra);
+    }
+    return html;
+  };
+})();
+
+/* --- chave de urgente também na janela de nova demanda --- */
+(function(){
+  if(typeof openTaskModal!=='function') return;
+  const _ot = openTaskModal;
+  openTaskModal = function(id, status){
+    const r = _ot(id, status);
+    setTimeout(()=>{
+      const c = document.getElementById('tmodal-c');
+      if(!c || c.querySelector('.mg-urg-chave')) return;
+      const t = id ? (TASKS||[]).find(x=>x.id===id) : null;
+      const rodape = c.querySelector('.btn-save');
+      const html = `<label class="mg-urg-chave">
+        <input type="checkbox" id="mg-urg-nova" ${t&&t.urgente?'checked':''}>
+        <span><b>Urgente</b>
+          <span class="d">Aparece em vermelho para todo mundo até ser concluída.</span></span></label>`;
+      if(rodape && rodape.parentElement) rodape.parentElement.insertAdjacentHTML('beforebegin', html);
+      else c.insertAdjacentHTML('beforeend', html);
+    }, 30);
+    return r;
+  };
+})();
+(function(){
+  if(typeof saveTask!=='function') return;
+  const _st = saveTask;
+  saveTask = async function(){
+    const cx = document.getElementById('mg-urg-nova');
+    const quer = cx ? cx.checked : null;
+    const r = await _st();
+    if(quer===null) return r;
+    try{
+      await loadTasks();
+      /* a demanda recém-salva é a mais recente do usuário */
+      const alvo = (TASKS||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
+      if(alvo && !!alvo.urgente !== quer){
+        await sb.from('tasks').update({urgente:quer}).eq('id', alvo.id);
+        alvo.urgente = quer;
+      }
+      render();
+    }catch(e){ if(mgFalta(e,'urgente')) toast('Rode antes o SQL da ADIÇÃO 48') }
+    return r;
+  };
+})();
+
+/* --- filtro "só urgentes" --- */
+let MG_F_URGENTE = false;
+function mgFUrgente(){ MG_F_URGENTE = !MG_F_URGENTE; mgFDesenhar(); mgFAtualizar() }
+(function(){
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    const ts = _vis();
+    return MG_F_URGENTE ? ts.filter(t=>t.urgente) : ts;
+  };
+  const _fd = mgFDesenhar;
+  mgFDesenhar = function(){
+    const r = _fd();
+    const bloco = document.getElementById('mg-f-bloco');
+    if(bloco && !bloco.querySelector('#mg-f-urg')){
+      bloco.insertAdjacentHTML('afterbegin',
+        `<label class="chk" id="mg-f-urg" style="color:var(--danger);font-weight:600">
+          <input type="checkbox" ${MG_F_URGENTE?'checked':''} onchange="mgFUrgente()"> 🚨 Só urgentes
+        </label>`);
+    }
+    return r;
+  };
+})();
+
+/* --- confere urgentes a cada atualização --- */
+(function(){
+  const _rf = refresh;
+  refresh = async function(){ const r = await _rf(); try{ mgUrgConferir(); mgUrgFaixa() }catch(e){} return r };
+  const _bt = boot;
+  boot = async function(){ const r = await _bt(); try{ mgUrgConferir(); mgUrgFaixa() }catch(e){} return r };
+  setTimeout(()=>{ try{ mgUrgConferir(); mgUrgFaixa() }catch(e){} }, 2200);
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 49
+   1) subtarefa com data, responsável e tempo
+   2) data de abertura fixa no card, abaixo do título
+   3) cronômetro dá lugar ao tempo informado à mão, somando as subtarefas
+   ===================================================================== */
+
+/* ---------- 1. subtarefas ---------- */
+.sub{align-items:flex-start!important;flex-wrap:wrap;gap:8px!important;padding:9px 10px!important;
+  border-radius:10px;border:1px solid transparent;transition:border-color .15s,background .15s}
+.sub:hover{background:var(--card2);border-color:var(--line)}
+.sub .st{flex:1 1 100%;min-width:0;order:2}
+.sub input[type=checkbox]{order:1;margin-top:2px}
+.sub .dl{order:3;margin-left:auto}
+.mg-sub-campos{order:4;flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;
+  padding-left:26px;margin-top:2px}
+.mg-sub-campos > *{background:var(--card2);border:1px solid var(--line2);border-radius:8px;
+  padding:4px 8px;font-family:inherit;font-size:11.5px;color:var(--text)}
+.mg-sub-campos > *:focus{outline:none;border-color:var(--brass)}
+.mg-sub-campos .dt{width:126px}
+.mg-sub-campos .rs{max-width:132px}
+.mg-sub-campos .tp{width:76px;text-align:right}
+.mg-sub-campos .vazio{color:var(--muted2)}
+.sub.done .mg-sub-campos{opacity:.55}
+.mg-sub-atraso{border-color:rgba(184,74,62,.5)!important;color:var(--danger)!important}
+/* leitura, para quem não é admin */
+.mg-sub-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);
+  background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+
+/* ---------- 2. data de abertura no card ---------- */
+.card-t .mg-aberta{display:block;font-size:10.5px;color:var(--muted2);margin-top:3px;
+  letter-spacing:.2px;font-weight:500}
+.card-t .mg-aberta b{font-weight:700;color:var(--muted)}
+
+/* ---------- 3. tempo informado à mão ---------- */
+.mg-tempo{background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:14px;margin:16px 0}
+.mg-tempo .cab{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mg-tempo .tl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.mg-tempo .tv{font-family:var(--font-d);font-size:24px;font-weight:600;line-height:1;margin-top:2px}
+.mg-tempo .campo{margin-left:auto;display:flex;align-items:center;gap:7px}
+.mg-tempo input{width:104px;background:var(--card2);border:1px solid var(--line2);border-radius:9px;
+  padding:9px 12px;font-family:inherit;font-size:14px;font-weight:600;text-align:right;color:var(--text)}
+.mg-tempo input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.16)}
+.mg-tempo input:disabled{background:transparent;border-style:dashed;color:var(--muted)}
+.mg-tempo .dica{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line)}
+.mg-tempo .dica b{color:var(--text)}
+.mg-tempo .trocar{background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:700;
+  color:var(--brass2);padding:2px 6px;border-radius:6px}
+.mg-tempo .trocar:hover{background:rgba(194,161,91,.12)}
+.card-t .mg-tempo-chip{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:3px}
+
+@media(max-width:640px){
+  .mg-sub-campos{padding-left:0}
+  .mg-sub-campos .dt,.mg-sub-campos .rs{width:100%;max-width:none}
+  .mg-tempo .campo{margin-left:0;width:100%}
+  .mg-tempo input{flex:1;width:auto}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 49
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Tempo escrito como gente escreve: "1h30", "1:30", "90m", "90", "1,5h"
+   --------------------------------------------------------------------- */
+function mgMinutos(txt){
+  if(txt == null) return 0;
+  const s = String(txt).trim().toLowerCase().replace(',', '.');
+  if(!s) return 0;
+  let m;
+  if((m = s.match(/^(\d+)\s*:\s*(\d{1,2})$/)))        return (+m[1])*60 + (+m[2]);
+  if((m = s.match(/^(\d+(?:\.\d+)?)\s*h\s*(\d{1,2})$/))) return Math.round((+m[1])*60) + (+m[2]);
+  if((m = s.match(/^(\d+(?:\.\d+)?)\s*h$/)))            return Math.round((+m[1])*60);
+  if((m = s.match(/^(\d+(?:\.\d+)?)\s*m(in)?$/)))       return Math.round(+m[1]);
+  if((m = s.match(/^(\d+(?:\.\d+)?)$/)))                return Math.round(+m[1]);
+  return 0;
+}
+function mgHoraMin(min){
+  min = Math.max(0, Math.round(min || 0));
+  if(!min) return '';
+  const h = Math.floor(min/60), r = min % 60;
+  if(h && r) return h + 'h' + String(r).padStart(2,'0');
+  if(h) return h + 'h';
+  return r + 'm';
+}
+
+/* =====================================================================
+   PARTE 1 — SUBTAREFAS COM DATA, RESPONSÁVEL E TEMPO
+   Os campos entram no próprio JSON das subtarefas, que já existia.
+   ===================================================================== */
+renderSubtasks = function(t){
+  const subs = t.subtasks || [];
+  if(!subs.length) return isAdmin() ? '<div style="color:var(--muted);font-size:12.5px">Nenhuma subtarefa ainda.</div>' : '';
+  const admin = isAdmin();
+  const hoje = new Date().toISOString().slice(0,10);
+  const gente = (typeof ASSIGNEE_OPTS !== 'undefined' && ASSIGNEE_OPTS) ? ASSIGNEE_OPTS : [];
+
+  return subs.map((x,i)=>{
+    const atrasada = x.data && !x.done && x.data < hoje;
+    const campos = admin ? `
+      <span class="mg-sub-campos">
+        <input class="dt ${atrasada?'mg-sub-atraso':''}" type="date" value="${esc(x.data||'')}"
+               title="Prazo desta subtarefa" onchange="mgSubCampo(${i},'data',this.value)">
+        <select class="rs ${x.resp?'':'vazio'}" title="Responsável"
+                onchange="mgSubCampo(${i},'resp',this.value)">
+          <option value="">— responsável —</option>
+          ${gente.map(n=>`<option ${x.resp===n?'selected':''}>${esc(n)}</option>`).join('')}
+          ${(x.resp && !gente.includes(x.resp)) ? `<option selected>${esc(x.resp)}</option>` : ''}
+        </select>
+        <input class="tp" type="text" value="${esc(mgHoraMin(x.min))}" placeholder="tempo"
+               title="Tempo gasto — aceita 1h30, 1:30, 90m ou 90"
+               onchange="mgSubCampo(${i},'min',this.value)">
+      </span>` : `
+      <span class="mg-sub-campos">
+        ${x.data ? `<span class="mg-sub-chip ${atrasada?'mg-sub-atraso':''}">📅 ${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
+        ${x.resp ? `<span class="mg-sub-chip">👤 ${esc(x.resp)}</span>` : ''}
+        ${x.min  ? `<span class="mg-sub-chip">⏱ ${mgHoraMin(x.min)}</span>` : ''}
+      </span>`;
+
+    return `<div class="sub ${x.done?'done':''}">
+      <input type="checkbox" ${x.done?'checked':''} ${admin?`onchange="toggleSub(${i})"`:'disabled'}>
+      <span class="st">${esc(x.text)}</span>
+      ${admin?`<span class="dl" onclick="delSub(${i})">✕</span>`:''}
+      ${campos}
+    </div>`;
+  }).join('');
+};
+
+function mgSubCampo(i, campo, valor){
+  const t = _curDetail(); if(!t || !t.subtasks || !t.subtasks[i]) return;
+  if(campo === 'min') t.subtasks[i].min = mgMinutos(valor);
+  else t.subtasks[i][campo] = valor || null;
+  _reSubs(t);
+  _saveSubs(t);
+  mgTempoSincronizar(t);
+}
+
+/* =====================================================================
+   PARTE 2 — DATA DE ABERTURA NO CARD
+   ===================================================================== */
+function mgAbertaEm(t){
+  if(!t.created_at) return '';
+  const d = new Date(t.created_at);
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const data = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
+  const quanto = dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : 'há ' + dias + ' dias';
+  return `<span class="mg-aberta">Aberta em <b>${data}</b> · ${quanto}</span>`;
+}
+
+/* =====================================================================
+   PARTE 3 — TEMPO INFORMADO À MÃO
+   O cronômetro sai. O tempo passa a ser digitado: ou por subtarefa, e a
+   plataforma soma, ou direto no total. Se alguma subtarefa tem tempo, a
+   soma manda — assim os dois números nunca se contradizem.
+   ===================================================================== */
+function mgTempoDasSubs(t){
+  return (t.subtasks||[]).reduce((a,x)=>a + (Number(x.min)||0), 0);
+}
+function mgTemSubTempo(t){ return mgTempoDasSubs(t) > 0 }
+function mgTempoTotal(t){
+  return mgTemSubTempo(t) ? mgTempoDasSubs(t) : Math.round((t.time_spent||0)/60);
+}
+
+async function mgGravarTempo(t, minutos){
+  const seg = Math.max(0, Math.round(minutos*60));
+  t.time_spent = seg;
+  try{
+    _skipRefreshUntil = Date.now() + 3000;
+    const {error} = await sb.from('tasks').update({time_spent: seg, timer_start: null}).eq('id', t.id);
+    if(error) throw error;
+  }catch(e){ toast('Não foi possível salvar o tempo'); console.error(e) }
+}
+function mgTempoDigitado(valor){
+  const t = _curDetail(); if(!t) return;
+  const min = mgMinutos(valor);
+  t.time_spent = min * 60;
+  mgTempoDesenhar();
+  mgGravarTempo(t, min).then(()=>render());
+}
+/* quando a soma das subtarefas muda, o total do card acompanha.
+   Redesenha ANTES de gravar: esperar a resposta do banco deixaria o
+   número velho na tela por um instante. */
+function mgTempoSincronizar(t){
+  if(!mgTemSubTempo(t)){ mgTempoDesenhar(); return }
+  t.time_spent = mgTempoDasSubs(t) * 60;
+  mgTempoDesenhar();
+  mgGravarTempo(t, mgTempoDasSubs(t)).then(()=>render());
+}
+async function mgLimparTemposSub(){
+  const t = _curDetail(); if(!t) return;
+  if(!confirm('Apagar o tempo de todas as subtarefas para informar o total à mão?')) return;
+  (t.subtasks||[]).forEach(x=>{ delete x.min });
+  _reSubs(t); await _saveSubs(t);
+  mgTempoDesenhar();
+}
+
+function mgTempoHTML(t){
+  const admin = isAdmin();
+  const porSub = mgTemSubTempo(t);
+  const total = mgTempoTotal(t);
+  const nSub = (t.subtasks||[]).filter(x=>Number(x.min)>0).length;
+  return `<div class="mg-tempo" id="mg-tempo">
+    <div class="cab">
+      <div>
+        <div class="tl">Tempo gasto</div>
+        <div class="tv">${total ? mgHoraMin(total) : '—'}</div>
+      </div>
+      ${admin ? `<div class="campo">
+        <input type="text" id="mg-tempo-in" value="${esc(mgHoraMin(total))}"
+               placeholder="1h30" ${porSub?'disabled':''}
+               title="Aceita 1h30, 1:30, 90m ou 90"
+               onchange="mgTempoDigitado(this.value)">
+      </div>` : ''}
+    </div>
+    <div class="dica">
+      ${porSub
+        ? `Somado de <b>${nSub} subtarefa${nSub===1?'':'s'}</b>.
+           ${admin?`<button class="trocar" onclick="mgLimparTemposSub()">Informar o total à mão</button>`:''}`
+        : (admin
+            ? `Escreva o tempo do jeito que preferir: <b>1h30</b>, <b>1:30</b>, <b>90m</b> ou <b>90</b>.
+               Se preencher o tempo de cada subtarefa, a soma passa a valer aqui.`
+            : `Informado pela equipe.`)}
+    </div>
+  </div>`;
+}
+function mgTempoDesenhar(){
+  const t = _curDetail(); if(!t) return;
+  const el = document.getElementById('mg-tempo');
+  if(el) el.outerHTML = mgTempoHTML(t);
+}
+
+/* =====================================================================
+   ENCAIXE
+   ===================================================================== */
+
+/* o cronômetro sai do painel e o bloco novo entra no lugar */
+(function(){
+  if(typeof renderDetailBody!=='function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{
+      const t = (TASKS||[]).find(x=>x.id===DETAIL_ID); if(!t) return r;
+      const antigo = document.querySelector('#slide .timebox');
+      if(antigo) antigo.outerHTML = mgTempoHTML(t);
+      else if(!document.getElementById('mg-tempo')){
+        const esq = document.querySelector('#slide .mg-det-col');
+        if(esq) esq.insertAdjacentHTML('beforeend', mgTempoHTML(t));
+      }
+    }catch(e){ console.warn('[tempo]', e) }
+    return r;
+  };
+})();
+
+/* data de abertura e tempo no card do quadro */
+(function(){
+  if(typeof taskCard!=='function') return;
+  const _tc = taskCard;
+  taskCard = function(t, cor){
+    let html = _tc(t, cor);
+    /* logo abaixo do título, que é .tt */
+    html = html.replace(/(<div class="tt">[\s\S]*?<\/div>)/, '$1' + mgAbertaEm(t));
+    const min = mgTempoTotal(t);
+    if(min){
+      html = html.replace('<div class="card-meta">',
+        `<div class="card-meta"><span class="mg-tempo-chip">⏱ ${mgHoraMin(min)}</span>`);
+    }
+    return html;
+  };
+})();
+
+/* o cronômetro que rodava a cada segundo perde a razão de existir */
+(function(){
+  if(typeof toggleTimer === 'function'){
+    toggleTimer = function(){
+      toast('O cronômetro saiu — informe o tempo no campo da demanda');
+    };
+  }
+  /* qualquer contagem que tenha ficado aberta é encerrada ao abrir a demanda */
+  const _od = (typeof openDetail==='function') ? openDetail : null;
+  if(_od) openDetail = function(id){
+    const t = (TASKS||[]).find(x=>x.id===id);
+    if(t && t.timer_start){
+      const extra = Math.round((Date.now() - new Date(t.timer_start).getTime())/1000);
+      t.time_spent = (t.time_spent||0) + Math.max(0, extra);
+      t.timer_start = null;
+      sb.from('tasks').update({time_spent:t.time_spent, timer_start:null}).eq('id', id)
+        .then(()=>{}, ()=>{});
+    }
+    return _od(id);
+  };
+})();
 </script>
 </body>
 </html>
