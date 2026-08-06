@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 46;
+const MG_VERSAO = 47;
 const MG_VERSAO_DATA = '2026-07-28';
 
 /* aparece no console assim que a página carrega */
@@ -12234,6 +12234,395 @@ function mgVersao(){
     return html;
   };
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 47
+   1) a ferramenta passa a se chamar MGP Tasks
+   2) arrastar cards dentro da própria coluna para reordenar
+   3) filtro por data de entrega, com período
+   4) "Desmarcar todos" no filtro de clientes
+   5) a barra de baixo nunca mais cobre os botões das janelas
+   6) coluna Feito com os cards mais apagados
+   ===================================================================== */
+
+/* ---------- 2. reordenar dentro da coluna ---------- */
+.mg-linha-solta{height:3px;border-radius:3px;background:var(--brass);margin:5px 2px;
+  box-shadow:0 0 0 3px rgba(194,161,91,.18);animation:mgPulsa .9s ease-in-out infinite}
+@keyframes mgPulsa{0%,100%{opacity:.55}50%{opacity:1}}
+.col .cards.mg-reordenando{min-height:60px}
+@media (prefers-reduced-motion: reduce){ .mg-linha-solta{animation:none;opacity:.85} }
+
+/* ---------- 3. filtro de entrega ---------- */
+.mg-f-periodo{display:flex;align-items:center;gap:7px;margin:6px 0 2px;flex-wrap:wrap}
+.mg-f-periodo input{background:var(--card2);border:1px solid var(--line2);border-radius:8px;
+  padding:6px 9px;font-family:inherit;font-size:12px;color:var(--text);flex:1;min-width:118px}
+.mg-f-periodo input:focus{outline:none;border-color:var(--brass)}
+.mg-f-periodo span{font-size:11.5px;color:var(--muted)}
+
+/* ---------- 5. folga para a barra de baixo ----------
+   A ADIÇÃO 44 já esconde a barra quando há painel aberto. Isto é a
+   segunda linha de defesa: mesmo que a barra apareça por algum caminho
+   que eu não previ, as janelas reservam espaço para ela. */
+body.mg-com-dock .modal{align-items:flex-start;padding-bottom:110px}
+body.mg-com-dock .modal-c{margin-top:auto;margin-bottom:auto}
+@media(max-height:760px){
+  .modal{align-items:flex-start}
+  .modal-c{max-height:78vh;overflow:auto}
+}
+
+/* ---------- 6. coluna Feito mais apagada ---------- */
+#v-board .col[data-status="Feito"] .card-t,
+#v-board .col[data-status="Concluído Atendimento"] .card-t{
+  opacity:.55;filter:saturate(.72);
+  transition:opacity .18s,filter .18s,transform .15s,box-shadow .15s}
+#v-board .col[data-status="Feito"] .card-t:hover,
+#v-board .col[data-status="Concluído Atendimento"] .card-t:hover,
+#v-board .col[data-status="Feito"] .card-t:focus-within,
+#v-board .col[data-status="Concluído Atendimento"] .card-t:focus-within{
+  opacity:1;filter:none}
+/* o card sendo arrastado não pode ficar apagado duas vezes */
+#v-board .col .card-t.dragging{opacity:.35!important;filter:none}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 47
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — MGP Tasks
+   ===================================================================== */
+const MG_NOME = 'MGP Tasks';
+/* pega as três formas que o nome assumiu ao longo do projeto */
+const MG_NOME_ANTIGO = /(Modesto (Tasks|Portal)|Portal Modesto)/g;
+
+function mgTrocarNome(){
+  document.title = MG_NOME + ' — Gestão de Demandas';
+
+  /* troca só os nós de texto, para não destruir o subtítulo que vem junto */
+  document.querySelectorAll('#login h1, .side-brand .nm, .tour-brand span, #view-title, .mg-ola')
+    .forEach(el=>{
+      el.childNodes.forEach(n=>{
+        if(n.nodeType === 3 && MG_NOME_ANTIGO.test(n.textContent)){
+          MG_NOME_ANTIGO.lastIndex = 0;
+          n.textContent = n.textContent.replace(MG_NOME_ANTIGO, MG_NOME);
+        }
+        MG_NOME_ANTIGO.lastIndex = 0;
+      });
+    });
+
+  if(typeof NAV !== 'undefined') NAV.forEach(n=>{ if(n.v === 'tasks') n.label = MG_NOME });
+
+  if(typeof TOUR !== 'undefined') TOUR.forEach(p=>{
+    if(p.t) p.t = p.t.replace(MG_NOME_ANTIGO, MG_NOME);
+    if(p.p) p.p = p.p.replace(MG_NOME_ANTIGO, MG_NOME);
+    MG_NOME_ANTIGO.lastIndex = 0;
+  });
+}
+mgTrocarNome();
+document.addEventListener('DOMContentLoaded', mgTrocarNome);
+[300, 1200, 2500].forEach(ms=>setTimeout(mgTrocarNome, ms));
+
+/* essas três remontam trechos que trazem o nome; reaplicamos depois delas */
+(function(){
+  const embrulha = (nome, obj) => {
+    if(typeof obj[nome] !== 'function') return;
+    const orig = obj[nome];
+    obj[nome] = function(){ const r = orig.apply(this, arguments); try{ mgTrocarNome() }catch(e){} return r };
+  };
+  if(typeof renderTour === 'function'){ const o = renderTour; renderTour = function(){ const r = o.apply(this, arguments); mgTrocarNome(); return r } }
+  if(typeof buildNav  === 'function'){ const o = buildNav;  buildNav  = function(){ const r = o.apply(this, arguments); mgTrocarNome(); return r } }
+  if(typeof renderHome === 'function'){ const o = renderHome; renderHome = function(){ const r = o.apply(this, arguments); mgTrocarNome(); return r } }
+})();
+
+/* o aviso de boas-vindas na central de notificações */
+(function(){
+  if(typeof buildNotifs !== 'function') return;
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn();
+    (NOTIFS||[]).forEach(n=>{
+      if(n.text){ n.text = n.text.replace(MG_NOME_ANTIGO, MG_NOME); MG_NOME_ANTIGO.lastIndex = 0 }
+    });
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 2 — arrastar dentro da coluna para reordenar
+   A ordem já era lida do banco (`order by position`), mas não havia como
+   mudá-la pela tela. Agora o card pode ser solto entre dois outros.
+   ===================================================================== */
+let MG_LINHA = null;      /* a marca de onde o card vai cair */
+
+function mgLimparLinha(){
+  if(MG_LINHA && MG_LINHA.parentNode) MG_LINHA.parentNode.removeChild(MG_LINHA);
+  MG_LINHA = null;
+  document.querySelectorAll('.cards.mg-reordenando').forEach(c=>c.classList.remove('mg-reordenando'));
+}
+/* qual card está logo abaixo do ponteiro */
+function mgCardAbaixo(cards, y){
+  const outros = [...cards.querySelectorAll('.card-t:not(.dragging)')];
+  return outros.find(el=>{
+    const r = el.getBoundingClientRect();
+    return y < r.top + r.height/2;
+  }) || null;
+}
+function mgArrastandoNaColuna(e){
+  if(!_drag || !isAdmin()) return;
+  const cards = e.currentTarget;
+  e.preventDefault();
+  e.stopPropagation();
+  cards.classList.add('mg-reordenando');
+  if(!MG_LINHA){ MG_LINHA = document.createElement('div'); MG_LINHA.className = 'mg-linha-solta' }
+  const alvo = mgCardAbaixo(cards, e.clientY);
+  if(alvo) cards.insertBefore(MG_LINHA, alvo);
+  else cards.appendChild(MG_LINHA);
+}
+async function mgSoltarNaColuna(e, status){
+  if(!_drag || !isAdmin()) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = _drag; _drag = null;
+  const cards = e.currentTarget;
+  const t = (TASKS||[]).find(x=>x.id===id);
+  const card = document.querySelector('.card-t[data-id="'+id+'"]');
+  if(!t || !card){ mgLimparLinha(); return }
+
+  /* coloca o card onde a marca está */
+  if(MG_LINHA && MG_LINHA.parentNode === cards) cards.insertBefore(card, MG_LINHA);
+  else cards.appendChild(card);
+  mgLimparLinha();
+  card.classList.remove('dragging');
+  document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
+
+  const mudouDeColuna = t.status !== status;
+  if(mudouDeColuna) t.status = status;
+
+  if(typeof fixPlaceholders==='function') fixPlaceholders();
+  if(typeof updateColCounts==='function') updateColCounts();
+  _skipRefreshUntil = Date.now() + 4000;
+
+  await mgGravarOrdem(cards, status, mudouDeColuna ? id : null);
+}
+
+/* grava a nova ordem da coluna, mexendo só no que mudou */
+async function mgGravarOrdem(cards, status, idQueMudouDeColuna){
+  const ids = [...cards.querySelectorAll('.card-t')].map(el=>el.dataset.id).filter(Boolean);
+  const mudancas = [];
+  ids.forEach((id, i)=>{
+    const t = (TASKS||[]).find(x=>x.id===id); if(!t) return;
+    const nova = (i + 1) * 10;
+    if(t.position !== nova){ t.position = nova; mudancas.push({id, position: nova}) }
+  });
+  if(idQueMudouDeColuna){
+    const jaTem = mudancas.find(m=>m.id===idQueMudouDeColuna);
+    if(jaTem) jaTem.status = status;
+    else mudancas.push({id: idQueMudouDeColuna, status});
+  }
+  if(!mudancas.length) return;
+
+  try{
+    await Promise.all(mudancas.map(m=>{
+      const corpo = {position: m.position};
+      if(m.status) corpo.status = m.status;
+      if(m.position === undefined) delete corpo.position;
+      return sb.from('tasks').update(corpo).eq('id', m.id);
+    }));
+    if(idQueMudouDeColuna) toast('Demanda movida');
+    else toast('Ordem salva');
+  }catch(err){
+    const msg = (err && err.message) || '';
+    if(/column .*position|position.* does not exist/i.test(msg))
+      toast('A coluna "position" não existe neste banco');
+    else toast('Não foi possível salvar a ordem');
+    console.error(err);
+  }
+}
+
+/* liga os eventos nas listas de cards depois de cada desenho do quadro */
+function mgLigarReordenacao(){
+  if(!isAdmin()) return;
+  document.querySelectorAll('#v-board .col').forEach(col=>{
+    const cards = col.querySelector('.cards');
+    if(!cards || cards.dataset.mgOrdem === '1') return;
+    cards.dataset.mgOrdem = '1';
+    const status = col.dataset.status;
+    cards.addEventListener('dragover', mgArrastandoNaColuna);
+    cards.addEventListener('dragleave', e=>{ if(!cards.contains(e.relatedTarget)) mgLimparLinha() });
+    cards.addEventListener('drop', e=>mgSoltarNaColuna(e, status));
+  });
+}
+(function(){
+  const _r = render;
+  render = function(){ const r = _r(); try{ mgLigarReordenacao() }catch(e){} return r };
+  document.addEventListener('dragend', mgLimparLinha);
+  setTimeout(mgLigarReordenacao, 1200);
+})();
+
+/* =====================================================================
+   PARTE 3 — filtro por data de entrega
+   ===================================================================== */
+let MG_F_ENTREGA = '';        /* '' | hoje | amanha | semana | mes | atrasadas | periodo */
+let MG_F_ENT_DE  = '';
+let MG_F_ENT_ATE = '';
+
+const MG_ENTREGA_OPS = [
+  ['hoje',      'Entregas de hoje'],
+  ['amanha',    'Entregas de amanhã'],
+  ['semana',    'Próximos 7 dias'],
+  ['mes',       'Este mês'],
+  ['atrasadas', 'Entrega vencida'],
+];
+function mgFEntrega(v){ MG_F_ENTREGA = (MG_F_ENTREGA===v) ? '' : v; mgFDesenhar(); mgFAtualizar() }
+function mgFEntregaPeriodo(qual, valor){
+  if(qual==='de') MG_F_ENT_DE = valor; else MG_F_ENT_ATE = valor;
+  MG_F_ENTREGA = (MG_F_ENT_DE || MG_F_ENT_ATE) ? 'periodo' : '';
+  mgFDesenhar(); mgFAtualizar();
+}
+function mgDiaISO(offset){
+  const d = new Date(); d.setDate(d.getDate() + (offset||0));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+(function(){
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    let ts = _vis();
+    if(!MG_F_ENTREGA) return ts;
+    const hoje = mgDiaISO(0);
+    return ts.filter(t=>{
+      const d = t.due;
+      if(!d) return false;                       /* sem prazo não é entrega */
+      if(MG_F_ENTREGA==='hoje')      return d === hoje;
+      if(MG_F_ENTREGA==='amanha')    return d === mgDiaISO(1);
+      if(MG_F_ENTREGA==='semana')    return d >= hoje && d <= mgDiaISO(7);
+      if(MG_F_ENTREGA==='mes')       return d.slice(0,7) === hoje.slice(0,7);
+      if(MG_F_ENTREGA==='atrasadas') return d < hoje;
+      if(MG_F_ENTREGA==='periodo'){
+        if(MG_F_ENT_DE  && d < MG_F_ENT_DE)  return false;
+        if(MG_F_ENT_ATE && d > MG_F_ENT_ATE) return false;
+        return true;
+      }
+      return true;
+    });
+  };
+})();
+
+/* =====================================================================
+   PARTE 4 — clientes: todos, nenhum, inverter
+   Antes o conjunto vazio significava "todos". Com "Desmarcar todos"
+   isso deixa de servir: vazio passa a significar vazio mesmo, e um
+   sinalizador diz quando nenhum filtro está aplicado.
+   ===================================================================== */
+let MG_F_CLI_TODOS = true;
+
+function mgFCliente(id, marcado){
+  if(MG_F_CLI_TODOS){
+    /* primeira marcação sai de "todos": começa do conjunto cheio */
+    MG_F_CLIENTES = new Set((CLIENTS||[]).map(c=>c.id));
+    MG_F_CLI_TODOS = false;
+  }
+  if(marcado) MG_F_CLIENTES.add(id); else MG_F_CLIENTES.delete(id);
+  if(MG_F_CLIENTES.size === (CLIENTS||[]).length){ MG_F_CLI_TODOS = true; MG_F_CLIENTES.clear() }
+  mgFDesenhar(); mgFAtualizar();
+}
+function mgFTodos(){  MG_F_CLI_TODOS = true;  MG_F_CLIENTES.clear(); mgFDesenhar(); mgFAtualizar() }
+function mgFNenhum(){ MG_F_CLI_TODOS = false; MG_F_CLIENTES.clear(); mgFDesenhar(); mgFAtualizar() }
+function mgFInverter(){
+  const todos = (CLIENTS||[]).map(c=>c.id);
+  const atual = MG_F_CLI_TODOS ? new Set(todos) : MG_F_CLIENTES;
+  MG_F_CLIENTES = new Set(todos.filter(id=>!atual.has(id)));
+  MG_F_CLI_TODOS = MG_F_CLIENTES.size === todos.length;
+  if(MG_F_CLI_TODOS) MG_F_CLIENTES.clear();
+  mgFDesenhar(); mgFAtualizar();
+}
+(function(){
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    const ts = _vis();
+    if(MG_F_CLI_TODOS) return ts;
+    return ts.filter(t=>MG_F_CLIENTES.has(t.client_id));
+  };
+})();
+
+/* =====================================================================
+   O PAINEL DE FILTROS, REDESENHADO COM AS PARTES 3 E 4
+   ===================================================================== */
+mgFDesenhar = function(){
+  const corpo = document.querySelector('#filter-panel .dp-body'); if(!corpo) return;
+  let bloco = document.getElementById('mg-f-bloco');
+  if(!bloco){
+    bloco = document.createElement('div'); bloco.id = 'mg-f-bloco';
+    corpo.insertBefore(bloco, corpo.firstChild);
+  }
+  const contagem = {};
+  (TASKS||[]).forEach(t=>{ contagem[t.client_id] = (contagem[t.client_id]||0) + 1 });
+
+  bloco.innerHTML = `
+    <div class="dp-sec" style="margin-top:0">Clientes</div>
+    <div class="mg-f-acoes">
+      <button onclick="mgFTodos()">${MG_F_CLI_TODOS?'✓ Todos':'Todos'}</button>
+      <button onclick="mgFNenhum()">${(!MG_F_CLI_TODOS && !MG_F_CLIENTES.size)?'✓ Nenhum':'Nenhum'}</button>
+      <button onclick="mgFInverter()">Inverter</button>
+    </div>
+    <div class="mg-f-clientes">
+      ${(CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>{
+        const on = MG_F_CLI_TODOS || MG_F_CLIENTES.has(c.id);
+        const lg = (typeof clientLogo==='function') ? clientLogo(c.id) : null;
+        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+                         : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
+        return `<label class="mg-f-cli">
+          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${esc(c.id)}',this.checked)">
+          ${marca}<span class="nm">${esc(c.nome)}</span>
+          <span class="qt">${contagem[c.id]||0}</span>
+        </label>`;
+      }).join('')}
+    </div>
+
+    <div class="dp-sec">Data de entrega</div>
+    ${MG_ENTREGA_OPS.map(([v,l])=>`<label class="chk">
+      <input type="checkbox" ${MG_F_ENTREGA===v?'checked':''} onchange="mgFEntrega('${v}')"> ${l}
+    </label>`).join('')}
+    <div class="mg-f-periodo">
+      <input type="date" value="${esc(MG_F_ENT_DE)}"  title="Entrega a partir de"
+             onchange="mgFEntregaPeriodo('de',this.value)">
+      <span>até</span>
+      <input type="date" value="${esc(MG_F_ENT_ATE)}" title="Entrega até"
+             onchange="mgFEntregaPeriodo('ate',this.value)">
+    </div>
+
+    <div class="dp-sec">Quando foi criada</div>
+    ${MG_CRIADA_OPS.map(([v,l])=>`<label class="chk">
+      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${v}')"> ${l}
+    </label>`).join('')}
+  `;
+};
+
+/* a contagem no botão Filtros passa a considerar os filtros novos */
+(function(){
+  if(typeof updateFilterCount!=='function') return;
+  const _uc = updateFilterCount;
+  updateFilterCount = function(){
+    const r = _uc();
+    const b = document.getElementById('filter-count'); if(!b) return r;
+    let n = Number(b.textContent||0) || 0;
+    if(!MG_F_CLI_TODOS) n++;
+    if(MG_F_ENTREGA) n++;
+    b.style.display = n ? '' : 'none';
+    b.textContent = n;
+    return r;
+  };
+})();
+(function(){
+  if(typeof clearFilters!=='function') return;
+  const _cf = clearFilters;
+  clearFilters = function(){
+    MG_F_CLI_TODOS = true; MG_F_CLIENTES.clear();
+    MG_F_ENTREGA = ''; MG_F_ENT_DE = ''; MG_F_ENT_ATE = ''; MG_F_CRIADA = '';
+    const r = _cf(); mgFDesenhar(); return r;
+  };
+})();
+setTimeout(mgFDesenhar, 1400);
 </script>
 </body>
 </html>
