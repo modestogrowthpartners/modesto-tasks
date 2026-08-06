@@ -12184,5 +12184,56 @@ button{color:inherit}
 <script>
 /* Sem script: o problema era de cascata, e a correção também. */
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 46 — saber qual versão está no ar
+
+   Toda vez que subimos um arquivo novo fica a dúvida: o que o navegador
+   está servindo é o novo ou uma cópia guardada? Este bloco responde isso
+   sem precisar abrir o console.
+   ===================================================================== */
+.mg-versao{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);
+  background:var(--card2);border:1px solid var(--line2);border-radius:9px;padding:7px 12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+.mg-versao b{color:var(--text);font-weight:700}
+.mg-versao .pt{width:8px;height:8px;border-radius:50%;background:var(--st-done)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 46
+   ===================================================================== */
+const MG_VERSAO = 46;
+const MG_VERSAO_DATA = '2026-07-28';
+
+/* aparece no console assim que a página carrega */
+console.log('%cModesto Portal', 'font-weight:700',
+            '— versão ' + MG_VERSAO + ' (' + MG_VERSAO_DATA + ')');
+
+/* e fica disponível para conferir a qualquer momento */
+function mgVersao(){
+  return {versao: MG_VERSAO, data: MG_VERSAO_DATA, projeto: (typeof mgProjetoRef==='function' ? mgProjetoRef() : '—')};
+}
+
+/* mostra na tela, junto do diagnóstico de conexão */
+(function(){
+  if(typeof mgPrefConteudo!=='function') return;
+  const _pc = mgPrefConteudo;
+  mgPrefConteudo = function(aba){
+    let html = _pc(aba);
+    if(aba==='avanc'){
+      html += `
+        <hr><div class="grupo-tt">Versão</div>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:10px">
+          Confira aqui se o arquivo que está no ar é o mais recente. Se o número
+          for menor do que o esperado, o navegador ou a hospedagem está servindo
+          uma cópia guardada.
+        </div>
+        <span class="mg-versao"><span class="pt"></span>
+          versão <b>${MG_VERSAO}</b> · ${esc(MG_VERSAO_DATA)}</span>`;
+    }
+    return html;
+  };
+})();
+</script>
 </body>
 </html>
