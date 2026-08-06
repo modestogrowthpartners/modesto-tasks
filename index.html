@@ -12160,5 +12160,29 @@ function mgDetalheEmColunas(){
    de #d-subs e #d-notes, e esses nós já estão dentro das colunas. Quem
    refaz o painel inteiro é renderDetailBody, que já está embrulhada. */
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 45 — texto preto no tema escuro
+
+   Causa: nenhum navegador faz <button> herdar a cor do texto. Sem uma
+   regra explícita, o botão usa o preto do sistema. No tema claro isso
+   passava despercebido; no escuro, o nome do cliente nos cards de pasta
+   ficava preto sobre fundo quase preto — contraste de 1,26:1.
+
+   A correção é na causa: botões passam a herdar a cor como qualquer
+   outro elemento. Botões que já definem a própria cor (os dourados, os
+   de perigo) não são afetados, porque a regra deles é mais específica.
+   ===================================================================== */
+button{color:inherit}
+
+/* e o card de pasta, explicitamente, para não depender de herança */
+.dfolder,
+.dfolder .cl,
+.dfolder .cl span{color:var(--text)}
+.dfolder .mt{color:var(--muted)}
+</style>
+<script>
+/* Sem script: o problema era de cascata, e a correção também. */
+</script>
 </body>
 </html>
