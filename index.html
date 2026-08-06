@@ -12045,5 +12045,120 @@ function mgPMAbasHTML(){
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   ADIÇÃO 44
+   1) a barra de baixo não fica mais por cima do painel de detalhe
+   2) o painel alarga e as Subtarefas ficam ao lado das Anotações
+   ===================================================================== */
+
+/* ---------- 1. sem colisão ----------
+   O painel tem z-index 51 e a barra 95, então a barra passava por cima
+   dos botões Salvar e Excluir. Em vez de brigar por camada — a barra é
+   opaca e apareceria pela fresta abaixo do painel de qualquer jeito —
+   ela sai de cena enquanto há um painel aberto. */
+body.mg-painel-aberto .mg-dock,
+body.mg-painel-aberto .mg-busca{display:none!important}
+
+/* ---------- 2. painel mais largo, em duas colunas ---------- */
+body .slide{width:min(1080px,96vw)}
+
+.mg-det-grade{display:grid;grid-template-columns:1fr 1fr;gap:26px;
+  margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}
+.mg-det-col{min-width:0;display:flex;flex-direction:column}
+.mg-det-col > .sect-t:first-child{margin-top:0}
+.mg-det-col .subs{margin-bottom:12px}
+.mg-det-col .notes{max-height:300px;overflow:auto;margin-bottom:12px}
+.mg-det-col .timebox{margin-top:auto}
+.mg-det-col .note-form{margin-top:auto}
+.mg-det-col .note-form textarea{min-height:96px}
+
+/* uma coluna quando não há largura para duas */
+@media(max-width:960px){
+  .mg-det-grade{grid-template-columns:1fr;gap:0}
+  .mg-det-col .timebox,.mg-det-col .note-form{margin-top:14px}
+  .mg-det-col .notes{max-height:none}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 44
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. a barra some enquanto um painel ou uma janela está aberta
+   --------------------------------------------------------------------- */
+function mgPainelAberto(){
+  const slide = document.getElementById('slide');
+  const aberto = !!(
+    (slide && slide.classList.contains('on')) ||
+    document.querySelector('.modal.on') ||
+    document.querySelector('.mg-modal.on')
+  );
+  document.body.classList.toggle('mg-painel-aberto', aberto);
+}
+setInterval(mgPainelAberto, 250);
+mgPainelAberto();
+
+/* ---------------------------------------------------------------------
+   2. Subtarefas de um lado, Anotações do outro
+
+   O corpo do painel é montado numa sequência só. Em vez de reescrever
+   `renderDetailBody` inteira — ela é longa e muda com frequência —
+   reorganizamos os blocos que ela já produziu, movendo os nós para duas
+   colunas. Assim qualquer mudança futura no conteúdo continua valendo.
+   --------------------------------------------------------------------- */
+function mgDetalheEmColunas(){
+  const corpo = document.querySelector('#slide .slide-b');
+  if(!corpo || corpo.querySelector('.mg-det-grade')) return;
+
+  const subs  = document.getElementById('d-subs');
+  const notas = document.getElementById('d-notes');
+  if(!notas) return;                       /* nada para dividir */
+
+  /* guarda as referências ANTES de mover: mover altera os irmãos */
+  const tituloSubs = (subs && subs.previousElementSibling &&
+                      subs.previousElementSibling.classList.contains('sect-t'))
+                     ? subs.previousElementSibling : null;
+  const addSubs    = (subs && subs.nextElementSibling &&
+                      subs.nextElementSibling.classList.contains('sub-add'))
+                     ? subs.nextElementSibling : null;
+  const tempo      = corpo.querySelector('.timebox');
+  const tituloNotas = (notas.previousElementSibling &&
+                       notas.previousElementSibling.classList.contains('sect-t'))
+                      ? notas.previousElementSibling : null;
+  const formNota   = corpo.querySelector('.note-form');
+
+  const grade = document.createElement('div'); grade.className = 'mg-det-grade';
+  const esq   = document.createElement('div'); esq.className   = 'mg-det-col';
+  const dir   = document.createElement('div'); dir.className   = 'mg-det-col';
+
+  if(tituloSubs) esq.appendChild(tituloSubs);
+  if(subs)       esq.appendChild(subs);
+  if(addSubs)    esq.appendChild(addSubs);
+  if(tempo)      esq.appendChild(tempo);
+
+  if(tituloNotas) dir.appendChild(tituloNotas);
+  dir.appendChild(notas);
+  if(formNota)    dir.appendChild(formNota);
+
+  grade.appendChild(esq); grade.appendChild(dir);
+  corpo.appendChild(grade);
+}
+
+(function(){
+  if(typeof renderDetailBody!=='function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{ mgDetalheEmColunas() }catch(e){ console.warn('[detalhe] colunas', e) }
+    return r;
+  };
+})();
+
+/* Não é preciso vigiar addSub/addNote: as duas só reescrevem o innerHTML
+   de #d-subs e #d-notes, e esses nós já estão dentro das colunas. Quem
+   refaz o painel inteiro é renderDetailBody, que já está embrulhada. */
+</script>
 </body>
 </html>
