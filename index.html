@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 49;
+const MG_VERSAO = 50;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -13501,6 +13501,733 @@ function mgTempoDesenhar(){
         .then(()=>{}, ()=>{});
     }
     return _od(id);
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 50 — Briefing de plano de mídia
+   O cliente preenche, revê num resumo, corrige se quiser e envia.
+   Ao enviar: cria o card e dispara o e-mail para as duas partes.
+   ===================================================================== */
+.mg-bf{max-width:840px;margin:0 auto}
+.mg-bf-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mg-bf-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
+.mg-bf-cab .sub{font-size:12.5px;color:var(--muted);margin-top:4px;max-width:560px;line-height:1.5}
+
+.mg-bf-sec{background:var(--card);border:1px solid var(--line);border-radius:15px;
+  padding:20px 22px;margin-top:16px;animation:mgSobe .38s cubic-bezier(.22,1,.36,1) both}
+.mg-bf-sec > h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:0 0 3px;
+  display:flex;align-items:baseline;gap:9px}
+.mg-bf-sec > h4 .n{font-size:11px;font-weight:700;color:var(--brass2);letter-spacing:1px}
+.mg-bf-sec > .ajuda{font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:14px}
+.mg-bf-lin{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.mg-bf-lin.um{grid-template-columns:1fr}
+.mg-bf-c{display:flex;flex-direction:column;gap:5px;min-width:0}
+.mg-bf-c label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted2)}
+.mg-bf-c input,.mg-bf-c textarea,.mg-bf-c select{width:100%;background:var(--card2);
+  border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font-family:inherit;
+  font-size:13.5px;color:var(--text)}
+.mg-bf-c textarea{min-height:96px;resize:vertical;line-height:1.55}
+.mg-bf-c input:focus,.mg-bf-c textarea:focus,.mg-bf-c select:focus{outline:none;
+  border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.15)}
+.mg-bf-c input.erro{border-color:var(--danger);box-shadow:0 0 0 3px rgba(184,74,62,.13)}
+
+.mg-bf-tab{width:100%;border-collapse:collapse;font-size:13px}
+.mg-bf-tab th{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted2);
+  font-weight:700;text-align:left;padding:8px 8px;border-bottom:1px solid var(--line)}
+.mg-bf-tab th.num,.mg-bf-tab td.num{text-align:right}
+.mg-bf-tab td{padding:6px 8px;border-bottom:1px solid var(--line)}
+.mg-bf-tab tr:last-child td{border-bottom:0}
+.mg-bf-tab input,.mg-bf-tab select{width:100%;background:var(--card2);border:1px solid var(--line2);
+  border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px;color:var(--text)}
+.mg-bf-tab input:focus,.mg-bf-tab select:focus{outline:none;border-color:var(--brass)}
+.mg-bf-tab input.vl{text-align:right}
+.mg-bf-tab .pct{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mg-bf-tab .tot td{border-top:1px solid var(--line2);font-weight:700;background:var(--card2)}
+.mg-bf-tab .x{background:none;border:0;color:var(--muted2);font-size:13px;padding:3px 6px;border-radius:6px}
+.mg-bf-tab .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-bf-add{background:var(--card2);border:1px dashed var(--line2);border-radius:9px;padding:8px 14px;
+  font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);margin-top:10px}
+.mg-bf-add:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-bf-sobra{font-size:12px;margin-top:8px;color:var(--muted)}
+.mg-bf-sobra.estourou{color:var(--danger);font-weight:600}
+.mg-bf-sobra.certo{color:#1f7d52;font-weight:600}
+
+.mg-bf-chks{display:flex;flex-direction:column;gap:7px}
+.mg-bf-chk{display:flex;align-items:flex-start;gap:9px;font-size:13px;cursor:pointer;
+  padding:6px 8px;border-radius:8px}
+.mg-bf-chk:hover{background:var(--card2)}
+.mg-bf-chk input{width:16px;height:16px;accent-color:var(--brass);margin-top:1px;flex:0 0 auto}
+
+.mg-bf-acoes{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:22px}
+.mg-bf-b{background:var(--brass);color:var(--ink2);border:0;border-radius:11px;padding:12px 24px;
+  font-family:inherit;font-weight:700;font-size:13.5px;
+  box-shadow:0 10px 26px -10px rgba(194,161,91,.7)}
+.mg-bf-b:hover{background:var(--brass2);color:#fff}
+.mg-bf-b:disabled{opacity:.5}
+.mg-bf-b.ghost{background:none;color:var(--text);border:1px solid var(--line2);box-shadow:none}
+.mg-bf-b.ghost:hover{border-color:var(--brass);color:var(--brass2);background:none}
+.mg-bf-nota{font-size:12px;color:var(--muted)}
+
+/* ---------- resumo ---------- */
+.mg-bf-res{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.mg-bf-res-top{padding:22px 24px;border-bottom:1px solid var(--line);
+  background:linear-gradient(135deg, rgba(194,161,91,.10), transparent 70%)}
+.mg-bf-res-top .m{font-family:var(--font-d);font-size:21px;font-weight:500}
+.mg-bf-res-top .s{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mg-bf-res-b{padding:6px 24px 22px}
+.mg-bf-g{padding:16px 0;border-bottom:1px solid var(--line)}
+.mg-bf-g:last-child{border-bottom:0}
+.mg-bf-g .gt{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--muted2);margin-bottom:9px}
+.mg-bf-par{display:grid;grid-template-columns:180px 1fr;gap:7px 16px;font-size:13px;line-height:1.6}
+.mg-bf-par dt{color:var(--muted)}
+.mg-bf-par dd{margin:0;font-weight:600}
+.mg-bf-res .mg-bf-tab td{font-size:12.5px}
+.mg-bf-vazio{font-size:12.5px;color:var(--muted2);font-style:italic}
+.mg-bf-destaque{font-family:var(--font-d);font-size:26px;font-weight:600;color:var(--brass2);line-height:1.1}
+
+/* ---------- lista ---------- */
+.mg-bf-card{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);
+  border-radius:13px;padding:14px 17px;margin-bottom:9px;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);animation:mgSobe .36s cubic-bezier(.22,1,.36,1) both}
+.mg-bf-card:hover{border-color:var(--line2);transform:translateX(3px);box-shadow:0 8px 20px rgba(0,0,0,.06)}
+.mg-bf-card .ic{font-size:17px;flex-shrink:0}
+.mg-bf-card .txt{flex:1;min-width:0}
+.mg-bf-card .txt b{display:block;font-size:13.5px;font-weight:600}
+.mg-bf-card .txt span{font-size:11.5px;color:var(--muted)}
+.mg-bf-est{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;white-space:nowrap;flex-shrink:0}
+.mg-bf-est.rascunho{background:rgba(217,131,36,.16);color:#a8660f}
+.mg-bf-est.enviado{background:rgba(46,158,107,.14);color:#1f7d52}
+
+@media(max-width:720px){
+  .mg-bf-lin{grid-template-columns:1fr}
+  .mg-bf-par{grid-template-columns:1fr;gap:2px 0}
+  .mg-bf-par dd{margin-bottom:8px}
+  .mg-bf-tab{font-size:12px}
+  .mg-bf-tab th:nth-child(4),.mg-bf-tab td:nth-child(4){display:none}
+}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 50 — Briefing
+   ===================================================================== */
+let MG_BF        = null;     /* briefing em edição */
+let MG_BF_ID     = null;
+let MG_BF_LISTA  = [];
+let MG_BF_TELA   = 'lista';  /* lista | form | resumo */
+let MG_BF_ERRO   = null;
+let MG_BF_LIDO   = false;
+
+const MG_BF_PLATAFORMAS = [
+  'Meta Ads (Facebook / Instagram)',
+  'Google Ads (Search / PMax / Display)',
+  'YouTube Ads',
+  'TikTok Ads',
+  'LinkedIn Ads',
+];
+const MG_BF_METAS = [
+  'Leads / cadastros',
+  'Receita / faturamento (R$)',
+  'Vendas / conversões',
+  'Tráfego / sessões no site',
+  'Alcance / impressões',
+];
+const MG_BF_ANEXOS = [
+  'Materiais criativos (imagens, vídeos, textos)',
+  'Links de direcionamento da campanha',
+  'Tabela de produtos, preços e ofertas',
+];
+
+function mgBFNovo(clientId){
+  const hoje = new Date().toISOString().slice(0,10);
+  return {
+    marca: clientName(clientId) || '',
+    responsavel: ME ? ME.name : '',
+    enviado_em: hoje,
+    inicio:'', fim:'',
+    verba_total: 0,
+    plataformas: MG_BF_PLATAFORMAS.map(nome=>({nome, verba:0})),
+    campanhas: [{nome:'',inicio:'',fim:'',plataformas:'',obs:''}],
+    apostas:'',
+    metas: MG_BF_METAS.map(metrica=>({metrica, meta:'', prioridade:''})),
+    observacoes:'',
+    anexos:[], anexos_outros:'',
+  };
+}
+function mgBFReal(v){ return Number(String(v==null?0:v).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.')) || 0 }
+function mgBFDinheiro(v){
+  return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+}
+function mgBFSomaPlataformas(){
+  return (MG_BF.plataformas||[]).reduce((a,p)=>a + (Number(p.verba)||0), 0);
+}
+function mgBFMes(){
+  const d = MG_BF && MG_BF.inicio ? new Date(MG_BF.inicio+'T12:00:00') : new Date();
+  return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+}
+function mgBFMesCurto(){
+  const d = MG_BF && MG_BF.inicio ? new Date(MG_BF.inicio+'T12:00:00') : new Date();
+  return d.toLocaleDateString('pt-BR',{month:'long'}).replace(/^./,c=>c.toUpperCase());
+}
+function mgBFCliente(){
+  if(!isAdmin() && ME && ME.client_id) return ME.client_id;
+  return MG_BF_CLI || (ME && ME.client_id) || null;
+}
+let MG_BF_CLI = null;
+
+/* ---------------------------------------------------------------------
+   Carregar e salvar
+   --------------------------------------------------------------------- */
+async function mgBFCarregar(){
+  MG_BF_ERRO = null;
+  try{
+    let q = sb.from('briefings').select('*').order('criado_em',{ascending:false});
+    const cid = mgBFCliente();
+    if(!isAdmin() && cid) q = q.eq('client_id', cid);
+    const {data,error} = await q;
+    if(error) throw error;
+    MG_BF_LISTA = data || [];
+    MG_BF_LIDO = true;
+  }catch(e){
+    const m = (e && e.message) || '';
+    MG_BF_ERRO = /relation .*briefings|does not exist|schema cache/i.test(m) ? 'tabela' : m;
+    MG_BF_LIDO = true;
+  }
+}
+async function mgBFSalvar(status){
+  const cid = mgBFCliente();
+  if(!cid){ toast('Nenhuma empresa vinculada a este acesso'); return null }
+  const corpo = {
+    client_id: cid,
+    titulo: `${clientName(cid)} Plano de Mídia ${mgBFMesCurto()}`,
+    mes: (MG_BF.inicio||'').slice(0,7),
+    status: status || 'rascunho',
+    dados: MG_BF,
+    criado_por: ME ? ME.name : null,
+  };
+  if(status === 'enviado') corpo.enviado_em = new Date().toISOString();
+  try{
+    let r;
+    if(MG_BF_ID) r = await sb.from('briefings').update(corpo).eq('id', MG_BF_ID).select().single();
+    else r = await sb.from('briefings').insert(corpo).select().single();
+    if(r.error) throw r.error;
+    MG_BF_ID = r.data.id;
+    return r.data;
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/relation .*briefings|schema cache/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 50');
+    else toast('Não foi possível salvar: ' + m);
+    console.error(e);
+    return null;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Campos
+   --------------------------------------------------------------------- */
+function mgBFCampo(campo, valor){ MG_BF[campo] = valor; mgBFAviso() }
+function mgBFVerba(valor){ MG_BF.verba_total = mgBFReal(valor); mgBFRecalcular() }
+function mgBFPlat(i, valor){
+  MG_BF.plataformas[i].verba = mgBFReal(valor);
+  mgBFRecalcular();
+}
+function mgBFPlatNome(i, valor){ MG_BF.plataformas[i].nome = valor; mgBFAviso() }
+function mgBFAddPlat(){ MG_BF.plataformas.push({nome:'', verba:0}); mgBFDesenhar() }
+function mgBFDelPlat(i){ MG_BF.plataformas.splice(i,1); mgBFDesenhar() }
+function mgBFCamp(i, campo, valor){ MG_BF.campanhas[i][campo] = valor; mgBFAviso() }
+function mgBFAddCamp(){ MG_BF.campanhas.push({nome:'',inicio:'',fim:'',plataformas:'',obs:''}); mgBFDesenhar() }
+function mgBFDelCamp(i){ MG_BF.campanhas.splice(i,1); mgBFDesenhar() }
+function mgBFMeta(i, campo, valor){ MG_BF.metas[i][campo] = valor; mgBFAviso() }
+function mgBFAddMeta(){ MG_BF.metas.push({metrica:'', meta:'', prioridade:''}); mgBFDesenhar() }
+function mgBFDelMeta(i){ MG_BF.metas.splice(i,1); mgBFDesenhar() }
+function mgBFAnexo(nome, marcado){
+  MG_BF.anexos = MG_BF.anexos || [];
+  const i = MG_BF.anexos.indexOf(nome);
+  if(marcado && i<0) MG_BF.anexos.push(nome);
+  if(!marcado && i>=0) MG_BF.anexos.splice(i,1);
+}
+/* recalcula só os números derivados, sem redesenhar (não perde o foco) */
+function mgBFRecalcular(){
+  const soma = mgBFSomaPlataformas();
+  const total = Number(MG_BF.verba_total)||0;
+  (MG_BF.plataformas||[]).forEach((p,i)=>{
+    const el = document.querySelector(`[data-pct="${i}"]`);
+    if(el) el.textContent = soma ? ((Number(p.verba)||0)/soma*100).toFixed(1).replace('.',',')+'%' : '—';
+  });
+  const st = document.getElementById('mg-bf-somaplat');
+  if(st) st.textContent = mgBFDinheiro(soma);
+  const sb2 = document.getElementById('mg-bf-sobra');
+  if(sb2){
+    if(!soma){ sb2.className='mg-bf-sobra'; sb2.textContent='Deixe em branco para a Modesto sugerir a distribuição.' }
+    else if(!total){ sb2.className='mg-bf-sobra'; sb2.textContent='Informe a verba total do mês acima.' }
+    else if(soma > total){ sb2.className='mg-bf-sobra estourou';
+      sb2.textContent = 'A distribuição passa a verba total em ' + mgBFDinheiro(soma-total) + '.' }
+    else if(soma === total){ sb2.className='mg-bf-sobra certo'; sb2.textContent='Distribuição fecha com a verba total ✓' }
+    else { sb2.className='mg-bf-sobra'; sb2.textContent='Faltam ' + mgBFDinheiro(total-soma) + ' para fechar a verba total.' }
+  }
+  mgBFAviso();
+}
+function mgBFAviso(){
+  const el = document.getElementById('mg-bf-aviso');
+  if(el) el.textContent = 'Alterações não salvas.';
+}
+
+/* ---------------------------------------------------------------------
+   Formulário
+   --------------------------------------------------------------------- */
+function mgBFForm(){
+  const soma = mgBFSomaPlataformas();
+  return `<div class="mg-bf">
+    <div class="mg-bf-cab">
+      <div>
+        <div class="tit">Briefing · Plano de mídia</div>
+        <div class="sub">Preencha com o máximo de detalhes. Quanto mais completo o briefing,
+          mais preciso será o plano de mídia do mês.</div>
+      </div>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.02s">
+      <h4><span class="n">00</span> Identificação</h4>
+      <div class="mg-bf-lin">
+        <span class="mg-bf-c"><label>Marca</label>
+          <input value="${esc(MG_BF.marca||'')}" onchange="mgBFCampo('marca',this.value)"></span>
+        <span class="mg-bf-c"><label>Responsável pelo preenchimento</label>
+          <input value="${esc(MG_BF.responsavel||'')}" onchange="mgBFCampo('responsavel',this.value)"></span>
+      </div>
+      <div class="mg-bf-lin um">
+        <span class="mg-bf-c"><label>Data de envio</label>
+          <input type="date" value="${esc(MG_BF.enviado_em||'')}" onchange="mgBFCampo('enviado_em',this.value)"></span>
+      </div>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.06s">
+      <h4><span class="n">01</span> Período da campanha</h4>
+      <div class="ajuda">Intervalo de datas em que o plano de mídia deverá rodar.</div>
+      <div class="mg-bf-lin">
+        <span class="mg-bf-c"><label>Data de início</label>
+          <input type="date" id="mg-bf-ini" value="${esc(MG_BF.inicio||'')}" onchange="mgBFCampo('inicio',this.value)"></span>
+        <span class="mg-bf-c"><label>Data de término</label>
+          <input type="date" value="${esc(MG_BF.fim||'')}" onchange="mgBFCampo('fim',this.value)"></span>
+      </div>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.10s">
+      <h4><span class="n">02</span> Verba total</h4>
+      <div class="ajuda">A verba do mês inteiro. A divisão por plataforma vem a seguir.</div>
+      <div class="mg-bf-lin um">
+        <span class="mg-bf-c"><label>Verba total do mês (R$)</label>
+          <input id="mg-bf-verba" inputmode="decimal" value="${MG_BF.verba_total||''}"
+                 placeholder="50000" onchange="mgBFVerba(this.value)" oninput="mgBFVerba(this.value)"></span>
+      </div>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.14s">
+      <h4><span class="n">03</span> Distribuição por plataforma</h4>
+      <div class="ajuda">Preencha apenas se desejar sugerir a distribuição.
+        Deixando em branco, a Modesto define a recomendação ideal.</div>
+      <table class="mg-bf-tab">
+        <thead><tr><th>Plataforma</th><th class="num" style="width:150px">Verba (R$)</th>
+          <th class="num" style="width:90px">% da verba</th><th style="width:34px"></th></tr></thead>
+        <tbody>
+          ${(MG_BF.plataformas||[]).map((p,i)=>`<tr>
+            <td>${MG_BF_PLATAFORMAS.includes(p.nome)
+              ? esc(p.nome)
+              : `<input value="${esc(p.nome||'')}" placeholder="Outros (especificar)"
+                   onchange="mgBFPlatNome(${i},this.value)">`}</td>
+            <td class="num"><input class="vl" inputmode="decimal" value="${p.verba||''}"
+                 oninput="mgBFPlat(${i},this.value)"></td>
+            <td class="num pct" data-pct="${i}">${soma?((Number(p.verba)||0)/soma*100).toFixed(1).replace('.',',')+'%':'—'}</td>
+            <td>${MG_BF_PLATAFORMAS.includes(p.nome)?'':`<button class="x" onclick="mgBFDelPlat(${i})">✕</button>`}</td>
+          </tr>`).join('')}
+          <tr class="tot"><td>Total</td>
+            <td class="num" id="mg-bf-somaplat">${mgBFDinheiro(soma)}</td>
+            <td class="num">100%</td><td></td></tr>
+        </tbody>
+      </table>
+      <button class="mg-bf-add" onclick="mgBFAddPlat()">+ Outra plataforma</button>
+      <div class="mg-bf-sobra" id="mg-bf-sobra"></div>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.18s">
+      <h4><span class="n">04</span> Calendário de campanhas</h4>
+      <div class="ajuda">Datas, sazonalidades e ações do mês — lançamentos, datas comemorativas, eventos.</div>
+      <table class="mg-bf-tab">
+        <thead><tr><th>Campanha / ação</th><th style="width:110px">Início</th><th style="width:110px">Fim</th>
+          <th>Plataforma(s)</th><th>Observações</th><th style="width:34px"></th></tr></thead>
+        <tbody>
+          ${(MG_BF.campanhas||[]).map((c,i)=>`<tr>
+            <td><input value="${esc(c.nome||'')}" onchange="mgBFCamp(${i},'nome',this.value)"></td>
+            <td><input type="date" value="${esc(c.inicio||'')}" onchange="mgBFCamp(${i},'inicio',this.value)"></td>
+            <td><input type="date" value="${esc(c.fim||'')}" onchange="mgBFCamp(${i},'fim',this.value)"></td>
+            <td><input value="${esc(c.plataformas||'')}" onchange="mgBFCamp(${i},'plataformas',this.value)"></td>
+            <td><input value="${esc(c.obs||'')}" onchange="mgBFCamp(${i},'obs',this.value)"></td>
+            <td><button class="x" onclick="mgBFDelCamp(${i})">✕</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <button class="mg-bf-add" onclick="mgBFAddCamp()">+ Adicionar campanha</button>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.22s">
+      <h4><span class="n">05</span> Apostas do mês</h4>
+      <div class="ajuda">Produtos, promoções e ofertas que devem ganhar destaque e prioridade de investimento.</div>
+      <span class="mg-bf-c">
+        <textarea onchange="mgBFCampo('apostas',this.value)"
+          placeholder="Ex.: kit primavera, linha de verão, promoção de aniversário…">${esc(MG_BF.apostas||'')}</textarea>
+      </span>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.26s">
+      <h4><span class="n">06</span> Metas e objetivos</h4>
+      <div class="ajuda">Informe números sempre que possível — eles orientam o planejamento e a otimização.</div>
+      <table class="mg-bf-tab">
+        <thead><tr><th>Objetivo / métrica</th><th style="width:150px">Meta do mês</th>
+          <th style="width:130px">Prioridade</th><th style="width:34px"></th></tr></thead>
+        <tbody>
+          ${(MG_BF.metas||[]).map((m,i)=>`<tr>
+            <td>${MG_BF_METAS.includes(m.metrica)
+              ? esc(m.metrica)
+              : `<input value="${esc(m.metrica||'')}" placeholder="Outro (especificar)"
+                   onchange="mgBFMeta(${i},'metrica',this.value)">`}</td>
+            <td><input value="${esc(m.meta||'')}" placeholder="—" onchange="mgBFMeta(${i},'meta',this.value)"></td>
+            <td><select onchange="mgBFMeta(${i},'prioridade',this.value)">
+              <option value="">—</option>
+              ${['Alta','Média','Baixa'].map(p=>`<option ${m.prioridade===p?'selected':''}>${p}</option>`).join('')}
+            </select></td>
+            <td>${MG_BF_METAS.includes(m.metrica)?'':`<button class="x" onclick="mgBFDelMeta(${i})">✕</button>`}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <button class="mg-bf-add" onclick="mgBFAddMeta()">+ Outra métrica</button>
+    </div>
+
+    <div class="mg-bf-sec" style="animation-delay:.30s">
+      <h4><span class="n">07</span> Demais informações</h4>
+      <div class="ajuda">Contexto adicional, restrições, aprendizados de meses anteriores, públicos, tom de comunicação.</div>
+      <span class="mg-bf-c">
+        <textarea onchange="mgBFCampo('observacoes',this.value)">${esc(MG_BF.observacoes||'')}</textarea>
+      </span>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+                  color:var(--muted2);margin:16px 0 8px">Anexos que acompanham este briefing</div>
+      <div class="mg-bf-chks">
+        ${MG_BF_ANEXOS.map(a=>`<label class="mg-bf-chk">
+          <input type="checkbox" ${(MG_BF.anexos||[]).includes(a)?'checked':''}
+                 onchange="mgBFAnexo('${esc(a)}',this.checked)"> ${esc(a)}
+        </label>`).join('')}
+      </div>
+      <div class="mg-bf-lin um" style="margin-top:10px">
+        <span class="mg-bf-c"><label>Outros</label>
+          <input value="${esc(MG_BF.anexos_outros||'')}" onchange="mgBFCampo('anexos_outros',this.value)"></span>
+      </div>
+    </div>
+
+    <div class="mg-bf-acoes">
+      <button class="mg-bf-b" onclick="mgBFRevisar()">Revisar e enviar →</button>
+      <button class="mg-bf-b ghost" onclick="mgBFGuardar()">Salvar rascunho</button>
+      <span class="mg-bf-nota" id="mg-bf-aviso"></span>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
+   Resumo — a tela de conferência antes de enviar
+   --------------------------------------------------------------------- */
+function mgBFResumo(){
+  const soma = mgBFSomaPlataformas();
+  const plats = (MG_BF.plataformas||[]).filter(p=>Number(p.verba)>0);
+  const camps = (MG_BF.campanhas||[]).filter(c=>(c.nome||'').trim());
+  const metas = (MG_BF.metas||[]).filter(m=>(m.meta||'').trim());
+  const per = (MG_BF.inicio && MG_BF.fim)
+    ? new Date(MG_BF.inicio+'T12:00:00').toLocaleDateString('pt-BR') + ' a ' +
+      new Date(MG_BF.fim+'T12:00:00').toLocaleDateString('pt-BR')
+    : '<span class="mg-bf-vazio">não informado</span>';
+
+  return `<div class="mg-bf">
+    <div class="mg-bf-cab">
+      <div>
+        <div class="tit">Confira antes de enviar</div>
+        <div class="sub">Se algo estiver errado, é só voltar e corrigir. Ao enviar, a equipe recebe
+          o briefing por e-mail e uma demanda é aberta automaticamente.</div>
+      </div>
+    </div>
+
+    <div class="mg-bf-res" style="margin-top:16px">
+      <div class="mg-bf-res-top">
+        <div class="m">${esc(MG_BF.marca || clientName(mgBFCliente()))} · Plano de Mídia ${esc(mgBFMesCurto())}</div>
+        <div class="s">Preenchido por ${esc(MG_BF.responsavel||'—')}${MG_BF.enviado_em?' · '+new Date(MG_BF.enviado_em+'T12:00:00').toLocaleDateString('pt-BR'):''}</div>
+      </div>
+      <div class="mg-bf-res-b">
+
+        <div class="mg-bf-g">
+          <div class="gt">Período e verba</div>
+          <dl class="mg-bf-par">
+            <dt>Período</dt><dd>${per}</dd>
+            <dt>Verba total do mês</dt><dd><span class="mg-bf-destaque">${mgBFDinheiro(MG_BF.verba_total)}</span></dd>
+          </dl>
+        </div>
+
+        <div class="mg-bf-g">
+          <div class="gt">Distribuição por plataforma</div>
+          ${plats.length ? `<table class="mg-bf-tab">
+            <thead><tr><th>Plataforma</th><th class="num">Verba</th><th class="num">%</th></tr></thead>
+            <tbody>${plats.map(p=>`<tr><td>${esc(p.nome)}</td>
+              <td class="num">${mgBFDinheiro(p.verba)}</td>
+              <td class="num pct">${soma?((Number(p.verba)||0)/soma*100).toFixed(1).replace('.',',')+'%':'—'}</td></tr>`).join('')}
+              <tr class="tot"><td>Total</td><td class="num">${mgBFDinheiro(soma)}</td><td class="num">100%</td></tr>
+            </tbody></table>`
+            : `<div class="mg-bf-vazio">Não informada — a Modesto vai sugerir a distribuição ideal.</div>`}
+        </div>
+
+        <div class="mg-bf-g">
+          <div class="gt">Calendário de campanhas</div>
+          ${camps.length ? `<table class="mg-bf-tab">
+            <thead><tr><th>Campanha</th><th>Período</th><th>Plataformas</th><th>Obs.</th></tr></thead>
+            <tbody>${camps.map(c=>`<tr>
+              <td><b>${esc(c.nome)}</b></td>
+              <td>${c.inicio?new Date(c.inicio+'T12:00:00').toLocaleDateString('pt-BR'):'—'}${c.fim?' a '+new Date(c.fim+'T12:00:00').toLocaleDateString('pt-BR'):''}</td>
+              <td>${esc(c.plataformas||'—')}</td><td>${esc(c.obs||'')}</td></tr>`).join('')}
+            </tbody></table>` : `<div class="mg-bf-vazio">Nenhuma campanha informada.</div>`}
+        </div>
+
+        <div class="mg-bf-g">
+          <div class="gt">Apostas do mês</div>
+          <div style="font-size:13px;line-height:1.65;white-space:pre-wrap">${esc(MG_BF.apostas||'') || '<span class="mg-bf-vazio">Não informado.</span>'}</div>
+        </div>
+
+        <div class="mg-bf-g">
+          <div class="gt">Metas</div>
+          ${metas.length ? `<table class="mg-bf-tab">
+            <thead><tr><th>Métrica</th><th>Meta</th><th>Prioridade</th></tr></thead>
+            <tbody>${metas.map(m=>`<tr><td>${esc(m.metrica)}</td><td><b>${esc(m.meta)}</b></td>
+              <td>${esc(m.prioridade||'—')}</td></tr>`).join('')}</tbody></table>`
+            : `<div class="mg-bf-vazio">Nenhuma meta informada.</div>`}
+        </div>
+
+        ${(MG_BF.observacoes||'').trim() || (MG_BF.anexos||[]).length || (MG_BF.anexos_outros||'').trim() ? `
+        <div class="mg-bf-g">
+          <div class="gt">Demais informações</div>
+          ${(MG_BF.observacoes||'').trim() ? `<div style="font-size:13px;line-height:1.65;white-space:pre-wrap;margin-bottom:10px">${esc(MG_BF.observacoes)}</div>`:''}
+          ${(MG_BF.anexos||[]).length ? `<div style="font-size:12.5px;color:var(--muted)">Anexos: ${(MG_BF.anexos||[]).map(esc).join(' · ')}</div>`:''}
+          ${(MG_BF.anexos_outros||'').trim() ? `<div style="font-size:12.5px;color:var(--muted)">Outros: ${esc(MG_BF.anexos_outros)}</div>`:''}
+        </div>` : ''}
+
+      </div>
+    </div>
+
+    ${isAdmin() ? `<div class="mg-bf-sec" style="margin-top:16px">
+      <h4>Demanda que será criada</h4>
+      <div class="ajuda">Ao enviar, a plataforma abre esta demanda no quadro.</div>
+      <div class="mg-bf-lin">
+        <span class="mg-bf-c"><label>Título</label>
+          <input disabled value="${esc(clientName(mgBFCliente())+' Plano de Mídia '+mgBFMesCurto())}"></span>
+        <span class="mg-bf-c"><label>Responsável</label>
+          <select id="mg-bf-resp">
+            <option value="">— a equipe pega —</option>
+            ${((typeof ASSIGNEE_OPTS!=='undefined'&&ASSIGNEE_OPTS)||[]).map(n=>`<option>${esc(n)}</option>`).join('')}
+          </select></span>
+      </div>
+    </div>` : ''}
+
+    <div class="mg-bf-acoes">
+      <button class="mg-bf-b" id="mg-bf-enviar" onclick="mgBFEnviar()">Enviar briefing</button>
+      <button class="mg-bf-b ghost" onclick="mgBFEditar()">← Editar</button>
+      <span class="mg-bf-nota">Você e a equipe recebem uma cópia por e-mail.</span>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
+   Ações
+   --------------------------------------------------------------------- */
+function mgBFRevisar(){
+  if(!MG_BF.inicio || !MG_BF.fim){ toast('Informe o período da campanha (seção 01)'); return }
+  if(!Number(MG_BF.verba_total)){ toast('Informe a verba total do mês (seção 02)'); return }
+  MG_BF_TELA = 'resumo'; mgBFDesenhar(); window.scrollTo({top:0, behavior:'smooth'});
+}
+function mgBFEditar(){ MG_BF_TELA = 'form'; mgBFDesenhar(); window.scrollTo({top:0, behavior:'smooth'}) }
+async function mgBFGuardar(){
+  const r = await mgBFSalvar('rascunho');
+  if(r){ toast('Rascunho salvo ✓'); const el=document.getElementById('mg-bf-aviso'); if(el) el.textContent='' }
+}
+function mgBFComecar(clientId){
+  MG_BF_CLI = clientId || mgBFCliente();
+  MG_BF = mgBFNovo(MG_BF_CLI); MG_BF_ID = null; MG_BF_TELA = 'form';
+  mgBFDesenhar();
+}
+function mgBFAbrir(id){
+  const b = MG_BF_LISTA.find(x=>x.id===id); if(!b) return;
+  MG_BF = Object.assign(mgBFNovo(b.client_id), b.dados||{});
+  MG_BF_ID = b.id; MG_BF_CLI = b.client_id;
+  MG_BF_TELA = (b.status==='enviado') ? 'resumo' : 'form';
+  mgBFDesenhar(); window.scrollTo({top:0});
+}
+
+async function mgBFEnviar(){
+  const btn = document.getElementById('mg-bf-enviar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando…' }
+  try{
+    const resp = document.getElementById('mg-bf-resp');
+    const salvo = await mgBFSalvar('enviado');
+    if(!salvo) return;
+
+    /* a demanda no quadro */
+    const cid = mgBFCliente();
+    const titulo = `${clientName(cid)} Plano de Mídia ${mgBFMesCurto()}`;
+    const nova = {
+      title: titulo, client_id: cid,
+      description: 'Briefing enviado pelo cliente. Verba do mês: ' + mgBFDinheiro(MG_BF.verba_total)
+        + (MG_BF.inicio ? ' · Período: ' + new Date(MG_BF.inicio+'T12:00:00').toLocaleDateString('pt-BR')
+           + ' a ' + new Date(MG_BF.fim+'T12:00:00').toLocaleDateString('pt-BR') : ''),
+      status: 'Não iniciado', priority: 'Alta',
+      assignees: (resp && resp.value) ? [resp.value] : [],
+      due: MG_BF.inicio || null, recurrence: 'none', subtasks: [],
+    };
+    const t = await sb.from('tasks').insert(nova).select().single();
+    if(!t.error && t.data){
+      await sb.from('briefings').update({task_id: t.data.id}).eq('id', MG_BF_ID);
+      await loadTasks();
+    }
+
+    toast('Briefing enviado ✓ — demanda criada no quadro');
+    MG_BF_LIDO = false;
+    MG_BF_TELA = 'lista';
+    await mgBFCarregar();
+    mgBFDesenhar();
+  }catch(e){
+    toast('Não foi possível enviar: ' + ((e&&e.message)||''));
+    console.error(e);
+  }finally{
+    const b2 = document.getElementById('mg-bf-enviar');
+    if(b2){ b2.disabled = false; b2.textContent = 'Enviar briefing' }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Lista
+   --------------------------------------------------------------------- */
+function mgBFLista(){
+  const admin = isAdmin();
+  const cid = mgBFCliente();
+  return `<div class="mg-bf">
+    <div class="mg-bf-cab">
+      <div>
+        <div class="tit">Briefings</div>
+        <div class="sub">${admin
+          ? 'Briefings de plano de mídia enviados pelos clientes.'
+          : 'Conte para a equipe o que você espera do mês. O plano de mídia é montado a partir daqui.'}</div>
+      </div>
+    </div>
+
+    ${(!admin || cid) ? `<div class="mg-bf-acoes" style="margin-top:16px">
+      <button class="mg-bf-b" onclick="mgBFComecar()">＋ Novo briefing</button>
+    </div>` : ''}
+
+    ${MG_BF_LISTA.length ? `<div style="margin-top:18px">
+      ${MG_BF_LISTA.map((b,i)=>`<button class="mg-bf-card" style="animation-delay:${(i*0.04).toFixed(2)}s"
+          onclick="mgBFAbrir('${esc(b.id)}')">
+        <span class="ic">${b.status==='enviado'?'📋':'✏️'}</span>
+        <span class="txt">
+          <b>${esc(b.titulo || 'Briefing')}</b>
+          <span>${esc(clientName(b.client_id))} · ${esc(b.criado_por||'—')} ·
+            ${new Date(b.criado_em).toLocaleDateString('pt-BR')}</span>
+        </span>
+        <span class="mg-bf-est ${b.status}">${b.status==='enviado'?'Enviado':'Rascunho'}</span>
+      </button>`).join('')}
+    </div>` : `<div class="mg-pm-nada" style="margin-top:18px">
+      Nenhum briefing ainda.<br>
+      <span style="font-size:12.5px">Comece um novo e conte para a equipe o que você espera do mês.</span>
+    </div>`}
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
+   Desenho e navegação
+   --------------------------------------------------------------------- */
+function mgBFDesenhar(){
+  const el = document.getElementById('v-briefing'); if(!el) return;
+
+  if(!MG_BF_LIDO){
+    el.innerHTML = `<div class="mg-load">Carregando…</div>`;
+    mgBFCarregar().then(mgBFDesenhar);
+    return;
+  }
+  if(MG_BF_ERRO === 'tabela'){
+    el.innerHTML = (typeof mgAvisoFalta==='function')
+      ? `<div class="mg-bf">${mgAvisoFalta('A tabela briefings','supabase-adicao-50.sql')}</div>`
+      : `<div class="mg-pm-nada">Rode o supabase-adicao-50.sql.</div>`;
+    return;
+  }
+  if(MG_BF_ERRO){
+    el.innerHTML = `<div class="mg-bf"><div class="mg-pm-nada">Não foi possível carregar.<br>
+      <span style="font-size:12.5px">${esc(MG_BF_ERRO)}</span></div></div>`;
+    return;
+  }
+  if(MG_BF_TELA === 'form'   && MG_BF) el.innerHTML = mgBFForm();
+  else if(MG_BF_TELA === 'resumo' && MG_BF) el.innerHTML = mgBFResumo();
+  else el.innerHTML = mgBFLista();
+  if(MG_BF_TELA === 'form') mgBFRecalcular();
+  mgDock();
+}
+
+(function(){
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-briefing')){
+    const d = document.createElement('div'); d.className='view'; d.id='v-briefing';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n=>n.v==='briefing')){
+    const i = NAV.findIndex(n=>n.v==='plano');
+    NAV.splice(i<0?NAV.length:i, 0, {v:'briefing', ic:'📋', label:'Briefing'});
+  }
+  if(typeof MG_TONS==='object' && MG_TONS) MG_TONS.briefing =
+    {tom:'#8E7CC3', chip:'rgba(142,124,195,.14)', borda:'rgba(142,124,195,.45)',
+     fraco:'rgba(142,124,195,.09)', sombra:'rgba(142,124,195,.34)'};
+})();
+(function(){
+  const _r = render;
+  render = function(){
+    if(VIEW==='briefing') return mgBFDesenhar();
+    return _r();
+  };
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW==='briefing'){
+      const t=document.getElementById('view-title'); if(t) t.textContent='Briefing';
+      if(!MG_BF_LIDO) mgBFCarregar().then(mgBFDesenhar);
+    }
+    return r;
+  };
+})();
+(function(){
+  if(typeof mgAtalhos!=='function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().map(a => a.v==='briefing' ? {...a, ds:'Conte o que você espera do mês'} : a);
+  };
+})();
+/* o cliente enxerga a aba */
+(function(){
+  if(typeof ABAS_DO_CLIENTE==='undefined') return;
+  if(!ABAS_DO_CLIENTE.includes('briefing')) ABAS_DO_CLIENTE.push('briefing');
+})();
+/* barra de baixo */
+(function(){
+  if(typeof mgDockItens!=='function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW!=='briefing') return base;
+    if(MG_BF_TELA==='lista') return base;
+    const voltar = `<button onclick="MG_BF_TELA='lista';mgBFDesenhar()"><span class="ic">←</span><span class="rot">Briefings</span></button>`;
+    const acao = MG_BF_TELA==='form'
+      ? `<button onclick="mgBFRevisar()"><span class="ic">✓</span><span class="rot">Revisar</span></button>`
+      : `<button onclick="mgBFEnviar()"><span class="ic">✓</span><span class="rot">Enviar</span></button>`;
+    return base.replace('<span class="sep"></span>', voltar + acao + '<span class="sep"></span>');
   };
 })();
 </script>
