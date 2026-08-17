@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 50;
+const MG_VERSAO = 51;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -14230,6 +14230,110 @@ function mgBFDesenhar(){
     return base.replace('<span class="sep"></span>', voltar + acao + '<span class="sep"></span>');
   };
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 51 — a equipe também começa um briefing
+
+   O botão "Novo briefing" só aparecia quando havia uma empresa
+   vinculada ao acesso. Como o admin não tem empresa, a condição dava
+   falso e o botão sumia — só o cliente conseguia começar.
+   Agora a equipe escolhe a empresa ali mesmo.
+   ===================================================================== */
+.mg-bf-escolha{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.mg-bf-escolha select{background:var(--card2);border:1px solid var(--line2);border-radius:10px;
+  padding:11px 13px;font-family:inherit;font-size:13.5px;color:var(--text);min-width:220px}
+.mg-bf-escolha select:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.15)}
+.mg-bf-escolha .dica{font-size:11.5px;color:var(--muted);flex:1 1 100%;line-height:1.5}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 51
+   ===================================================================== */
+
+/* refaz só a lista, com a escolha de empresa para quem é da equipe */
+mgBFLista = function(){
+  const admin = isAdmin();
+  const cid = mgBFCliente();
+  const empresas = (CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+
+  const comecar = admin
+    ? `<div class="mg-bf-escolha">
+         <select id="mg-bf-empresa">
+           <option value="">— escolha a empresa —</option>
+           ${empresas.map(c=>`<option value="${esc(c.id)}" ${cid===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
+         </select>
+         <button class="mg-bf-b" onclick="mgBFComecarEscolhida()">＋ Novo briefing</button>
+         <span class="dica">Normalmente quem preenche é o cliente, pela conta dele.
+           A equipe pode preencher junto numa reunião ou adiantar um rascunho.</span>
+       </div>`
+    : `<div class="mg-bf-acoes" style="margin-top:16px">
+         <button class="mg-bf-b" onclick="mgBFComecar()">＋ Novo briefing</button>
+       </div>`;
+
+  return `<div class="mg-bf">
+    <div class="mg-bf-cab">
+      <div>
+        <div class="tit">Briefings</div>
+        <div class="sub">${admin
+          ? 'Briefings de plano de mídia enviados pelos clientes.'
+          : 'Conte para a equipe o que você espera do mês. O plano de mídia é montado a partir daqui.'}</div>
+      </div>
+    </div>
+
+    ${comecar}
+
+    ${MG_BF_LISTA.length ? `<div style="margin-top:18px">
+      ${MG_BF_LISTA.map((b,i)=>`<button class="mg-bf-card" style="animation-delay:${(i*0.04).toFixed(2)}s"
+          onclick="mgBFAbrir('${esc(b.id)}')">
+        <span class="ic">${b.status==='enviado'?'📋':'✏️'}</span>
+        <span class="txt">
+          <b>${esc(b.titulo || 'Briefing')}</b>
+          <span>${esc(clientName(b.client_id))} · ${esc(b.criado_por||'—')} ·
+            ${new Date(b.criado_em).toLocaleDateString('pt-BR')}</span>
+        </span>
+        <span class="mg-bf-est ${b.status}">${b.status==='enviado'?'Enviado':'Rascunho'}</span>
+      </button>`).join('')}
+    </div>` : `<div class="mg-pm-nada" style="margin-top:18px">
+      Nenhum briefing ainda.<br>
+      <span style="font-size:12.5px">${admin
+        ? 'Quando um cliente enviar o dele, aparece aqui. Você também pode começar um acima.'
+        : 'Comece um novo e conte para a equipe o que você espera do mês.'}</span>
+    </div>`}
+  </div>`;
+};
+
+function mgBFComecarEscolhida(){
+  const sel = document.getElementById('mg-bf-empresa');
+  const id = sel ? sel.value : '';
+  if(!id){ toast('Escolha primeiro a empresa'); if(sel) sel.focus(); return }
+  mgBFComecar(id);
+}
+
+/* a equipe pode trocar de empresa no meio do preenchimento, enquanto é
+   rascunho — depois de enviado, o briefing pertence àquela empresa */
+(function(){
+  const _form = mgBFForm;
+  mgBFForm = function(){
+    let html = _form();
+    if(!isAdmin()) return html;
+    const empresas = (CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+    const troca = `<div class="mg-bf-escolha" style="margin-top:0;margin-bottom:4px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted2)">Empresa</span>
+      <select onchange="mgBFTrocarEmpresa(this.value)">
+        ${empresas.map(c=>`<option value="${esc(c.id)}" ${MG_BF_CLI===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
+      </select>
+    </div>`;
+    return html.replace('<div class="mg-bf-sec" style="animation-delay:.02s">',
+                        troca + '<div class="mg-bf-sec" style="animation-delay:.02s">');
+  };
+})();
+function mgBFTrocarEmpresa(id){
+  if(!id) return;
+  MG_BF_CLI = id;
+  if(MG_BF) MG_BF.marca = clientName(id);
+  mgBFDesenhar();
+}
 </script>
 </body>
 </html>
