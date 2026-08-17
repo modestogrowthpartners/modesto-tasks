@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 51;
+const MG_VERSAO = 52;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -14334,6 +14334,351 @@ function mgBFTrocarEmpresa(id){
   if(MG_BF) MG_BF.marca = clientName(id);
   mgBFDesenhar();
 }
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 52
+   1) anexar arquivos de verdade no briefing
+   2) escolher para quem o e-mail vai, na hora de enviar
+   3) campo de contatos na ficha da empresa
+   ===================================================================== */
+
+/* ---------- anexos ---------- */
+.mg-bfa{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.mg-bfa-i{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line);
+  border-radius:10px;padding:9px 12px;font-size:12.5px}
+.mg-bfa-i .ic{font-size:15px;flex-shrink:0;opacity:.75}
+.mg-bfa-i .txt{flex:1;min-width:0}
+.mg-bfa-i .nm{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-bfa-i .sb{font-size:11px;color:var(--muted);margin-top:2px}
+.mg-bfa-i button{background:none;border:0;font-family:inherit;font-size:12px;font-weight:600;
+  color:var(--brass2);padding:4px 8px;border-radius:7px;flex-shrink:0}
+.mg-bfa-i button:hover{background:rgba(194,161,91,.12)}
+.mg-bfa-i button.x{color:var(--muted2)}
+.mg-bfa-i button.x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-bfa-add{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  background:var(--card2);border:1px dashed var(--line2);border-radius:11px;padding:16px;
+  font-family:inherit;font-size:13px;font-weight:600;color:var(--muted)}
+.mg-bfa-add:hover{border-color:var(--brass);color:var(--brass2);background:rgba(194,161,91,.04)}
+.mg-bfa-add:disabled{opacity:.55}
+.mg-bfa-solto{border-style:solid;border-color:var(--brass);background:rgba(194,161,91,.08);color:var(--brass2)}
+
+/* ---------- destinatários ---------- */
+.mg-bfd{background:var(--card);border:1px solid var(--line);border-radius:15px;
+  padding:20px 22px;margin-top:16px}
+.mg-bfd h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:0 0 3px}
+.mg-bfd .ajuda{font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:14px}
+.mg-bfd-grupo{margin-bottom:14px}
+.mg-bfd-grupo label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--muted2);display:block;margin-bottom:5px}
+.mg-bfd-grupo input{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;
+  padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--text)}
+.mg-bfd-grupo input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.15)}
+.mg-bfd-grupo input.erro{border-color:var(--danger)}
+.mg-bfd-grupo .nota{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+.mg-bfd-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mg-bfd-chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:999px;padding:4px 11px;font-size:11.5px}
+.mg-bfd-chip.ruim{border-color:rgba(184,74,62,.5);color:var(--danger)}
+.mg-bfd-chip .x{cursor:pointer;color:var(--muted2);font-size:11px}
+.mg-bfd-chip .x:hover{color:var(--danger)}
+.mg-bfd-vazio{font-size:12px;color:var(--muted);font-style:italic}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 52
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — ANEXOS DE VERDADE
+   Vão para o bucket `documents`, na pasta <client_id>/briefings/.
+   ===================================================================== */
+function mgBFArquivos(){
+  if(!MG_BF.arquivos) MG_BF.arquivos = [];
+  return MG_BF.arquivos;
+}
+async function mgBFSubir(lista){
+  const cid = mgBFCliente();
+  if(!cid){ toast('Escolha primeiro a empresa'); return }
+  const btn = document.getElementById('mg-bfa-add');
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando…' }
+  const novos = [];
+  try{
+    for(const f of lista){
+      if(f.size > 25*1024*1024){ toast('“'+f.name+'” passa de 25 MB'); continue }
+      const ext = (f.name.split('.').pop()||'bin').toLowerCase();
+      const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(16).slice(2));
+      const path = `${cid}/briefings/${id}.${ext}`;
+      const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
+      if(up.error) throw up.error;
+      novos.push({nome:f.name, path, tipo:f.type||'', tamanho:f.size, em:new Date().toISOString()});
+    }
+    if(novos.length){
+      MG_BF.arquivos = mgBFArquivos().concat(novos);
+      mgBFDesenhar();
+      toast(novos.length===1 ? 'Arquivo anexado ✓' : novos.length+' arquivos anexados ✓');
+    }
+  }catch(e){
+    toast('Não foi possível anexar: ' + ((e&&e.message)||''));
+    console.error(e);
+  }finally{
+    const b2 = document.getElementById('mg-bfa-add');
+    if(b2){ b2.disabled = false; b2.textContent = '＋ Anexar arquivos' }
+  }
+}
+function mgBFEscolherArquivos(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true;
+  inp.onchange = e => mgBFSubir([...e.target.files]);
+  inp.click();
+}
+async function mgBFAbrirArquivo(path){
+  try{
+    const {data,error} = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if(error) throw error;
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }catch(e){ toast('Não foi possível abrir') }
+}
+function mgBFTirarArquivo(i){
+  const lista = mgBFArquivos();
+  const alvo = lista[i]; if(!alvo) return;
+  if(!confirm('Remover “'+alvo.nome+'” do briefing?')) return;
+  lista.splice(i,1);
+  sb.storage.from('documents').remove([alvo.path]).catch(()=>{});
+  mgBFDesenhar();
+}
+/* arrastar e soltar sobre a área */
+function mgBFArrastar(e){ e.preventDefault(); e.currentTarget.classList.add('mg-bfa-solto') }
+function mgBFSair(e){ e.currentTarget.classList.remove('mg-bfa-solto') }
+function mgBFSoltar(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('mg-bfa-solto');
+  const fs = e.dataTransfer && e.dataTransfer.files;
+  if(fs && fs.length) mgBFSubir([...fs]);
+}
+
+function mgBFArquivosHTML(){
+  const lista = mgBFArquivos();
+  return `<div class="mg-bfa">
+      ${lista.map((a,i)=>`<div class="mg-bfa-i">
+        <span class="ic">${typeof mgIconeArquivo==='function' ? mgIconeArquivo(a.nome,a.tipo) : '📎'}</span>
+        <span class="txt">
+          <span class="nm" title="${esc(a.nome)}">${esc(a.nome)}</span>
+          <span class="sb">${typeof mgTamanho==='function' ? mgTamanho(a.tamanho) : ''}</span>
+        </span>
+        <button onclick="mgBFAbrirArquivo('${esc(a.path)}')">Abrir</button>
+        <button class="x" title="Remover" onclick="mgBFTirarArquivo(${i})">✕</button>
+      </div>`).join('')}
+    </div>
+    <button class="mg-bfa-add" id="mg-bfa-add" onclick="mgBFEscolherArquivos()"
+      ondragover="mgBFArrastar(event)" ondragleave="mgBFSair(event)" ondrop="mgBFSoltar(event)">
+      ＋ Anexar arquivos
+    </button>
+    <div style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5">
+      Criativos, tabela de produtos, referências — o que ajudar a equipe. Também dá para arrastar
+      os arquivos até aqui. Eles vão junto do e-mail e ficam guardados na plataforma.
+    </div>`;
+}
+
+/* =====================================================================
+   PARTE 2 — DESTINATÁRIOS
+   ===================================================================== */
+function mgEmailValido(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e||'').trim()) }
+function mgListaEmails(txt){
+  return String(txt||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+}
+function mgBFDestinosPadrao(){
+  const c = (CLIENTS||[]).find(x=>x.id===mgBFCliente()) || {};
+  return {
+    cliente: (MG_BF.dest_cliente != null) ? MG_BF.dest_cliente : (c.emails_briefing || ''),
+    equipe:  (MG_BF.dest_equipe  != null) ? MG_BF.dest_equipe  : (c.emails_equipe || ''),
+  };
+}
+function mgBFDestino(qual, valor){
+  if(qual==='cliente') MG_BF.dest_cliente = valor; else MG_BF.dest_equipe = valor;
+  mgBFPintarChips();
+}
+function mgBFPintarChips(){
+  ['cliente','equipe'].forEach(qual=>{
+    const cx = document.getElementById('mg-bfd-'+qual+'-chips');
+    if(!cx) return;
+    const inp = document.getElementById('mg-bfd-'+qual);
+    const lista = mgListaEmails(inp ? inp.value : '');
+    if(inp) inp.classList.toggle('erro', lista.some(e=>!mgEmailValido(e)));
+    cx.innerHTML = lista.length
+      ? lista.map(e=>`<span class="mg-bfd-chip ${mgEmailValido(e)?'':'ruim'}">${esc(e)}${mgEmailValido(e)?'':' ⚠'}</span>`).join('')
+      : `<span class="mg-bfd-vazio">${qual==='cliente'?'Ninguém do lado do cliente vai receber.':'Ninguém da equipe vai receber.'}</span>`;
+  });
+}
+function mgBFDestinosHTML(){
+  const d = mgBFDestinosPadrao();
+  const nome = clientName(mgBFCliente());
+  return `<div class="mg-bfd">
+    <h4>Para quem enviar</h4>
+    <div class="ajuda">Ao enviar, o briefing vai por e-mail em PDF, com os arquivos anexados.
+      Separe vários endereços por vírgula.</div>
+
+    <div class="mg-bfd-grupo">
+      <label>Contatos de ${esc(nome||'cliente')}</label>
+      <input id="mg-bfd-cliente" value="${esc(d.cliente)}"
+             placeholder="contato@empresa.com.br, marketing@empresa.com.br"
+             oninput="mgBFDestino('cliente',this.value)">
+      <div class="mg-bfd-chips" id="mg-bfd-cliente-chips"></div>
+    </div>
+
+    <div class="mg-bfd-grupo">
+      <label>Equipe Modesto</label>
+      <input id="mg-bfd-equipe" value="${esc(d.equipe)}"
+             placeholder="midia@modestogrowth.com.br"
+             oninput="mgBFDestino('equipe',this.value)">
+      <div class="mg-bfd-chips" id="mg-bfd-equipe-chips"></div>
+      <div class="nota">${(CLIENTS||[]).find(x=>x.id===mgBFCliente() && (x.emails_briefing||x.emails_equipe))
+        ? 'Sugeridos a partir da ficha da empresa — dá para alterar só para este envio.'
+        : 'Cadastre os contatos fixos em Clientes → Editar para não digitar toda vez.'}</div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   ENCAIXE — anexos no formulário, destinatários no resumo
+   ===================================================================== */
+(function(){
+  const _form = mgBFForm;
+  mgBFForm = function(){
+    let html = _form();
+    /* troca a lista de caixinhas do modelo pelo envio de arquivo de verdade */
+    const marca = '<div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;\n                  color:var(--muted2);margin:16px 0 8px">Anexos que acompanham este briefing</div>';
+    if(html.includes(marca)){
+      const inicio = html.indexOf(marca);
+      const fim = html.indexOf('</div>\n    </div>\n\n    <div class="mg-bf-acoes">');
+      if(fim > inicio){
+        html = html.slice(0, inicio)
+          + `<div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+                  color:var(--muted2);margin:16px 0 8px">Anexos</div>`
+          + mgBFArquivosHTML()
+          + html.slice(fim);
+      }
+    }
+    return html;
+  };
+})();
+(function(){
+  const _res = mgBFResumo;
+  mgBFResumo = function(){
+    let html = _res();
+    const arqs = mgBFArquivos();
+    /* lista de arquivos dentro do resumo */
+    if(arqs.length){
+      const bloco = `<div class="mg-bf-g">
+        <div class="gt">Arquivos anexados (${arqs.length})</div>
+        ${arqs.map(a=>`<div style="font-size:12.5px;padding:3px 0">
+          ${typeof mgIconeArquivo==='function' ? mgIconeArquivo(a.nome,a.tipo) : '📎'}
+          ${esc(a.nome)} <span style="color:var(--muted)">·
+          ${typeof mgTamanho==='function' ? mgTamanho(a.tamanho) : ''}</span></div>`).join('')}
+      </div>`;
+      html = html.replace('</div>\n    </div>\n\n    ', bloco + '</div>\n    </div>\n\n    ');
+    }
+    /* painel de destinatários, antes das ações */
+    html = html.replace('<div class="mg-bf-acoes">', mgBFDestinosHTML() + '<div class="mg-bf-acoes">');
+    return html;
+  };
+})();
+(function(){
+  const _des = mgBFDesenhar;
+  mgBFDesenhar = function(){
+    const r = _des();
+    if(MG_BF_TELA==='resumo'){ try{ mgBFPintarChips() }catch(e){} }
+    return r;
+  };
+})();
+
+/* ---- ao enviar, grava os destinos e exige pelo menos um ---- */
+(function(){
+  const _env = mgBFEnviar;
+  mgBFEnviar = async function(){
+    const d = mgBFDestinosPadrao();
+    const todos = mgListaEmails(d.cliente).concat(mgListaEmails(d.equipe));
+    if(!todos.length){
+      toast('Informe pelo menos um e-mail para receber o briefing');
+      const i = document.getElementById('mg-bfd-cliente'); if(i) i.focus();
+      return;
+    }
+    const ruins = todos.filter(e=>!mgEmailValido(e));
+    if(ruins.length){ toast('E-mail inválido: ' + ruins[0]); return }
+
+    MG_BF.dest_cliente = d.cliente;
+    MG_BF.dest_equipe  = d.equipe;
+    const idAntes = MG_BF_ID;
+    const r = await _env();
+    /* grava a lista de destinos na linha do briefing, para o Apps Script ler */
+    try{
+      const alvo = MG_BF_ID || idAntes;
+      if(alvo) await sb.from('briefings').update({destinatarios: todos.join(', ')}).eq('id', alvo);
+    }catch(e){ console.warn('[briefing] destinatários', e) }
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 3 — CONTATOS NA FICHA DA EMPRESA
+   ===================================================================== */
+function mgBFCamposCliente(c){
+  return `<div class="mg-bfd-grupo" style="margin-top:14px">
+      <label>E-mails do cliente (briefing)</label>
+      <input id="mg-ec-emails-cli" value="${esc((c&&c.emails_briefing)||'')}"
+             placeholder="contato@empresa.com.br, marketing@empresa.com.br">
+      <div class="nota" style="font-size:11px;color:var(--muted);margin-top:5px">
+        Sugeridos ao enviar um briefing desta empresa. Separe por vírgula.</div>
+    </div>
+    <div class="mg-bfd-grupo">
+      <label>E-mails da equipe nesta conta</label>
+      <input id="mg-ec-emails-eq" value="${esc((c&&c.emails_equipe)||'')}"
+             placeholder="midia@modestogrowth.com.br">
+    </div>`;
+}
+(function(){
+  if(typeof abrirEditarCliente!=='function') return;
+  const _ab = abrirEditarCliente;
+  abrirEditarCliente = function(id){
+    const r = _ab(id);
+    setTimeout(()=>{
+      const jan = document.getElementById('mg-edcli'); if(!jan) return;
+      const c = (CLIENTS||[]).find(x=>x.id===id);
+      if(jan.querySelector('#mg-ec-emails-cli')){
+        jan.querySelector('#mg-ec-emails-cli').value = (c&&c.emails_briefing)||'';
+        jan.querySelector('#mg-ec-emails-eq').value  = (c&&c.emails_equipe)||'';
+        return;
+      }
+      const liga = jan.querySelector('.mg-pm-liga');
+      if(liga) liga.insertAdjacentHTML('beforebegin', mgBFCamposCliente(c));
+    }, 40);
+    return r;
+  };
+})();
+(function(){
+  if(typeof salvarCliente!=='function') return;
+  const _sv = salvarCliente;
+  salvarCliente = async function(){
+    const a = document.getElementById('mg-ec-emails-cli');
+    const b = document.getElementById('mg-ec-emails-eq');
+    const id = (typeof EC_ID!=='undefined') ? EC_ID : null;
+    const r = await _sv();
+    if(!id || (!a && !b)) return r;
+    try{
+      const corpo = {};
+      if(a) corpo.emails_briefing = a.value.trim() || null;
+      if(b) corpo.emails_equipe   = b.value.trim() || null;
+      const {error} = await sb.from('clients').update(corpo).eq('id', id);
+      if(error) throw error;
+      const c = (CLIENTS||[]).find(x=>x.id===id);
+      if(c) Object.assign(c, corpo);
+    }catch(e){
+      if(/column .*emails_/i.test((e&&e.message)||'')) toast('Rode antes o SQL da ADIÇÃO 52');
+      else console.warn('[cliente] e-mails', e);
+    }
+    return r;
+  };
+})();
 </script>
 </body>
 </html>
