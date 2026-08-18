@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 52;
+const MG_VERSAO = 53;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -14679,6 +14679,258 @@ function mgBFCamposCliente(c){
     return r;
   };
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 53
+   1) os arquivos do briefing ficam guardados para os dois lados
+   2) a equipe é avisada no portal quando um briefing chega
+   3) o cliente vê uma confirmação ao finalizar
+   ===================================================================== */
+
+/* ---------- confirmação ---------- */
+.mg-ok-ov{position:fixed;inset:0;background:rgba(12,11,9,.5);z-index:140;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .28s}
+.mg-ok-ov.on{opacity:1;pointer-events:auto}
+.mg-ok{background:var(--card);border:1px solid var(--line);border-radius:20px;
+  width:min(460px,94vw);padding:38px 34px 30px;text-align:center;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.5);
+  transform:translateY(14px) scale(.97);transition:transform .34s cubic-bezier(.22,1,.36,1)}
+.mg-ok-ov.on .mg-ok{transform:none}
+.mg-ok .marca{width:64px;height:64px;border-radius:50%;margin:0 auto 20px;
+  display:grid;place-items:center;background:rgba(46,158,107,.13);
+  border:2px solid rgba(46,158,107,.4);font-size:29px;color:#1f7d52}
+.mg-ok-ov.on .mg-ok .marca{animation:mgOkPulo .55s cubic-bezier(.22,1,.36,1) .1s both}
+@keyframes mgOkPulo{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.mg-ok h3{font-family:var(--font-d);font-size:21px;font-weight:500;margin:0 0 10px;line-height:1.3}
+.mg-ok p{font-size:13.5px;color:var(--muted);line-height:1.65;margin:0 0 8px}
+.mg-ok .det{font-size:12px;color:var(--muted2);background:var(--card2);border-radius:11px;
+  padding:12px 15px;margin:18px 0 4px;text-align:left;line-height:1.7}
+.mg-ok .det b{color:var(--text)}
+.mg-ok button{background:var(--brass);color:var(--ink2);border:0;border-radius:11px;
+  padding:13px 30px;font-family:inherit;font-weight:700;font-size:13.5px;margin-top:20px;
+  box-shadow:0 10px 26px -10px rgba(194,161,91,.7)}
+.mg-ok button:hover{background:var(--brass2);color:#fff}
+@media (prefers-reduced-motion: reduce){
+  .mg-ok,.mg-ok-ov{transition:none}
+  .mg-ok-ov.on .mg-ok .marca{animation:none}
+}
+
+/* arquivos guardados, na tela do briefing enviado */
+.mg-bf-guardados{display:flex;align-items:flex-start;gap:10px;background:rgba(46,158,107,.07);
+  border:1px solid rgba(46,158,107,.28);border-radius:11px;padding:12px 15px;
+  margin-top:14px;font-size:12.5px;line-height:1.55}
+.mg-bf-guardados .ic{font-size:15px;flex-shrink:0}
+.mg-bf-guardados b{color:var(--text)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 53
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 3 — A CONFIRMAÇÃO PARA O CLIENTE
+   ===================================================================== */
+(function(){
+  if(document.getElementById('mg-ok-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'mg-ok-ov'; ov.id = 'mg-ok-ov';
+  ov.innerHTML = `<div class="mg-ok" role="dialog" aria-modal="true" aria-labelledby="mg-ok-t">
+      <div class="marca">✓</div>
+      <h3 id="mg-ok-t">Briefing Plano de Mídia enviado com sucesso.</h3>
+      <p>O time da Modesto entrará em contato em breve para dar andamento nos próximos passos.</p>
+      <div class="det" id="mg-ok-det"></div>
+      <button onclick="mgOkFechar()">Entendi</button>
+    </div>`;
+  ov.addEventListener('click', e=>{ if(e.target===ov) mgOkFechar() });
+  document.body.appendChild(ov);
+})();
+function mgOkAbrir(detalhe){
+  const d = document.getElementById('mg-ok-det');
+  if(d) d.innerHTML = detalhe || '';
+  document.getElementById('mg-ok-ov').classList.add('on');
+  const b = document.querySelector('#mg-ok-ov button');
+  if(b) setTimeout(()=>b.focus(), 340);
+}
+function mgOkFechar(){ document.getElementById('mg-ok-ov').classList.remove('on') }
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const ov = document.getElementById('mg-ok-ov');
+    if(ov && ov.classList.contains('on')) mgOkFechar();
+  }
+});
+
+/* =====================================================================
+   PARTE 2 — AVISO NO PORTAL PARA A EQUIPE
+   Os briefings enviados entram na central de notificações, do mesmo
+   jeito que demandas e comentários já entram.
+   ===================================================================== */
+let MG_BF_RECENTES = [];
+
+async function mgBFCarregarRecentes(){
+  if(!isAdmin()) return;
+  try{
+    const limite = new Date(Date.now() - 30*86400000).toISOString();
+    const {data,error} = await sb.from('briefings')
+      .select('id,client_id,titulo,criado_por,enviado_em,status,dados')
+      .eq('status','enviado').gte('enviado_em', limite)
+      .order('enviado_em',{ascending:false});
+    if(error) throw error;
+    MG_BF_RECENTES = data || [];
+  }catch(e){ MG_BF_RECENTES = [] }
+}
+function mgBFQuemPreencheu(b){
+  const d = b.dados || {};
+  return d.responsavel || b.criado_por || d.email_contato || 'cliente';
+}
+(function(){
+  if(typeof buildNotifs!=='function') return;
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn();
+    if(!isAdmin() || !MG_BF_RECENTES.length) return r;
+    const visto = localStorage.getItem('mgp_notif_seen') || '';
+    MG_BF_RECENTES.forEach(b=>{
+      if(NOTIFS.some(n=>n.briefingId===b.id)) return;
+      NOTIFS.push({
+        ts: b.enviado_em, icon: '📋', briefingId: b.id,
+        text: 'Briefing Plano de Mídia enviado por <b>' + esc(clientName(b.client_id))
+            + '</b> · ' + esc(mgBFQuemPreencheu(b)),
+        unread: !visto || new Date(b.enviado_em) > new Date(visto),
+      });
+    });
+    NOTIFS.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+    return r;
+  };
+})();
+/* clicar no aviso abre o briefing.
+   A lista usa a classe .nitem e pode estar filtrada por "só não lidas",
+   então repetimos o mesmo filtro para casar item com aviso. */
+(function(){
+  if(typeof renderNotifs!=='function') return;
+  const _rn = renderNotifs;
+  renderNotifs = function(){
+    const r = _rn();
+    let itens = NOTIFS || [];
+    if(PREFS.notifUnread === 'on') itens = itens.filter(i=>i.unread);
+    document.querySelectorAll('#notif-list .nitem').forEach((el,i)=>{
+      const n = itens[i];
+      if(!n || !n.briefingId || el.dataset.mgBf) return;
+      el.dataset.mgBf = '1';
+      el.style.cursor = 'pointer';
+      el.onclick = ()=>{
+        if(typeof closeNotifs==='function') closeNotifs();
+        showView('briefing');
+        setTimeout(()=>{ MG_BF_LIDO = false; mgBFCarregar().then(()=>mgBFAbrir(n.briefingId)) }, 140);
+      };
+    });
+    return r;
+  };
+})();
+/* som e recarga a cada atualização */
+let MG_BF_VISTOS = new Set();
+let MG_BF_SEMEADO = false;
+async function mgBFConferirNovos(){
+  if(!isAdmin()) return;
+  await mgBFCarregarRecentes();
+  const ids = MG_BF_RECENTES.map(b=>b.id);
+  if(!MG_BF_SEMEADO){
+    ids.forEach(id=>MG_BF_VISTOS.add(id));
+    MG_BF_SEMEADO = true;
+    if(typeof buildNotifs==='function') buildNotifs();
+    if(typeof updateNotifBadge==='function') updateNotifBadge();
+    return;
+  }
+  const novos = ids.filter(id=>!MG_BF_VISTOS.has(id));
+  ids.forEach(id=>MG_BF_VISTOS.add(id));
+  if(typeof buildNotifs==='function') buildNotifs();
+  if(typeof updateNotifBadge==='function') updateNotifBadge();
+  if(!novos.length) return;
+  const b = MG_BF_RECENTES.find(x=>x.id===novos[0]);
+  if(typeof mgSom==='function') mgSom('nova');
+  toast('📋 Briefing recebido de ' + clientName(b.client_id));
+}
+(function(){
+  const _rf = refresh;
+  refresh = async function(){ const r = await _rf(); try{ await mgBFConferirNovos() }catch(e){} return r };
+  const _bt = boot;
+  boot = async function(){ const r = await _bt(); try{ await mgBFConferirNovos() }catch(e){} return r };
+  setTimeout(()=>{ mgBFConferirNovos().catch(()=>{}) }, 3000);
+})();
+
+/* =====================================================================
+   PARTE 1 + 3 — ao enviar: guardar, avisar e confirmar
+   ===================================================================== */
+(function(){
+  const _env = mgBFEnviar;
+  mgBFEnviar = async function(){
+    /* guarda o que precisamos ANTES: o envio limpa o estado */
+    const cid   = mgBFCliente();
+    const nome  = clientName(cid);
+    const mes   = (typeof mgBFMesCurto==='function') ? mgBFMesCurto() : '';
+    const arqs  = (MG_BF && MG_BF.arquivos) ? MG_BF.arquivos.length : 0;
+    const quem  = (MG_BF && MG_BF.responsavel) || (ME && ME.name) || '';
+    const dest  = [ (MG_BF && MG_BF.dest_cliente) || '', (MG_BF && MG_BF.dest_equipe) || '' ]
+                  .filter(Boolean).join(', ');
+    const antes = (window.__db && window.__db.briefings) ? window.__db.briefings.length : null;
+    const eraCliente = !isAdmin();
+
+    const r = await _env();
+
+    /* só confirma se realmente gravou: mgBFEnviar volta à lista ao dar certo */
+    if(MG_BF_TELA !== 'lista') return r;
+
+    if(eraCliente){
+      mgOkAbrir(
+        `<b>${esc(nome)} · Plano de Mídia ${esc(mes)}</b><br>
+         Preenchido por ${esc(quem)}<br>
+         ${arqs ? arqs + ' arquivo(s) anexado(s) · ' : ''}uma cópia em PDF foi enviada
+         ${dest ? 'para ' + esc(dest) : 'por e-mail'}.<br>
+         O briefing fica guardado aqui no portal, disponível para consulta a qualquer momento.`
+      );
+    }else{
+      toast('Briefing enviado ✓ — demanda criada e e-mail a caminho');
+    }
+    /* a equipe passa a ver o aviso na próxima atualização */
+    MG_BF_SEMEADO = true;
+    setTimeout(()=>{ mgBFConferirNovos().catch(()=>{}) }, 1200);
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 1 — deixar claro que os arquivos ficam guardados
+
+   Atenção: mgBFDesenhar (ADIÇÃO 50) chama mgBFResumo por referência
+   capturada antes destas adições, então embrulhar mgBFResumo não surte
+   efeito na tela. Inserimos o aviso depois que a tela é montada.
+   ===================================================================== */
+function mgBFAvisoGuardados(){
+  if(MG_BF_TELA !== 'resumo') return;
+  const arqs = (MG_BF && MG_BF.arquivos) ? MG_BF.arquivos : [];
+  const el = document.getElementById('v-briefing'); if(!el) return;
+  const antigo = el.querySelector('.mg-bf-guardados');
+  if(antigo) antigo.remove();
+  if(!arqs.length) return;
+  const alvo = el.querySelector('.mg-bfd') || el.querySelector('.mg-bf-acoes');
+  if(!alvo) return;
+  alvo.insertAdjacentHTML('beforebegin', `<div class="mg-bf-guardados">
+    <span class="ic">🗂</span>
+    <span><b>${arqs.length} arquivo(s) ficam guardados no portal.</b>
+    Você e a equipe da Modesto podem abrir a qualquer momento por esta tela,
+    além de receberem uma cópia por e-mail.</span>
+  </div>`);
+}
+(function(){
+  const _des = mgBFDesenhar;
+  mgBFDesenhar = function(){
+    const r = _des();
+    try{ mgBFAvisoGuardados() }catch(e){}
+    return r;
+  };
+})();
+
 </script>
 </body>
 </html>
