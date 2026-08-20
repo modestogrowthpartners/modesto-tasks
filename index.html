@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 55;
+const MG_VERSAO = 57;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -15217,6 +15217,234 @@ async function mgBFVAbrir(briefingId, titulo){
       `<div style="font-size:11px;color:var(--muted);margin:2px 0 6px">${extra.join(' · ')}</div><div class="mt">`);
   };
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 56 — o cliente precisa de um caminho até o Briefing
+
+   No modo cliente a barra de baixo mostrava só as ações da tela aberta
+   (Pastas, Histórico). Como o menu lateral não fica à mão nessa visão,
+   não havia por onde chegar ao Briefing nem voltar aos Documentos.
+   Agora as abas do cliente aparecem na própria barra.
+   ===================================================================== */
+.mg-dock .mg-nav-cli{display:inline-flex;align-items:center;gap:2px}
+.mg-dock .mg-nav-cli button.on{background:rgba(194,161,91,.2);color:var(--brass-soft)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 56
+   ===================================================================== */
+
+/* rótulos e ícones das abas que o cliente enxerga */
+const MG_NAV_CLI = {
+  docs:     ['▣', 'Documentos'],
+  briefing: ['📋', 'Briefing'],
+  plano:    ['◎', 'Plano de mídia'],
+  pacing:   ['◔', 'Pacing'],
+};
+
+function mgNavClienteHTML(){
+  if(typeof ABAS_DO_CLIENTE === 'undefined') return '';
+  const abas = ABAS_DO_CLIENTE.filter(v => MG_NAV_CLI[v]);
+  if(abas.length < 2) return '';
+  return `<span class="mg-nav-cli">` + abas.map(v=>{
+    const [ic, rot] = MG_NAV_CLI[v];
+    return `<button class="${VIEW===v?'on':''}" onclick="mgIrPara('${v}')" title="${esc(rot)}">
+      <span class="ic">${ic}</span><span class="rot">${esc(rot)}</span></button>`;
+  }).join('') + `</span><span class="sep"></span>`;
+}
+
+/* Navegação por clique.
+   A ADIÇÃO 54 bloqueia o retorno à aba padrão logo após o carregamento,
+   para os temporizadores de boot não atropelarem quem já escolheu uma
+   tela. Só que ela não distingue o empurrão automático de um clique de
+   verdade — e voltar aos Documentos ficava bloqueado. Aqui dizemos
+   explicitamente que a navegação partiu da pessoa. */
+function mgIrPara(v){
+  if(typeof MG_ATE !== 'undefined') MG_ATE = 0;   /* encerra a janela de boot */
+  showView(v);
+}
+
+/* entra na frente das ações da tela, para o cliente sempre ter por onde navegar */
+(function(){
+  if(typeof mgDockItens !== 'function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(!ME || isAdmin()) return base;
+    const nav = mgNavClienteHTML();
+    if(!nav) return base;
+    /* o "Início" da barra não leva a lugar nenhum útil para o cliente:
+       a tela inicial é escondida no modo cliente. Trocamos pelas abas. */
+    return nav + base.replace(/<button onclick="showView\('home'\)"[\s\S]*?<\/button>/, '');
+  };
+})();
+
+/* a barra precisa se redesenhar ao trocar de aba, para marcar a atual */
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(ME && !isAdmin() && typeof mgDock === 'function'){
+      try{ mgDock() }catch(e){}
+    }
+    return r;
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 57 — o menu lateral inteiro passa para a barra de baixo
+
+   Com doze itens, listar tudo na horizontal transformava a barra numa
+   faixa de ponta a ponta e empurrava as ações da tela para fora da
+   vista. A navegação passa a viver num menu que abre para cima; a barra
+   volta a ser compacta e as ações continuam à mão.
+   ===================================================================== */
+body.mg-sem-side .side{display:none!important}
+
+/* A barra é centralizada com transform, então precisa de limite próprio:
+   sem isso ela cresce com o conteúdo e passa das bordas da tela.
+   `!important` porque a regra original tem especificidade maior. */
+body .mg-dock{max-width:calc(100vw - 28px)!important;overflow-x:auto;overflow-y:visible;
+  scrollbar-width:none;flex-wrap:nowrap}
+body .mg-dock::-webkit-scrollbar{display:none}
+/* os rótulos das ações encolhem antes de a barra estourar */
+@media(max-width:1100px){
+  .mg-dock .conta{display:none}
+  .mg-dock .mg-menu-b .rot{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media(max-width:860px){
+  .mg-dock button .rot{display:none}
+  .mg-dock .mg-menu-b .rot{display:inline}
+}
+body.mg-sem-side .main{margin-left:0!important;width:100%!important}
+body.mg-sem-side .content{margin-left:0!important}
+
+/* botão que abre a navegação */
+.mg-dock .mg-menu-b{display:inline-flex;align-items:center;gap:8px}
+.mg-dock .mg-menu-b .marca{display:inline-grid;place-items:center;width:22px;height:22px;
+  border-radius:7px;background:var(--brass);color:var(--ink2);
+  font-family:var(--font-d);font-weight:700;font-size:12px;flex-shrink:0}
+.mg-dock .mg-menu-b.aberto{background:rgba(236,231,219,.1);color:#ece7db}
+
+/* o painel */
+.mg-navp{position:fixed;z-index:110;background:#211f1c;border:1px solid rgba(236,231,219,.14);
+  border-radius:16px;padding:7px;min-width:230px;
+  box-shadow:0 26px 60px -20px rgba(0,0,0,.6);
+  opacity:0;pointer-events:none;transform:translateY(8px) scale(.98);
+  transition:opacity .18s,transform .22s cubic-bezier(.22,1,.36,1)}
+.mg-navp.on{opacity:1;pointer-events:auto;transform:none}
+.mg-navp button{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;
+  border-radius:11px;padding:10px 13px;font-family:inherit;font-size:13.5px;font-weight:600;
+  color:#a49d8f;text-align:left;transition:background .15s,color .15s}
+.mg-navp button:hover{background:rgba(236,231,219,.08);color:#ece7db}
+.mg-navp button.on{background:rgba(194,161,91,.2);color:var(--brass-soft)}
+.mg-navp button .ic{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+.mg-navp .sep-n{height:1px;background:rgba(236,231,219,.1);margin:6px 10px}
+.mg-navp .tt{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:#6f6858;padding:9px 13px 5px}
+@media(max-width:520px){
+  .mg-navp{left:10px!important;right:10px!important;min-width:0;
+    max-height:60vh;overflow:auto}
+}
+@media (prefers-reduced-motion: reduce){ .mg-navp{transition:none} }
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 57
+   ===================================================================== */
+document.body.classList.add('mg-sem-side');
+
+(function(){
+  if(document.getElementById('mg-navp')) return;
+  const el = document.createElement('div');
+  el.className = 'mg-navp'; el.id = 'mg-navp';
+  document.body.appendChild(el);
+})();
+
+function mgNavItens(){
+  if(typeof NAV === 'undefined' || !ME) return [];
+  return isAdmin()
+    ? NAV.filter(n => !n.admin || isAdmin())
+    : NAV.filter(n => typeof ABAS_DO_CLIENTE !== 'undefined' && ABAS_DO_CLIENTE.includes(n.v));
+}
+function mgNavAberto(){ return document.getElementById('mg-navp').classList.contains('on') }
+
+function mgNavAbrir(e){
+  if(e) e.stopPropagation();
+  const p = document.getElementById('mg-navp');
+  if(mgNavAberto()){ mgNavFechar(); return }
+
+  const itens = mgNavItens();
+  p.innerHTML = `<div class="tt">Ir para</div>` + itens.map(n=>{
+    const atual = (n.v === VIEW) ||
+      (n.v === 'tasks' && document.body.classList.contains('mg-tasks'));
+    return `<button class="${atual?'on':''}" onclick="mgIrPara('${n.v}');mgNavFechar()">
+      <span class="ic">${n.ic}</span>${esc(n.label)}</button>`;
+  }).join('');
+
+  p.classList.add('on');
+  /* posiciona acima do botão que a abriu */
+  const btn = document.getElementById('mg-menu-b');
+  const r = btn ? btn.getBoundingClientRect() : {left:20, top:window.innerHeight-80};
+  const larg = p.offsetWidth || 230;
+  p.style.left = Math.max(10, Math.min(window.innerWidth - larg - 10, r.left)) + 'px';
+  p.style.top  = Math.max(10, r.top - p.offsetHeight - 10) + 'px';
+  if(btn) btn.classList.add('aberto');
+}
+function mgNavFechar(){
+  document.getElementById('mg-navp').classList.remove('on');
+  const btn = document.getElementById('mg-menu-b');
+  if(btn) btn.classList.remove('aberto');
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#mg-navp') && !e.target.closest('#mg-menu-b')) mgNavFechar();
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') mgNavFechar() });
+
+/* o botão que abre a navegação, no começo da barra */
+function mgNavBarraHTML(){
+  const itens = mgNavItens();
+  if(!itens.length) return '';
+  const atual = itens.find(n => n.v === VIEW ||
+    (n.v === 'tasks' && document.body.classList.contains('mg-tasks')));
+  const rot = atual ? atual.label : 'Menu';
+  return `<button class="mg-menu-b" id="mg-menu-b" onclick="mgNavAbrir(event)" title="Navegar">
+      <span class="marca">M</span><span class="rot">${esc(rot)}</span><span class="ic">▾</span>
+    </button><span class="sep"></span>`;
+}
+
+(function(){
+  if(typeof mgDockItens !== 'function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    let base = _d();
+    const nav = mgNavBarraHTML();
+    if(!nav) return base;
+    /* remove o "Início" solto e a navegação do cliente da ADIÇÃO 56 */
+    base = base.replace(/<button onclick="mgIrPara\('home'\)"[\s\S]*?<\/button>/, '')
+               .replace(/<button onclick="showView\('home'\)"[\s\S]*?<\/button>/, '')
+               .replace(/<span class="mg-nav-cli">[\s\S]*?<\/span><span class="sep"><\/span>/, '');
+    return nav + base;
+  };
+})();
+
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+    return r;
+  };
+})();
+
+if(typeof mgIrPara !== 'function'){
+  window.mgIrPara = function(v){
+    if(typeof MG_ATE !== 'undefined') MG_ATE = 0;
+    showView(v);
+  };
+}
 </script>
 </body>
 </html>
