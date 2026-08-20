@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 53;
+const MG_VERSAO = 55;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -14931,6 +14931,292 @@ function mgBFAvisoGuardados(){
   };
 })();
 
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 54 — o cliente entra no Briefing sem ser redirecionado
+
+   A ADIÇÃO 50 acrescentou 'briefing' à lista de abas do cliente, mas a
+   guarda que redireciona ("se não é admin e a aba não está na lista,
+   manda para a primeira") foi capturada no carregamento, quando a lista
+   ainda só tinha 'docs'. Resultado: clicar em Briefing devolvia o
+   cliente para Documentos.
+
+   Aqui a lista é montada antes de qualquer navegação, e a guarda passa a
+   consultá-la no momento do clique, não no momento em que foi escrita.
+   ===================================================================== */
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 54
+   ===================================================================== */
+
+/* 1. garante as abas do cliente logo no início, antes de qualquer
+      showView — inclusive antes do boot terminar */
+function mgAbasCliente(){
+  if(typeof ABAS_DO_CLIENTE === 'undefined') return;
+  if(!ABAS_DO_CLIENTE.includes('briefing')) ABAS_DO_CLIENTE.push('briefing');
+  /* o plano de mídia só entra se a empresa tiver o recurso ligado —
+     quem cuida disso é mgPMAjustarAbasCliente, da ADIÇÃO 34 */
+}
+mgAbasCliente();
+
+/* 2. a guarda passa a olhar a lista atual.
+      Sem isso, uma aba acrescentada depois nunca é aceita. */
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    if(ME && !isAdmin() && typeof ABAS_DO_CLIENTE !== 'undefined'){
+      mgAbasCliente();
+      if(!ABAS_DO_CLIENTE.includes(v)) v = ABAS_DO_CLIENTE[0];
+    }
+    return _sv(v);
+  };
+})();
+
+/* 3. o menu do cliente é remontado em vários momentos; garantimos que a
+      lista esteja completa antes de cada montagem */
+(function(){
+  if(typeof buildNav !== 'function') return;
+  const _bn = buildNav;
+  buildNav = function(){ mgAbasCliente(); return _bn.apply(this, arguments) };
+})();
+
+/* 4. o cliente cai na pasta dele ao entrar — mas sem atropelar quem já
+      navegou. A ADIÇÃO 4 agenda `showView(ABAS_DO_CLIENTE[0])` para 400 ms
+      e 1500 ms depois do carregamento; quem clicasse em Briefing nesse
+      intervalo era devolvido para Documentos.
+
+      Como não dá para cancelar aqueles temporizadores, a própria showView
+      passa a ignorar o empurrão para a aba padrão depois que a pessoa
+      escolheu outra tela por conta própria. */
+let MG_NAVEGOU = false;
+let MG_ATE = Date.now() + 4000;   /* janela em que os temporizadores agem */
+
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const ehPadrao = ABAS_DO_CLIENTE && v === ABAS_DO_CLIENTE[0];
+    /* dentro da janela de boot, um empurrão para a aba padrão só vale se
+       a pessoa ainda não tiver escolhido outra coisa */
+    if(ehPadrao && MG_NAVEGOU && Date.now() < MG_ATE) return;
+    if(!ehPadrao) MG_NAVEGOU = true;
+    return _sv(v);
+  };
+})();
+
+/* 5. e ao entrar, ou ao alternar para o modo cliente */
+(function(){
+  if(typeof boot === 'function'){
+    const _bt = boot;
+    boot = async function(){ const r = await _bt(); mgAbasCliente(); if(ME && !isAdmin()) buildNav(); return r };
+  }
+  if(typeof mgEntrarEspelho === 'function'){
+    const _ent = mgEntrarEspelho;
+    mgEntrarEspelho = function(id){ mgAbasCliente(); const r = _ent(id); mgAbasCliente(); buildNav(); return r };
+  }
+  [200, 900, 2200].forEach(ms=>setTimeout(mgAbasCliente, ms));
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 55 — o briefing enviado vira documento
+
+   Ao enviar, o briefing aparece na aba Documentos do cliente, na seção
+   "Briefings" — junto de apresentações, propostas e weeklys. Cliente e
+   equipe abrem pelo mesmo lugar. Abrir mostra o briefing formatado.
+   ===================================================================== */
+.mg-bfv-ov{position:fixed;inset:0;background:rgba(12,11,9,.5);z-index:130;
+  display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto;
+  opacity:0;pointer-events:none;transition:opacity .24s}
+.mg-bfv-ov.on{opacity:1;pointer-events:auto}
+.mg-bfv{background:var(--card);border:1px solid var(--line);border-radius:18px;
+  width:min(820px,96vw);margin:auto;box-shadow:0 40px 90px -30px rgba(0,0,0,.5);
+  transform:translateY(12px);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.mg-bfv-ov.on .mg-bfv{transform:none}
+.mg-bfv-cab{display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid var(--line)}
+.mg-bfv-cab .t{flex:1;min-width:0}
+.mg-bfv-cab .t b{font-family:var(--font-d);font-size:18px;font-weight:500;display:block}
+.mg-bfv-cab .t span{font-size:12px;color:var(--muted)}
+.mg-bfv-cab .x{background:none;border:0;font-size:15px;color:var(--muted);padding:6px 10px;border-radius:8px}
+.mg-bfv-cab .x:hover{background:var(--card2);color:var(--text)}
+.mg-bfv-corpo{padding:4px 24px 24px}
+.mg-bfv-corpo .mg-bf-g:first-child{border-top:0}
+.mg-bfv-rod{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:16px 24px;border-top:1px solid var(--line);background:var(--card2);
+  border-radius:0 0 18px 18px}
+.mg-bfv-rod .nota{font-size:11.5px;color:var(--muted);flex:1;min-width:0}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 55
+   ===================================================================== */
+
+/* 1. "Briefings" entra na lista de seções da pasta de documentos */
+(function(){
+  if(typeof DOC_TIPOS==='undefined') return;
+  if(!DOC_TIPOS.some(t=>t.k==='briefing')){
+    DOC_TIPOS.push({k:'briefing', label:'Briefings', hex:'#8E7CC3', ic:'📋'});
+  }
+})();
+
+/* 2. ao enviar o briefing, registra o documento na pasta do cliente */
+async function mgBFCriarDocumento(briefingId, clientId, titulo, dados){
+  try{
+    const corpo = {
+      client_id: clientId,
+      titulo: titulo,
+      tipo: 'briefing',
+      storage_path: null,          /* não é arquivo: é conteúdo da plataforma */
+      metadata: {
+        briefing_id: briefingId,
+        por: (dados && dados.responsavel) || (ME && ME.name) || null,
+        periodo: (dados && dados.inicio) ? dados.inicio + ' a ' + (dados.fim||'') : null,
+        verba: (dados && dados.verba_total) || 0,
+        arquivos: (dados && dados.arquivos) ? dados.arquivos.length : 0,
+      },
+    };
+    const {error} = await sb.from('documents').insert(corpo);
+    if(error) throw error;
+    if(typeof loadDocs === 'function'){ DOCS_LOADED = false; await loadDocs() }
+    return true;
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/invalid input value for enum|violates check constraint/i.test(m))
+      toast('Briefing enviado — mas rode o SQL da ADIÇÃO 55 para ele aparecer em Documentos');
+    else if(/row-level security|permission/i.test(m))
+      toast('Briefing enviado — falta permissão para registrá-lo em Documentos (ADIÇÃO 55)');
+    else console.warn('[briefing→documento]', e);
+    return false;
+  }
+}
+(function(){
+  const _env = mgBFEnviar;
+  mgBFEnviar = async function(){
+    const cid    = mgBFCliente();
+    const titulo = `${clientName(cid)} Plano de Mídia ${mgBFMesCurto()}`;
+    const dados  = MG_BF ? JSON.parse(JSON.stringify(MG_BF)) : null;
+
+    const r = await _env();
+    if(MG_BF_TELA !== 'lista') return r;   /* não gravou */
+
+    /* o briefing recém-enviado é o mais recente da lista */
+    const b = (MG_BF_LISTA||[]).find(x=>x.status==='enviado');
+    await mgBFCriarDocumento(b ? b.id : null, cid, titulo, dados);
+    return r;
+  };
+})();
+
+/* 3. abrir o documento mostra o briefing formatado, em vez de baixar
+      um arquivo que não existe */
+(function(){
+  if(document.getElementById('mg-bfv-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'mg-bfv-ov'; ov.id = 'mg-bfv-ov';
+  ov.innerHTML = `<div class="mg-bfv" role="dialog" aria-modal="true">
+      <div class="mg-bfv-cab">
+        <span class="t"><b id="mg-bfv-t">Briefing</b><span id="mg-bfv-s"></span></span>
+        <button class="x" onclick="mgBFVFechar()" aria-label="Fechar">✕</button>
+      </div>
+      <div class="mg-bfv-corpo" id="mg-bfv-corpo"></div>
+      <div class="mg-bfv-rod">
+        <span class="nota">Preenchido pelo cliente no portal. Uma cópia em PDF foi enviada por e-mail.</span>
+        <button class="mg-bf-b ghost" onclick="mgBFVImprimir()">Imprimir / salvar PDF</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e=>{ if(e.target===ov) mgBFVFechar() });
+  document.body.appendChild(ov);
+})();
+function mgBFVFechar(){ document.getElementById('mg-bfv-ov').classList.remove('on') }
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const ov=document.getElementById('mg-bfv-ov');
+    if(ov && ov.classList.contains('on')) mgBFVFechar();
+  }
+});
+function mgBFVImprimir(){ window.print() }
+
+async function mgBFVAbrir(briefingId, titulo){
+  const ov = document.getElementById('mg-bfv-ov');
+  document.getElementById('mg-bfv-t').textContent = titulo || 'Briefing';
+  document.getElementById('mg-bfv-s').textContent = '';
+  document.getElementById('mg-bfv-corpo').innerHTML = `<div class="mg-load">Carregando…</div>`;
+  ov.classList.add('on');
+  try{
+    const {data,error} = await sb.from('briefings').select('*').eq('id',briefingId).maybeSingle();
+    if(error) throw error;
+    if(!data){ document.getElementById('mg-bfv-corpo').innerHTML =
+      `<div class="mg-bf-vazio" style="padding:20px 0">Briefing não encontrado.</div>`; return }
+
+    /* Reaproveita o mesmo resumo da tela de envio.
+       O resumo lê o estado global (MG_BF), inclusive para listar os
+       arquivos — por isso o HTML precisa ser extraído ANTES de devolver
+       o estado ao que era. */
+    const guardado = MG_BF, guardadoCli = MG_BF_CLI, guardadoTela = MG_BF_TELA;
+    MG_BF = Object.assign(mgBFNovo(data.client_id), data.dados||{});
+    MG_BF_CLI = data.client_id;
+    let miolo;
+    try{
+      /* Recortar por texto é frágil: o resumo tem <div> aninhadas e a
+         seção de arquivos cai fora do trecho. Deixamos o navegador
+         montar a árvore e pegamos o bloco pelo seletor. */
+      const molde = document.createElement('div');
+      molde.innerHTML = mgBFResumo();
+      const corpo = molde.querySelector('.mg-bf-res-b');
+      const cartao = molde.querySelector('.mg-bf-res');
+      miolo = corpo ? corpo.innerHTML : (cartao ? cartao.innerHTML : molde.innerHTML);
+      /* a seção de arquivos (ADIÇÃO 52) é inserida FORA do cartão, na
+         raiz do resumo — então ela não vem no innerHTML acima */
+      [...molde.children].forEach(el=>{
+        if(el.classList && el.classList.contains('mg-bf-res')) return;
+        if(el.classList && (el.classList.contains('mg-bf-acoes')
+            || el.classList.contains('mg-bfd')
+            || el.classList.contains('mg-bf-cab')
+            || el.classList.contains('mg-bf-sec'))) return;
+        if(/Arquivos anexados/.test(el.textContent||'')) miolo += el.outerHTML;
+      });
+    } finally {
+      MG_BF = guardado; MG_BF_CLI = guardadoCli; MG_BF_TELA = guardadoTela;
+    }
+    document.getElementById('mg-bfv-corpo').innerHTML = miolo;
+    document.getElementById('mg-bfv-s').textContent =
+      ((data.dados||{}).responsavel || data.criado_por || '') +
+      (data.enviado_em ? ' · ' + new Date(data.enviado_em).toLocaleDateString('pt-BR') : '');
+  }catch(e){
+    document.getElementById('mg-bfv-corpo').innerHTML =
+      `<div class="mg-bf-vazio" style="padding:20px 0">Não foi possível carregar: ${esc((e&&e.message)||'')}</div>`;
+  }
+}
+(function(){
+  if(typeof openDoc!=='function') return;
+  const _od = openDoc;
+  openDoc = function(id){
+    const d = (DOCS||[]).find(x=>String(x.id)===String(id));
+    if(d && d.tipo==='briefing' && d.metadata && d.metadata.briefing_id){
+      return mgBFVAbrir(d.metadata.briefing_id, d.titulo);
+    }
+    return _od(id);
+  };
+})();
+
+/* 4. o card do documento de briefing mostra o que interessa */
+(function(){
+  if(typeof docCardHTML!=='function') return;
+  const _dc = docCardHTML;
+  docCardHTML = function(d){
+    let html = _dc(d);
+    if(d.tipo!=='briefing' || !d.metadata) return html;
+    const m = d.metadata;
+    const extra = [];
+    if(m.por) extra.push(esc(m.por));
+    if(m.verba) extra.push((Number(m.verba)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}));
+    if(m.arquivos) extra.push(m.arquivos + ' anexo(s)');
+    if(!extra.length) return html;
+    /* âncora conferida na marcação real do card: <div class="mt"> */
+    return html.replace('<div class="mt">',
+      `<div style="font-size:11px;color:var(--muted);margin:2px 0 6px">${extra.join(' · ')}</div><div class="mt">`);
+  };
+})();
 </script>
 </body>
 </html>
