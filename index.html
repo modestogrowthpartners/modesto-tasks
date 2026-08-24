@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 59;
+const MG_VERSAO = 60;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -16176,6 +16176,126 @@ function mgPjDesenhar(){
   const _bt = boot;
   boot = async function(){ const r = await _bt(); mgPjCarregar().then(()=>{ try{ render() }catch(e){} }); return r };
   setTimeout(()=>{ if(!MG_PJ_LIDO) mgPjCarregar() }, 2500);
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 60
+   • some a seção de projeto duplicada no detalhe da demanda
+   • dá para criar um projeto sem sair dali
+   ===================================================================== */
+.mg-pj3{display:flex;gap:7px;align-items:center;margin-top:2px}
+.mg-pj3 select{flex:1;min-width:0}
+.mg-pj3 .novo{background:var(--card2);border:1px dashed var(--line2);border-radius:9px;
+  padding:9px 13px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted);
+  white-space:nowrap;flex-shrink:0}
+.mg-pj3 .novo:hover{border-color:var(--brass);color:var(--brass2);background:rgba(194,161,91,.06)}
+.mg-pj3-dica{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 60
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. A seção antiga sai de cena.
+
+   A ADIÇÃO 48 tinha criado uma seção "Projeto" baseada em parent_id —
+   demanda dentro de demanda. A 59 trocou o modelo por projetos de
+   verdade, mas não removeu a antiga, e as duas passaram a aparecer
+   juntas. Neutralizamos a antiga devolvendo texto vazio.
+   --------------------------------------------------------------------- */
+if(typeof mgProjetoHTML === 'function'){
+  mgProjetoHTML = function(){ return '' };
+}
+/* se alguma versão já desenhou a antiga, ela sai da tela */
+function mgLimparProjetoAntigo(){
+  const corpo = document.querySelector('#slide .slide-b'); if(!corpo) return;
+  corpo.querySelectorAll('.mg-pj2-sel, .mg-pj-sel').forEach(sel=>{
+    /* a antiga é a que oferece demandas como opção; a nova, projetos */
+    const marca = sel.className.includes('mg-pj2-sel');
+    if(marca) return;
+    const bloco = sel.previousElementSibling;
+    if(bloco && bloco.classList.contains('sect-t')) bloco.remove();
+    sel.remove();
+  });
+  /* remove títulos "Projeto" que ficaram sem seletor abaixo */
+  [...corpo.querySelectorAll('.sect-t')].forEach(t=>{
+    if(!/Projeto/.test(t.textContent)) return;
+    const prox = t.nextElementSibling;
+    const temSeletor = prox && (prox.classList.contains('mg-pj3') ||
+                                prox.classList.contains('mg-pj2-sel') ||
+                                prox.querySelector?.('.mg-pj2-sel'));
+    if(!temSeletor) t.remove();
+  });
+}
+
+/* ---------------------------------------------------------------------
+   2. Criar projeto de dentro do detalhe da demanda
+   --------------------------------------------------------------------- */
+async function mgPjCriarAqui(taskId){
+  const t = (TASKS||[]).find(x=>x.id===taskId); if(!t) return;
+  const nome = prompt(
+    'Nome do novo projeto para ' + clientName(t.client_id) + ':\n' +
+    '(ex.: CRM Dabela, Lançamento Primavera)');
+  if(!nome || !nome.trim()) return;
+  try{
+    const cor = MG_PJ_CORES[(MG_PROJETOS||[]).length % MG_PJ_CORES.length];
+    const {data,error} = await sb.from('projects').insert({
+      client_id: t.client_id, nome: nome.trim(), cor,
+      criado_por: ME ? ME.name : null,
+    }).select().single();
+    if(error) throw error;
+
+    MG_PROJETOS.push(data);
+    MG_PJ_ABRIR.add(data.id);
+    /* já deixa a demanda dentro do projeto recém-criado */
+    await mgPjVincular(taskId, data.id);
+    renderDetailBody();
+    toast('Projeto “' + data.nome + '” criado — demanda adicionada ✓');
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/relation .*projects|schema cache/i.test(m)) toast('A tabela de projetos ainda não existe');
+    else toast('Não foi possível criar: ' + m);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   3. A seção nova, agora com o botão de criar
+   --------------------------------------------------------------------- */
+(function(){
+  if(typeof renderDetailBody !== 'function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{
+      mgLimparProjetoAntigo();
+
+      const t = (TASKS||[]).find(x=>x.id===DETAIL_ID); if(!t) return r;
+      const corpo = document.querySelector('#slide .slide-b'); if(!corpo) return r;
+      const antigo = corpo.querySelector('.mg-pj2-sel-wrap');
+      if(!antigo) return r;
+      if(antigo.dataset.mg60 === '1') return r;
+      antigo.dataset.mg60 = '1';
+
+      if(!isAdmin()) return r;
+
+      const doCliente = mgPjDoCliente(t.client_id);
+      antigo.innerHTML = `
+        <div class="sect-t">🗂 Projeto</div>
+        <div class="mg-pj3">
+          <select class="mg-pj2-sel" onchange="mgPjVincular('${esc(t.id)}',this.value)">
+            <option value="">— sem projeto —</option>
+            ${doCliente.map(p=>`<option value="${esc(p.id)}" ${t.project_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}
+          </select>
+          <button class="novo" onclick="mgPjCriarAqui('${esc(t.id)}')">＋ Novo</button>
+        </div>
+        <div class="mg-pj3-dica">${doCliente.length
+          ? 'Agrupe demandas de um mesmo trabalho — CRM, lançamento, campanha.'
+          : esc(clientName(t.client_id)) + ' ainda não tem projetos. Crie o primeiro no botão ao lado.'}</div>`;
+    }catch(e){ console.warn('[projeto no detalhe]', e) }
+    return r;
+  };
 })();
 </script>
 </body>
