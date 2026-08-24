@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 57;
+const MG_VERSAO = 58;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -15445,6 +15445,214 @@ if(typeof mgIrPara !== 'function'){
     showView(v);
   };
 }
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 58
+   1) o menu do usuário voltou a abrir — estava recortado pela barra
+   2) Plano de mídia e Pacing saem de cena até estarem prontos
+   ===================================================================== */
+
+/* ---------- 1. menu do usuário ----------
+   A ADIÇÃO 57 deu `overflow-x:auto` à barra para ela rolar por dentro
+   quando o conteúdo não cabe. Só que overflow recorta TUDO que sai da
+   caixa — inclusive o painel do menu, que abre para cima. Resultado: o
+   clique funcionava, mas o painel ficava invisível.
+
+   A solução é tirar o menu de dentro do fluxo recortado: ele passa a
+   ser posicionado em relação à tela (`fixed`), calculado no clique. */
+body .mg-dock .mg-eu-menu,
+body .mg-eu-menu[data-mg-solto]{
+  position:fixed;
+  top:auto;
+  right:auto;
+  /* A ADIÇÃO 35 fixou `bottom: calc(100% + 10px)` para o menu abrir para
+     cima. Com `top` E `bottom` definidos ao mesmo tempo, o navegador
+     calcula a altura pela distância entre os dois — o painel virava uma
+     faixa de 18px. Anulando o bottom, ele volta a ter a altura do
+     conteúdo. Achado medindo cada propriedade isoladamente. */
+  bottom:auto!important;
+  z-index:200;
+  min-width:250px;
+  /* a barra é flex e achatava o painel para a altura da linha:
+     `height:auto` devolve o tamanho do conteúdo */
+  height:auto!important;
+  max-height:min(70vh, 560px);
+  overflow-y:auto;
+  align-self:auto;
+  flex:0 0 auto;
+  /* A barra tem `transform: translateX(-50%)` para se centralizar, e um
+     elemento `fixed` dentro de um pai transformado passa a se posicionar
+     em relação a ESSE pai, não à tela. Por isso left/top corretos
+     apareciam deslocados. Levar o menu para fora da barra resolve —
+     feito no script, movendo o painel para o <body>. */
+}
+/* os itens do menu voltam a ocupar a linha inteira */
+body .mg-dock .mg-eu-menu .mg-eu-item,
+body .mg-eu-menu[data-mg-solto] .mg-eu-item{display:flex!important;width:100%}
+body .mg-dock .mg-eu-menu .quem,
+body .mg-eu-menu[data-mg-solto] .quem{display:block!important}
+/* enquanto o menu está aberto, a barra não recorta nada */
+body.mg-eu-aberto .mg-dock{overflow:visible}
+/* o painel foi movido para o <body>: a visibilidade passa a depender
+   da classe no corpo, já que ele não é mais filho de #mg-eu.aberto */
+body .mg-eu-menu[data-mg-solto]{display:none}
+body.mg-eu-aberto .mg-eu-menu[data-mg-solto]{display:block}
+/* a animação de entrada da ADIÇÃO 35 usa transform, que deslocava o
+   painel do ponto calculado — fora da barra ela não é necessária */
+body .mg-eu-menu[data-mg-solto]{animation:none!important;transform:none!important}
+
+/* Os cards do Início são filtrados pela função mgAtalhos, no script —
+   não por CSS, porque o botão do card não carrega o nome da tela. */
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 58
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. o menu do usuário abre acima do botão, ancorado na tela
+   --------------------------------------------------------------------- */
+function mgPosicionarMenuEu(){
+  const eu   = document.getElementById('mg-eu');
+  const btn  = eu && eu.querySelector('.mg-eu-btn');
+  /* o painel pode ter sido movido para o <body>, então não adianta
+     procurá-lo dentro de #mg-eu */
+  const menu = document.querySelector('.mg-eu-menu');
+  if(!eu || !menu || !btn) return;
+  if(!eu.classList.contains('aberto')) return;
+
+  const r = btn.getBoundingClientRect();
+  /* Medir antes de o painel estar visível devolve zero: a classe
+     `.aberto` é que dispara o display:block, e o navegador só recalcula
+     depois. Garantimos a medida forçando a visibilidade fora da vista. */
+  let larg = menu.offsetWidth, alt = menu.offsetHeight;
+  if(!alt){
+    const antes = {v:menu.style.visibility, d:menu.style.display, l:menu.style.left, t:menu.style.top};
+    menu.style.visibility = 'hidden';
+    menu.style.display    = 'block';
+    menu.style.left = '-9999px';
+    menu.style.top  = '0px';
+    larg = menu.offsetWidth; alt = menu.offsetHeight;
+    menu.style.visibility = antes.v; menu.style.display = antes.d;
+    menu.style.left = antes.l; menu.style.top = antes.t;
+  }
+  larg = larg || 250;
+  alt  = alt  || 320;
+
+  /* alinha pela direita do botão, sem passar das bordas */
+  let esq = Math.min(r.right - larg, window.innerWidth - larg - 10);
+  esq = Math.max(10, esq);
+
+  /* abre para cima; se não couber, abre para baixo */
+  let topo = r.top - alt - 10;
+  if(topo < 10) topo = Math.min(r.bottom + 10, window.innerHeight - alt - 10);
+
+  menu.style.left = esq + 'px';
+  menu.style.top  = Math.max(10, topo) + 'px';
+}
+
+/* Move o painel para fora da barra na primeira abertura.
+   Enquanto ele viver dentro de um elemento com `transform`, o
+   posicionamento `fixed` fica preso a esse elemento. */
+function mgSoltarMenuEu(){
+  const menu = document.querySelector('.mg-eu-menu');
+  if(!menu) return;
+  if(menu.parentElement === document.body) return;
+  menu.dataset.mgSolto = '1';
+  document.body.appendChild(menu);
+}
+/* como o painel sai do #mg-eu, o clique fora precisa considerá-lo */
+document.addEventListener('click', e=>{
+  if(e.target.closest('.mg-eu-menu')) return;
+  if(e.target.closest('#mg-eu')) return;
+  if(typeof mgFecharMenuEu === 'function') mgFecharMenuEu();
+}, true);
+
+(function(){
+  if(typeof mgAlternarMenuEu !== 'function') return;
+  const _alt = mgAlternarMenuEu;
+  mgAlternarMenuEu = function(e){
+    const r = _alt(e);
+    const aberto = document.getElementById('mg-eu').classList.contains('aberto');
+    document.body.classList.toggle('mg-eu-aberto', aberto);
+    if(aberto){
+      mgSoltarMenuEu();
+      /* Posiciona já, para não haver um quadro com o painel no lugar
+         errado, e repete depois que o navegador terminou o layout. */
+      mgPosicionarMenuEu();
+      requestAnimationFrame(mgPosicionarMenuEu);
+      setTimeout(mgPosicionarMenuEu, 50);
+    }
+    return r;
+  };
+  const _fec = mgFecharMenuEu;
+  mgFecharMenuEu = function(){
+    document.body.classList.remove('mg-eu-aberto');
+    return _fec();
+  };
+  window.addEventListener('resize', mgPosicionarMenuEu);
+  window.addEventListener('scroll', mgPosicionarMenuEu, true);
+})();
+
+/* ---------------------------------------------------------------------
+   2. Plano de mídia e Pacing ficam de fora por enquanto
+
+   Nenhum dos dois foi apagado: o código, as tabelas e os dados seguem
+   no lugar. Só saem do menu e do Início até você querer usá-los.
+   Para trazer de volta, apague este bloco ou esvazie MG_ESCONDIDOS.
+   --------------------------------------------------------------------- */
+const MG_ESCONDIDOS = ['plano', 'pacing'];
+
+(function(){
+  if(typeof NAV === 'undefined') return;
+  /* tira do menu de navegação */
+  for(let i = NAV.length - 1; i >= 0; i--){
+    if(MG_ESCONDIDOS.includes(NAV[i].v)) NAV.splice(i, 1);
+  }
+  /* e das abas que o cliente enxerga */
+  if(typeof ABAS_DO_CLIENTE !== 'undefined'){
+    for(let i = ABAS_DO_CLIENTE.length - 1; i >= 0; i--){
+      if(MG_ESCONDIDOS.includes(ABAS_DO_CLIENTE[i])) ABAS_DO_CLIENTE.splice(i, 1);
+    }
+  }
+})();
+
+/* o plano de mídia se reacrescenta às abas do cliente quando a empresa
+   tem o recurso ligado; barramos enquanto estiver escondido */
+(function(){
+  if(typeof mgPMAjustarAbasCliente !== 'function') return;
+  const _aj = mgPMAjustarAbasCliente;
+  mgPMAjustarAbasCliente = function(){
+    const r = _aj();
+    if(typeof ABAS_DO_CLIENTE === 'undefined') return r;
+    for(let i = ABAS_DO_CLIENTE.length - 1; i >= 0; i--){
+      if(MG_ESCONDIDOS.includes(ABAS_DO_CLIENTE[i])) ABAS_DO_CLIENTE.splice(i, 1);
+    }
+    return r;
+  };
+})();
+
+/* tira os cards do Início */
+(function(){
+  if(typeof mgAtalhos !== 'function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().filter(a => !MG_ESCONDIDOS.includes(a.v));
+  };
+})();
+
+/* se alguém chegar por um caminho antigo, redireciona */
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    if(MG_ESCONDIDOS.includes(v)){
+      v = isAdmin() ? 'home' :
+          (typeof ABAS_DO_CLIENTE !== 'undefined' ? ABAS_DO_CLIENTE[0] : 'docs');
+    }
+    return _sv(v);
+  };
+})();
 </script>
 </body>
 </html>
