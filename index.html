@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 60;
+const MG_VERSAO = 61;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -16296,6 +16296,262 @@ async function mgPjCriarAqui(taskId){
     }catch(e){ console.warn('[projeto no detalhe]', e) }
     return r;
   };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 61 — a enxurrada de notificações
+
+   Sintoma: dezenas de avisos de demanda ao mesmo tempo e a plataforma
+   travando.
+
+   Duas causas somadas, ambas da ADIÇÃO 39:
+
+   1. A semeadura ("marque o que já existe como visto") só rodava se o
+      armazenamento do navegador estivesse vazio. Limpou o cache, entrou
+      de outro dispositivo ou trocou de navegador? Ela rodava de novo e
+      TODAS as demandas suas — 133, no caso — viravam aviso.
+
+   2. A central de notificações era redesenhada a cada atualização, e a
+      cada vez as não vistas eram acrescentadas de novo. A lista crescia
+      sem limite até a página não dar conta.
+   ===================================================================== */
+.mg-notif-lote{display:flex;align-items:center;gap:10px;padding:11px 13px;
+  background:var(--card2);border-bottom:1px solid var(--line);font-size:12.5px}
+.mg-notif-lote b{color:var(--text)}
+.mg-notif-lote button{margin-left:auto;background:none;border:1px solid var(--line2);
+  border-radius:8px;padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;
+  color:var(--brass2);white-space:nowrap}
+.mg-notif-lote button:hover{border-color:var(--brass);background:rgba(194,161,91,.08)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 61
+   ===================================================================== */
+
+/* Quantos avisos de demanda cabem na central de uma vez.
+   Acima disso, vira uma linha só dizendo quantas são. */
+const MG_MAX_AVISOS = 8;
+
+/* ---------------------------------------------------------------------
+   1. Semeadura à prova de cache limpo
+
+   Em vez de depender do armazenamento local estar vazio, usamos a data:
+   só demandas criadas DEPOIS de você ter começado a usar a plataforma
+   contam como novas. Uma demanda de agosto não vira aviso em novembro.
+   --------------------------------------------------------------------- */
+const MG_DESDE_KEY = 'mgp_avisos_desde';
+
+function mgAvisosDesde(){
+  let d = null;
+  try{ d = localStorage.getItem(MG_DESDE_KEY) }catch(e){}
+  if(!d){
+    d = new Date().toISOString();
+    try{ localStorage.setItem(MG_DESDE_KEY, d) }catch(e){}
+  }
+  return d;
+}
+
+/* substitui a versão da ADIÇÃO 39 */
+mgSemearVistas = function(){
+  if(MG_VISTAS_INICIADO) return;
+  MG_VISTAS_INICIADO = true;
+  mgAvisosDesde();                       /* fixa o marco, se ainda não existir */
+  /* tudo o que é seu HOJE passa a contar como já visto, sempre —
+     não só na primeira vez */
+  mgMinhas().forEach(t => MG_VISTAS.add(t.id));
+  mgGuardarVistas();
+};
+
+/* só é "nova" se foi criada depois do marco E ainda não foi vista */
+mgNovasParaMim = function(){
+  const desde = mgAvisosDesde();
+  return mgMinhas().filter(t =>
+    !MG_VISTAS.has(t.id) &&
+    t.created_at &&
+    t.created_at > desde
+  );
+};
+
+/* ---------------------------------------------------------------------
+   2. A central para de inflar
+
+   A versão anterior acrescentava as não vistas a cada redesenho. Agora:
+   • limpa os avisos que ela mesma criou antes de recriar
+   • respeita um teto — acima dele, resume numa linha só
+   --------------------------------------------------------------------- */
+(function(){
+  if(typeof buildNotifs !== 'function') return;
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn();
+    if(!ME || typeof NOTIFS === 'undefined') return r;
+
+    /* tira os que esta função criou da vez anterior */
+    for(let i = NOTIFS.length - 1; i >= 0; i--){
+      if(NOTIFS[i] && NOTIFS[i].mgMinha) NOTIFS.splice(i, 1);
+    }
+
+    const novas = mgNovasParaMim();
+    if(!novas.length) return r;
+
+    if(novas.length > MG_MAX_AVISOS){
+      /* muitas de uma vez: uma linha só, com botão de marcar todas */
+      NOTIFS.unshift({
+        ts: new Date().toISOString(), icon:'📌', mgMinha:true, mgLote:true,
+        text: '<b>' + novas.length + ' demandas</b> foram atribuídas a você',
+        unread: true,
+      });
+    }else{
+      novas.slice().reverse().forEach(t=>{
+        NOTIFS.unshift({
+          ts: t.created_at || new Date().toISOString(), icon:'📌',
+          text: 'Demanda atribuída a você: <b>' + esc(t.title) + '</b>',
+          taskId: t.id, unread: true, mgMinha: true,
+        });
+      });
+    }
+    return r;
+  };
+})();
+
+/* marcar todas como vistas de uma vez */
+function mgVerTodasMinhas(){
+  mgMinhas().forEach(t => MG_VISTAS.add(t.id));
+  mgGuardarVistas();
+  if(typeof buildNotifs === 'function') buildNotifs();
+  if(typeof renderNotifs === 'function') renderNotifs();
+  if(typeof updateNotifBadge === 'function') updateNotifBadge();
+  toast('Avisos de demanda marcados como lidos');
+}
+
+/* a linha de resumo ganha o botão */
+(function(){
+  if(typeof renderNotifs !== 'function') return;
+  const _rn = renderNotifs;
+  renderNotifs = function(){
+    const r = _rn();
+    try{
+      let itens = NOTIFS || [];
+      if(PREFS.notifUnread === 'on') itens = itens.filter(i => i.unread);
+      document.querySelectorAll('#notif-list .nitem').forEach((el, i)=>{
+        const n = itens[i];
+        if(!n || !n.mgLote || el.dataset.mgLote) return;
+        el.dataset.mgLote = '1';
+        const tx = el.querySelector('.ntx');
+        if(tx && !tx.querySelector('.mg-lote-b')){
+          tx.insertAdjacentHTML('beforeend',
+            `<button class="mg-lote-b" style="margin-top:6px;background:none;
+               border:1px solid var(--line2);border-radius:8px;padding:4px 10px;
+               font-family:inherit;font-size:11px;font-weight:700;color:var(--brass2)"
+               onclick="event.stopPropagation();mgVerTodasMinhas()">Marcar como lidas</button>`);
+        }
+        el.onclick = (e)=>{ if(!e.target.closest('.mg-lote-b')) showView('tasks') };
+      });
+    }catch(e){ console.warn('[notificações]', e) }
+    return r;
+  };
+})();
+
+/* ---------------------------------------------------------------------
+   3. O aviso na tela também respeita o teto
+
+   Antes, cada demanda nova gerava um toast e um toque de som. Com
+   dezenas de uma vez, era isso que travava a interface.
+   --------------------------------------------------------------------- */
+mgConferirMinhas = function(){
+  if(!ME) return;
+  mgSemearVistas();
+  const novas = mgNovasParaMim();
+  if(!novas.length) return;
+
+  /* Monta os avisos ANTES de marcar como visto: `mgNovasParaMim` filtra
+     pelo que ainda não foi visto, então marcar primeiro esvaziaria a
+     lista e o aviso não apareceria na central. */
+  if(typeof buildNotifs === 'function') buildNotifs();
+
+  novas.forEach(t => MG_VISTAS.add(t.id));
+  mgGuardarVistas();
+
+  if(typeof mgSom === 'function') mgSom('nova');       /* um toque só */
+  if(typeof updateNotifBadge === 'function') updateNotifBadge();
+
+  toast(novas.length === 1
+    ? '📌 Nova demanda para você: ' + String(novas[0].title || '').slice(0, 42)
+    : '📌 ' + novas.length + ' novas demandas atribuídas a você');
+};
+
+/* ---------------------------------------------------------------------
+   3b. A central original também precisa de teto
+
+   A `buildNotifs` da plataforma já criava UM AVISO POR DEMANDA sua dos
+   últimos 30 dias — com 133 demandas, 133 itens de uma vez, antes mesmo
+   de qualquer coisa que eu tenha acrescentado. É a maior parte do
+   travamento.
+
+   Agrupamos: acima do teto, uma linha só. As mais recentes continuam
+   aparecendo individualmente.
+   --------------------------------------------------------------------- */
+(function(){
+  if(typeof buildNotifs !== 'function') return;
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn();
+    if(!ME || typeof NOTIFS === 'undefined') return r;
+
+    /* os avisos de demanda criados pela função original */
+    const daPlataforma = NOTIFS.filter(n =>
+      n && n.taskId && !n.mgMinha && /atribuída a você/.test(n.text || ''));
+    if(daPlataforma.length <= MG_MAX_AVISOS) return r;
+
+    /* mantém os mais recentes; o resto vira uma linha de resumo */
+    daPlataforma.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+    const manter = new Set(daPlataforma.slice(0, MG_MAX_AVISOS).map(n=>n.taskId));
+    const sobra  = daPlataforma.length - manter.size;
+
+    for(let i = NOTIFS.length - 1; i >= 0; i--){
+      const n = NOTIFS[i];
+      if(n && n.taskId && !n.mgMinha && /atribuída a você/.test(n.text || '')
+         && !manter.has(n.taskId)) NOTIFS.splice(i, 1);
+    }
+    if(sobra > 0){
+      /* se a outra lógica já pôs um resumo, não duplicamos: só somamos */
+      const existente = NOTIFS.find(n => n && n.mgLote);
+      if(existente){
+        existente.text = '<b>' + (sobra + MG_MAX_AVISOS) + ' demandas</b> atribuídas a você';
+      }else{
+        NOTIFS.push({
+          ts: daPlataforma[MG_MAX_AVISOS] ? daPlataforma[MG_MAX_AVISOS].ts : new Date().toISOString(),
+          icon: '📋', mgLote: true, mgMinha: true,
+          text: 'e mais <b>' + sobra + ' demandas</b> atribuídas a você',
+          unread: false,
+        });
+      }
+    }
+    return r;
+  };
+})();
+
+/* ---------------------------------------------------------------------
+   4. Limpeza para quem já está com a central entupida
+
+   Roda uma vez, ao carregar: se a lista veio gigante do estado anterior,
+   corta e marca tudo o que é seu como visto.
+   --------------------------------------------------------------------- */
+(function(){
+  setTimeout(()=>{
+    try{
+      if(!ME) return;
+      const pendentes = mgNovasParaMim().length;
+      if(pendentes > MG_MAX_AVISOS * 2){
+        mgMinhas().forEach(t => MG_VISTAS.add(t.id));
+        mgGuardarVistas();
+        if(typeof buildNotifs === 'function') buildNotifs();
+        if(typeof updateNotifBadge === 'function') updateNotifBadge();
+        console.log('[MGP] ' + pendentes + ' avisos antigos de demanda foram marcados como lidos.');
+      }
+    }catch(e){}
+  }, 3000);
 })();
 </script>
 </body>
