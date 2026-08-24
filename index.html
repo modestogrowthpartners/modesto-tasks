@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 58;
+const MG_VERSAO = 59;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -15652,6 +15652,530 @@ const MG_ESCONDIDOS = ['plano', 'pacing'];
     }
     return _sv(v);
   };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 59
+   1) os cards do Início cabem numa linha só
+   2) gráfico de progresso por cliente
+   3) Projetos deixa de ser aba e vira parte do módulo de Demandas
+   ===================================================================== */
+
+/* ---------- 1. uma linha só ----------
+   Com nove atalhos, a grade quebrava. Passam a dividir a largura
+   disponível, encolhendo até o limite legível; abaixo disso rolam na
+   horizontal em vez de quebrar. */
+body .mg-atalhos{
+  display:flex!important;
+  gap:10px;
+  overflow-x:auto;
+  padding-bottom:6px;
+  scrollbar-width:thin;
+}
+body .mg-atalhos::-webkit-scrollbar{height:6px}
+body .mg-atalhos::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+body .mg-atalho{
+  flex:1 1 0;
+  min-width:104px;
+  max-width:190px;
+  padding:16px 10px 14px;
+}
+body .mg-atalho .nm{font-size:clamp(12.5px,.42vw + 10.6px,15px);line-height:1.22}
+body .mg-atalho .ds{font-size:clamp(10px,.16vw + 9.2px,11.5px);line-height:1.38;min-height:0}
+body .mg-atalho .ic-wrap,body .mg-atalho .ico{width:36px;height:36px;font-size:16px}
+@media(max-width:900px){
+  body .mg-atalho{min-width:112px;flex:0 0 auto}
+  body .mg-atalho .ds{display:none}
+}
+
+/* ---------- 2. gráficos ---------- */
+.mg-prog{margin-top:26px}
+.mg-prog-cab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.mg-prog-cab .t{font-family:var(--font-d);font-size:17px;font-weight:500}
+.mg-prog-cab .s{font-size:12px;color:var(--muted)}
+.mg-prog-cab .tot{margin-left:auto;font-size:12px;color:var(--muted)}
+.mg-prog-cab .tot b{color:var(--text);font-size:14px}
+
+.mg-prog-lista{display:flex;flex-direction:column;gap:2px}
+.mg-prog-l{display:grid;grid-template-columns:150px 1fr 116px;align-items:center;gap:13px;
+  padding:9px 11px;border-radius:11px;cursor:pointer;
+  transition:background .15s;animation:mgSobe .38s cubic-bezier(.22,1,.36,1) both}
+.mg-prog-l:hover{background:var(--card2)}
+.mg-prog-l .nm{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600}
+.mg-prog-l .nm img{width:18px;height:18px;border-radius:5px;object-fit:contain;background:#fff;
+  border:1px solid var(--line);flex-shrink:0}
+.mg-prog-l .nm .pt{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.mg-prog-l .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.mg-bar{position:relative;height:9px;border-radius:6px;background:var(--card2);
+  border:1px solid var(--line);overflow:hidden}
+.mg-bar .f{position:absolute;left:0;top:0;bottom:0;border-radius:5px;
+  transition:width .6s cubic-bezier(.22,1,.36,1)}
+.mg-prog-l .qt{display:flex;align-items:center;justify-content:flex-end;gap:9px;
+  font-size:12px;color:var(--muted);white-space:nowrap}
+.mg-prog-l .qt b{font-variant-numeric:tabular-nums;font-size:14px;color:var(--text);
+  min-width:38px;text-align:right}
+.mg-prog-l .avisos{display:flex;gap:5px}
+.mg-prog-l .av{font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.mg-prog-l .av.atraso{background:rgba(184,74,62,.13);color:var(--danger)}
+.mg-prog-l .av.urg{background:rgba(184,74,62,.2);color:var(--danger)}
+
+@media(max-width:720px){
+  .mg-prog-l{grid-template-columns:1fr;gap:6px;padding:11px}
+  .mg-prog-l .qt{justify-content:flex-start}
+}
+
+/* ---------- 3. projetos dentro de Demandas ---------- */
+.mg-pj2{max-width:1080px;margin:0 auto}
+.mg-pj2-topo{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mg-pj2-topo .t{font-family:var(--font-d);font-size:21px;font-weight:500}
+.mg-pj2-topo .s{font-size:12.5px;color:var(--muted);margin-top:3px}
+.mg-pj2-novo{margin-left:auto;background:var(--brass);color:var(--ink2);border:0;border-radius:10px;
+  padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px}
+.mg-pj2-novo:hover{background:var(--brass2);color:#fff}
+
+.mg-pj2-c{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  margin-top:12px;overflow:hidden;animation:mgSobe .4s cubic-bezier(.22,1,.36,1) both}
+.mg-pj2-c.alvo{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.18)}
+.mg-pj2-h{display:flex;align-items:center;gap:12px;padding:14px 17px;cursor:pointer}
+.mg-pj2-h .seta{font-size:10px;color:var(--muted2);transition:transform .2s;width:10px;flex-shrink:0}
+.mg-pj2-c.aberto .mg-pj2-h .seta{transform:rotate(90deg)}
+.mg-pj2-h .cor{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.mg-pj2-h .nm{font-weight:700;font-size:14px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-pj2-h .emp{font-size:11.5px;color:var(--muted);font-weight:400;flex-shrink:0}
+.mg-pj2-h .barra{flex:1;max-width:180px;min-width:70px}
+.mg-pj2-h .pct{font-size:12.5px;font-weight:700;color:var(--brass2);min-width:38px;text-align:right}
+.mg-pj2-h .acoes{display:flex;gap:3px;flex-shrink:0}
+.mg-pj2-h .acoes button{background:none;border:0;color:var(--muted2);font-size:12px;
+  padding:4px 7px;border-radius:7px;font-family:inherit}
+.mg-pj2-h .acoes button:hover{background:var(--card2);color:var(--text)}
+.mg-pj2-h .acoes .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+
+.mg-pj2-corpo{display:none;padding:4px 8px 10px;border-top:1px solid var(--line)}
+.mg-pj2-c.aberto .mg-pj2-corpo{display:block}
+.mg-pj2-t{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;
+  font-size:13px;cursor:pointer}
+.mg-pj2-t:hover{background:var(--card2)}
+.mg-pj2-t .pt{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mg-pj2-t .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-pj2-t .st{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.mg-pj2-t .x{background:none;border:0;color:var(--muted2);font-size:11px;padding:2px 6px;border-radius:6px}
+.mg-pj2-t .x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-pj2-vazio{font-size:12.5px;color:var(--muted);padding:14px 12px;text-align:center;line-height:1.6}
+
+/* seletor de projeto no detalhe da demanda */
+.mg-pj2-sel{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;
+  padding:9px 12px;font-family:inherit;font-size:13px;color:var(--text)}
+.mg-pj2-sel:focus{outline:none;border-color:var(--brass)}
+.card-t .mg-pj2-chip{font-size:10.5px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 59
+   ===================================================================== */
+const MG_FEITO = ['Feito','Concluído Atendimento'];
+const MG_PJ_CORES = ['#C7871E','#2E9E6B','#2D6FCF','#8E3FBE','#D9531E','#12A38F','#D01F45','#7C8A97'];
+
+/* =====================================================================
+   PARTE 1 — GRÁFICO DE PROGRESSO POR CLIENTE
+   A conta é feita aqui a partir de TASKS, que já está carregado. A view
+   v_progresso_cliente existe no banco para quem quiser consultar de
+   fora, mas a tela não precisa de ida extra ao servidor.
+   ===================================================================== */
+function mgProgresso(){
+  const hoje = new Date().toISOString().slice(0,10);
+  const porCliente = {};
+  (TASKS||[]).forEach(t=>{
+    if(t.archived) return;
+    const k = t.client_id || '—';
+    if(!porCliente[k]) porCliente[k] = {total:0, feitas:0, atraso:0, urg:0};
+    const p = porCliente[k];
+    p.total++;
+    if(MG_FEITO.includes(t.status)) p.feitas++;
+    else {
+      if(t.due && t.due < hoje) p.atraso++;
+      if(t.urgente) p.urg++;
+    }
+  });
+  return (CLIENTS||[]).map(c=>{
+    const p = porCliente[c.id] || {total:0, feitas:0, atraso:0, urg:0};
+    return {
+      id:c.id, nome:c.nome, total:p.total, feitas:p.feitas,
+      atraso:p.atraso, urg:p.urg,
+      pct: p.total ? Math.round(p.feitas / p.total * 100) : 0,
+    };
+  }).filter(x=>x.total > 0)
+    .sort((a,b)=> b.total - a.total);
+}
+function mgCorPct(pct){
+  if(pct >= 85) return 'var(--st-done)';
+  if(pct >= 60) return 'var(--brass)';
+  if(pct >= 35) return '#D98324';
+  return 'var(--danger)';
+}
+function mgProgressoHTML(){
+  const linhas = mgProgresso();
+  if(!linhas.length) return '';
+  const total  = linhas.reduce((a,x)=>a+x.total, 0);
+  const feitas = linhas.reduce((a,x)=>a+x.feitas, 0);
+  const geral  = total ? Math.round(feitas/total*100) : 0;
+
+  return `<div class="mg-prog">
+    <div class="mg-prog-cab">
+      <span class="t">Progresso por cliente</span>
+      <span class="s">demandas concluídas de cada empresa</span>
+      <span class="tot"><b>${geral}%</b> no geral · ${feitas} de ${total}</span>
+    </div>
+    <div class="mg-prog-lista">
+      ${linhas.map((x,i)=>{
+        const lg = (typeof clientLogo==='function') ? clientLogo(x.id) : null;
+        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+                         : `<span class="pt" style="background:${clientColor(x.id)}"></span>`;
+        return `<div class="mg-prog-l" style="animation-delay:${(i*0.035).toFixed(2)}s"
+             onclick="mgVerCliente('${esc(x.id)}')" title="Ver as demandas de ${esc(x.nome)}">
+          <span class="nm">${marca}<span>${esc(x.nome)}</span></span>
+          <span class="mg-bar"><span class="f" style="width:${x.pct}%;background:${mgCorPct(x.pct)}"></span></span>
+          <span class="qt">
+            <span class="avisos">
+              ${x.atraso?`<span class="av atraso" title="em atraso">${x.atraso} atrasada${x.atraso===1?'':'s'}</span>`:''}
+              ${x.urg?`<span class="av urg" title="urgentes">${x.urg} urgente${x.urg===1?'':'s'}</span>`:''}
+            </span>
+            <b>${x.pct}%</b>
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+/* clicar leva ao quadro já filtrado por aquele cliente */
+function mgVerCliente(id){
+  if(typeof MG_F_CLIENTES !== 'undefined'){
+    MG_F_CLI_TODOS = false;
+    MG_F_CLIENTES = new Set([id]);
+    if(typeof mgFDesenhar === 'function') mgFDesenhar();
+  }
+  showView('tasks');
+}
+
+/* entra no Início, depois dos atalhos */
+(function(){
+  if(typeof renderHome !== 'function') return;
+  const _rh = renderHome;
+  renderHome = function(){
+    const r = _rh();
+    try{
+      if(!isAdmin()) return r;
+      const el = document.getElementById('v-home');
+      if(!el || el.querySelector('.mg-prog')) return r;
+      const atalhos = el.querySelector('.mg-atalhos');
+      const html = mgProgressoHTML();
+      if(atalhos && html) atalhos.insertAdjacentHTML('afterend', html);
+    }catch(e){ console.warn('[progresso]', e) }
+    return r;
+  };
+})();
+
+/* =====================================================================
+   PARTE 2 — PROJETOS DENTRO DE DEMANDAS
+   Projeto agora é uma coisa própria ("CRM Dabela"), não uma demanda que
+   contém outras. A demanda aponta para ele.
+   ===================================================================== */
+let MG_PROJETOS = [];
+let MG_PJ_LIDO  = false;
+let MG_PJ_ABRIR = new Set();
+let MG_PJ_ERRO  = null;
+
+async function mgPjCarregar(){
+  try{
+    const {data,error} = await sb.from('projects').select('*').order('nome');
+    if(error) throw error;
+    MG_PROJETOS = data || [];
+    MG_PJ_ERRO = null;
+  }catch(e){
+    const m = (e && e.message) || '';
+    MG_PJ_ERRO = /relation .*projects|schema cache|does not exist/i.test(m) ? 'tabela' : m;
+    MG_PROJETOS = [];
+  }
+  MG_PJ_LIDO = true;
+}
+function mgPjDoCliente(cid){ return (MG_PROJETOS||[]).filter(p=>p.client_id===cid) }
+function mgPjTarefas(pid){ return (TASKS||[]).filter(t=>t.project_id===pid && !t.archived) }
+function mgPjProgresso(pid){
+  const ts = mgPjTarefas(pid);
+  const f = ts.filter(t=>MG_FEITO.includes(t.status)).length;
+  return {total:ts.length, feitas:f, pct: ts.length ? Math.round(f/ts.length*100) : 0};
+}
+
+async function mgPjCriar(){
+  const cid = (typeof MG_F_CLIENTES !== 'undefined' && MG_F_CLIENTES.size === 1)
+    ? [...MG_F_CLIENTES][0] : null;
+  const nome = prompt('Nome do projeto (ex.: CRM Dabela, Lançamento Primavera):');
+  if(!nome || !nome.trim()) return;
+
+  let empresa = cid;
+  if(!empresa){
+    const lista = (CLIENTS||[]).map((c,i)=>`${i+1}. ${c.nome}`).join('\n');
+    const esc2 = prompt('De qual empresa é este projeto?\n\n' + lista + '\n\nDigite o número:');
+    const i = parseInt(esc2,10) - 1;
+    if(isNaN(i) || !CLIENTS[i]) return;
+    empresa = CLIENTS[i].id;
+  }
+  try{
+    const cor = MG_PJ_CORES[(MG_PROJETOS||[]).length % MG_PJ_CORES.length];
+    const {data,error} = await sb.from('projects').insert({
+      client_id: empresa, nome: nome.trim(), cor,
+      criado_por: ME ? ME.name : null,
+    }).select().single();
+    if(error) throw error;
+    MG_PROJETOS.push(data);
+    MG_PJ_ABRIR.add(data.id);
+    mgPjDesenhar();
+    toast('Projeto criado ✓');
+  }catch(e){
+    if(MG_PJ_ERRO === 'tabela' || /projects/i.test((e&&e.message)||''))
+      toast('A tabela de projetos ainda não existe neste banco');
+    else toast('Não foi possível criar: ' + ((e&&e.message)||''));
+  }
+}
+async function mgPjRenomear(id){
+  const p = MG_PROJETOS.find(x=>x.id===id); if(!p) return;
+  const nome = prompt('Novo nome do projeto:', p.nome);
+  if(!nome || !nome.trim() || nome === p.nome) return;
+  try{
+    const {error} = await sb.from('projects').update({nome:nome.trim()}).eq('id',id);
+    if(error) throw error;
+    p.nome = nome.trim(); mgPjDesenhar(); toast('Renomeado');
+  }catch(e){ toast('Não foi possível renomear') }
+}
+async function mgPjExcluir(id){
+  const p = MG_PROJETOS.find(x=>x.id===id); if(!p) return;
+  const n = mgPjTarefas(id).length;
+  if(!confirm(`Excluir o projeto "${p.nome}"?` +
+      (n ? `\n\nAs ${n} demandas dele NÃO são apagadas — apenas deixam de estar agrupadas.` : ''))) return;
+  try{
+    const {error} = await sb.from('projects').delete().eq('id',id);
+    if(error) throw error;
+    MG_PROJETOS = MG_PROJETOS.filter(x=>x.id!==id);
+    (TASKS||[]).forEach(t=>{ if(t.project_id===id) t.project_id = null });
+    mgPjDesenhar(); toast('Projeto excluído');
+  }catch(e){ toast('Não foi possível excluir') }
+}
+async function mgPjVincular(taskId, projectId){
+  const t = (TASKS||[]).find(x=>x.id===taskId); if(!t) return;
+  try{
+    const {error} = await sb.from('tasks').update({project_id: projectId || null}).eq('id', taskId);
+    if(error) throw error;
+    t.project_id = projectId || null;
+    if(projectId) MG_PJ_ABRIR.add(projectId);
+    if(MG_TASKS_SUB === 'projetos') mgPjDesenhar(); else render();
+    toast(projectId ? 'Demanda adicionada ao projeto' : 'Demanda tirada do projeto');
+  }catch(e){
+    if(/column .*project_id/i.test((e&&e.message)||''))
+      toast('Rode antes o SQL dos projetos');
+    else toast('Não foi possível agrupar');
+  }
+}
+function mgPjAlternar(id){
+  if(MG_PJ_ABRIR.has(id)) MG_PJ_ABRIR.delete(id); else MG_PJ_ABRIR.add(id);
+  const el = document.querySelector('.mg-pj2-c[data-id="'+id+'"]');
+  if(el) el.classList.toggle('aberto', MG_PJ_ABRIR.has(id));
+}
+
+/* arrastar demanda para dentro de um projeto */
+function mgPjSobre(e){ e.preventDefault(); e.currentTarget.classList.add('alvo') }
+function mgPjSai(e){ e.currentTarget.classList.remove('alvo') }
+function mgPjSolta(e, pid){
+  e.preventDefault();
+  e.currentTarget.classList.remove('alvo');
+  if(typeof _drag !== 'undefined' && _drag){ const id = _drag; _drag = null; mgPjVincular(id, pid) }
+}
+
+function mgPjDesenhar(){
+  const el = document.getElementById('v-board'); if(!el) return;
+
+  if(!MG_PJ_LIDO){
+    el.innerHTML = `<div class="mg-load">Carregando projetos…</div>`;
+    mgPjCarregar().then(mgPjDesenhar);
+    return;
+  }
+  if(MG_PJ_ERRO === 'tabela'){
+    el.innerHTML = (typeof mgAvisoFalta === 'function')
+      ? `<div class="mg-pj2">${mgAvisoFalta('A tabela projects','supabase-adicao-59.sql')}</div>`
+      : `<div class="mg-pj2-vazio">Rode o SQL dos projetos.</div>`;
+    return;
+  }
+
+  /* respeita o filtro de cliente que estiver ativo */
+  const filtrar = (typeof MG_F_CLI_TODOS !== 'undefined') && !MG_F_CLI_TODOS && MG_F_CLIENTES.size;
+  const lista = filtrar
+    ? MG_PROJETOS.filter(p => MG_F_CLIENTES.has(p.client_id))
+    : MG_PROJETOS;
+
+  const semProjeto = (TASKS||[]).filter(t=>!t.project_id && !t.archived &&
+    (!filtrar || MG_F_CLIENTES.has(t.client_id)));
+
+  el.innerHTML = `<div class="mg-pj2">
+    <div class="mg-pj2-topo">
+      <div>
+        <div class="t">Projetos</div>
+        <div class="s">Agrupe demandas de um mesmo trabalho — CRM, lançamento, campanha.
+          Arraste uma demanda para dentro de um projeto, ou use o seletor no detalhe dela.</div>
+      </div>
+      ${isAdmin()?`<button class="mg-pj2-novo" onclick="mgPjCriar()">＋ Novo projeto</button>`:''}
+    </div>
+
+    ${lista.length ? lista.map((p,i)=>{
+      const pr = mgPjProgresso(p.id);
+      const ts = mgPjTarefas(p.id);
+      const aberto = MG_PJ_ABRIR.has(p.id);
+      const cor = p.cor || MG_PJ_CORES[i % MG_PJ_CORES.length];
+      return `<div class="mg-pj2-c ${aberto?'aberto':''}" data-id="${esc(p.id)}"
+           style="animation-delay:${(i*0.04).toFixed(2)}s"
+           ondragover="mgPjSobre(event)" ondragleave="mgPjSai(event)"
+           ondrop="mgPjSolta(event,'${esc(p.id)}')">
+        <div class="mg-pj2-h" onclick="mgPjAlternar('${esc(p.id)}')">
+          <span class="seta">▶</span>
+          <span class="cor" style="background:${cor}"></span>
+          <span class="nm">${esc(p.nome)}</span>
+          <span class="emp">${esc(clientName(p.client_id))}</span>
+          <span class="barra mg-bar"><span class="f"
+            style="width:${pr.pct}%;background:${mgCorPct(pr.pct)}"></span></span>
+          <span class="pct">${pr.pct}%</span>
+          <span class="emp">${pr.feitas}/${pr.total}</span>
+          ${isAdmin()?`<span class="acoes">
+            <button title="Renomear" onclick="event.stopPropagation();mgPjRenomear('${esc(p.id)}')">✎</button>
+            <button class="x" title="Excluir" onclick="event.stopPropagation();mgPjExcluir('${esc(p.id)}')">✕</button>
+          </span>`:''}
+        </div>
+        <div class="mg-pj2-corpo">
+          ${ts.length ? ts.map(t=>`<div class="mg-pj2-t" onclick="openDetail('${esc(t.id)}')">
+            <span class="pt" style="background:${colColor(t.status)}"></span>
+            <span class="nm">${t.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(t.title||'')}</span>
+            <span class="st">${esc(t.status||'')}</span>
+            ${isAdmin()?`<button class="x" title="Tirar do projeto"
+               onclick="event.stopPropagation();mgPjVincular('${esc(t.id)}',null)">✕</button>`:''}
+          </div>`).join('')
+          : `<div class="mg-pj2-vazio">Nenhuma demanda ainda.<br>
+               Arraste uma para cá ou escolha este projeto no detalhe dela.</div>`}
+        </div>
+      </div>`;
+    }).join('')
+    : `<div class="mg-pj2-vazio" style="margin-top:20px">
+         Nenhum projeto ainda.<br>
+         ${isAdmin()?'Crie um acima e comece a agrupar as demandas.':'A equipe ainda não criou projetos.'}
+       </div>`}
+
+    ${isAdmin() && semProjeto.length ? `<div style="margin-top:26px">
+      <div class="mg-prog-cab"><span class="t" style="font-size:14px">Fora de projeto</span>
+        <span class="s">${semProjeto.length} demanda(s) — arraste para dentro de um projeto</span></div>
+      ${semProjeto.slice(0,30).map(t=>`<div class="mg-pj2-t" draggable="true"
+          ondragstart="_drag='${esc(t.id)}';this.style.opacity=.4"
+          ondragend="this.style.opacity=1"
+          onclick="openDetail('${esc(t.id)}')" style="cursor:grab">
+        <span class="pt" style="background:${colColor(t.status)}"></span>
+        <span class="nm">${esc(t.title||'')}</span>
+        <span class="st">${esc(clientName(t.client_id))}</span>
+      </div>`).join('')}
+      ${semProjeto.length>30?`<div class="mg-pj2-vazio">e mais ${semProjeto.length-30} — use os filtros para achar uma específica.</div>`:''}
+    </div>` : ''}
+  </div>`;
+}
+
+/* ---------- vira uma sub-aba de Demandas ---------- */
+(function(){
+  if(typeof MG_TASKS_VIEWS === 'undefined') return;
+  if(!MG_TASKS_VIEWS.includes('projetos')) MG_TASKS_VIEWS.push('projetos');
+  if(typeof MG_TASKS_ROTULO === 'object') MG_TASKS_ROTULO.projetos = 'Projetos';
+  if(typeof MG_TASKS_ICONE  === 'object') MG_TASKS_ICONE.projetos  = '🗂';
+})();
+(function(){
+  if(typeof render !== 'function') return;
+  const _r = render;
+  render = function(){
+    if(document.body.classList.contains('mg-tasks') && MG_TASKS_SUB === 'projetos'){
+      return mgPjDesenhar();
+    }
+    return _r();
+  };
+})();
+
+/* a aba solta de Projetos sai do menu: agora vive dentro de Demandas */
+(function(){
+  if(typeof NAV === 'undefined') return;
+  const i = NAV.findIndex(n=>n.v==='projetos');
+  if(i >= 0) NAV.splice(i,1);
+  if(typeof mgAtalhos === 'function'){
+    const _a = mgAtalhos;
+    mgAtalhos = function(){ return _a().filter(a=>a.v!=='projetos') };
+  }
+  const _sv = showView;
+  showView = function(v){
+    if(v === 'projetos'){
+      const r = _sv('tasks');
+      if(typeof mgVerTasks === 'function') mgVerTasks('projetos');
+      return r;
+    }
+    return _sv(v);
+  };
+})();
+
+/* ---------- seletor no detalhe da demanda ---------- */
+(function(){
+  if(typeof renderDetailBody !== 'function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{
+      const t = (TASKS||[]).find(x=>x.id===DETAIL_ID); if(!t) return r;
+      const corpo = document.querySelector('#slide .slide-b'); if(!corpo) return r;
+      if(corpo.querySelector('.mg-pj2-sel-wrap')) return r;
+
+      if(!MG_PJ_LIDO){ mgPjCarregar().then(()=>renderDetailBody()); return r }
+
+      const doCliente = mgPjDoCliente(t.client_id);
+      const esq = corpo.querySelector('.mg-det-col') || corpo;
+      const html = `<div class="mg-pj2-sel-wrap">
+        <div class="sect-t">🗂 Projeto</div>
+        ${isAdmin() ? `<select class="mg-pj2-sel" onchange="mgPjVincular('${esc(t.id)}',this.value)">
+            <option value="">— sem projeto —</option>
+            ${doCliente.map(p=>`<option value="${esc(p.id)}" ${t.project_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}
+          </select>
+          ${!doCliente.length?`<div style="font-size:11.5px;color:var(--muted);margin-top:6px">
+            ${esc(clientName(t.client_id))} ainda não tem projetos. Crie um em Demandas → Projetos.</div>`:''}`
+        : (t.project_id
+            ? `<div style="font-size:13px">${esc((MG_PROJETOS.find(p=>p.id===t.project_id)||{}).nome||'—')}</div>`
+            : `<div style="font-size:13px;color:var(--muted)">Sem projeto.</div>`)}
+      </div>`;
+      const anexos = esq.querySelector('.mg-anx');
+      if(anexos) anexos.insertAdjacentHTML('beforebegin', html);
+      else esq.insertAdjacentHTML('beforeend', html);
+    }catch(e){ console.warn('[projeto no detalhe]', e) }
+    return r;
+  };
+})();
+
+/* ---------- etiqueta do projeto no card do quadro ---------- */
+(function(){
+  if(typeof taskCard !== 'function') return;
+  const _tc = taskCard;
+  taskCard = function(t, cor){
+    let html = _tc(t, cor);
+    if(!t.project_id) return html;
+    const p = (MG_PROJETOS||[]).find(x=>x.id===t.project_id);
+    if(!p) return html;
+    return html.replace('<div class="card-meta">',
+      `<div class="card-meta"><span class="mg-pj2-chip" title="Projeto">🗂 ${esc(p.nome)}</span>`);
+  };
+})();
+
+/* carrega os projetos junto com o resto */
+(function(){
+  const _bt = boot;
+  boot = async function(){ const r = await _bt(); mgPjCarregar().then(()=>{ try{ render() }catch(e){} }); return r };
+  setTimeout(()=>{ if(!MG_PJ_LIDO) mgPjCarregar() }, 2500);
 })();
 </script>
 </body>
