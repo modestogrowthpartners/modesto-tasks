@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 61;
+const MG_VERSAO = 62;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -16553,6 +16553,39 @@ mgConferirMinhas = function(){
     }catch(e){}
   }, 3000);
 })();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 62 — coluna "Próximas entregas"
+
+   Entra logo depois de "Não iniciado", antes de "Entregas do dia":
+   o que já foi planejado mas ainda não é para hoje.
+
+   Não precisa de SQL: a coluna `status` em `tasks` é texto livre,
+   sem restrição no banco (conferido em pg_constraint).
+   ===================================================================== */
+:root{ --st-next:#6E8FB8; }
+#v-board .col[data-status="Próximas entregas"] .col-h .t{color:var(--st-next)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 62
+   ===================================================================== */
+(function(){
+  if(typeof COLS === 'undefined') return;
+  if(COLS.some(c => c.key === 'Próximas entregas')) return;
+
+  const i = COLS.findIndex(c => c.key === 'Não iniciado');
+  COLS.splice(i < 0 ? 1 : i + 1, 0, {
+    key: 'Próximas entregas',
+    label: 'Próximas entregas',
+    color: 'var(--st-next)',
+  });
+})();
+
+/* Nada mais é preciso: `colColor` e o filtro de situação já são
+   montados a partir de COLS — conferido nas linhas 876 e 1159 do
+   index.html. Acrescentar à lista basta. */
 </script>
 </body>
 </html>
