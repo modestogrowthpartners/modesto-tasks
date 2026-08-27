@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 63;
+const MG_VERSAO = 64;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -16762,6 +16762,75 @@ let MG_EM_REFRESH = false;
   mgAtualizarCron = function(){
     if(document.hidden) return;
     return _cr();
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 64 — ordenar por data de entrega num clique
+
+   A ordenação por prazo já existia, mas escondida no menu do quadro
+   (⋯ → Classificar). Agora é um botão na barra: clicou, os cards se
+   reorganizam pela data de entrega — 27, depois 28, e assim por diante.
+   ===================================================================== */
+.mg-dock button.mg-ord.on{background:rgba(194,161,91,.2);color:var(--brass-soft)}
+.mg-dock button.mg-ord .ic{font-size:13px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 64
+   ===================================================================== */
+
+/* Alterna entre a ordem do quadro e a ordem por entrega.
+   Reaproveita MG_ORDEM, que a ADIÇÃO 33 já usa em todas as
+   visualizações — Kanban, Quadro e Calendário de uma vez. */
+function mgOrdenarPorEntrega(){
+  MG_ORDEM = (MG_ORDEM === 'prazo') ? 'padrao' : 'prazo';
+  render();
+  mgDock();
+  if(typeof mgDesenharQMenu === 'function'){ try{ mgDesenharQMenu() }catch(e){} }
+  toast(MG_ORDEM === 'prazo'
+    ? '📅 Ordenado por data de entrega — as mais próximas primeiro'
+    : 'De volta à ordem do quadro');
+}
+
+/* o botão entra ao lado das ações da tela de demandas */
+(function(){
+  if(typeof mgDockItens !== 'function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(!document.body.classList.contains('mg-tasks')) return base;
+    const ligado = (MG_ORDEM === 'prazo');
+    const botao = `<button class="mg-ord ${ligado?'on':''}" onclick="mgOrdenarPorEntrega()"
+        title="${ligado?'Voltar à ordem do quadro':'Ordenar pela data de entrega'}">
+      <span class="ic">📅</span><span class="rot">Por entrega</span></button>`;
+    /* antes do separador, junto das demais ações */
+    return base.includes('<span class="sep"></span>')
+      ? base.replace('<span class="sep"></span>', botao + '<span class="sep"></span>')
+      : base + botao;
+  };
+})();
+
+/* Sem data de entrega vai para o fim — senão as demandas sem prazo
+   ficariam na frente das que têm, que é o contrário do útil.
+   A ADIÇÃO 33 já fazia isso; aqui garantimos que continue valendo
+   mesmo que a lista de ordenações mude. */
+(function(){
+  if(typeof visibleTasks !== 'function') return;
+  const _vis = visibleTasks;
+  visibleTasks = function(){
+    const ts = _vis();
+    if(MG_ORDEM !== 'prazo') return ts;
+    return [...ts].sort((a,b)=>{
+      const da = a.due || '9999-12-31';
+      const db = b.due || '9999-12-31';
+      if(da !== db) return da.localeCompare(db);
+      /* mesma data: urgentes primeiro, depois por prioridade */
+      if(!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
+      const P = {'Alta':0, 'Média':1, 'Baixa':2};
+      return (P[a.priority] ?? 9) - (P[b.priority] ?? 9);
+    });
   };
 })();
 </script>
