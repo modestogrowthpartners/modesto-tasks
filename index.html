@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 64;
+const MG_VERSAO = 65;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -16831,6 +16831,209 @@ function mgOrdenarPorEntrega(){
       const P = {'Alta':0, 'Média':1, 'Baixa':2};
       return (P[a.priority] ?? 9) - (P[b.priority] ?? 9);
     });
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 65
+   1) o Dash das demandas volta ao menu
+   2) botão de editar no painel de detalhe, para trocar o cliente
+   ===================================================================== */
+.slide-foot .btn-edit{background:var(--card2);border:1px solid var(--line2);border-radius:10px;
+  padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px;color:var(--text)}
+.slide-foot .btn-edit:hover{border-color:var(--brass);color:var(--brass2)}
+
+/* o cliente atual fica visível no topo do painel, clicável para trocar */
+.mg-det-cli{display:inline-flex;align-items:center;gap:7px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:999px;padding:4px 12px 4px 5px;
+  font-size:12px;font-weight:600;font-family:inherit;color:var(--text);margin-top:8px}
+.mg-det-cli:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-det-cli img{width:18px;height:18px;border-radius:50%;object-fit:contain;background:#fff;
+  border:1px solid var(--line)}
+.mg-det-cli .pt{width:10px;height:10px;border-radius:50%;margin-left:4px}
+.mg-det-cli .lapis{font-size:10px;opacity:.6}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 65
+   ===================================================================== */
+
+/* =====================================================================
+   PARTE 1 — O DASH DE VOLTA
+
+   O dashboard nunca foi apagado: a ADIÇÃO 2 apenas o tirou do menu e
+   passou a redirecionar quem tentasse abri-lo para o quadro. Aqui
+   desfazemos as duas coisas.
+   ===================================================================== */
+(function(){
+  if(typeof NAV === 'undefined') return;
+  if(NAV.some(n => n.v === 'dashboard')) return;
+  /* logo depois do módulo de demandas */
+  const i = NAV.findIndex(n => n.v === 'tasks');
+  NAV.splice(i < 0 ? 1 : i + 1, 0,
+    {v:'dashboard', ic:'◔', label:'Dash', admin:true});
+})();
+
+/* A ADIÇÃO 2 troca 'dashboard' por 'board' logo na primeira camada de
+   showView, antes de qualquer coisa que eu embrulhe por fora. Em vez de
+   tentar desfazer isso — o que exigiria mexer no código dela —, abrimos
+   a tela nós mesmos, com o mesmo trabalho que showView faria. */
+function mgAbrirDash(){
+  VIEW = 'dashboard';
+  document.querySelectorAll('.content > .view').forEach(el=>{
+    el.classList.toggle('on', el.id === 'v-dashboard');
+  });
+  const t = document.getElementById('view-title');
+  if(t) t.textContent = 'Dash';
+  document.body.classList.remove('mg-tasks', 'mg-inicio', 'mg-e-chat');
+  try{ renderDashboard() }catch(e){ console.warn('[dash]', e) }
+  if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+  if(typeof buildNav === 'function'){ try{ buildNav() }catch(e){} }
+}
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    if(v === 'dashboard' && isAdmin()){ mgAbrirDash(); return }
+    return _sv(v);
+  };
+})();
+
+/* A seção "Conclusão por cliente" era montada mas nunca inserida no
+   HTML — a variável `cliprogHtml` ficava sem uso no dashboard original.
+   Acrescentamos depois do desenho. */
+(function(){
+  if(typeof renderDashboard !== 'function') return;
+  const _rd = renderDashboard;
+  renderDashboard = function(){
+    const r = _rd();
+    try{
+      const el = document.getElementById('v-dashboard');
+      if(!el || el.querySelector('.mg-cliprog')) return r;
+
+      const ts = visibleTasks();
+      const porCliente = {};
+      ts.forEach(t=>{
+        const k = t.client_id || '_';
+        if(!porCliente[k]) porCliente[k] = {tot:0, done:0};
+        porCliente[k].tot++;
+        if(DONE_STATUSES.includes(t.status)) porCliente[k].done++;
+      });
+      const lista = Object.entries(porCliente)
+        .map(([id,o])=>({id, nome:clientName(id), tot:o.tot, done:o.done,
+                         pct: o.tot ? Math.round(o.done/o.tot*100) : 0}))
+        .sort((a,b)=> b.tot - a.tot);
+      if(!lista.length) return r;
+
+      el.insertAdjacentHTML('beforeend', `
+        <div class="panel mg-cliprog" style="margin-top:16px">
+          <h3>Conclusão por cliente</h3>
+          <div class="cliprog">
+            ${lista.map(c=>`<div class="r">
+              <div class="who"><span class="sw" style="background:${clientColor(c.id)}"></span>
+                <span>${esc(c.nome)}</span></div>
+              <div class="bar"><i style="width:${c.pct}%;background:${clientColor(c.id)}"></i></div>
+              <div class="pct" style="color:${clientColor(c.id)}">${c.pct}%</div>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:10px">
+            Percentual de demandas concluídas sobre o total de cada cliente.</div>
+        </div>`);
+    }catch(e){ console.warn('[dash · por cliente]', e) }
+    return r;
+  };
+})();
+
+/* o Dash acompanha as atualizações do quadro */
+(function(){
+  if(typeof render !== 'function') return;
+  const _r = render;
+  render = function(){
+    if(VIEW === 'dashboard'){
+      try{ return renderDashboard() }catch(e){ console.warn('[dash]', e) }
+    }
+    return _r.apply(this, arguments);
+  };
+})();
+
+/* cor e descrição do card no Início */
+(function(){
+  if(typeof MG_TONS === 'object' && MG_TONS) MG_TONS.dashboard =
+    {tom:'#4E8098', chip:'rgba(78,128,152,.14)', borda:'rgba(78,128,152,.45)',
+     fraco:'rgba(78,128,152,.09)', sombra:'rgba(78,128,152,.34)'};
+  if(typeof mgAtalhos !== 'function') return;
+  const _a = mgAtalhos;
+  mgAtalhos = function(){
+    return _a().map(a => a.v === 'dashboard'
+      ? {...a, ds:'Números e gráficos das demandas'} : a);
+  };
+})();
+
+/* =====================================================================
+   PARTE 2 — EDITAR PELO PAINEL DE DETALHE
+
+   A janela de edição já existia e já tinha o seletor de cliente —
+   `openTaskModal(id)` abre nela. Faltava o caminho: pelo painel de
+   detalhe não havia como chegar lá.
+   ===================================================================== */
+function mgEditarDemanda(id){
+  if(!isAdmin()) return;
+  /* fecha o painel para a janela não ficar por baixo */
+  if(typeof closeDetail === 'function') closeDetail();
+  setTimeout(()=>{ openTaskModal(id) }, 180);
+}
+
+(function(){
+  if(typeof renderDetailBody !== 'function') return;
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb();
+    try{
+      if(!isAdmin()) return r;
+      const t = (TASKS||[]).find(x => x.id === DETAIL_ID); if(!t) return r;
+
+      /* 1. botão no rodapé, junto de Salvar e Excluir */
+      const pe = document.querySelector('#slide .slide-foot');
+      if(pe && !pe.querySelector('.btn-edit')){
+        const salvar = pe.querySelector('.btn-save');
+        const html = `<button class="btn-edit" onclick="mgEditarDemanda('${esc(t.id)}')"
+            title="Abrir a janela completa — inclusive para trocar o cliente">✎ Editar</button>`;
+        if(salvar) salvar.insertAdjacentHTML('afterend', html);
+        else pe.insertAdjacentHTML('beforeend', html);
+      }
+
+      /* 2. o cliente atual, visível e clicável, no topo do painel */
+      const cab = document.querySelector('#slide .slide-h');
+      if(cab && !cab.querySelector('.mg-det-cli')){
+        const lg = (typeof clientLogo === 'function') ? clientLogo(t.client_id) : null;
+        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+                         : `<span class="pt" style="background:${clientColor(t.client_id)}"></span>`;
+        cab.insertAdjacentHTML('beforeend',
+          `<button class="mg-det-cli" onclick="mgEditarDemanda('${esc(t.id)}')"
+             title="Trocar o cliente desta demanda">
+            ${marca}${esc(clientName(t.client_id))}<span class="lapis">✎</span>
+          </button>`);
+      }
+    }catch(e){ console.warn('[editar demanda]', e) }
+    return r;
+  };
+})();
+
+/* depois de salvar pela janela, o painel reabre com os dados novos */
+(function(){
+  if(typeof saveTask !== 'function') return;
+  const _st = saveTask;
+  saveTask = async function(id){
+    const r = await _st(id);
+    if(id){
+      setTimeout(()=>{
+        try{
+          const ainda = (TASKS||[]).find(x => x.id === id);
+          if(ainda && typeof openDetail === 'function') openDetail(id);
+        }catch(e){}
+      }, 260);
+    }
+    return r;
   };
 })();
 </script>
