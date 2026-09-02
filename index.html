@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 66;
+const MG_VERSAO = 67;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -17188,6 +17188,340 @@ function mgFAtualizarMarcas(){
       mgFAtualizar();
     };
   }
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 67 — o cliente passa a ver as demandas da empresa dele
+
+   Uma visão simplificada: quatro colunas em vez de sete, sem os termos
+   internos da equipe. A tradução já existia no código (CLIENT_COLS e
+   clientStatus) mas nunca tinha sido usada.
+
+   Ele pode olhar, comentar e abrir novas demandas. Mudar status,
+   responsável ou prazo continua com a equipe.
+   ===================================================================== */
+.mg-cd{max-width:1180px;margin:0 auto}
+.mg-cd-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mg-cd-cab .tit{font-family:var(--font-d);font-size:24px;font-weight:500;letter-spacing:-.3px}
+.mg-cd-cab .sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.mg-cd-nova{margin-left:auto;background:var(--brass);color:var(--ink2);border:0;border-radius:11px;
+  padding:11px 20px;font-family:inherit;font-weight:700;font-size:13px;
+  box-shadow:0 8px 22px -10px rgba(194,161,91,.7)}
+.mg-cd-nova:hover{background:var(--brass2);color:#fff}
+@media(max-width:640px){ .mg-cd-nova{margin-left:0;width:100%} }
+
+.mg-cd-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-top:20px}
+@media(max-width:900px){ .mg-cd-cols{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:560px){ .mg-cd-cols{grid-template-columns:1fr} }
+
+.mg-cd-col{background:var(--card2);border:1px solid var(--line);border-radius:14px;
+  padding:12px;min-height:120px}
+.mg-cd-col h4{display:flex;align-items:center;gap:8px;margin:0 0 11px;
+  font-size:11.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.mg-cd-col h4 .pt{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.mg-cd-col h4 .n{margin-left:auto;background:var(--card);border-radius:999px;
+  padding:1px 8px;font-size:11px;color:var(--muted2)}
+
+.mg-cd-card{background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:12px 13px;margin-bottom:8px;width:100%;text-align:left;font-family:inherit;
+  color:var(--text);cursor:pointer;
+  transition:transform .15s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .15s}
+.mg-cd-card:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.07);
+  border-color:var(--line2)}
+.mg-cd-card .ti{font-weight:600;font-size:13.5px;line-height:1.35}
+.mg-cd-card .me{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:7px;
+  font-size:11px;color:var(--muted)}
+.mg-cd-card .pz{display:inline-flex;align-items:center;gap:4px}
+.mg-cd-card .pz.atrasada{color:var(--danger);font-weight:700}
+.mg-cd-card .nt{display:inline-flex;align-items:center;gap:3px}
+.mg-cd-vazio{font-size:12px;color:var(--muted2);text-align:center;padding:16px 8px;font-style:italic}
+
+/* painel de leitura da demanda */
+.mg-cd-ov{position:fixed;inset:0;background:rgba(12,11,9,.5);z-index:120;
+  display:flex;align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto;
+  opacity:0;pointer-events:none;transition:opacity .24s}
+.mg-cd-ov.on{opacity:1;pointer-events:auto}
+.mg-cd-jan{background:var(--card);border:1px solid var(--line);border-radius:18px;
+  width:min(680px,96vw);margin:auto;box-shadow:0 40px 90px -30px rgba(0,0,0,.5);
+  transform:translateY(12px);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.mg-cd-ov.on .mg-cd-jan{transform:none}
+.mg-cd-jan .cab{padding:20px 24px 16px;border-bottom:1px solid var(--line)}
+.mg-cd-jan .cab .est{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;
+  letter-spacing:.4px;text-transform:uppercase;border-radius:999px;padding:3px 11px;margin-bottom:9px}
+.mg-cd-jan .cab h3{font-family:var(--font-d);font-size:19px;font-weight:500;margin:0;line-height:1.3}
+.mg-cd-jan .cab .x{position:absolute;top:18px;right:20px;background:none;border:0;
+  font-size:15px;color:var(--muted);padding:6px 10px;border-radius:8px}
+.mg-cd-jan .cab .x:hover{background:var(--card2);color:var(--text)}
+.mg-cd-jan .corpo{padding:18px 24px 22px}
+.mg-cd-linha{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px;
+  line-height:1.6;margin-bottom:14px}
+.mg-cd-linha dt{color:var(--muted)}
+.mg-cd-linha dd{margin:0;font-weight:600}
+.mg-cd-desc{font-size:13px;line-height:1.65;white-space:pre-wrap;color:var(--text);
+  background:var(--card2);border-radius:11px;padding:13px 15px;margin-bottom:16px}
+.mg-cd-sec{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted2);margin:18px 0 9px}
+.mg-cd-nota{background:var(--card2);border-radius:11px;padding:11px 14px;margin-bottom:8px;font-size:13px}
+.mg-cd-nota .qm{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.mg-cd-nota .qm b{color:var(--text);font-weight:700}
+.mg-cd-nota .tx{line-height:1.6;white-space:pre-wrap}
+.mg-cd-comentar{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:11px;
+  padding:11px 13px;font-family:inherit;font-size:13px;color:var(--text);min-height:80px;resize:vertical}
+.mg-cd-comentar:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mg-cd-acoes{display:flex;gap:9px;align-items:center;margin-top:10px}
+.mg-cd-b{background:var(--brass);color:var(--ink2);border:0;border-radius:10px;padding:10px 18px;
+  font-family:inherit;font-weight:700;font-size:12.5px}
+.mg-cd-b:hover{background:var(--brass2);color:#fff}
+.mg-cd-b:disabled{opacity:.5}
+.mg-cd-b.ghost{background:none;color:var(--text);border:1px solid var(--line2)}
+.mg-cd-b.ghost:hover{border-color:var(--brass);color:var(--brass2);background:none}
+.mg-cd-sub{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 0}
+.mg-cd-sub .mk{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line2);
+  display:grid;place-items:center;font-size:10px;color:transparent;flex-shrink:0}
+.mg-cd-sub.feita .mk{background:var(--st-done);border-color:var(--st-done);color:#fff}
+.mg-cd-sub.feita span{text-decoration:line-through;opacity:.6}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 67
+   ===================================================================== */
+
+/* a aba entra para o cliente, logo antes de Documentos */
+(function(){
+  if(typeof ABAS_DO_CLIENTE === 'undefined') return;
+  if(!ABAS_DO_CLIENTE.includes('minhas')) ABAS_DO_CLIENTE.unshift('minhas');
+  if(typeof NAV !== 'undefined' && !NAV.some(n => n.v === 'minhas')){
+    NAV.unshift({v:'minhas', ic:'▤', label:'Demandas'});
+  }
+  if(typeof MG_NAV_CLI === 'object' && MG_NAV_CLI) MG_NAV_CLI.minhas = ['▤','Demandas'];
+})();
+(function(){
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-minhas')){
+    const d = document.createElement('div');
+    d.className = 'view'; d.id = 'v-minhas';
+    cont.appendChild(d);
+  }
+})();
+
+/* as demandas da empresa do cliente */
+function mgCdTarefas(){
+  const cid = ME && ME.client_id;
+  if(!cid) return [];
+  return (TASKS||[]).filter(t => t.client_id === cid && !t.archived);
+}
+
+function mgCdDesenhar(){
+  const el = document.getElementById('v-minhas'); if(!el) return;
+  const ts = mgCdTarefas();
+  const hoje = new Date().toISOString().slice(0,10);
+
+  /* agrupa pelos quatro estados que o cliente entende */
+  const grupos = {};
+  CLIENT_COLS.forEach(c => grupos[c.key] = []);
+  ts.forEach(t => {
+    const k = clientStatus(t.status);
+    (grupos[k] = grupos[k] || []).push(t);
+  });
+  /* dentro de cada coluna: prazo mais próximo primeiro */
+  Object.values(grupos).forEach(l => l.sort((a,b) =>
+    (a.due || '9999-12-31').localeCompare(b.due || '9999-12-31')));
+
+  const feitas = (grupos['Concluído'] || []).length;
+  const pct = ts.length ? Math.round(feitas / ts.length * 100) : 0;
+
+  el.innerHTML = `<div class="mg-cd">
+    <div class="mg-cd-cab">
+      <div>
+        <div class="tit">Suas demandas</div>
+        <div class="sub">${ts.length} no total · ${feitas} concluída${feitas===1?'':'s'} (${pct}%)
+          — acompanhe o andamento e converse com a equipe por aqui.</div>
+      </div>
+      <button class="mg-cd-nova" onclick="mgCdNova()">＋ Pedir algo à equipe</button>
+    </div>
+
+    <div class="mg-cd-cols">
+      ${CLIENT_COLS.map(c=>{
+        const lista = grupos[c.key] || [];
+        return `<div class="mg-cd-col">
+          <h4><span class="pt" style="background:${c.color}"></span>${esc(c.label)}
+            <span class="n">${lista.length}</span></h4>
+          ${lista.length ? lista.map(t=>{
+            const atrasada = t.due && t.due < hoje && clientStatus(t.status) !== 'Concluído';
+            return `<button class="mg-cd-card" onclick="mgCdAbrir('${esc(t.id)}')">
+              <div class="ti">${esc(t.title||'')}</div>
+              <div class="me">
+                ${t.due ? `<span class="pz ${atrasada?'atrasada':''}">📅
+                  ${new Date(t.due+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+                  ${atrasada?'· atrasada':''}</span>` : ''}
+                ${(t.subtasks||[]).length ? `<span class="nt">☑ ${(t.subtasks||[]).filter(s=>s.done).length}/${(t.subtasks||[]).length}</span>` : ''}
+              </div>
+            </button>`;
+          }).join('') : `<div class="mg-cd-vazio">Nada por aqui</div>`}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+  if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+}
+
+/* ---------------------------------------------------------------------
+   Painel de leitura — com anotações e campo de comentário
+   --------------------------------------------------------------------- */
+(function(){
+  if(document.getElementById('mg-cd-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'mg-cd-ov'; ov.id = 'mg-cd-ov';
+  ov.innerHTML = `<div class="mg-cd-jan" style="position:relative" role="dialog" aria-modal="true">
+      <button class="x" onclick="mgCdFechar()" aria-label="Fechar">✕</button>
+      <div id="mg-cd-conteudo"></div>
+    </div>`;
+  ov.addEventListener('click', e => { if(e.target === ov) mgCdFechar() });
+  document.body.appendChild(ov);
+})();
+function mgCdFechar(){ document.getElementById('mg-cd-ov').classList.remove('on') }
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    const ov = document.getElementById('mg-cd-ov');
+    if(ov && ov.classList.contains('on')) mgCdFechar();
+  }
+});
+
+let MG_CD_ID = null;
+
+async function mgCdAbrir(id){
+  const t = (TASKS||[]).find(x => x.id === id); if(!t) return;
+  MG_CD_ID = id;
+  const ov = document.getElementById('mg-cd-ov');
+  const cx = document.getElementById('mg-cd-conteudo');
+  const est = clientStatus(t.status);
+  const cor = (CLIENT_COLS.find(c => c.key === est) || {}).color || 'var(--muted)';
+  const hoje = new Date().toISOString().slice(0,10);
+  const atrasada = t.due && t.due < hoje && est !== 'Concluído';
+
+  cx.innerHTML = `
+    <div class="cab">
+      <span class="est" style="background:${hexA(cor,.14)};color:${cor}">${esc(est)}</span>
+      <h3>${esc(t.title||'')}</h3>
+    </div>
+    <div class="corpo">
+      <dl class="mg-cd-linha">
+        ${t.due ? `<dt>Prazo</dt><dd style="${atrasada?'color:var(--danger)':''}">
+          ${new Date(t.due+'T12:00:00').toLocaleDateString('pt-BR')}${atrasada?' · em atraso':''}</dd>` : ''}
+        <dt>Aberta em</dt><dd>${t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '—'}</dd>
+      </dl>
+      ${(t.description||'').trim() ? `<div class="mg-cd-desc">${esc(t.description)}</div>` : ''}
+      ${(t.subtasks||[]).length ? `<div class="mg-cd-sec">Etapas</div>
+        ${(t.subtasks||[]).map(s=>`<div class="mg-cd-sub ${s.done?'feita':''}">
+          <span class="mk">✓</span><span>${esc(s.text||'')}</span></div>`).join('')}` : ''}
+
+      <div class="mg-cd-sec">Conversa</div>
+      <div id="mg-cd-notas"><div class="mg-cd-vazio">Carregando…</div></div>
+      <textarea class="mg-cd-comentar" id="mg-cd-txt"
+        placeholder="Escreva aqui para a equipe — dúvidas, ajustes, contexto…"></textarea>
+      <div class="mg-cd-acoes">
+        <button class="mg-cd-b" id="mg-cd-enviar" onclick="mgCdComentar()">Enviar</button>
+        <span style="font-size:11.5px;color:var(--muted)">A equipe é avisada.</span>
+      </div>
+    </div>`;
+  ov.classList.add('on');
+  mgCdCarregarNotas(id);
+}
+
+async function mgCdCarregarNotas(id){
+  const cx = document.getElementById('mg-cd-notas'); if(!cx) return;
+  try{
+    const {data,error} = await sb.from('task_notes').select('*')
+      .eq('task_id', id).order('created_at', {ascending:true});
+    if(error) throw error;
+    const notas = data || [];
+    cx.innerHTML = notas.length
+      ? notas.map(n=>`<div class="mg-cd-nota">
+          <div class="qm"><b>${esc(n.author_name||'Equipe')}</b>
+            ${new Date(n.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+          <div class="tx">${esc(n.body||'')}</div>
+        </div>`).join('')
+      : `<div class="mg-cd-vazio">Nenhuma mensagem ainda. Escreva abaixo se precisar de algo.</div>`;
+  }catch(e){
+    cx.innerHTML = `<div class="mg-cd-vazio">Não foi possível carregar a conversa.</div>`;
+  }
+}
+
+async function mgCdComentar(){
+  const ta = document.getElementById('mg-cd-txt');
+  const corpo = ta ? ta.value.trim() : '';
+  if(!corpo){ toast('Escreva alguma coisa antes de enviar'); return }
+  const btn = document.getElementById('mg-cd-enviar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando…' }
+  try{
+    const {error} = await sb.from('task_notes').insert({
+      task_id: MG_CD_ID, author_id: ME.id, author_name: ME.name,
+      body: corpo, visibility: 'public',
+    });
+    if(error) throw error;
+    ta.value = '';
+    await mgCdCarregarNotas(MG_CD_ID);
+    toast('Mensagem enviada ✓');
+  }catch(e){
+    toast('Não foi possível enviar: ' + ((e && e.message) || ''));
+  }finally{
+    const b = document.getElementById('mg-cd-enviar');
+    if(b){ b.disabled = false; b.textContent = 'Enviar' }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Abrir uma demanda nova
+
+   Entra sempre como "Não iniciado" e sem responsável — a equipe define
+   depois. É também o que a regra do banco exige.
+   --------------------------------------------------------------------- */
+async function mgCdNova(){
+  const titulo = prompt('O que você precisa?\n(ex.: Ajustar o criativo da campanha de dezembro)');
+  if(!titulo || !titulo.trim()) return;
+  const detalhe = prompt('Quer dar mais contexto? (opcional)') || '';
+  try{
+    const {error} = await sb.from('tasks').insert({
+      title: titulo.trim(),
+      client_id: ME.client_id,
+      description: detalhe.trim(),
+      status: 'Não iniciado',
+      priority: 'Média',
+      assignees: [],
+      recurrence: 'none',
+      subtasks: [],
+    });
+    if(error) throw error;
+    await loadTasks();
+    mgCdDesenhar();
+    toast('Pedido enviado ✓ — a equipe já pode ver');
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/row-level security|permission/i.test(m))
+      toast('Sem permissão para abrir demanda — avise a equipe');
+    else toast('Não foi possível enviar: ' + m);
+  }
+}
+
+/* ---------- encaixe na navegação ---------- */
+(function(){
+  const _r = render;
+  render = function(){
+    if(VIEW === 'minhas') return mgCdDesenhar();
+    return _r.apply(this, arguments);
+  };
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    if(VIEW === 'minhas'){
+      const t = document.getElementById('view-title');
+      if(t) t.textContent = 'Demandas';
+      try{ mgCdDesenhar() }catch(e){ console.warn('[demandas do cliente]', e) }
+    }
+    return r;
+  };
 })();
 </script>
 </body>
