@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 65;
+const MG_VERSAO = 66;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -17035,6 +17035,159 @@ function mgEditarDemanda(id){
     }
     return r;
   };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 66 — o painel de filtros fechava ao clicar em Todos/Nenhum
+
+   Causa: existe um vigia que fecha o painel quando o clique acontece
+   fora dele (linha 1128 do index.html):
+
+       if(fp.classList.contains('on') && !fp.contains(e.target) && …)
+           closeFilterPanel();
+
+   Os botões Todos, Nenhum e Inverter redesenham a lista inteira de
+   clientes. Quando o vigia roda — depois do clique, na fase de
+   propagação — o botão que você apertou JÁ FOI SUBSTITUÍDO por um novo.
+   `fp.contains(e.target)` então dá falso, porque o elemento clicado não
+   está mais na página. O painel entende que você clicou fora e fecha.
+
+   A correção é não redesenhar durante o clique: atualizamos só o que
+   mudou, sem trocar os elementos de lugar.
+   ===================================================================== */
+.mg-f-acoes button{transition:border-color .15s, color .15s, background .15s}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 66
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Atualiza a lista sem recriá-la.
+
+   Em vez de reescrever o HTML — o que destrói o botão clicado e engana
+   o vigia —, apenas marcamos e desmarcamos as caixas que já existem.
+   --------------------------------------------------------------------- */
+function mgFAtualizarMarcas(){
+  const bloco = document.getElementById('mg-f-bloco'); if(!bloco) return;
+
+  /* as caixas de cliente */
+  bloco.querySelectorAll('.mg-f-cli').forEach(lb=>{
+    const cx = lb.querySelector('input[type=checkbox]'); if(!cx) return;
+    const onchange = cx.getAttribute('onchange') || '';
+    const m = onchange.match(/mgFCliente\('([^']+)'/);
+    if(!m) return;
+    cx.checked = MG_F_CLI_TODOS || MG_F_CLIENTES.has(m[1]);
+  });
+
+  /* os três botões de ação */
+  const acoes = bloco.querySelector('.mg-f-acoes');
+  if(acoes){
+    const [bTodos, bNenhum] = acoes.querySelectorAll('button');
+    if(bTodos)  bTodos.textContent  = MG_F_CLI_TODOS ? '✓ Todos' : 'Todos';
+    if(bNenhum) bNenhum.textContent = (!MG_F_CLI_TODOS && !MG_F_CLIENTES.size) ? '✓ Nenhum' : 'Nenhum';
+  }
+}
+
+/* as três ações passam a atualizar em vez de redesenhar */
+(function(){
+  const todos = (CLIENTS) => (CLIENTS||[]).map(c=>c.id);
+
+  mgFTodos = function(){
+    MG_F_CLI_TODOS = true;
+    MG_F_CLIENTES.clear();
+    mgFAtualizarMarcas();
+    mgFAtualizar();
+  };
+
+  mgFNenhum = function(){
+    MG_F_CLI_TODOS = false;
+    MG_F_CLIENTES.clear();
+    mgFAtualizarMarcas();
+    mgFAtualizar();
+  };
+
+  mgFInverter = function(){
+    const lista = todos(CLIENTS);
+    const atual = MG_F_CLI_TODOS ? new Set(lista) : MG_F_CLIENTES;
+    MG_F_CLIENTES = new Set(lista.filter(id => !atual.has(id)));
+    MG_F_CLI_TODOS = MG_F_CLIENTES.size === lista.length;
+    if(MG_F_CLI_TODOS) MG_F_CLIENTES.clear();
+    mgFAtualizarMarcas();
+    mgFAtualizar();
+  };
+
+  /* marcar uma caixa também não precisa refazer a lista */
+  mgFCliente = function(id, marcado){
+    if(MG_F_CLI_TODOS){
+      /* sair de "todos" começa do conjunto cheio */
+      MG_F_CLIENTES = new Set(todos(CLIENTS));
+      MG_F_CLI_TODOS = false;
+    }
+    if(marcado) MG_F_CLIENTES.add(id); else MG_F_CLIENTES.delete(id);
+    if(MG_F_CLIENTES.size === todos(CLIENTS).length){
+      MG_F_CLI_TODOS = true;
+      MG_F_CLIENTES.clear();
+    }
+    mgFAtualizarMarcas();
+    mgFAtualizar();
+  };
+})();
+
+/* ---------------------------------------------------------------------
+   Segunda linha de defesa
+
+   Mesmo com o redesenho resolvido, qualquer clique dentro do painel que
+   troque elementos poderia enganar o vigia de novo. Aqui garantimos que
+   um clique originado dentro do painel nunca o feche.
+   --------------------------------------------------------------------- */
+(function(){
+  const painel = document.getElementById('filter-panel');
+  if(!painel) return;
+  /* ATENÇÃO: na fase de captura (o `true` no fim), stopPropagation
+     impede o evento de CHEGAR ao botão — o onclick nunca dispara.
+     Precisa ser na fase de propagação, depois de o botão ter agido. */
+  painel.addEventListener('click', e => {
+    if(e.target.closest('.dp-head button')) return;   /* o ✕ continua fechando */
+    e.stopPropagation();
+  }, false);
+})();
+
+/* ---------------------------------------------------------------------
+   O mesmo cuidado para os filtros de data de entrega e de criação,
+   que também redesenhavam a lista inteira ao serem marcados.
+   --------------------------------------------------------------------- */
+(function(){
+  if(typeof mgFEntrega === 'function'){
+    mgFEntrega = function(v){
+      MG_F_ENTREGA = (MG_F_ENTREGA === v) ? '' : v;
+      /* só as caixas desta seção mudam de estado */
+      const bloco = document.getElementById('mg-f-bloco');
+      if(bloco){
+        bloco.querySelectorAll('.chk input[type=checkbox]').forEach(cx=>{
+          const on = cx.getAttribute('onchange') || '';
+          const m = on.match(/mgFEntrega\('([^']*)'\)/);
+          if(m) cx.checked = (MG_F_ENTREGA === m[1]);
+        });
+      }
+      mgFAtualizar();
+    };
+  }
+  if(typeof mgFCriada === 'function'){
+    mgFCriada = function(v){
+      MG_F_CRIADA = (MG_F_CRIADA === v) ? '' : v;
+      const bloco = document.getElementById('mg-f-bloco');
+      if(bloco){
+        bloco.querySelectorAll('.chk input[type=checkbox]').forEach(cx=>{
+          const on = cx.getAttribute('onchange') || '';
+          const m = on.match(/mgFCriada\('([^']*)'\)/);
+          if(m) cx.checked = (MG_F_CRIADA === m[1]);
+        });
+      }
+      mgFAtualizar();
+    };
+  }
 })();
 </script>
 </body>
