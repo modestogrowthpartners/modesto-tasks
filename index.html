@@ -12202,7 +12202,7 @@ button{color:inherit}
 /* =====================================================================
    ADIÇÃO 46
    ===================================================================== */
-const MG_VERSAO = 69;
+const MG_VERSAO = 71;
 const MG_VERSAO_DATA = '2026-08-06';
 
 /* aparece no console assim que a página carrega */
@@ -17942,6 +17942,452 @@ function mgLogoNoFundo(){
 mgLogoNoFundo();
 document.addEventListener('DOMContentLoaded', mgLogoNoFundo);
 setTimeout(mgLogoNoFundo, 800);
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 70 — a página do cliente vira uma só
+
+   Ele abre e já vê as demandas; rolando, encontra os documentos; e no
+   fim, dois botões para preencher o briefing e acompanhar o plano de
+   mídia. Sem precisar navegar entre abas.
+   ===================================================================== */
+body.mg-cliente #v-minhas.on{max-width:1560px!important}
+
+/* separador entre as seções da página */
+.mg-pg-sec{margin-top:38px}
+.mg-pg-sec > .cab{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.mg-pg-sec > .cab .t{font-family:var(--font-d);font-size:21px;font-weight:500;letter-spacing:-.2px}
+.mg-pg-sec > .cab .s{font-size:12.5px;color:var(--muted);margin-top:3px}
+.mg-pg-sec > .cab .lk{margin-left:auto;background:none;border:1px solid var(--line2);
+  border-radius:9px;padding:8px 15px;font-family:inherit;font-size:12.5px;font-weight:700;
+  color:var(--muted)}
+.mg-pg-sec > .cab .lk:hover{border-color:var(--brass);color:var(--brass2)}
+
+/* documentos na página */
+.mg-pg-docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.mg-pg-doc{display:flex;align-items:flex-start;gap:12px;background:var(--card);
+  border:1px solid var(--line);border-radius:13px;padding:14px;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);cursor:pointer;
+  transition:transform .15s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .15s}
+.mg-pg-doc:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.07);
+  border-color:var(--line2)}
+.mg-pg-doc .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font-size:15px;flex-shrink:0}
+.mg-pg-doc .tx{flex:1;min-width:0}
+.mg-pg-doc .tx b{display:block;font-size:13.5px;font-weight:600;line-height:1.35;
+  overflow-wrap:anywhere}
+.mg-pg-doc .tx span{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+.mg-pg-vazio{font-size:12.5px;color:var(--muted);background:var(--card2);
+  border:1px dashed var(--line2);border-radius:13px;padding:26px;text-align:center;line-height:1.6}
+
+/* os dois cartões de ação no fim */
+.mg-pg-acoes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+@media(max-width:760px){ .mg-pg-acoes{grid-template-columns:1fr} }
+.mg-pg-acao{display:flex;align-items:center;gap:15px;background:var(--card);
+  border:1px solid var(--line);border-radius:16px;padding:20px 22px;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);cursor:pointer;
+  transition:transform .16s cubic-bezier(.22,1,.36,1),box-shadow .2s,border-color .16s}
+.mg-pg-acao:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.08)}
+.mg-pg-acao .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
+  font-size:21px;flex-shrink:0}
+.mg-pg-acao .tx{flex:1;min-width:0}
+.mg-pg-acao .tx b{display:block;font-size:15px;font-weight:600;font-family:var(--font-d)}
+.mg-pg-acao .tx span{display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+.mg-pg-acao .seta{font-size:16px;color:var(--muted2);flex-shrink:0}
+.mg-pg-acao:hover .seta{color:var(--brass2)}
+.mg-pg-acao.briefing:hover{border-color:rgba(142,124,195,.5)}
+.mg-pg-acao.plano:hover{border-color:rgba(194,161,91,.6)}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 70
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. O cliente cai nas demandas ao entrar, não nos documentos
+   --------------------------------------------------------------------- */
+(function(){
+  if(typeof ABAS_DO_CLIENTE === 'undefined') return;
+  const i = ABAS_DO_CLIENTE.indexOf('minhas');
+  if(i > 0){ ABAS_DO_CLIENTE.splice(i, 1); ABAS_DO_CLIENTE.unshift('minhas') }
+  else if(i < 0) ABAS_DO_CLIENTE.unshift('minhas');
+})();
+
+/* ---------------------------------------------------------------------
+   2. Documentos e ações entram na mesma página, abaixo das demandas
+   --------------------------------------------------------------------- */
+function mgPgDocumentos(){
+  const cid = ME && ME.client_id;
+  if(!cid) return [];
+  return (DOCS || []).filter(d => d.client_id === cid)
+    .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function mgPgSecoesHTML(){
+  const docs = mgPgDocumentos();
+  const temPlano = (function(){
+    const c = (CLIENTS||[]).find(x => x.id === (ME && ME.client_id));
+    return !!(c && c.plano_midia);
+  })();
+
+  return `
+    <div class="mg-pg-sec">
+      <div class="cab">
+        <div>
+          <div class="t">Documentos</div>
+          <div class="s">Apresentações, propostas, relatórios e materiais da conta.</div>
+        </div>
+        ${docs.length > 8 ? `<button class="lk" onclick="mgIrPara('docs')">Ver todos →</button>` : ''}
+      </div>
+      ${docs.length ? `<div class="mg-pg-docs">
+        ${docs.slice(0, 8).map(d=>{
+          const t = docTipo(d.tipo);
+          return `<button class="mg-pg-doc" onclick="openDoc('${esc(String(d.id))}')">
+            <span class="ic" style="background:${hexA(t.hex,.13)};color:${t.hex}">${t.ic}</span>
+            <span class="tx">
+              <b>${esc(d.titulo || '(sem título)')}</b>
+              <span>${esc(t.label.replace(/s$/,''))} · ${d.created_at ? new Date(d.created_at).toLocaleDateString('pt-BR') : ''}</span>
+            </span>
+          </button>`;
+        }).join('')}
+      </div>` : `<div class="mg-pg-vazio">
+        Nenhum documento publicado ainda.<br>
+        Assim que a equipe publicar algo, aparece aqui.
+      </div>`}
+    </div>
+
+    <div class="mg-pg-sec">
+      <div class="cab">
+        <div>
+          <div class="t">Sua vez</div>
+          <div class="s">O que a equipe precisa de você para seguir com o trabalho.</div>
+        </div>
+      </div>
+      <div class="mg-pg-acoes">
+        <button class="mg-pg-acao briefing" onclick="mgIrPara('briefing')">
+          <span class="ic" style="background:rgba(142,124,195,.14);color:#8E7CC3">📋</span>
+          <span class="tx">
+            <b>Briefing de plano de mídia</b>
+            <span>Conte o que você espera do mês: verba, campanhas, metas e apostas.</span>
+          </span>
+          <span class="seta">→</span>
+        </button>
+
+        ${temPlano ? `<button class="mg-pg-acao plano" onclick="mgIrPara('plano')">
+          <span class="ic" style="background:rgba(194,161,91,.16);color:var(--brass2)">◎</span>
+          <span class="tx">
+            <b>Plano de mídia</b>
+            <span>Acompanhe e ajuste o investimento de cada campanha.</span>
+          </span>
+          <span class="seta">→</span>
+        </button>`
+        : `<div class="mg-pg-acao" style="cursor:default;opacity:.65">
+          <span class="ic" style="background:var(--card2);color:var(--muted2)">◎</span>
+          <span class="tx">
+            <b>Plano de mídia</b>
+            <span>Fica disponível assim que o plano do mês for montado pela equipe.</span>
+          </span>
+        </div>`}
+      </div>
+    </div>`;
+}
+
+/* acrescenta as seções depois que o quadro de demandas é desenhado */
+(function(){
+  const _des = mgCdDesenhar;
+  mgCdDesenhar = function(){
+    const r = _des();
+    try{
+      if(isAdmin()) return r;
+      const el = document.getElementById('v-minhas');
+      const caixa = el && el.querySelector('.mg-cd');
+      if(!caixa || caixa.querySelector('.mg-pg-sec')) return r;
+
+      /* os documentos podem ainda não ter sido carregados */
+      if(typeof DOCS_LOADED !== 'undefined' && !DOCS_LOADED && typeof loadDocs === 'function'){
+        loadDocs().then(()=>{ try{ mgCdDesenhar() }catch(e){} });
+      }
+      caixa.insertAdjacentHTML('beforeend', mgPgSecoesHTML());
+    }catch(e){ console.warn('[página do cliente]', e) }
+    return r;
+  };
+})();
+
+/* o rodapé de rotinas contínuas vai para o fim de tudo */
+(function(){
+  const _des = mgCdDesenhar;
+  mgCdDesenhar = function(){
+    const r = _des();
+    try{
+      const caixa = document.querySelector('#v-minhas .mg-cd');
+      const rodape = caixa && caixa.querySelector('.mg-cd-rodape');
+      if(rodape && rodape.nextElementSibling) caixa.appendChild(rodape);
+    }catch(e){}
+    return r;
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   ADIÇÃO 71 — o administrador passa a gerenciar os perfis
+
+   Trocar a foto, corrigir o nome, mudar o papel e, no caso de cliente,
+   definir de qual empresa é o acesso. O banco já permitia (a política
+   profiles_admin_update existe desde o começo) — faltava a interface.
+   ===================================================================== */
+.mg-eq-foto{position:relative;width:38px;height:38px;flex-shrink:0;cursor:pointer;
+  border-radius:50%;overflow:hidden}
+.mg-eq-foto .capa{position:absolute;inset:0;background:rgba(12,11,9,.55);color:#fff;
+  display:grid;place-items:center;font-size:13px;opacity:0;transition:opacity .16s}
+.mg-eq-foto:hover .capa{opacity:1}
+.mg-eq-foto.enviando .capa{opacity:1}
+
+.mg-eq-nome{display:flex;align-items:center;gap:7px;min-width:0}
+.mg-eq-nome .lapis{opacity:0;font-size:11px;color:var(--muted2);transition:opacity .16s}
+.crow:hover .mg-eq-nome .lapis{opacity:1}
+.mg-eq-nome input{background:var(--card2);border:1px solid var(--brass);border-radius:8px;
+  padding:5px 9px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);
+  min-width:180px}
+.mg-eq-nome input:focus{outline:none;box-shadow:0 0 0 3px rgba(194,161,91,.16)}
+.mg-eq-email{font-size:11.5px;color:var(--muted);display:block;margin-top:2px}
+
+.mg-eq-emp{width:150px}
+.mg-eq-acoes{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.mg-eq-acoes button{background:none;border:0;color:var(--muted2);font-size:13px;
+  padding:5px 8px;border-radius:8px;font-family:inherit}
+.mg-eq-acoes button:hover{background:var(--card2);color:var(--text)}
+.mg-eq-acoes .rm:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-eq-dica{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:10px}
+</style>
+<script>
+/* =====================================================================
+   ADIÇÃO 71
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Trocar a foto de qualquer pessoa
+   --------------------------------------------------------------------- */
+async function mgEqFoto(id, nome){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const alvo = document.querySelector(`.mg-eq-foto[data-id="${id}"]`);
+    if(alvo) alvo.classList.add('enviando');
+    const r = new FileReader();
+    r.onload = ev => {
+      const img = new Image();
+      img.onload = async () => {
+        /* recorta no centro e reduz — foto grande incha o banco */
+        const lado = Math.min(img.width, img.height);
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 256;
+        const cx = cv.getContext('2d');
+        cx.drawImage(img, (img.width-lado)/2, (img.height-lado)/2, lado, lado, 0, 0, 256, 256);
+        const dado = cv.toDataURL('image/jpeg', 0.85);
+        try{
+          const {error} = await sb.from('profiles').update({avatar_url: dado}).eq('id', id);
+          if(error) throw error;
+          /* se for a sua própria foto, o menu do usuário acompanha */
+          if(ME && ME.id === id){
+            ME.avatar_url = dado;
+            if(typeof setMeAvatar === 'function') setMeAvatar();
+            if(typeof mgAtualizarEu === 'function') try{ mgAtualizarEu() }catch(e){}
+          }
+          await renderEquipe();
+          toast('Foto de ' + (nome||'perfil') + ' atualizada ✓');
+        }catch(err){
+          if(alvo) alvo.classList.remove('enviando');
+          toast('Não foi possível salvar: ' + ((err && err.message) || ''));
+        }
+      };
+      img.src = ev.target.result;
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+async function mgEqTirarFoto(id, nome){
+  if(!confirm('Remover a foto de ' + (nome||'esta pessoa') + '?')) return;
+  try{
+    const {error} = await sb.from('profiles').update({avatar_url: null}).eq('id', id);
+    if(error) throw error;
+    if(ME && ME.id === id){
+      ME.avatar_url = null;
+      if(typeof setMeAvatar === 'function') setMeAvatar();
+    }
+    await renderEquipe();
+    toast('Foto removida');
+  }catch(e){ toast('Não foi possível remover') }
+}
+
+/* ---------------------------------------------------------------------
+   Corrigir o nome
+   --------------------------------------------------------------------- */
+function mgEqEditarNome(id, atual){
+  const cx = document.querySelector(`.mg-eq-nome[data-id="${id}"]`);
+  if(!cx || cx.querySelector('input')) return;
+  cx.innerHTML = `<input value="${esc(atual||'')}">`;
+  const i = cx.querySelector('input');
+
+  /* O onblur dispara ao sair do campo — inclusive quando o campo é
+     destruído por um salvamento vindo de outro caminho, e aí ele
+     regravava o valor ANTIGO por cima do novo. A trava garante um
+     salvamento só por edição. */
+  let jaSalvou = false;
+  const salvar = () => {
+    if(jaSalvou || i.dataset.mgFeito) return;
+    jaSalvou = true;
+    mgEqSalvarNome(id, i.value);
+  };
+  i.addEventListener('blur', salvar);
+  i.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); salvar() }
+    if(e.key === 'Escape'){ jaSalvou = true; renderEquipe() }
+  });
+  i.focus(); i.select();
+}
+async function mgEqSalvarNome(id, valor){
+  const nome = (valor||'').trim();
+  /* Fecha o campo ANTES de gravar. Sem isso, o `blur` do campo aberto
+     dispara um segundo salvamento com o valor antigo e desfaz este. */
+  const campo = document.querySelector(`.mg-eq-nome[data-id="${id}"] input`);
+  if(campo){ campo.dataset.mgFeito = '1'; campo.remove() }
+  if(!nome){ renderEquipe(); return }
+  try{
+    const {error} = await sb.from('profiles').update({nome}).eq('id', id);
+    if(error) throw error;
+    if(ME && ME.id === id) ME.name = nome;
+    if(typeof loadTeam === 'function') await loadTeam();
+    await renderEquipe();
+    toast('Nome atualizado ✓');
+  }catch(e){ toast('Não foi possível salvar o nome'); renderEquipe() }
+}
+
+/* ---------------------------------------------------------------------
+   De qual empresa é o acesso do cliente
+   --------------------------------------------------------------------- */
+async function mgEqEmpresa(id, clientId){
+  try{
+    const {error} = await sb.from('profiles').update({client_id: clientId || null}).eq('id', id);
+    if(error) throw error;
+    await renderEquipe();
+    toast(clientId ? 'Empresa vinculada ✓' : 'Vínculo removido');
+  }catch(e){ toast('Não foi possível vincular') }
+}
+
+/* ---------------------------------------------------------------------
+   A aba Equipe, refeita com tudo isso
+   --------------------------------------------------------------------- */
+/* Quem realmente desenha esta tela é `renderEquipeMG` (ADIÇÃO 20), não
+   a `renderEquipe` original — o render aponta para ela desde então.
+   Substituímos as duas, para funcionar por qualquer caminho. */
+renderEquipe = async function(){
+  if(VIEW !== 'equipe') return;
+  const {data} = await sb.from('profiles')
+    .select('id,nome,role,client_id,avatar_url,email');
+  const lista = (data||[]).sort((a,b)=>{
+    if(a.role !== b.role) return a.role === 'admin' ? -1 : 1;
+    return (a.nome||'').localeCompare(b.nome||'','pt');
+  });
+  const equipe   = lista.filter(u => u.role === 'admin');
+  const clientes = lista.filter(u => u.role !== 'admin');
+
+  const linha = (u)=>{
+    const eu = ME && ME.id === u.id;
+    return `<div class="crow" ${eu?'style="background:var(--card2);border-color:var(--brass)"':''}>
+      <span class="mg-eq-foto" data-id="${esc(u.id)}" onclick="mgEqFoto('${esc(u.id)}','${esc(u.nome||'')}')"
+            title="Trocar a foto">
+        ${avatarInner(u.nome||'?', u.avatar_url)}
+        <span class="capa">✎</span>
+      </span>
+
+      <span class="nm" style="flex:1;min-width:0">
+        <span class="mg-eq-nome" data-id="${esc(u.id)}"
+              onclick="mgEqEditarNome('${esc(u.id)}','${esc(u.nome||'')}')" title="Clique para renomear">
+          <b>${esc(u.nome||'—')}</b>
+          ${eu?'<span style="font-size:11px;color:var(--brass2);font-weight:700">· você</span>':''}
+          <span class="lapis">✎</span>
+        </span>
+        ${u.email ? `<span class="mg-eq-email">${esc(u.email)}</span>` : ''}
+      </span>
+
+      <select class="fld" style="width:140px" onchange="setRole('${esc(u.id)}',this.value)">
+        <option value="admin"  ${u.role==='admin' ?'selected':''}>Equipe</option>
+        <option value="client" ${u.role==='client'?'selected':''}>Cliente</option>
+      </select>
+
+      ${u.role === 'client'
+        ? `<select class="fld mg-eq-emp" onchange="mgEqEmpresa('${esc(u.id)}',this.value)">
+             <option value="">— sem empresa —</option>
+             ${(CLIENTS||[]).map(c=>`<option value="${esc(c.id)}" ${u.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
+           </select>`
+        : `<span style="font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+             color:var(--brass2);background:rgba(194,161,91,.13);border-radius:999px;padding:4px 11px;
+             white-space:nowrap">Acesso total</span>`}
+
+      <span class="mg-eq-acoes">
+        ${u.avatar_url ? `<button title="Remover a foto"
+          onclick="mgEqTirarFoto('${esc(u.id)}','${esc(u.nome||'')}')">⊘</button>` : ''}
+        ${!eu ? `<button class="rm" title="Remover o acesso"
+          onclick="mgEqRemover('${esc(u.id)}','${esc(u.nome||'')}')">✕</button>` : ''}
+      </span>
+    </div>`;
+  };
+
+  $('v-equipe').innerHTML = `
+    <div class="set-sec" style="max-width:980px">
+      <h3>Adicionar membro</h3>
+      <div class="desc">Por segurança, novos logins são criados no painel do Supabase
+        (Authentication → Add user). Depois, o papel e a empresa são definidos aqui.</div>
+      <a class="mini-btn" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block"
+         href="https://supabase.com/dashboard/project/eeqaabwsheaiwyhujcqj/auth/users">Abrir o Supabase</a>
+      <div class="mg-eq-dica">
+        Clique na <b>foto</b> para trocar a imagem de qualquer pessoa, e no <b>nome</b> para corrigi-lo.
+      </div>
+    </div>
+
+    <div style="max-width:980px;margin:0 auto">
+      ${equipe.length ? `<div class="mg-eq-grupo">Equipe Modesto</div>
+        <div class="clist">${equipe.map(linha).join('')}</div>` : ''}
+      ${clientes.length ? `<div class="mg-eq-grupo">Acessos de cliente</div>
+        <div class="clist">${clientes.map(linha).join('')}</div>` : ''}
+    </div>`;
+};
+
+/* a tela é desenhada por renderEquipeMG desde a ADIÇÃO 20 */
+if(typeof renderEquipeMG === 'function') renderEquipeMG = renderEquipe;
+
+/* remover o acesso de alguém */
+async function mgEqRemover(id, nome){
+  if(!confirm('Remover o acesso de ' + (nome||'esta pessoa') + '?\n\n' +
+    'O perfil sai da plataforma. O login no Supabase continua existindo — ' +
+    'apague por lá se quiser encerrar de vez.')) return;
+  try{
+    const {error} = await sb.from('profiles').delete().eq('id', id);
+    if(error) throw error;
+    await renderEquipe();
+    toast('Acesso removido');
+  }catch(e){ toast('Não foi possível remover: ' + ((e&&e.message)||'')) }
+}
+
+/* trocar o papel redesenha, para o seletor de empresa aparecer ou sumir */
+(function(){
+  if(typeof setRole !== 'function') return;
+  const _sr = setRole;
+  setRole = async function(id, role){
+    const r = await _sr(id, role);
+    /* virar cliente sem empresa deixa a pessoa sem ver nada: avisamos */
+    if(role === 'client'){
+      setTimeout(()=>{
+        const sel = document.querySelector(`select.mg-eq-emp`);
+        if(sel && !sel.value) toast('Escolha a empresa deste acesso ao lado');
+      }, 300);
+    }
+    return r;
+  };
+})();
 </script>
 </body>
 </html>
