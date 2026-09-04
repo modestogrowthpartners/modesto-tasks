@@ -52,6 +52,26 @@ ok('2  chat ocupa a tela toda', cheio && cheio.semTrilha && cheio.semRolagemH
    && cheio.larguraTela >= cheio.janela - 2
    && cheio.alturaTela >= cheio.janelaAlt * 0.8, JSON.stringify(cheio));
 
+/* ---- 2b. a barra de baixo não cobre a caixa de escrita ---- */
+const barra = await page.evaluate(()=>{
+  document.body.classList.add('mg-com-dock');
+  const d=document.querySelector('.mg-dock'); if(!d) return null;
+  /* o dublê não liga a barra; forçamos para medir o caso real */
+  d.style.setProperty('display','inline-flex','important');
+  if(window.MGChat) try{ MGChat.desenhar() }catch(e){}
+  const caixa=document.querySelector('.mgz-main .mgz-caixa');
+  const dica=document.getElementById('mgz-dica');
+  const cruza=(a,z)=>!(a.bottom<=z.top||a.top>=z.bottom||a.right<=z.left||a.left>=z.right);
+  const D=d.getBoundingClientRect(), C=caixa.getBoundingClientRect();
+  const r={sobreCaixa:cruza(D,C), sobreDica:dica?cruza(D,dica.getBoundingClientRect()):false,
+           folga:Math.round(D.top-C.bottom), botoes:d.querySelectorAll('button').length};
+  d.style.removeProperty('display');
+  document.body.classList.remove('mg-com-dock');
+  return r;
+});
+ok('2b barra de baixo não cobre a caixa', barra && !barra.sobreCaixa && !barra.sobreDica
+   && barra.folga > 0, JSON.stringify(barra));
+
 /* ---- 3. busca de membro e conversa direta ---- */
 const achou = await page.evaluate(()=>MGU.buscar('elias').map(u=>u.nome));
 await page.evaluate(()=>MGChat.abrirDireta('u-colega'));
