@@ -1,0 +1,184 @@
+/* Supabase falso: reproduz o contrato que o app usa, sem rede e sem banco.
+   Serve para caçar erro de JS e validar a jornada completa. */
+(function(){
+  const UID='u-admin', UID2='u-colega', UCLI='u-cli', CID='c-1';
+  const perfis=[
+    {id:UID, nome:'Vinícius Reis', role:'admin', client_id:null,
+     avatar_url:'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
+     email:'vinicius@x.com', created_at:'2025-03-14T10:00:00Z'},
+    {id:UID2, nome:'Elias Braga', role:'admin', client_id:null, avatar_url:null, email:'elias@x.com', created_at:'2025-06-02T10:00:00Z'},
+    {id:UCLI, nome:'Flavia Marcos', role:'client', client_id:CID, avatar_url:null, email:'flavia@x.com'},
+  ];
+  const FIX={
+    profiles: perfis.map(p=>({...p, checklist:{items:[],notes:''}})),
+    user_directory: perfis,
+    clients:[{id:CID,nome:'Cliente Um',logo_url:null,resumo:'resumo',plano_midia:true}],
+    tasks:[{id:'t-1',client_id:CID,title:'Demanda de teste',description:'desc',status:'Não iniciado',
+            priority:'Alta',assignees:['Vinícius','Renato'],assignee_ids:[UID],due:'2026-09-10',recurrence:'none',
+            subtasks:[{text:'sub',done:false}],time_spent:120,timer_start:null,position:10,
+            created_at:'2026-09-01T10:00:00Z',updated_at:'2026-09-02T10:00:00Z',completed_at:null,
+            archived:false,urgente:false,anexos:[],project_id:'p-1'}],
+    projects:[{id:'p-1',client_id:CID,nome:'Projeto Teste',cor:'#C7871E'}],
+    documents:[{id:'d-1',client_id:CID,titulo:'Doc Teste',tipo:'apresentacao',
+                storage_path:CID+'/x.pdf',metadata:{},created_at:'2026-09-01T10:00:00Z'}],
+    channels:[
+      {id:'ch-1',tipo:'client',nome:'cliente-um',client_id:CID,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'},
+      {id:'ch-2',tipo:'team',nome:'geral',client_id:null,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'},
+      {id:'ch-3',tipo:'dm',nome:'dm:'+[UID,UID2].sort().join(':'),client_id:null,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'}],
+    channel_members:[{channel_id:'ch-1',profile_id:UID,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null},
+                     {channel_id:'ch-3',profile_id:UID,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null},
+                     {channel_id:'ch-3',profile_id:UID2,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null}],
+    messages:[{id:'m-1',channel_id:'ch-1',author_id:UID2,author_name:'Elias Braga',body:'bom dia',
+               kind:'user',created_at:new Date(Date.now()-3600e3).toISOString(),reply_to:null,reactions:{},anexos:[]}],
+    task_notes:[], briefings:[], media_plans:[], pacing:[],
+    assistant_messages:[], assistant_actions:[]
+  };
+  /* persiste entre recargas, para dar sentido ao teste de persistência:
+     o app precisa buscar do backend de novo, não do estado em memória */
+  try{
+    const sm = localStorage.getItem('__stub_messages'); if(sm) FIX.messages = JSON.parse(sm);
+    const sc = localStorage.getItem('__stub_channels'); if(sc) FIX.channels = JSON.parse(sc);
+    const sb2 = localStorage.getItem('__stub_members'); if(sb2) FIX.channel_members = JSON.parse(sb2);
+  }catch(e){}
+  function persistir(){
+    try{
+      localStorage.setItem('__stub_messages', JSON.stringify(FIX.messages));
+      localStorage.setItem('__stub_channels', JSON.stringify(FIX.channels));
+      localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
+    }catch(e){}
+  }
+  window.__FIX = FIX;
+
+  function builder(table){
+    let rows=(FIX[table]||[]).map(r=>({...r}));
+    const filtros=[];
+    const api={};
+    const passa=r=>filtros.every(([c,v])=>String(r[c])===String(v));
+    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','gte','lte','gt','lt','is','in']
+      .forEach(m=>api[m]=()=>api);
+    api.eq=(c,v)=>{ filtros.push([c,v]); return api };
+    api.neq=()=>api;
+    let novos=null;
+    const alvo=()=>novos||rows.filter(passa);
+    const um=()=>Promise.resolve({data:alvo()[0]||null,error:null});
+    api.single=um; api.maybeSingle=um;
+    api.insert=v=>{const a=Array.isArray(v)?v:[v];
+      novos=a.map((x,i)=>({id:table[0]+'-n-'+Date.now()+'-'+i,created_at:new Date().toISOString(),
+                           reactions:{},anexos:[],kind:'user',...x}));
+      novos.forEach(x=>{ (FIX[table]=FIX[table]||[]).push(x); rows.push(x) }); persistir(); return api};
+    api.upsert=api.insert;
+    api.update=v=>{novos=rows.filter(passa).map(r=>Object.assign(r,v));return api};
+    api.delete=()=>{novos=rows.filter(passa).slice();
+      FIX[table]=(FIX[table]||[]).filter(r=>!passa(r)); persistir(); return api};
+    api.then=(res,rej)=>Promise.resolve({data:alvo(),error:null,count:alvo().length}).then(res,rej);
+    return api;
+  }
+  const sess={user:{id:UID,email:'vinicius@x.com',confirmed_at:'2026-01-01'},access_token:'x'};
+  function canal(){
+    const c={_h:[],on(ev,f,g){c._h.push([ev,f,g]);return c},
+      subscribe(cb){ if(cb) setTimeout(()=>cb('SUBSCRIBED'),0); return c },
+      presenceState(){ return {[UID]:[{em:1}], [UID2]:[{em:1}]} },
+      track(){ return Promise.resolve('ok') },
+      send(){ return Promise.resolve('ok') },
+      unsubscribe(){ return Promise.resolve('ok') }};
+    return c;
+  }
+  window.supabase={createClient:()=>({
+    from:builder,
+    rpc:(nome,args)=>{
+      args = args||{};
+      if(nome==='mg_unread') return Promise.resolve({data:[{channel_id:'ch-1',nao_lidas:2,ultima:new Date().toISOString()}],error:null});
+      if(nome==='mg_toggle_reaction') return Promise.resolve({data:{'👍':[UID]},error:null});
+      if(nome==='mg_threads'){
+        const m={};
+        FIX.messages.filter(x=>x.channel_id===args.p_canal && x.reply_to).forEach(x=>{
+          const r=String(x.reply_to);
+          m[r]=m[r]||{raiz:r,respostas:0,ultima:null,autores:[]};
+          m[r].respostas++; m[r].ultima=x.created_at;
+          if(x.author_id && m[r].autores.indexOf(x.author_id)<0) m[r].autores.push(x.author_id);
+        });
+        return Promise.resolve({data:Object.values(m),error:null});
+      }
+      if(nome==='mg_abrir_dm'){
+        const outro=args.p_outro;
+        if(!outro||outro===UID) return Promise.resolve({data:null,error:{message:'conversa direta precisa de outra pessoa'}});
+        if(!perfis.some(p=>p.id===outro)) return Promise.resolve({data:null,error:{message:'pessoa não encontrada'}});
+        const achado=FIX.channels.find(c=>c.tipo==='dm'
+          && FIX.channel_members.filter(m=>m.channel_id===c.id).length===2
+          && FIX.channel_members.some(m=>m.channel_id===c.id&&m.profile_id===UID)
+          && FIX.channel_members.some(m=>m.channel_id===c.id&&m.profile_id===outro));
+        if(achado) return Promise.resolve({data:achado.id,error:null});
+        const id='ch-dm-'+Date.now();
+        FIX.channels.push({id,tipo:'dm',client_id:null,cor:null,created_by:UID,
+          created_at:new Date().toISOString(),
+          nome:[UID,outro].map(x=>(perfis.find(p=>p.id===x)||{}).nome).sort().join(' ↔ ')});
+        FIX.channel_members.push({channel_id:id,profile_id:UID,last_read_at:null,apelido:null,avatar_url:null},
+                                 {channel_id:id,profile_id:outro,last_read_at:null,apelido:null,avatar_url:null});
+        persistir();
+        return Promise.resolve({data:id,error:null});
+      }
+      if(nome==='mg_canais_em_comum'){
+        const n=FIX.channel_members.filter(m=>m.profile_id===args.p_outro
+          && FIX.channel_members.some(x=>x.channel_id===m.channel_id && x.profile_id===UID)).length;
+        return Promise.resolve({data:n,error:null});
+      }
+      if(nome==='mg_buscar_mensagens'){
+        const t=String(args.p_termo||'').toLowerCase();
+        if(t.length<2) return Promise.resolve({data:[],error:null});
+        return Promise.resolve({data:FIX.messages.filter(m=>String(m.body||'').toLowerCase().includes(t))
+          .slice(0,40),error:null});
+      }
+      if(nome==='mg_luq_publicar'){
+        if(window.__LUQ_PUBLICAR_FALHA) return Promise.resolve({data:null,error:{message:'sem acesso a esta conversa'}});
+        const m={id:'m-luq-'+Date.now(),channel_id:args.p_canal,author_id:null,author_name:'Luquinhas',
+                 body:args.p_texto,kind:'luquinhas',created_at:new Date().toISOString(),
+                 reply_to:args.p_reply_to||null,reactions:{},anexos:[]};
+        FIX.messages.push(m); persistir();
+        return Promise.resolve({data:m,error:null});
+      }
+      return Promise.resolve({data:[],error:null});
+    },
+    /* Edge Function do Luquinhas. O comportamento é escolhido por
+       window.__LUQ_MODO, para o teste exercitar resposta, proposta,
+       falta de chave e falha na execução. */
+    functions:{ invoke:(nome,opc)=>{
+      const corpo=(opc&&opc.body)||{};
+      const modo=window.__LUQ_MODO||'texto';
+      if(modo==='sem_chave') return Promise.resolve({data:{ok:false,codigo:'sem_chave',
+        erro:'O Luquinhas ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.'},error:null});
+      if(modo==='fora') return Promise.resolve({data:{ok:false,codigo:'ia_indisponivel',
+        erro:'O provedor de IA está fora do ar. Tenta de novo em instantes.'},error:null});
+      if(corpo.modo==='executar'){
+        if(window.__LUQ_EXEC_FALHA) return Promise.resolve({data:{ok:false,codigo:'sem_permissao',
+          erro:'O banco recusou: você não tem permissão para isso. Nada foi criado.'},error:null});
+        const t={id:'t-luq-'+Date.now(),title:(corpo.acao&&corpo.acao.argumentos&&corpo.acao.argumentos.title)||'Demanda',
+                 status:'Não iniciado',priority:'Alta',due:'2026-09-20',assignees:['Vinícius'],client_id:CID};
+        FIX.tasks.push({...t,description:'',recurrence:'none',subtasks:[],time_spent:0,timer_start:null,
+                        position:99,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+                        completed_at:null,archived:false,urgente:false,anexos:[],project_id:null});
+        return Promise.resolve({data:{ok:true,tipo:'resultado',resultado:{criou:'demanda',demanda:t}},error:null});
+      }
+      if(modo==='confirmar') return Promise.resolve({data:{ok:true,tipo:'confirmar',
+        texto:'Preparei isto. Confere antes de eu executar:',
+        titulo:'Criar demanda',
+        acao:{ferramenta:'criar_demanda',argumentos:{title:'Revisar criativos',description:'Conferir formatos',
+              client_id:CID,priority:'Alta',status:'Não iniciado'}},
+        campos:[{rotulo:'Título',valor:'Revisar criativos'},{rotulo:'Cliente',valor:'Cliente Um'},
+                {rotulo:'Prioridade',valor:'Alta'}],
+        passos:[{ferramenta:'buscar_clientes'}]},error:null});
+      return Promise.resolve({data:{ok:true,tipo:'texto',
+        texto:'Consultei as demandas e encontrei 1 em aberto para o Cliente Um.',
+        passos:[{ferramenta:'buscar_demandas'}]},error:null});
+    }},
+    auth:{ getSession:()=>Promise.resolve({data:{session:sess},error:null}),
+           getUser:()=>Promise.resolve({data:{user:sess.user},error:null}),
+           signInWithPassword:()=>Promise.resolve({data:{session:sess,user:sess.user},error:null}),
+           signUp:()=>Promise.resolve({data:{user:{id:'novo'},session:null},error:null}),
+           signOut:()=>Promise.resolve({error:null}),
+           updateUser:()=>Promise.resolve({data:{},error:null}) },
+    storage:{ from:()=>({ createSignedUrl:()=>Promise.resolve({data:{signedUrl:'about:blank'},error:null}),
+                          upload:()=>Promise.resolve({data:{},error:null}),
+                          remove:()=>Promise.resolve({data:{},error:null}) }) },
+    channel:canal
+  })};
+})();
