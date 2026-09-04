@@ -311,6 +311,140 @@ ok('20b responsável vem do id', resp2 && resp2.avs[0].uid==='u-admin'
    && /Vinícius Reis/.test(resp2.avs[0].t) && resp2.temEu
    && resp2.avs.some(a=>a.uid==='nome:renato'), JSON.stringify(resp2));
 
+/* ---- 20c. janela da plataforma no lugar do diálogo do navegador ---- */
+const semNativo = await page.evaluate(()=>{
+  /* se algum caminho ainda chamar prompt/confirm, o teste percebe */
+  window.__nativo = 0;
+  window.prompt = () => { window.__nativo++; return null };
+  window.confirm = () => { window.__nativo++; return false };
+  return true;
+});
+await page.evaluate(()=>{ MGChat.novoCanalEquipe() });   /* sem await: a janela só resolve no clique */
+await page.waitForTimeout(500);
+const jan = await page.evaluate(()=>{
+  const j=document.querySelector('.mgj-fundo'); if(!j) return null;
+  return {abriu:true, titulo:(j.querySelector('h3')||{}).textContent,
+          campos:[...j.querySelectorAll('.mgj-campo')].map(c=>c.dataset.campo),
+          icones:j.querySelectorAll('.mgj-icones button').length,
+          cores:j.querySelectorAll('.mgj-cores button').length,
+          gente:j.querySelectorAll('.mgj-gente .p').length,
+          nativoChamado:window.__nativo};
+});
+ok('20c janela da plataforma, sem diálogo do navegador',
+   jan && jan.abriu && jan.nativoChamado === 0
+   && jan.campos.join(',') === 'nome,icone,cor,descricao,membros'
+   && jan.icones > 8 && jan.cores > 4 && jan.gente >= 2, JSON.stringify(jan));
+
+/* ---- 20d. criar canal personalizado de verdade ---- */
+const canalNovo = await page.evaluate(async ()=>{
+  const j=document.querySelector('.mgj-fundo');
+  j.querySelector('[data-campo="nome"] input').value = 'plano-de-midia';
+  j.querySelector('[data-campo="icone"] button[data-v="🎯"]').click();
+  j.querySelector('[data-campo="cor"] button').click();
+  j.querySelector('[data-campo="descricao"] textarea').value = 'onde combinamos o plano';
+  const antes = CHANNELS.length;
+  j.querySelector('[data-ok]').click();
+  await new Promise(r=>setTimeout(r,900));
+  const c = CHANNELS.find(x=>x.nome==='plano-de-midia');
+  return {antes, depois:CHANNELS.length, achou:!!c,
+          icone:c&&c.icone, cor:!!(c&&c.cor), desc:c&&c.descricao,
+          fechou:!document.querySelector('.mgj-fundo'), aberto:CHAN===(c&&c.id)};
+});
+ok('20d canal criado com ícone, cor e descrição',
+   canalNovo.achou && canalNovo.depois === canalNovo.antes+1 && canalNovo.icone === '🎯'
+   && canalNovo.cor && canalNovo.desc === 'onde combinamos o plano'
+   && canalNovo.fechou && canalNovo.aberto, JSON.stringify(canalNovo));
+
+/* ---- 20e. validação mostra o erro no campo, não em alerta ---- */
+await page.evaluate(()=>{ MGChat.novoCanalEquipe() });   /* sem await: a janela só resolve no clique */
+await page.waitForTimeout(400);
+const val = await page.evaluate(async ()=>{
+  const j=document.querySelector('.mgj-fundo');
+  j.querySelector('[data-ok]').click();
+  await new Promise(r=>setTimeout(r,200));
+  const c=j.querySelector('[data-campo="nome"]');
+  const r={ruim:c.classList.contains('ruim'),
+           msg:(c.querySelector('.erro')||{}).textContent,
+           aindaAberta:!!document.querySelector('.mgj-fundo')};
+  document.querySelector('.mgj-fundo [data-fechar]').click();
+  return r;
+});
+ok('20e validação no próprio campo', val.ruim && /nome/i.test(val.msg||'') && val.aindaAberta,
+   JSON.stringify(val));
+
+/* ---- 20f. aba de conversas diretas com prévia ---- */
+await page.evaluate(()=>{ MGChat.trocarAba('diretas') });
+await page.waitForTimeout(700);
+const diretas = await page.evaluate(()=>{
+  const l=[...document.querySelectorAll('.mgz-side .mgz-md')];
+  const comPrevia=l.filter(b=>b.querySelector('.pv') && b.querySelector('.pv').textContent.trim());
+  return {abas:document.querySelectorAll('.mgz-abas button').length,
+          ativa:(document.querySelector('.mgz-abas button.on')||{}).textContent,
+          itens:l.length, comPrevia:comPrevia.length,
+          temHora:!!document.querySelector('.mgz-md .hr'),
+          temFiltro:!!document.querySelector('.mgz-filtro button')};
+});
+ok('20f aba de diretas com prévia e horário',
+   diretas.abas === 2 && /Diretas/.test(diretas.ativa||'') && diretas.itens >= 1
+   && diretas.comPrevia >= 1 && diretas.temHora && diretas.temFiltro, JSON.stringify(diretas));
+
+/* ---- 20g. conversa em grupo ---- */
+const grupo = await page.evaluate(async ()=>{
+  MGChat.novaConversa();                       /* sem await, pelo mesmo motivo */
+  await new Promise(r=>setTimeout(r,400));
+  const j=document.querySelector('.mgj-fundo');
+  const ps=[...j.querySelectorAll('.mgj-gente .p')];
+  ps[0].click(); if(ps[1]) ps[1].click();
+  const antes=CHANNELS.length;
+  j.querySelector('[data-ok]').click();
+  await new Promise(r=>setTimeout(r,900));
+  const c=CHANNELS.find(x=>x.id===CHAN);
+  return {antes, depois:CHANNELS.length, tipo:c&&c.tipo,
+          membros:Object.keys(CH_MEMBROS[CHAN]||{}).length,
+          pilha:!!document.querySelector('.mgz-topo .mgz-pilha')};
+});
+ok('20g conversa em grupo', grupo.depois === grupo.antes+1 && grupo.tipo === 'dm'
+   && grupo.membros >= 3, JSON.stringify(grupo));
+await page.evaluate(()=>MGChat.trocarAba('tudo'));
+await page.waitForTimeout(400);
+
+/* ---- 20h. mensagens alinhadas na mesma coluna ---- */
+await page.evaluate(()=>MGChat.abrir('ch-2'));
+await page.waitForTimeout(700);
+const alinha = await page.evaluate(async ()=>{
+  for(const t of ['primeira','segunda','terceira']){
+    const ta=document.getElementById('mgz-in'); ta.value=t; MGChat.digitou(ta,'');
+    await MGChat.enviar(); await new Promise(r=>setTimeout(r,450));
+  }
+  const ms=[...document.querySelectorAll('#mgz-msgs .mgz-m')].slice(-3);
+  const x = ms.map(m=>Math.round(m.querySelector('.tx').getBoundingClientRect().left));
+  const horaLat = ms.map(m=>{const h=m.querySelector('.hora-lat');
+    return h?Math.round(getComputedStyle(h).opacity*100):null});
+  const tamHora = (()=>{const h=document.querySelector('#mgz-msgs .mgz-m .hora');
+    return h?parseFloat(getComputedStyle(h).fontSize):null})();
+  return {esquerdas:x, iguais:new Set(x).size === 1, horaLat, tamHora,
+          seguiu:ms.filter(m=>m.classList.contains('segue')).length};
+});
+ok('20h mensagens na mesma coluna', alinha.iguais && alinha.seguiu >= 1
+   && alinha.horaLat.every(o=>o===0) && alinha.tamHora <= 11,
+   JSON.stringify(alinha));
+
+/* ---- 20i. painel de Reports no canal de cliente ---- */
+await page.evaluate(()=>MGChat.abrir('ch-1'));
+await page.waitForTimeout(600);
+await page.evaluate(()=>MGChat.alternarReports());
+await page.waitForTimeout(500);
+const rep = await page.evaluate(()=>{
+  const r=document.querySelector('.mgz-rep'); if(!r) return null;
+  return {abriu:true, titulo:(r.querySelector('.rep-topo b')||{}).textContent,
+          secoes:[...r.querySelectorAll('h4')].map(h=>h.textContent.split('·')[0].trim()),
+          nota:!!r.querySelector('.rep-nota'),
+          classe:document.body.classList.contains('mgz-reports-on')};
+});
+ok('20i painel de Reports', rep && rep.abriu && rep.secoes.length === 2 && rep.nota && rep.classe,
+   JSON.stringify(rep));
+await page.evaluate(()=>MGChat.alternarReports());
+
 /* ---- 21. responsivo ---- */
 await page.setViewportSize({width:390,height:780}); await page.waitForTimeout(600);
 const cel = await page.evaluate(()=>{

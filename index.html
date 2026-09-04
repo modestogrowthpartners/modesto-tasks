@@ -17525,6 +17525,10 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
   min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
 .mgz-i.on .n{background:var(--ink2);color:var(--brass-soft)}
 .mgz-i .mgu-av{margin:-1px 0}
+/* conversa de grupo: duas fotos sobrepostas no lugar de uma */
+.mgz-pilha{display:inline-flex;flex-shrink:0}
+.mgz-pilha .mgu-av{margin-right:-7px;border:2px solid var(--card2)}
+.mgz-pilha .mgu-av:last-child{margin-right:0}
 
 .mgz-emp{margin-bottom:1px}
 .mgz-emp .cab{display:flex;align-items:center;gap:8px;width:100%;padding:6px 9px;border:0;
@@ -17580,15 +17584,22 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
 .mgz-m .bd{min-width:0;flex:1}
 .mgz-m .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .mgz-m .quem{font-weight:700;font-size:13.5px}
-.mgz-m .hora{font-size:11px;color:var(--muted2)}
+.mgz-m .hora{font-size:10.5px;font-weight:500;color:var(--muted2);letter-spacing:.1px}
 .mgz-m .tx{font-size:14px;line-height:1.55;margin-top:1px;white-space:pre-wrap;word-break:break-word}
 .mgz-m .tx code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
   background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+/* O horário da esquerda era um filho normal da linha, então na PRIMEIRA
+   mensagem de cada bloco ele ocupava uma coluna e empurrava o avatar
+   para a direita, enquanto as mensagens seguintes começavam mais à
+   esquerda. Era isso que desalinhava a conversa. Agora ele é sempre
+   absoluto, some da primeira mensagem (que já mostra a hora ao lado do
+   nome) e aparece só ao passar o mouse nas continuações. Assim toda
+   mensagem nasce na mesma coluna. */
+.mgz-m .hora-lat{position:absolute;left:20px;top:5px;width:36px;text-align:right;
+  font-size:10px;color:var(--muted2);opacity:0;pointer-events:none;transition:opacity .12s}
 .mgz-m.segue{padding-top:1px;padding-bottom:1px}
 .mgz-m.segue > .mgu-av,.mgz-m.segue .hd{display:none}
 .mgz-m.segue .bd{margin-left:47px}
-.mgz-m.segue .hora-lat{position:absolute;left:20px;top:2px;width:36px;text-align:center;
-  font-size:10.5px;color:var(--muted2);opacity:0;transition:opacity .12s}
 .mgz-m.segue:hover .hora-lat{opacity:1}
 .mgz-m.alvo{background:rgba(194,161,91,.16)}
 .mgz-m.enviando{opacity:.55}
@@ -17754,7 +17765,7 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-th .mgz-comp{padding:8px 14px 14px}
 
 /* aviso de thread embaixo da mensagem-raiz, no lugar da resposta solta */
-.mgz-fio{display:flex;align-items:center;gap:8px;margin-top:6px;padding:5px 10px 5px 6px;
+.mgz-fio{display:flex;align-items:center;gap:8px;margin-top:6px;padding:4px 10px 4px 5px;
   border:1px solid var(--line);border-radius:10px;background:var(--card2);font-family:inherit;
   font-size:12px;font-weight:700;color:var(--brass2);max-width:max-content}
 .mgz-fio:hover{border-color:var(--brass);background:var(--brass-soft)}
@@ -17839,6 +17850,175 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-caixa textarea{padding-left:26px}
 .mgz-topo .bt.ic{width:34px;height:34px;padding:0;display:grid;place-items:center;font-size:14px}
 
+/* ---------- 12d. painel de Reports ---------- */
+.mgz-rep{width:300px}
+.mgz-rep .rep-topo{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;
+  border-bottom:1px solid var(--line)}
+.mgz-rep .rep-topo .tx{min-width:0;flex:1}
+.mgz-rep .rep-topo b{display:block;font-size:14px;font-weight:700}
+.mgz-rep .rep-topo small{display:block;font-size:11.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-rep .rep-topo .x{background:none;border:1px solid var(--line2);border-radius:8px;
+  width:28px;height:28px;color:var(--muted);font-size:13px;font-family:inherit;flex-shrink:0}
+.mgz-rep .rep-topo .x:hover{border-color:var(--danger);color:var(--danger)}
+.mgz-rep .arq .tx{min-width:0;flex:1}
+.mgz-rep .arq .tx b{display:block;font-size:12.5px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-rep .arq .tx span{display:block;font-size:11px;color:var(--muted2)}
+.mgz-rep .rep-nota{margin:14px 14px 18px;padding:11px 13px;border-radius:11px;
+  background:var(--brass-soft);border:1px solid var(--brass);font-size:11.5px;
+  line-height:1.6;color:var(--muted)}
+.mgz-rep .rep-nota b{color:var(--brass2)}
+@media(max-width:1180px){ body.mgz-reports-on .mgz-side{display:none} }
+
+/* ---------- 12c. anexos ---------- */
+.mgz-imgbt{display:block;border:0;background:none;padding:0;margin:7px 0 0;font-family:inherit;
+  max-width:min(420px,100%);text-align:left}
+.mgz-imgbt .cap{display:none;font-size:11.5px;color:var(--muted2);margin-top:4px}
+.mgz-imgbt.quebrou img{display:none}
+.mgz-imgbt.quebrou .cap{display:block}
+.mgz-imgbt.quebrou::before{content:"🖼 imagem indisponível";display:block;font-size:12.5px;
+  color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:11px;
+  padding:14px 16px}
+.mgz-anexo .ab{margin-left:auto;font-size:11px;font-weight:700;color:var(--brass2);
+  border:1px solid var(--brass);border-radius:7px;padding:2px 8px;flex-shrink:0}
+
+/* ---------- 12b. abas e lista de conversas diretas ---------- */
+.mgz-abas{display:flex;gap:4px;padding:10px 12px 0}
+.mgz-abas button{flex:1;position:relative;border:0;border-radius:9px;padding:7px 10px;
+  background:none;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted2)}
+.mgz-abas button:hover{background:var(--card);color:var(--text)}
+.mgz-abas button.on{background:var(--brass);color:var(--ink2)}
+.mgz-abas button .pt{position:absolute;top:5px;right:8px;width:6px;height:6px;border-radius:50%;
+  background:var(--danger);font-style:normal}
+.mgz-abas button.on .pt{background:var(--ink2)}
+
+.mgz-filtro{display:flex;align-items:center;gap:6px;padding:6px 12px 2px}
+.mgz-filtro button{border:1px solid var(--line2);background:var(--card);border-radius:999px;
+  padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--muted);
+  display:inline-flex;align-items:center;gap:6px}
+.mgz-filtro button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-filtro button i{width:22px;height:12px;border-radius:999px;background:var(--line2);
+  position:relative;transition:background .16s}
+.mgz-filtro button i::after{content:"";position:absolute;top:1.5px;left:1.5px;width:9px;height:9px;
+  border-radius:50%;background:var(--card);transition:transform .16s}
+.mgz-filtro button.on{border-color:var(--brass);color:var(--brass2)}
+.mgz-filtro button.on i{background:var(--brass)}
+.mgz-filtro button.on i::after{transform:translateX(10px)}
+.mgz-filtro .nova{margin-left:auto}
+
+.mgz-md{display:flex;align-items:center;gap:10px;width:100%;padding:8px 9px;border:0;border-radius:11px;
+  background:none;text-align:left;font-family:inherit;color:var(--muted);
+  transition:background .13s,color .13s}
+.mgz-md:hover{background:var(--card);color:var(--text)}
+.mgz-md.on{background:var(--brass);color:var(--ink2)}
+.mgz-md .tx{min-width:0;flex:1}
+.mgz-md .tx b{display:block;font-size:13.5px;font-weight:600;line-height:1.3;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-md.on .tx b{color:var(--ink2)}
+.mgz-md .pv{display:block;font-size:12px;color:var(--muted2);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-md .pv b{display:inline;font-size:12px;font-weight:700;color:var(--muted)}
+.mgz-md .pv.vazio{font-style:italic;opacity:.75}
+.mgz-md.on .pv,.mgz-md.on .pv b{color:rgba(26,26,24,.72)}
+.mgz-md.novo .tx b{font-weight:800}
+.mgz-md.novo .pv{color:var(--text)}
+.mgz-md .dir{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.mgz-md .hr{font-size:10.5px;color:var(--muted2)}
+.mgz-md.on .hr{color:rgba(26,26,24,.6)}
+.mgz-md .n{background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;
+  padding:0 5px;border-radius:9px;display:grid;place-items:center}
+.mgz-md.on .n{background:var(--ink2);color:var(--brass-soft)}
+.mgz-md .h{flex-shrink:0;opacity:.5;font-size:13px}
+.mgz-pilha.g .mgu-av{border-color:var(--card2)}
+.mgz-eu .bt+.bt{margin-left:-2px}
+
+/* ---------- 13. janela da plataforma, no lugar dos diálogos do navegador ----------
+   prompt() e confirm() abrem a caixa cinza do navegador, com o domínio
+   escrito em cima. Fora do desenho da plataforma, e sem espaço para mais
+   de um campo. Esta janela substitui todos eles. */
+.mgj-fundo{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:20px;
+  background:rgba(15,13,11,.55);backdrop-filter:blur(3px);
+  animation:mgjEntra .16s ease-out}
+@keyframes mgjEntra{from{opacity:0}to{opacity:1}}
+.mgj{width:100%;max-width:520px;max-height:calc(100vh - 48px);display:flex;flex-direction:column;
+  background:var(--card);border:1px solid var(--line2);border-radius:18px;overflow:hidden;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.6);
+  animation:mgjSobe .2s cubic-bezier(.2,.8,.3,1)}
+@keyframes mgjSobe{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+.mgj-topo{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px;flex-shrink:0}
+.mgj-topo .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:19px;
+  background:var(--brass-soft);border:1px solid var(--brass);flex-shrink:0}
+.mgj-topo .tx{min-width:0;flex:1}
+.mgj-topo h3{font-family:var(--font-d);font-size:18px;font-weight:500;margin:0 0 3px;line-height:1.25}
+.mgj-topo p{font-size:12.5px;color:var(--muted);line-height:1.55;margin:0}
+.mgj-topo .x{background:none;border:1px solid var(--line2);border-radius:9px;width:30px;height:30px;
+  color:var(--muted);font-size:14px;font-family:inherit;flex-shrink:0}
+.mgj-topo .x:hover{border-color:var(--danger);color:var(--danger)}
+.mgj-corpo{flex:1;overflow-y:auto;padding:4px 20px 8px}
+.mgj-campo{margin-bottom:14px}
+.mgj-campo > label{display:block;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--muted2);font-weight:700;margin-bottom:6px}
+.mgj-campo .ajuda{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+.mgj-campo input[type=text],.mgj-campo textarea{width:100%;background:var(--card2);color:var(--text);
+  border:1px solid var(--line2);border-radius:11px;padding:10px 13px;font-size:13.5px;
+  font-family:inherit;outline:none;resize:vertical}
+.mgj-campo textarea{min-height:74px;line-height:1.55}
+.mgj-campo input:focus,.mgj-campo textarea:focus{border-color:var(--brass);
+  box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgj-campo .erro{font-size:11.5px;color:var(--danger);margin-top:5px;font-weight:600}
+.mgj-campo.ruim input,.mgj-campo.ruim textarea{border-color:var(--danger)}
+.mgj-prefixo{display:flex;align-items:center;gap:0}
+.mgj-prefixo .p{background:var(--card2);border:1px solid var(--line2);border-right:0;
+  border-radius:11px 0 0 11px;padding:10px 11px;font-size:14px;color:var(--muted2);font-weight:700}
+.mgj-prefixo input{border-radius:0 11px 11px 0 !important}
+
+.mgj-icones,.mgj-cores{display:flex;flex-wrap:wrap;gap:6px}
+.mgj-icones button{width:38px;height:38px;border-radius:11px;border:1px solid var(--line2);
+  background:var(--card2);font-size:18px;font-family:inherit;line-height:1}
+.mgj-icones button:hover{border-color:var(--brass)}
+.mgj-icones button.on{border-color:var(--brass);background:var(--brass-soft);
+  box-shadow:0 0 0 2px rgba(194,161,91,.25)}
+.mgj-cores button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;font-family:inherit}
+.mgj-cores button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--card) inset}
+
+.mgj-gente{border:1px solid var(--line2);border-radius:12px;background:var(--card2);overflow:hidden}
+.mgj-gente .busca{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.mgj-gente .busca input{border:0;background:none;outline:none;font-size:13px;width:100%;
+  font-family:inherit;color:var(--text);padding:0}
+.mgj-gente .lista{max-height:196px;overflow-y:auto}
+.mgj-gente .p{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:0;
+  background:none;text-align:left;font-family:inherit;color:var(--text);font-size:13.5px}
+.mgj-gente .p:hover{background:var(--card)}
+.mgj-gente .p .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgj-gente .p .pp{font-size:11px;color:var(--muted2)}
+.mgj-gente .p .cx{width:19px;height:19px;border-radius:6px;border:1.5px solid var(--line2);
+  flex-shrink:0;display:grid;place-items:center;font-size:11px;color:transparent}
+.mgj-gente .p.on .cx{background:var(--brass);border-color:var(--brass);color:var(--ink2)}
+.mgj-gente .nada{font-size:12.5px;color:var(--muted2);padding:14px 12px;text-align:center}
+.mgj-conta{font-size:11.5px;color:var(--muted);margin-top:6px}
+
+.mgj-base{display:flex;align-items:center;gap:9px;padding:14px 20px 18px;flex-shrink:0;
+  border-top:1px solid var(--line);background:var(--card2)}
+.mgj-base .esp{flex:1}
+.mgj-base button{border-radius:11px;padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;
+  border:1px solid var(--line2);background:var(--card);color:var(--text)}
+.mgj-base button:hover{border-color:var(--brass)}
+.mgj-base button.ok{background:var(--brass);border-color:var(--brass);color:var(--ink2)}
+.mgj-base button.perigo{border-color:rgba(184,74,62,.4);color:var(--danger);background:none}
+.mgj-base button.perigo:hover{background:rgba(184,74,62,.1)}
+.mgj-base button:disabled{opacity:.5}
+.mgj-aviso{font-size:12.5px;line-height:1.6;color:var(--muted);background:var(--card2);
+  border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:14px}
+@media(max-width:560px){
+  .mgj{max-width:100%;border-radius:16px}
+  .mgj-base{flex-wrap:wrap}
+  .mgj-base button{flex:1;min-width:110px}
+}
+@media (prefers-reduced-motion: reduce){
+  .mgj-fundo,.mgj{animation:none}
+}
+
 /* ---------- 6. responsivo ---------- */
 @media(max-width:1320px){ .mgz-th{width:310px} }
 @media(max-width:1180px){
@@ -17886,6 +18066,253 @@ body.mg-sem-hora .mgz-m .hora{display:none}
    recurso para quem não existe mais no diretório. Quem manda é
    `author_id`.
    ===================================================================== */
+/* =====================================================================
+   SEÇÃO · JANELA · diálogos no desenho da plataforma
+   ---------------------------------------------------------------------
+   prompt() e confirm() abrem a caixa do navegador, com o domínio escrito
+   em cima, fora do desenho do portal e sem espaço para mais de um campo.
+   Aqui existe uma janela só, que devolve promessa e aceita vários tipos
+   de campo, para todo o resto do arquivo usar no lugar deles.
+
+     const r = await MGJanela.abrir({
+       titulo, texto, icone,
+       campos: [{tipo:'texto'|'area'|'icone'|'cor'|'gente', ...}],
+       ok:'Criar', perigo:{rotulo:'Excluir', valor:'excluir'}
+     });
+     r === null            a pessoa fechou ou cancelou
+     r.excluir === true    clicou no botão de perigo
+     r.<nome do campo>     o valor de cada campo
+
+   Fecha com Escape, com clique fora e com o X. O foco vai para o
+   primeiro campo, e Enter confirma quando não há área de texto.
+   ===================================================================== */
+const MGJanela = (function(){
+
+let atual = null;
+
+const ICONES = ['💬','📌','📁','🎯','🚀','📊','🎨','🧩','🛠','📣','💡','🧾',
+                '🔥','⭐','✅','📅','🤝','🧠','🎬','🛒'];
+const CORES  = ['#C7871E','#2E9E6B','#2D6FCF','#8E3FBE','#D9531E',
+                '#12A38F','#D01F45','#5E8A00','#3949C0','#0E8FA8'];
+
+function esconder(){
+  if(!atual) return;
+  const {no, aoTeclar} = atual;
+  document.removeEventListener('keydown', aoTeclar, true);
+  no.remove();
+  document.body.style.removeProperty('overflow');
+  atual = null;
+}
+function fechar(valor){
+  if(!atual) return;
+  const resolver = atual.resolver;
+  esconder();
+  resolver(valor);
+}
+
+function campoHTML(c, i){
+  const id = 'mgj-c' + i;
+  const rot = c.rotulo ? '<label for="' + id + '">' + esc(c.rotulo) + '</label>' : '';
+  const ajuda = c.ajuda ? '<div class="ajuda">' + esc(c.ajuda) + '</div>' : '';
+
+  if(c.tipo === 'area'){
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '">' + rot
+      + '<textarea id="' + id + '" placeholder="' + esc(c.dica||'') + '"'
+      + (c.max ? ' maxlength="' + (+c.max) + '"' : '') + '>' + esc(c.valor||'') + '</textarea>'
+      + ajuda + '<div class="erro" hidden></div></div>';
+  }
+  if(c.tipo === 'icone'){
+    const atualIc = c.valor || '';
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '" data-valor="' + esc(atualIc) + '">'
+      + rot + '<div class="mgj-icones">'
+      + ICONES.map(x=>'<button type="button" class="' + (x===atualIc?'on':'') + '"'
+          + ' data-v="' + esc(x) + '">' + x + '</button>').join('')
+      + '</div>' + ajuda + '</div>';
+  }
+  if(c.tipo === 'cor'){
+    const atualCor = c.valor || '';
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '" data-valor="' + esc(atualCor) + '">'
+      + rot + '<div class="mgj-cores">'
+      + CORES.map(x=>'<button type="button" class="' + (x.toLowerCase()===String(atualCor).toLowerCase()?'on':'')
+          + '" style="background:' + esc(x) + '" data-v="' + esc(x) + '" title="' + esc(x) + '"></button>').join('')
+      + '</div>' + ajuda + '</div>';
+  }
+  if(c.tipo === 'gente'){
+    const marcados = (c.valor || []).map(String);
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '">' + rot
+      + '<div class="mgj-gente">'
+        + '<div class="busca"><span style="opacity:.5">⌕</span>'
+        + '<input type="text" placeholder="Procurar pessoa" data-busca="1"></div>'
+        + '<div class="lista">' + (c.gente||[]).map(u=>
+            '<button type="button" class="p ' + (marcados.includes(String(u.id))?'on':'') + '"'
+            + ' data-v="' + esc(u.id) + '" data-nome="' + esc(MGU.norm(u.nome)) + '">'
+            + '<span class="cx">✓</span>'
+            + MGU.avatar(u, {tam:24})
+            + '<span class="nm">' + esc(u.nome) + '</span>'
+            + '<span class="pp">' + (u.ehEquipe ? 'equipe' : 'cliente') + '</span></button>').join('')
+        + (c.gente && c.gente.length ? '' : '<div class="nada">Ninguém disponível.</div>')
+        + '</div></div>'
+      + '<div class="mgj-conta"></div>' + ajuda + '</div>';
+  }
+  /* texto */
+  const pre = c.prefixo
+    ? '<div class="mgj-prefixo"><span class="p">' + esc(c.prefixo) + '</span>'
+    : '';
+  const fim = c.prefixo ? '</div>' : '';
+  return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '">' + rot + pre
+    + '<input type="text" id="' + id + '" value="' + esc(c.valor||'') + '"'
+    + ' placeholder="' + esc(c.dica||'') + '"'
+    + (c.max ? ' maxlength="' + (+c.max) + '"' : '') + '>' + fim
+    + ajuda + '<div class="erro" hidden></div></div>';
+}
+
+function ler(no, campos){
+  const saida = {};
+  campos.forEach(c=>{
+    const cx = no.querySelector('[data-campo="' + CSS.escape(c.nome) + '"]');
+    if(!cx) return;
+    if(c.tipo === 'icone' || c.tipo === 'cor'){ saida[c.nome] = cx.dataset.valor || ''; return }
+    if(c.tipo === 'gente'){
+      saida[c.nome] = [...cx.querySelectorAll('.p.on')].map(b=>b.dataset.v);
+      return;
+    }
+    const el = cx.querySelector('input,textarea');
+    saida[c.nome] = el ? el.value.trim() : '';
+  });
+  return saida;
+}
+
+function abrir(opc){
+  const o = opc || {};
+  const campos = o.campos || [];
+  if(atual) fechar(null);
+
+  return new Promise(resolver=>{
+    const no = document.createElement('div');
+    no.className = 'mgj-fundo';
+    no.innerHTML = '<div class="mgj" role="dialog" aria-modal="true" aria-label="'
+        + esc(o.titulo||'Janela') + '">'
+      + '<div class="mgj-topo">'
+        + (o.icone ? '<span class="ic">' + o.icone + '</span>' : '')
+        + '<span class="tx"><h3>' + esc(o.titulo||'') + '</h3>'
+        + (o.texto ? '<p>' + esc(o.texto) + '</p>' : '') + '</span>'
+        + '<button class="x" data-fechar="1" title="Fechar" aria-label="Fechar">✕</button>'
+      + '</div>'
+      + '<div class="mgj-corpo">'
+        + (o.aviso ? '<div class="mgj-aviso">' + esc(o.aviso) + '</div>' : '')
+        + campos.map(campoHTML).join('')
+      + '</div>'
+      + '<div class="mgj-base">'
+        + (o.perigo ? '<button class="perigo" data-perigo="1">' + esc(o.perigo.rotulo) + '</button>' : '')
+        + '<span class="esp"></span>'
+        + '<button data-fechar="1">' + esc(o.cancelar || 'Cancelar') + '</button>'
+        + '<button class="ok" data-ok="1">' + esc(o.ok || 'Confirmar') + '</button>'
+      + '</div></div>';
+
+    const confirmar = ()=>{
+      const v = ler(no, campos);
+      /* validação por campo, com o erro embaixo dele em vez de um alerta */
+      let ruim = null;
+      for(const c of campos){
+        const cx = no.querySelector('[data-campo="' + CSS.escape(c.nome) + '"]');
+        if(cx){ cx.classList.remove('ruim');
+                const e = cx.querySelector('.erro'); if(e){ e.hidden = true; e.textContent = '' } }
+        const msg = c.validar ? c.validar(v[c.nome], v)
+                  : (c.obrigatorio && !(Array.isArray(v[c.nome]) ? v[c.nome].length : v[c.nome])
+                      ? 'Preencha este campo.' : null);
+        if(msg && !ruim){ ruim = {c, msg, cx} }
+      }
+      if(ruim){
+        if(ruim.cx){
+          ruim.cx.classList.add('ruim');
+          const e = ruim.cx.querySelector('.erro');
+          if(e){ e.textContent = ruim.msg; e.hidden = false }
+          const foco = ruim.cx.querySelector('input,textarea');
+          if(foco) foco.focus();
+        }
+        return;
+      }
+      fechar(v);
+    };
+
+    no.addEventListener('click', ev=>{
+      if(ev.target === no) return fechar(null);                 /* clique fora */
+      const f = ev.target.closest('[data-fechar]');   if(f) return fechar(null);
+      const p = ev.target.closest('[data-perigo]');   if(p) return fechar({excluir:true});
+      const k = ev.target.closest('[data-ok]');       if(k) return confirmar();
+
+      const ic = ev.target.closest('.mgj-icones button, .mgj-cores button');
+      if(ic){
+        const cx = ic.closest('.mgj-campo');
+        const jaEra = ic.classList.contains('on');
+        cx.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+        if(jaEra){ cx.dataset.valor = '' }
+        else { ic.classList.add('on'); cx.dataset.valor = ic.dataset.v }
+        return;
+      }
+      const pe = ev.target.closest('.mgj-gente .p');
+      if(pe){
+        pe.classList.toggle('on');
+        const cx = pe.closest('.mgj-campo');
+        const n = cx.querySelectorAll('.p.on').length;
+        const c = cx.querySelector('.mgj-conta');
+        if(c) c.textContent = n ? n + (n===1?' pessoa escolhida':' pessoas escolhidas') : '';
+        return;
+      }
+    });
+
+    no.addEventListener('input', ev=>{
+      if(!ev.target.dataset.busca) return;
+      const t = MGU.norm(ev.target.value);
+      ev.target.closest('.mgj-gente').querySelectorAll('.p').forEach(b=>{
+        b.hidden = !!t && !b.dataset.nome.includes(t);
+      });
+    });
+
+    const aoTeclar = ev=>{
+      if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fechar(null); return }
+      if(ev.key === 'Enter' && !ev.shiftKey){
+        const alvo = ev.target;
+        if(alvo && alvo.tagName === 'TEXTAREA') return;      /* área de texto quebra linha */
+        if(alvo && alvo.dataset && alvo.dataset.busca) return;
+        ev.preventDefault(); confirmar();
+      }
+    };
+    document.addEventListener('keydown', aoTeclar, true);
+
+    document.body.appendChild(no);
+    document.body.style.overflow = 'hidden';
+    atual = {no, resolver, aoTeclar};
+
+    const primeiro = no.querySelector('.mgj-corpo input[type=text], .mgj-corpo textarea');
+    if(primeiro){ primeiro.focus(); primeiro.select && primeiro.select() }
+    else { const b = no.querySelector('[data-ok]'); if(b) b.focus() }
+  });
+}
+
+/* atalhos para os dois casos mais comuns */
+function perguntar(titulo, opc){
+  const o = opc || {};
+  return abrir({
+    titulo, texto:o.texto, icone:o.icone || '✎', ok:o.ok || 'Salvar',
+    campos:[{nome:'valor', tipo:o.area ? 'area' : 'texto', rotulo:o.rotulo,
+             valor:o.valor || '', dica:o.dica, max:o.max, prefixo:o.prefixo,
+             obrigatorio:o.obrigatorio !== false, ajuda:o.ajuda}],
+  }).then(r => r && !r.excluir ? r.valor : null);
+}
+function confirmar(titulo, opc){
+  const o = opc || {};
+  return abrir({
+    titulo, texto:o.texto, aviso:o.aviso, icone:o.icone || '⚠',
+    ok:o.ok || 'Confirmar', cancelar:o.cancelar, campos:[],
+  }).then(r => !!r && !r.excluir);
+}
+
+return {abrir, perguntar, confirmar, fechar, ICONES, CORES,
+        get aberta(){ return !!atual }};
+})();
+window.MGJanela = MGJanela;
+
 /* O gato do Kronos. Desenhado, e não emoji: o emoji de gato preto é
    uma sequência com juntor e em vários sistemas aparece como um gato
    comum seguido de um quadrado preto. */
@@ -17923,6 +18350,9 @@ let cmdSel = 0;             /* item destacado no menu de comandos         */
 let cmdLista = [];          /* comandos filtrados pelo que foi digitado   */
 let locais = {};            /* canal -> respostas efêmeras, só quem pediu vê */
 let perfilAberto = null;    /* id da pessoa mostrada no cartão de perfil  */
+let aba = 'tudo';           /* lateral: 'tudo' | 'diretas'                */
+let soNaoLidas = false;     /* filtro da aba de conversas diretas         */
+let ULTIMAS = {};           /* canal -> última mensagem, para a prévia    */
 let perfilExtra = null;     /* {id, canais} vindo do banco, não estimado  */
 let fila = [];              /* anexos escolhidos, ainda não enviados     */
 let filaTh = [];            /* o mesmo, dentro da thread                  */
@@ -17953,9 +18383,15 @@ async function carregarCanais(){
    criadas sem os dois lados, com nome "— ↔ Fulano" */
 function visivel(c){
   if(c.tipo !== 'dm') return true;
-  const n = String(c.nome||'');
-  if(n.startsWith('dm:')) return true;
-  return !n.startsWith('— ') && !n.includes('↔ —') && n.includes('↔');
+  const n = String(c.nome||'').trim();
+  /* A regra antiga exigia "↔" no nome para a conversa aparecer. Isso
+     escondia toda conversa em GRUPO, que nasce com os nomes separados
+     por vírgula, e escondia também qualquer conversa com nome próprio.
+     Agora a regra é o contrário: some só o lixo conhecido, que é a
+     conversa criada sem um dos lados. */
+  if(!n) return false;
+  if(n.startsWith('— ') || n.includes('↔ —') || n.endsWith(' ↔')) return false;
+  return true;
 }
 function primeiroCanal(){
   const c = CHANNELS.find(x=>x.tipo==='team') || CHANNELS[0];
@@ -17996,6 +18432,17 @@ async function carregarMembros(cid){
     CH_MEMBROS[cid] = m;
   }catch(e){ CH_MEMBROS[cid] = CH_MEMBROS[cid] || {} }
 }
+/* Prévia da última mensagem de cada conversa. Vem de uma consulta só,
+   em vez de baixar o histórico de cada canal para mostrar uma linha. */
+async function carregarUltimas(){
+  try{
+    const {data, error} = await sb.rpc('mg_ultimas');
+    if(error) throw error;
+    const m = {};
+    (data||[]).forEach(r=>{ m[r.channel_id] = r });
+    ULTIMAS = m;
+  }catch(e){ /* sem prévia a lista ainda funciona */ }
+}
 async function carregarNaoLidas(){
   try{
     const {data, error} = await sb.rpc('mg_unread');
@@ -18012,7 +18459,7 @@ async function iniciar(){
     await MGU.carregar();
     await carregarCanais();
     CH_READY = true;
-    await carregarNaoLidas();
+    await Promise.all([carregarNaoLidas(), carregarUltimas()]);
     if(CHAN) await Promise.all([carregarMsgs(CHAN), carregarMembros(CHAN), carregarThreads(CHAN)]);
     assinar();
     ligarPresenca();
@@ -18095,6 +18542,9 @@ function chegou(m){
     if(lista.some(x=>x.id===m.id)) return;
     lista.push(m);
   }
+  ULTIMAS[m.channel_id] = {channel_id:m.channel_id, corpo:String(m.body||'').slice(0,160),
+    autor_id:m.author_id, autor_nome:m.author_name, kind:m.kind,
+    tem_anexo:!!(m.anexos && m.anexos.length), em:m.created_at};
   if(m.reply_to){
     const t = (THREADS[m.channel_id] = THREADS[m.channel_id] || {});
     const r = String(m.reply_to);
@@ -18149,7 +18599,12 @@ function nomeCanal(c){
   if(!c) return '—';
   if(c.tipo === 'client') return clientName(c.client_id);
   if(c.tipo === 'dm'){
-    const u = MGU.get(outroLado(c));
+    const gente = outrosLados(c);
+    if(gente.length > 1){
+      const nomes = gente.map(id=>MGU.seguro(id).primeiro);
+      return nomes.slice(0,3).join(', ') + (nomes.length>3 ? ' e mais ' + (nomes.length-3) : '');
+    }
+    const u = MGU.get(gente[0] || outroLado(c));
     return u ? u.nome : 'Conversa direta';
   }
   return c.nome;
@@ -18163,9 +18618,30 @@ function corCanal(c){
 function marcaCanal(c, tam){
   const t = tam || 20;
   if(!c) return '';
+  /* ícone escolhido na configuração vem antes de tudo */
+  if(c.icone) return '<span class="h" style="font-size:' + Math.round(t*0.82) + 'px">'
+                   + esc(c.icone) + '</span>';
   if(c.tipo === 'client' && typeof mgClientLogo === 'function') return mgClientLogo(c.client_id, t);
-  if(c.tipo === 'dm') return MGU.avatar(outroLado(c), {tam:t, presenca:true});
+  if(c.tipo === 'dm'){
+    const gente = outrosLados(c);
+    if(gente.length > 1){
+      return '<span class="mgz-pilha">'
+        + gente.slice(0,2).map(id=>MGU.avatar(id,{tam:Math.round(t*0.78)})).join('')
+        + '</span>';
+    }
+    return MGU.avatar(gente[0] || outroLado(c), {tam:t, presenca:true});
+  }
   return '<span class="h" style="font-size:' + Math.round(t*0.8) + 'px">#</span>';
+}
+/* numa conversa direta, todo mundo menos eu. Um para a conversa de duas
+   pessoas, vários quando é grupo. */
+function outrosLados(c){
+  if(!c || c.tipo !== 'dm') return [];
+  const membros = Object.keys(CH_MEMBROS[c.id] || {});
+  const fora = membros.filter(x => !ME || x !== ME.id);
+  if(fora.length) return fora;
+  const um = outroLado(c);
+  return um ? [um] : [];
 }
 /* quem participa: para canal de cliente, a equipe mais as pessoas da
    empresa; para os demais, os membros gravados */
@@ -18210,6 +18686,7 @@ async function abrir(id){
   await marcarLido(id);
   desenhar();
   rolarFim(true);
+  carregarUltimas().then(()=>{ if(VIEW === 'chat') desenhar() });
 }
 async function marcarLido(id){
   if(!ME || !id) return;
@@ -18312,14 +18789,16 @@ function desenhar(){
   const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
 
   el.innerHTML = ladoHTML() + mainHTML()
-    + (painelDir === 'thread' ? threadHTML()
-     : painelDir === 'info'   ? infoHTML() : '');
+    + (painelDir === 'thread'  ? threadHTML()
+     : painelDir === 'reports' ? reportsHTML()
+     : painelDir === 'info'    ? infoHTML() : '');
 
   const c = CHANNELS.find(x=>x.id===CHAN);
   el.style.setProperty('--cor-canal', corCanal(c) || 'transparent');
   document.body.classList.toggle('mg-sem-hora', typeof mgP==='function' && mgP('horas')==='off');
   document.body.classList.toggle('mgz-info-on',   painelDir === 'info');
   document.body.classList.toggle('mgz-thread-on', painelDir === 'thread');
+  document.body.classList.toggle('mgz-reports-on', painelDir === 'reports');
   const cx = document.getElementById('mgz-msgs');
   if(cx){ cx.scrollTop = (guardado !== null && guardado > 0) ? guardado : cx.scrollHeight }
   const cth = document.getElementById('mgz-th-corpo');
@@ -18328,11 +18807,45 @@ function desenhar(){
   reservarDock();
 }
 
-/* ----- lateral ----- */
+/* ----- lateral -----
+   Duas abas. "Conversas" traz tudo organizado por empresa, como já era.
+   "Diretas" é a lista no espírito da aba de mensagens diretas do Slack:
+   prévia da última mensagem, horário, filtro de não lidas e um botão de
+   nova conversa que também monta grupo. */
 function ladoHTML(){
   const eu = MGU.eu();
-  const busca = CH_FILTER;
+  return '<aside class="mgz-side">'
+    + '<div class="mgz-marca"><span class="lg"></span><span class="tx">'
+      + '<b>MGP Chat</b><span>MODESTO GROWTH PARTNERS</span></span></div>'
+    + '<div class="mgz-abas">'
+      + '<button class="' + (aba==='tudo'?'on':'') + '" onclick="MGChat.trocarAba(\'tudo\')">Conversas</button>'
+      + '<button class="' + (aba==='diretas'?'on':'') + '" onclick="MGChat.trocarAba(\'diretas\')">'
+        + 'Diretas' + (naoLidasDiretas() ? '<i class="pt"></i>' : '') + '</button>'
+    + '</div>'
+    + (aba === 'diretas' ? diretasHTML() : tudoHTML())
+    + '<div class="mgz-eu">' + MGU.avatar(eu, {tam:32, presenca:true})
+      + '<span class="tx"><b>' + esc(eu ? eu.nome : '—') + '</b>'
+      + '<span>' + (eu && eu.ehEquipe ? 'Equipe Modesto' : (eu && eu.clienteId ? esc(clientName(eu.clienteId)) : 'Cliente')) + '</span></span>'
+      + '<button class="bt" title="Seu perfil" onclick="MGChat.meuPerfil()">☰</button>'
+      + '<button class="bt" title="Configurações" onclick="showView(\'settings\')">⚙</button>'
+    + '</div></aside>';
+}
+function naoLidasDiretas(){
+  return CHANNELS.filter(c=>c.tipo==='dm').reduce((a,c)=>a+(CH_NAOLIDAS[c.id]||0),0);
+}
+function itemCanal(c){
+  const n = CH_NAOLIDAS[c.id] || 0;
+  return '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
+    + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
+    + marcaCanal(c, 20)
+    + '<span class="nm">' + esc(nomeCanal(c)) + '</span>'
+    + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+    + '</button>';
+}
 
+/* ----- aba "Conversas": tudo, por empresa ----- */
+function tudoHTML(){
+  const busca = CH_FILTER;
   const doCliente = CHANNELS.filter(c=>c.tipo==='client');
   const daEquipe  = CHANNELS.filter(c=>c.tipo==='team' && combina(c));
   const diretas   = CHANNELS.filter(c=>c.tipo==='dm'   && combina(c));
@@ -18348,41 +18861,22 @@ function ladoHTML(){
     .filter(g => !busca || MGU.norm(g.nome).includes(MGU.norm(busca)) || g.cs.some(combina))
     .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
 
-  const item = c=>{
-    const n = CH_NAOLIDAS[c.id] || 0;
-    return '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
-      + ' onclick="MGChat.abrir(\'' + esc(c.id) + '\')">'
-      + marcaCanal(c, 20)
-      + '<span class="nm">' + esc(nomeCanal(c)) + '</span>'
-      + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
-      + '</button>';
-  };
-
-  /* pessoas: quando há busca, permite abrir conversa com quem ainda não
-     tem conversa aberta. É o caminho de "achar um membro e falar com ele" */
   let pessoas = '';
   if(busca && ME){
-    const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm').map(c=>outroLado(c)).filter(Boolean));
+    const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm')
+      .flatMap(c=>outrosLados(c)).filter(Boolean));
     const achados = MGU.buscar(busca).filter(u=>u.id !== ME.id && !jaTem.has(u.id)).slice(0,8);
     if(achados.length){
       pessoas = '<div class="mgz-sec">Pessoas</div>'
         + achados.map(u =>
-            '<button class="mgz-i" onclick="MGChat.abrirDireta(\'' + esc(u.id) + '\')">'
+            '<button class="mgz-i" onclick="MGChat.abrirDireta(\'' + escJS(u.id) + '\')">'
             + MGU.avatar(u, {tam:20, presenca:true})
             + '<span class="nm">' + esc(u.nome) + '</span>'
-            + '<span class="h" title="Abrir conversa">✎</span></button>'
-          ).join('');
+            + '<span class="h" title="Abrir conversa">✎</span></button>').join('');
     }
   }
 
-  return '<aside class="mgz-side">'
-    + '<div class="mgz-marca"><span class="lg"></span><span class="tx">'
-      + '<b>MGP Tasks</b><span>CONVERSAS</span></span></div>'
-    + '<div class="mgz-busca"><span style="opacity:.5">⌕</span>'
-      + '<input id="mgz-busca-in" placeholder="Achar ou começar uma conversa" value="' + esc(busca) + '"'
-      + ' oninput="MGChat.filtrar(this.value)">'
-      + (busca ? '<button class="x" onclick="MGChat.filtrar(\'\')" title="Limpar">✕</button>' : '')
-    + '</div>'
+  return buscaHTMLLateral()
     + '<div class="mgz-lista">'
       + pessoas
       + '<div class="mgz-sec">Clientes'
@@ -18394,28 +18888,113 @@ function ladoHTML(){
           const marca = (typeof mgClientLogo==='function') ? mgClientLogo(g.cid, 18)
             : '<span class="h"></span>';
           return '<div class="mgz-emp ' + (aberta?'aberta':'') + '">'
-            + '<button class="cab" onclick="MGChat.alternarEmpresa(\'' + esc(g.cid) + '\')">'
+            + '<button class="cab" onclick="MGChat.alternarEmpresa(\'' + escJS(g.cid) + '\')">'
               + '<span class="seta">▶</span>' + marca
               + '<span class="nm">' + esc(g.nome) + '</span>'
               + (g.naoLidas ? '<span class="n">' + g.naoLidas + '</span>' : '')
               + (isAdmin() ? '<span class="add" title="Novo canal desta empresa"'
-                  + ' onclick="event.stopPropagation();MGChat.novoCanalCliente(\'' + esc(g.cid) + '\')">＋</span>' : '')
-            + '</button><div class="dentro">' + g.cs.map(item).join('') + '</div></div>';
+                  + ' onclick="event.stopPropagation();MGChat.novoCanalCliente(\'' + escJS(g.cid) + '\')">＋</span>' : '')
+            + '</button><div class="dentro">' + g.cs.map(itemCanal).join('') + '</div></div>';
         }).join('') : '<div class="mgz-vazio-sec">nenhum canal ainda</div>')
       + '<div class="mgz-sec">Equipe'
         + (isAdmin() ? '<button class="add" title="Novo canal interno" onclick="MGChat.novoCanalEquipe()">＋</button>' : '')
       + '</div>'
-      + (daEquipe.length ? daEquipe.map(item).join('') : '<div class="mgz-vazio-sec">nenhum canal</div>')
+      + (daEquipe.length ? daEquipe.map(itemCanal).join('') : '<div class="mgz-vazio-sec">nenhum canal</div>')
       + '<div class="mgz-sec">Conversas diretas'
-        + '<button class="add" title="Nova conversa" onclick="MGChat.escolherPessoa()">＋</button></div>'
-      + (diretas.length ? diretas.map(item).join('') : '<div class="mgz-vazio-sec">nenhuma ainda</div>')
-    + '</div>'
-    + '<div class="mgz-eu">' + MGU.avatar(eu, {tam:32, presenca:true})
-      + '<span class="tx"><b>' + esc(eu ? eu.nome : '—') + '</b>'
-      + '<span>' + (eu && eu.ehEquipe ? 'Equipe Modesto' : (eu && eu.clienteId ? esc(clientName(eu.clienteId)) : 'Cliente')) + '</span></span>'
-      + '<button class="bt" title="Configurações" onclick="showView(\'settings\')">⚙</button>'
-    + '</div></aside>';
+        + '<button class="add" title="Nova conversa" onclick="MGChat.novaConversa()">＋</button></div>'
+      + (diretas.length ? diretas.map(itemCanal).join('') : '<div class="mgz-vazio-sec">nenhuma ainda</div>')
+    + '</div>';
 }
+function buscaHTMLLateral(){
+  return '<div class="mgz-busca"><span style="opacity:.5">⌕</span>'
+    + '<input id="mgz-busca-in" placeholder="Achar ou começar uma conversa" value="' + esc(CH_FILTER) + '"'
+    + ' oninput="MGChat.filtrar(this.value)">'
+    + (CH_FILTER ? '<button class="x" onclick="MGChat.filtrar(\'\')" title="Limpar">✕</button>' : '')
+  + '</div>';
+}
+
+/* ----- aba "Diretas" ----- */
+function diretasHTML(){
+  const busca = CH_FILTER;
+  let lista = CHANNELS.filter(c=>c.tipo==='dm' && combina(c));
+  if(soNaoLidas) lista = lista.filter(c=>(CH_NAOLIDAS[c.id]||0) > 0);
+
+  lista.sort((a,b)=>{
+    const ua = ULTIMAS[a.id], ub = ULTIMAS[b.id];
+    const ta = ua ? new Date(ua.em).getTime() : 0;
+    const tb = ub ? new Date(ub.em).getTime() : 0;
+    if(ta !== tb) return tb - ta;
+    return nomeCanal(a).localeCompare(nomeCanal(b),'pt');
+  });
+
+  /* pessoas sem conversa aberta ainda, para começar em um clique */
+  let novas = '';
+  if(ME){
+    const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm')
+      .flatMap(c=>outrosLados(c)).filter(Boolean));
+    const sobrando = (busca ? MGU.buscar(busca) : MGU.todos())
+      .filter(u=>u.id !== ME.id && !jaTem.has(u.id) && u.resolvido);
+    if(sobrando.length && !soNaoLidas){
+      novas = '<div class="mgz-sec">Começar uma conversa</div>'
+        + sobrando.slice(0,8).map(u=>
+            '<button class="mgz-md" onclick="MGChat.abrirDireta(\'' + escJS(u.id) + '\')">'
+            + MGU.avatar(u, {tam:36, presenca:true})
+            + '<span class="tx"><b>' + esc(u.nome) + '</b>'
+            + '<span class="pv">' + (u.ehEquipe ? 'Equipe Modesto'
+                : (u.clienteId ? esc(clientName(u.clienteId)) : 'Cliente')) + '</span></span>'
+            + '<span class="h">✎</span></button>').join('');
+    }
+  }
+
+  return buscaHTMLLateral()
+    + '<div class="mgz-filtro">'
+      + '<button class="' + (soNaoLidas?'on':'') + '" onclick="MGChat.alternarNaoLidas()">'
+        + '<i></i>Não lidas</button>'
+      + '<button class="nova" onclick="MGChat.novaConversa()" title="Nova conversa">✎ Nova</button>'
+    + '</div>'
+    + '<div class="mgz-lista">'
+      + (lista.length ? lista.map(itemDireta).join('')
+         : '<div class="mgz-vazio-sec">' + (soNaoLidas ? 'nenhuma conversa não lida'
+              : 'nenhuma conversa direta ainda') + '</div>')
+      + novas
+    + '</div>';
+}
+function itemDireta(c){
+  const n = CH_NAOLIDAS[c.id] || 0;
+  const u = ULTIMAS[c.id];
+  const gente = outrosLados(c);
+  const previa = (()=>{
+    if(!u) return '<span class="pv vazio">sem mensagens ainda</span>';
+    const meu = ME && u.autor_id === ME.id;
+    const quem = u.kind === 'kronos' ? 'Kronos'
+               : meu ? 'Você'
+               : (gente.length > 1 ? MGU.seguro(u.autor_id || u.autor_nome).primeiro : '');
+    const txt = (u.corpo && u.corpo.trim()) ? u.corpo
+              : (u.tem_anexo ? 'enviou um arquivo' : '…');
+    return '<span class="pv">' + (quem ? '<b>' + esc(quem) + ':</b> ' : '')
+         + esc(txt) + '</span>';
+  })();
+  return '<button class="mgz-md ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
+    + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
+    + (gente.length > 1
+        ? '<span class="mgz-pilha g">' + gente.slice(0,2).map(id=>MGU.avatar(id,{tam:28})).join('') + '</span>'
+        : MGU.avatar(gente[0] || outroLado(c), {tam:36, presenca:true}))
+    + '<span class="tx"><b>' + esc(nomeCanal(c)) + '</b>' + previa + '</span>'
+    + '<span class="dir">'
+      + (u ? '<span class="hr">' + esc(quandoCurto(u.em)) + '</span>' : '')
+      + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+    + '</span></button>';
+}
+/* horário de hoje, dia da semana desta semana, data depois disso */
+function quandoCurto(ts){
+  if(!ts) return '';
+  const d = new Date(ts), agora = new Date();
+  const dias = Math.floor((agora - d) / 864e5);
+  if(d.toDateString() === agora.toDateString()) return horaDe(ts);
+  if(dias < 7) return d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+}
+
 function infoHTML(){
   const c = CHANNELS.find(x=>x.id===CHAN);
   if(!c) return '';
@@ -18496,9 +19075,12 @@ function mainHTML(){
           ? '<button class="btn-p" onclick="MGChat.configurar()">Configurar os canais</button>' : '')
       + '</div></div>';
   }
-  const sub = c.tipo === 'client' ? 'Equipe Modesto e ' + esc(clientName(c.client_id))
+  const gente = outrosLados(c);
+  const sub = c.descricao ? esc(c.descricao)
+            : c.tipo === 'client' ? 'Equipe Modesto e ' + esc(clientName(c.client_id))
             : c.tipo === 'team'   ? 'Canal interno da equipe'
-            : (function(){ const on = estaOnline(outroLado(c));
+            : gente.length > 1    ? gente.length + 1 + ' pessoas nesta conversa'
+            : (function(){ const on = estaOnline(gente[0] || outroLado(c));
                 return on === null ? 'Conversa direta' : (on ? 'Disponível agora' : 'Ausente') })();
 
   return '<div class="mgz-main">'
@@ -18508,7 +19090,10 @@ function mainHTML(){
         + '<span class="nmc">' + esc(nomeCanal(c)) + '</span></b>'
       + '<small>' + sub + '</small></span>'
       + (isAdmin() && c.tipo !== 'dm'
-          ? '<button class="bt ic" onclick="MGChat.renomear()" title="Renomear canal">✎</button>' : '')
+          ? '<button class="bt ic" onclick="MGChat.editarCanal()" title="Configurar canal">⚙</button>' : '')
+      + (c.tipo === 'client'
+          ? '<button class="bt ic ' + (painelDir==='reports'?'on':'') + '"'
+            + ' onclick="MGChat.alternarReports()" title="Reports deste cliente">📊</button>' : '')
       + '<button class="bt ic" onclick="MGKronos.abrir()" title="Falar com o Kronos">' + mgGato(16) + '</button>'
       + '<button class="bt ic" onclick="MGChat.abrirBusca()" title="Buscar mensagem">⌕</button>'
       + '<button class="bt ic ' + (painelDir==='info'?'on':'') + '" onclick="MGChat.alternarInfo()"'
@@ -18692,6 +19277,57 @@ function threadHTML(){
   + '</aside>';
 }
 
+/* ----- Reports do cliente -----
+   Reúne, num painel só, o que já foi publicado sobre aquele cliente:
+   os arquivos de relatório enviados na conversa e os documentos do
+   acervo daquela empresa. Hoje isso é alimentado à mão. É este mesmo
+   painel que recebe a publicação automática quando existir chave de IA,
+   sem precisar de tela nova. */
+function reportsHTML(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(!c || c.tipo !== 'client') return '';
+
+  const daConversa = [];
+  (CHMSGS[CHAN]||[]).forEach(m=>{
+    (m.anexos||[]).forEach(a=>{
+      if(ehImagem(a)) return;
+      daConversa.push({nome:a.nome, path:a.path, em:m.created_at, quem:m.author_id, tipo:tipoLegivel(a)});
+    });
+  });
+  daConversa.sort((a,b)=> new Date(b.em) - new Date(a.em));
+
+  const doAcervo = (typeof DOCS !== 'undefined' ? DOCS : [])
+    .filter(d => d.client_id === c.client_id)
+    .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+
+  return '<aside class="mgz-info mgz-rep">'
+    + '<div class="rep-topo">'
+      + '<span class="tx"><b>Reports</b><small>' + esc(clientName(c.client_id)) + '</small></span>'
+      + '<button class="x" onclick="MGChat.alternarReports()" title="Fechar">✕</button>'
+    + '</div>'
+    + '<h4>Enviados nesta conversa · ' + daConversa.length + '</h4>'
+    + (daConversa.length ? daConversa.slice(0,20).map(a=>
+        '<button class="arq" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')">'
+        + '<span>' + (a.tipo === 'PDF' ? '📕' : a.tipo.startsWith('Apresenta') ? '📽️' : '📄') + '</span>'
+        + '<span class="tx"><b>' + esc(a.nome||'arquivo') + '</b>'
+        + '<span>' + esc(a.tipo) + ' · ' + esc(dataDe(a.em)) + '</span></span></button>').join('')
+      : '<div class="nada">Nenhum relatório enviado por aqui ainda. '
+        + 'Anexe um arquivo na conversa e ele aparece nesta lista.</div>')
+    + '<h4>No acervo desta empresa · ' + doAcervo.length + '</h4>'
+    + (doAcervo.length ? doAcervo.slice(0,20).map(d=>
+        '<button class="arq" onclick="' + (typeof abrirArquivoEmAba === 'function'
+            ? 'abrirArquivoEmAba(\'' + escJS(String(d.id)) + '\')' : 'showView(\'docs\')') + '">'
+        + '<span>🗂</span><span class="tx"><b>' + esc(d.titulo||'documento') + '</b>'
+        + '<span>' + esc(d.tipo||'') + ' · ' + esc(dataDe(d.created_at)) + '</span></span></button>').join('')
+      : '<div class="nada">Nada no acervo desta empresa ainda.</div>')
+    + '<div class="rep-nota">'
+      + '<b>Publicação automática</b><br>'
+      + 'A ideia é o relatório semanal ser gerado e publicado aqui sozinho, no dia combinado. '
+      + 'Falta só a chave de IA no projeto: a estrutura que recebe isso já é esta.'
+    + '</div>'
+  + '</aside>';
+}
+
 /* ----- resultado da busca por mensagem ----- */
 function buscaHTML(){
   if(!achados.pronto){
@@ -18766,13 +19402,28 @@ function anexosHTML(m){
   if(!l.length) return '';
   const imgs = l.filter(ehImagem), outros = l.filter(a=>!ehImagem(a));
   return imgs.map(a =>
-      '<img class="mgz-img" loading="lazy" src="' + esc(a.url||'') + '" alt="' + esc(a.nome||'') + '"'
-      + ' onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">').join('')
+      '<button class="mgz-imgbt" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')"'
+      + ' title="' + esc(a.nome||'imagem') + '">'
+      + '<img class="mgz-img" loading="lazy" src="' + mgUrlImagem(a.url) + '"'
+      + ' alt="' + esc(a.nome||'') + '"'
+      + ' onerror="this.closest(&quot;button&quot;).classList.add(&quot;quebrou&quot;)">'
+      + '<span class="cap">' + esc(a.nome||'imagem') + '</span></button>').join('')
     + (outros.length ? '<div class="mgz-anexos">' + outros.map(a =>
-        '<button class="mgz-anexo" onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">'
+        '<button class="mgz-anexo" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')">'
         + '<span class="ic">' + iconeArq(a) + '</span>'
         + '<span class="tx2"><b>' + esc(a.nome||'arquivo') + '</b>'
-        + '<span>' + tamanho(a.tamanho) + '</span></span></button>').join('') + '</div>' : '');
+        + '<span>' + esc(tipoLegivel(a)) + (a.tamanho ? ' · ' + tamanho(a.tamanho) : '') + '</span></span>'
+        + '<span class="ab">abrir</span></button>').join('') + '</div>' : '');
+}
+function tipoLegivel(a){
+  if(ehPDF(a)) return 'PDF';
+  if(ehHTMLAnexo(a)) return 'Apresentação HTML';
+  const e = String(a.nome||'').split('.').pop().toLowerCase();
+  if(/^(xlsx?|csv)$/.test(e))  return 'Planilha';
+  if(/^(docx?)$/.test(e))      return 'Documento';
+  if(/^(pptx?|key)$/.test(e))  return 'Apresentação';
+  if(/^(zip|rar|7z)$/.test(e)) return 'Compactado';
+  return e ? e.toUpperCase() : 'Arquivo';
 }
 function reacoesHTML(m){
   const r = m.reactions || {};
@@ -19187,9 +19838,14 @@ async function subirArquivos(itens){
                                   : Date.now()+'-'+Math.random().toString(16).slice(2));
     const path = pastaDoCanal() + '/' + id + '.' + ext;
     const up = await sb.storage.from('documents').upload(path, f.arquivo, {upsert:false});
-    if(up.error) throw up.error;
+    if(up.error){
+      const m = up.error.message || '';
+      throw new Error(/row-level security|not authorized|denied/i.test(m)
+        ? 'o banco não deixou enviar arquivo nesta conversa'
+        : 'falha ao enviar "' + f.nome + '": ' + m);
+    }
     let url = null;
-    if(/^image\//.test(f.tipo)){
+    if(ehImagem(f)){
       try{
         const {data} = await sb.storage.from('documents').createSignedUrl(path, 60*60*24*7);
         url = data ? data.signedUrl : null;
@@ -19204,8 +19860,14 @@ async function abrirAnexo(path){
   try{
     const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 300);
     if(error) throw error;
+    /* apresentação em HTML roda dentro do iframe isolado, como no acervo
+       de documentos: sem a origem do portal, sem acesso à sessão */
+    if(/\.html?$/i.test(path) && typeof mgAbrirHTMLIsolado === 'function'){
+      const r = await fetch(data.signedUrl);
+      if(r.ok){ mgAbrirHTMLIsolado(await r.text(), path.split('/').pop()); return }
+    }
     window.open(data.signedUrl, '_blank', 'noopener');
-  }catch(e){ toast('Não foi possível abrir o arquivo') }
+  }catch(e){ toast('Não foi possível abrir o arquivo: ' + ((e&&e.message)||'')) }
 }
 
 /* ----- mensagem ----- */
@@ -19226,7 +19888,13 @@ function copiar(id){
     .then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
 }
 async function excluir(id){
-  if(!confirm('Excluir esta mensagem?')) return;
+  const m = msg(id);
+  const ok = await MGJanela.confirmar('Excluir esta mensagem?', {
+    texto: m ? String(m.body||'').slice(0,140) : '',
+    aviso: 'Ela some para todo mundo da conversa. Não dá para desfazer.',
+    ok: 'Excluir', icone: '🗑',
+  });
+  if(!ok) return;
   try{
     const {data, error} = await sb.from('messages').delete().eq('id', id).select('id');
     if(error) throw error;
@@ -19307,42 +19975,178 @@ async function criarCanal(tipo, nome, cid){
     toast('Canal criado');
   }catch(e){ toast('Não foi possível criar: ' + ((e&&e.message)||'')) }
 }
-async function novoCanalCliente(cid){
-  if(!isAdmin()) return;
-  const nome = prompt('Nome do canal para ' + clientName(cid) + ':', 'assuntos');
-  if(!nome || !nome.trim()) return;
-  await criarCanal('client', slug(nome), cid);
+/* Quem pode entrar num canal desta empresa: a equipe toda mais as
+   pessoas da própria empresa. É a mesma regra que o banco aplica. */
+function genteDoCanal(cid){
+  const eq = MGU.todos({equipe:true});
+  const cli = cid ? MGU.todos().filter(u=>u.clienteId === cid) : [];
+  const vistos = new Set();
+  return eq.concat(cli).filter(u=>{ if(vistos.has(u.id)) return false; vistos.add(u.id); return true })
+    .sort((x,y)=> (x.ehEquipe===y.ehEquipe ? x.nome.localeCompare(y.nome,'pt') : (x.ehEquipe?-1:1)));
 }
-async function novoCanalEquipe(){
+
+/* Criar canal: nome, ícone, cor, descrição e quem participa, numa janela
+   só. Antes eram dois prompt() do navegador e nenhuma personalização. */
+async function novoCanal(tipo, cid){
   if(!isAdmin()) return;
-  const nome = prompt('Nome do canal interno:');
-  if(!nome || !nome.trim()) return;
-  await criarCanal('team', slug(nome), null);
-}
-async function renomear(){
-  if(!isAdmin()) return;
-  const c = CHANNELS.find(x=>x.id===CHAN); if(!c || c.tipo==='dm') return;
-  const nome = prompt('Novo nome do canal:', c.nome);
-  if(!nome || !nome.trim() || nome === c.nome) return;
+  const gente = genteDoCanal(cid);
+  const daEmpresa = cid ? new Set(MGU.todos().filter(u=>u.clienteId===cid).map(u=>u.id)) : new Set();
+  const padrao = gente.filter(u=>u.ehEquipe || daEmpresa.has(u.id)).map(u=>u.id);
+
+  const r = await MGJanela.abrir({
+    titulo: tipo === 'client' ? 'Novo canal de ' + clientName(cid) : 'Novo canal da equipe',
+    texto: 'Um canal reúne conversas por assunto. Quem estiver na lista vê tudo o que for escrito nele.',
+    icone: '＃', ok: 'Criar canal',
+    campos: [
+      {nome:'nome', tipo:'texto', rotulo:'Nome', prefixo:'#', max:40,
+       dica:'por exemplo, plano-de-midia', obrigatorio:true,
+       validar: v => !v ? 'Dê um nome ao canal.'
+                : (v.length < 2 ? 'Nome curto demais.' : null)},
+      {nome:'icone', tipo:'icone', rotulo:'Ícone', ajuda:'Opcional. Sem ícone, o canal aparece com #.'},
+      {nome:'cor', tipo:'cor', rotulo:'Cor'},
+      {nome:'descricao', tipo:'area', rotulo:'Sobre o canal', max:280,
+       dica:'Para que serve este canal?'},
+      {nome:'membros', tipo:'gente', rotulo:'Quem participa', gente, valor:padrao,
+       ajuda:'Você entra automaticamente, mesmo sem estar marcado.'},
+    ],
+  });
+  if(!r || r.excluir) return;
+
   try{
-    const {error} = await sb.from('channels').update({nome:slug(nome)}).eq('id', c.id);
+    const {data, error} = await sb.rpc('mg_criar_canal', {
+      p_tipo: tipo, p_nome: slug(r.nome), p_client_id: cid || null,
+      p_membros: r.membros, p_icone: r.icone || null,
+      p_cor: r.cor || null, p_descricao: r.descricao || null,
+    });
     if(error) throw error;
-    await carregarCanais(); desenhar(); toast('Canal renomeado');
-  }catch(e){ toast('Não foi possível renomear') }
+    await carregarCanais();
+    if(cid) empresasAbertas.add(cid);
+    CHMSGS[data] = [];
+    await abrir(data);
+    toast('Canal criado');
+  }catch(e){
+    const m = (e && e.message) || '';
+    toast(/permiss|42501/i.test(m) ? 'Só administrador pode criar canal'
+                                   : 'Não foi possível criar: ' + m);
+  }
 }
+async function novoCanalCliente(cid){ return novoCanal('client', cid) }
+async function novoCanalEquipe(){     return novoCanal('team', null) }
+
+/* Editar o canal aberto: mesma janela, mais o botão de excluir. */
+async function editarCanal(){
+  if(!isAdmin()) return;
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(!c || c.tipo === 'dm'){ toast('Conversa direta não tem configuração de canal'); return }
+  await carregarMembros(c.id);
+  const gente = genteDoCanal(c.client_id);
+  const atuais = Object.keys(CH_MEMBROS[c.id] || {});
+
+  const r = await MGJanela.abrir({
+    titulo: 'Configurar canal',
+    texto: c.tipo === 'client' ? 'Canal de ' + clientName(c.client_id) : 'Canal interno da equipe',
+    icone: c.icone || '＃', ok: 'Salvar',
+    perigo: {rotulo:'Excluir canal'},
+    campos: [
+      {nome:'nome', tipo:'texto', rotulo:'Nome', prefixo:'#', valor:c.nome, max:40,
+       obrigatorio:true, validar: v => !v ? 'Dê um nome ao canal.' : null},
+      {nome:'icone', tipo:'icone', rotulo:'Ícone', valor:c.icone || ''},
+      {nome:'cor', tipo:'cor', rotulo:'Cor', valor:c.cor || ''},
+      {nome:'descricao', tipo:'area', rotulo:'Sobre o canal', valor:c.descricao || '', max:280,
+       dica:'Para que serve este canal?'},
+      {nome:'membros', tipo:'gente', rotulo:'Quem participa', gente, valor:atuais},
+    ],
+  });
+  if(!r) return;
+
+  if(r.excluir) return excluirCanal(c);
+
+  try{
+    const {error} = await sb.rpc('mg_atualizar_canal', {
+      p_canal: c.id, p_nome: slug(r.nome), p_icone: r.icone || '',
+      p_cor: r.cor || '', p_descricao: r.descricao || '',
+    });
+    if(error) throw error;
+    const {error: e2} = await sb.rpc('mg_definir_membros', {p_canal: c.id, p_ids: r.membros});
+    if(e2) throw e2;
+    await carregarCanais();
+    await carregarMembros(c.id);
+    desenhar();
+    toast('Canal atualizado');
+  }catch(e){ toast('Não foi possível salvar: ' + ((e&&e.message)||'')) }
+}
+/* nome antigo, que outras camadas ainda chamam */
+async function renomear(){ return editarCanal() }
+
+async function excluirCanal(c){
+  const quantas = (CHMSGS[c.id] || []).length;
+  const ok = await MGJanela.confirmar('Excluir #' + c.nome + '?', {
+    texto: 'O canal e todas as mensagens dele somem para todo mundo.',
+    aviso: quantas ? 'Este canal tem ' + quantas + ' mensagem' + (quantas===1?'':'s')
+                     + ' carregada' + (quantas===1?'':'s') + '. Não dá para desfazer.'
+                   : 'Não dá para desfazer.',
+    ok: 'Excluir para todos', icone: '🗑',
+  });
+  if(!ok) return;
+  try{
+    const {error} = await sb.rpc('mg_excluir_canal', {p_canal: c.id});
+    if(error) throw error;
+    delete CHMSGS[c.id]; delete CH_MEMBROS[c.id]; delete THREADS[c.id];
+    CHAN = null;
+    await carregarCanais();
+    if(!CHAN) CHAN = primeiroCanal();
+    if(CHAN) await abrir(CHAN); else desenhar();
+    toast('Canal excluído');
+  }catch(e){
+    const m = (e && e.message) || '';
+    toast(/permiss|42501/i.test(m) ? 'Só administrador pode excluir canal'
+                                   : 'Não foi possível excluir: ' + m);
+  }
+}
+
 /* A conversa direta é aberta por mg_abrir_dm, no banco. Três motivos:
    quem não é admin não tem permissão de inserir em channels e antes não
    conseguia começar conversa nenhuma; a conversa é identificada pelo
    CONJUNTO DE MEMBROS e não pelo nome, então a existente é reencontrada
    em vez de duplicada; e a função confere se as duas pessoas podem mesmo
    se falar, com a mesma regra do diretório. */
-function escolherPessoa(){
-  CH_FILTER = ''; painelDir = null;
-  desenhar();
-  const i = document.getElementById('mgz-busca-in');
-  if(i){ i.focus(); i.placeholder = 'Quem você quer chamar?' }
-  toast('Digite o nome de quem você quer chamar');
+/* Nova conversa: escolhe uma pessoa e abre a direta; escolhe várias e
+   abre um grupo. Quem decide se é dupla ou grupo é a quantidade, então
+   não existe um botão separado para cada caso. */
+async function novaConversa(){
+  if(!ME) return;
+  const gente = MGU.todos({exceto: ME.id}).filter(u=>u.resolvido);
+  if(!gente.length){ toast('Não há mais ninguém cadastrado'); return }
+
+  const r = await MGJanela.abrir({
+    titulo: 'Nova conversa', icone: '✎', ok: 'Abrir conversa',
+    texto: 'Escolha uma pessoa para uma conversa direta, ou várias para um grupo.',
+    campos: [
+      {nome:'quem', tipo:'gente', rotulo:'Com quem', gente, valor:[],
+       obrigatorio:true, validar: v => (v && v.length) ? null : 'Escolha ao menos uma pessoa.'},
+      {nome:'nome', tipo:'texto', rotulo:'Nome do grupo', max:60,
+       dica:'opcional, só para conversa com mais de uma pessoa'},
+    ],
+  });
+  if(!r || r.excluir) return;
+
+  if(r.quem.length === 1) return abrirDireta(r.quem[0]);
+  try{
+    const {data, error} = await sb.rpc('mg_abrir_grupo',
+      {p_ids: r.quem, p_nome: r.nome || null});
+    if(error) throw error;
+    await carregarCanais();
+    await carregarUltimas();
+    CH_FILTER = ''; aba = 'diretas';
+    await abrir(data);
+  }catch(e){
+    const m = (e && e.message) || '';
+    toast(/permiss|42501/i.test(m) ? 'Você não pode falar com alguém dessa lista'
+                                   : 'Não foi possível abrir: ' + m);
+  }
 }
+/* nome antigo, que o resto do arquivo ainda chama */
+function escolherPessoa(){ return novaConversa() }
 async function abrirDireta(outroId){
   if(!ME || !outroId) return;
   const jaAberta = CHANNELS.find(c=>c.tipo==='dm' && outroLado(c) === outroId);
@@ -19352,6 +20156,7 @@ async function abrirDireta(outroId){
     if(error) throw error;
     if(!data) throw new Error('o banco não devolveu a conversa');
     await carregarCanais();
+    await carregarUltimas();
     CHMSGS[data] = CHMSGS[data] || [];
     CH_FILTER = '';
     await abrir(data);
@@ -19366,10 +20171,12 @@ async function abrirDireta(outroId){
 /* provisionamento explícito: era automático e disparava 403 em looping */
 async function configurar(){
   if(!isAdmin()) return;
-  if(!confirm('Criar os canais que ainda faltam?\n\n'
-    + '· um canal para cada empresa sem canal\n'
-    + '· os canais internos #geral e #entregas\n\n'
-    + 'Nada existente é apagado ou alterado.')) return;
+  const ok = await MGJanela.confirmar('Criar os canais que faltam?', {
+    texto: 'Um canal para cada empresa que ainda não tem, mais os internos #geral e #entregas.',
+    aviso: 'Nada existente é apagado ou alterado.',
+    ok: 'Criar o que falta', icone: '⚙',
+  });
+  if(!ok) return;
   toast('Configurando…');
   const criados = [];
   try{
@@ -19430,11 +20237,22 @@ function filtrar(v){ CH_FILTER = v || ''; desenhar();
   if(i && document.activeElement !== i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length) } }
 function focarBusca(){ const i = document.getElementById('mgz-busca-in'); if(i) i.focus() }
 function voltar(){ document.body.classList.remove('mgz-conversa'); painelDir = null; thread = null; desenhar() }
-function abrirBusca(){
-  const t = prompt('Buscar mensagem em todas as suas conversas:', achados ? achados.termo : '');
+async function abrirBusca(){
+  const t = await MGJanela.perguntar('Buscar mensagem', {
+    texto: 'Procura no que você já pode ler, em todas as suas conversas.',
+    icone: '⌕', ok: 'Buscar', rotulo: 'Texto',
+    valor: achados ? achados.termo : '', dica: 'por exemplo, criativo aprovado',
+    validar: v => !v ? 'Escreva o que procurar.'
+             : (v.trim().length < 2 ? 'Escreva ao menos dois caracteres.' : null),
+  });
   if(t === null) return;
   if(!t.trim()) return limparBusca();
   buscarMensagens(t);
+}
+function alternarReports(){
+  painelDir = painelDir === 'reports' ? null : 'reports';
+  thread = null; perfilAberto = null;
+  desenhar();
 }
 function alternarInfo(){
   const c = CHANNELS.find(x=>x.id===CHAN);
@@ -19442,6 +20260,9 @@ function alternarInfo(){
   if(c && c.tipo === 'dm') return verPerfil(outroLado(c));
   painelDir = 'info'; perfilAberto = null; thread = null; desenhar();
 }
+function trocarAba(a){ aba = a; CH_FILTER = ''; desenhar();
+  const i = document.getElementById('mgz-busca-in'); if(i) i.focus() }
+function alternarNaoLidas(){ soNaoLidas = !soNaoLidas; desenhar() }
 function alternarEmpresa(cid){
   if(empresasAbertas.has(cid)) empresasAbertas.delete(cid); else empresasAbertas.add(cid);
   desenhar();
@@ -19454,14 +20275,16 @@ return {
   alternarInfo, alternarEmpresa, enviar, enviarThread, reenviar, tecla, digitou, fmt, fmtLinha,
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
-  novoCanalCliente, novoCanalEquipe, renomear, configurar, recarregar, recarregarMsgs,
+  novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
+  configurar, recarregar, recarregarMsgs,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
   /* thread, comandos, busca e apoio ao Kronos */
   abrirThread, fecharThread, abrirComandos, escolherComando, chamarKronos,
   buscarMensagens, abrirBusca, limparBusca, irParaMensagem, meuPerfil, verPerfil,
+  trocarAba, alternarNaoLidas, novaConversa, carregarUltimas, alternarReports,
   local, atualizarLocal, limparLocais, msg, autorDe, subirArquivos,
-  online: estaOnline, nomeCanal, outroLado, totalNaoLidas, membrosDoCanal,
+  online: estaOnline, nomeCanal, outroLado, outrosLados, totalNaoLidas, membrosDoCanal,
   get canal(){ return CHAN },
   get threadAberta(){ return thread },
 };
@@ -19979,7 +20802,11 @@ async function carregarMemoria(){
   }catch(_){ /* sem memória o painel abre vazio, e tudo bem */ }
 }
 async function limpar(){
-  if(!confirm('Apagar esta conversa com o Kronos?')) return;
+  const ok = await MGJanela.confirmar('Apagar esta conversa com o Kronos?', {
+    texto: 'O histórico de perguntas e respostas some. Nada que já foi criado na plataforma é afetado.',
+    ok: 'Apagar', icone: '🧹',
+  });
+  if(!ok) return;
   hist = []; ACOES.clear(); pintar();
   try{ await sb.from('assistant_messages').delete().eq('user_id', ME.id) }catch(_){}
 }

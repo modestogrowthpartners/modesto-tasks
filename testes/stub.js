@@ -117,6 +117,65 @@
         persistir();
         return Promise.resolve({data:id,error:null});
       }
+      if(nome==='mg_ultimas'){
+        const m={};
+        FIX.messages.forEach(x=>{ const a=m[x.channel_id];
+          if(!a||new Date(x.created_at)>new Date(a.em))
+            m[x.channel_id]={channel_id:x.channel_id,corpo:String(x.body||'').slice(0,160),
+              autor_id:x.author_id,autor_nome:x.author_name,kind:x.kind,
+              tem_anexo:!!(x.anexos&&x.anexos.length),em:x.created_at}; });
+        return Promise.resolve({data:Object.values(m),error:null});
+      }
+      if(nome==='mg_abrir_grupo'){
+        const ids=[...new Set((args.p_ids||[]).concat(UID))];
+        if(ids.length<2) return Promise.resolve({data:null,error:{message:'escolha ao menos uma pessoa'}});
+        const achado=FIX.channels.find(c=>c.tipo==='dm'
+          && FIX.channel_members.filter(m=>m.channel_id===c.id).length===ids.length
+          && ids.every(i=>FIX.channel_members.some(m=>m.channel_id===c.id&&m.profile_id===i)));
+        if(achado) return Promise.resolve({data:achado.id,error:null});
+        const id='ch-g-'+Date.now();
+        FIX.channels.push({id,tipo:'dm',client_id:null,cor:null,icone:null,descricao:null,
+          created_by:UID,created_at:new Date().toISOString(),
+          nome:args.p_nome||ids.map(i=>(perfis.find(p=>p.id===i)||{}).nome).join(', ')});
+        ids.forEach(i=>FIX.channel_members.push({channel_id:id,profile_id:i,
+          last_read_at:null,apelido:null,avatar_url:null}));
+        persistir();
+        return Promise.resolve({data:id,error:null});
+      }
+      if(nome==='mg_criar_canal'){
+        const id='ch-n-'+Date.now();
+        FIX.channels.push({id,tipo:args.p_tipo,nome:args.p_nome,client_id:args.p_client_id||null,
+          cor:args.p_cor||null,icone:args.p_icone||null,descricao:args.p_descricao||null,
+          created_by:UID,created_at:new Date().toISOString()});
+        [...new Set((args.p_membros||[]).concat(UID))].forEach(i=>
+          FIX.channel_members.push({channel_id:id,profile_id:i,last_read_at:null,apelido:null,avatar_url:null}));
+        persistir();
+        return Promise.resolve({data:id,error:null});
+      }
+      if(nome==='mg_atualizar_canal'){
+        const c=FIX.channels.find(x=>x.id===args.p_canal);
+        if(!c) return Promise.resolve({data:null,error:{message:'canal não encontrado'}});
+        if(args.p_nome) c.nome=args.p_nome;
+        if(args.p_icone!==undefined) c.icone=args.p_icone||null;
+        if(args.p_cor!==undefined) c.cor=args.p_cor||null;
+        if(args.p_descricao!==undefined) c.descricao=args.p_descricao||null;
+        persistir();
+        return Promise.resolve({data:c,error:null});
+      }
+      if(nome==='mg_definir_membros'){
+        FIX.channel_members=FIX.channel_members.filter(m=>m.channel_id!==args.p_canal);
+        (args.p_ids||[]).forEach(i=>FIX.channel_members.push({channel_id:args.p_canal,profile_id:i,
+          last_read_at:null,apelido:null,avatar_url:null}));
+        persistir();
+        return Promise.resolve({data:(args.p_ids||[]).length,error:null});
+      }
+      if(nome==='mg_excluir_canal'){
+        FIX.channels=FIX.channels.filter(c=>c.id!==args.p_canal);
+        FIX.messages=FIX.messages.filter(m=>m.channel_id!==args.p_canal);
+        FIX.channel_members=FIX.channel_members.filter(m=>m.channel_id!==args.p_canal);
+        persistir();
+        return Promise.resolve({data:true,error:null});
+      }
       if(nome==='mg_canais_em_comum'){
         const n=FIX.channel_members.filter(m=>m.profile_id===args.p_outro
           && FIX.channel_members.some(x=>x.channel_id===m.channel_id && x.profile_id===UID)).length;
