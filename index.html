@@ -17203,6 +17203,7 @@ const MGU = (function(){
       cor:       corDe(linha.id || nome),
       papel:     papel,
       email:     linha.email || null,
+      desde:     linha.created_at || null,
       clienteId: linha.client_id || null,
       ehEquipe:  papel === 'admin',
       ehCliente: papel !== 'admin',
@@ -17216,7 +17217,7 @@ const MGU = (function(){
     return {
       __mgu:true,
       id:'nome:'+norm(n), nome:n, primeiro:primeiroNome(n), iniciais:iniciaisDe(n),
-      avatar:null, cor:corDe(norm(n)), papel:null, email:null, clienteId:null,
+      avatar:null, cor:corDe(norm(n)), papel:null, email:null, desde:null, clienteId:null,
       ehEquipe:false, ehCliente:false, resolvido:false,
     };
   }
@@ -17239,7 +17240,7 @@ const MGU = (function(){
     carregando = (async ()=>{
       try{
         let {data, error} = await sb.from('user_directory')
-          .select('id,nome,avatar_url,role,client_id,email');
+          .select('id,nome,avatar_url,role,client_id,email,created_at');
         /* banco ainda sem a view: cai para profiles, que funciona para admin */
         if(error){
           const r = await sb.from('profiles').select('id,nome,avatar_url,role,client_id');
@@ -17782,6 +17783,41 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-busca-res .r .cp{font-size:13px;color:var(--muted);line-height:1.5}
 .mgz-busca-res .r .cp mark{background:var(--brass-soft);color:var(--brass2);border-radius:3px}
 
+/* ---------- 12. cartão de perfil, no formato do painel do Discord ---------- */
+.mgz-perfil{padding:0;overflow-y:auto}
+.mgz-perfil .faixa{height:66px;flex-shrink:0}
+.mgz-perfil .foto{margin:-34px 0 0 16px}
+.mgz-perfil .foto .mgu-av{border:5px solid var(--card);border-radius:20px}
+.mgz-perfil .ficha{padding:10px 16px 18px}
+.mgz-perfil .ficha > b{display:block;font-size:18px;font-weight:700;line-height:1.25}
+.mgz-perfil .ap{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.mgz-perfil .tag{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:700;
+  letter-spacing:.4px;border-radius:6px;padding:2px 8px}
+.mgz-perfil .tag.eq{background:var(--brass-soft);color:var(--brass2);border:1px solid var(--brass)}
+.mgz-perfil .tag.cli{background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
+.mgz-perfil .linha{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;color:var(--muted)}
+.mgz-perfil .linha .mgu-pt{position:static;width:9px;height:9px;border:0}
+.mgz-perfil .dado{margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+.mgz-perfil .dado span{display:block;font-size:10px;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--muted2);font-weight:700;margin-bottom:3px}
+.mgz-perfil .dado b{font-size:13px;font-weight:600;word-break:break-word}
+.mgz-perfil .aviso{margin-top:13px;font-size:11.5px;line-height:1.55;color:var(--muted);
+  background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.mgz-perfil .bts{display:flex;flex-direction:column;gap:7px;margin-top:16px}
+.mgz-perfil .bts button{width:100%;justify-content:center}
+.mgz-info .p{display:flex;align-items:center;gap:10px;width:100%;padding:6px 8px;border:0;
+  border-radius:9px;background:none;text-align:left;font-family:inherit;color:var(--text)}
+.mgz-info .p:hover{background:var(--card2)}
+
+/* o "+" da caixa de escrita, como no Discord */
+.mgz-caixa .mais{position:absolute;left:10px;bottom:9px;width:26px;height:26px;border-radius:50%;
+  border:0;background:var(--muted2);color:var(--card);font-size:15px;line-height:1;font-family:inherit;
+  display:grid;place-items:center}
+.mgz-caixa .mais:hover{background:var(--brass);color:var(--ink2)}
+.mgz-caixa{position:relative}
+.mgz-caixa textarea{padding-left:26px}
+.mgz-topo .bt.ic{width:34px;height:34px;padding:0;display:grid;place-items:center;font-size:14px}
+
 /* ---------- 6. responsivo ---------- */
 @media(max-width:1320px){ .mgz-th{width:310px} }
 @media(max-width:1180px){
@@ -17851,6 +17887,10 @@ let threadCarregando = false;
 let THREADS = {};           /* canal -> raiz -> {respostas,ultima,autores}*/
 let achados = null;         /* resultado da busca por mensagem            */
 let cmdSel = 0;             /* item destacado no menu de comandos         */
+let cmdLista = [];          /* comandos filtrados pelo que foi digitado   */
+let locais = {};            /* canal -> respostas efêmeras, só quem pediu vê */
+let perfilAberto = null;    /* id da pessoa mostrada no cartão de perfil  */
+let perfilExtra = null;     /* {id, canais} vindo do banco, não estimado  */
 let fila = [];              /* anexos escolhidos, ainda não enviados     */
 let filaTh = [];            /* o mesmo, dentro da thread                  */
 let pendentes = [];         /* mensagens em voo, para render otimista    */
@@ -17858,7 +17898,6 @@ let online = new Set();     /* ids presentes agora                        */
 let digitando = new Map();  /* canalId -> Map(uid, expiraEm)             */
 let canalRT = null;
 let canalPresenca = null;
-let painelInfo = false;
 let ultimoScroll = 0;
 
 /* ---------------------------------------------------------------------
@@ -18129,10 +18168,12 @@ function autorDe(m){
    --------------------------------------------------------------------- */
 async function abrir(id){
   if(!id) return;
-  CHAN = id; respondendo = null; fila = []; erroMsgs = null;
+  CHAN = id; respondendo = null; fila = []; filaTh = []; erroMsgs = null;
+  thread = null; achados = null; cmdLista = []; perfilAberto = null; perfilExtra = null;
+  if(painelDir === 'thread') painelDir = null;
   document.body.classList.add('mgz-conversa');
-  const precisa = !CHMSGS[id] || !CH_MEMBROS[id];
-  if(precisa){ desenhar(); await Promise.all([carregarMsgs(id), carregarMembros(id)]) }
+  const precisa = !CHMSGS[id] || !CH_MEMBROS[id] || !THREADS[id];
+  if(precisa){ desenhar(); await Promise.all([carregarMsgs(id), carregarMembros(id), carregarThreads(id)]) }
   await marcarLido(id);
   desenhar();
   rolarFim(true);
@@ -18222,14 +18263,47 @@ function desenhar(){
   }
 
   const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
-  el.innerHTML = ladoHTML() + mainHTML() + (painelInfo ? infoHTML() : '');
+  const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
+
+  el.innerHTML = railHTML() + ladoHTML() + mainHTML()
+    + (painelDir === 'thread' ? threadHTML()
+     : painelDir === 'info'   ? infoHTML() : '');
+
   const c = CHANNELS.find(x=>x.id===CHAN);
   el.style.setProperty('--cor-canal', corCanal(c) || 'transparent');
   document.body.classList.toggle('mg-sem-hora', typeof mgP==='function' && mgP('horas')==='off');
-  document.body.classList.toggle('mgz-info-on', painelInfo);
+  document.body.classList.toggle('mgz-info-on',   painelDir === 'info');
+  document.body.classList.toggle('mgz-thread-on', painelDir === 'thread');
   const cx = document.getElementById('mgz-msgs');
   if(cx){ cx.scrollTop = (guardado !== null && guardado > 0) ? guardado : cx.scrollHeight }
+  const cth = document.getElementById('mgz-th-corpo');
+  if(cth){ cth.scrollTop = (guardadoTh !== null && guardadoTh > 0) ? guardadoTh : cth.scrollHeight }
   if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+}
+
+/* ----- trilha de espaços (a coluna estreita da esquerda) -----
+   Ela não cria navegação nova: cada botão chama o mesmo showView que o
+   resto da plataforma usa, então sair daqui cai exatamente onde caía. */
+function railHTML(){
+  const eu = MGU.eu();
+  const n  = totalNaoLidas();
+  const bt = (v, ic, rot, extra) =>
+    '<button class="' + (VIEW===v?'on':'') + '" title="' + esc(rot) + '"'
+    + ' onclick="showView(\'' + escJS(v) + '\')"><span>' + ic + '</span>'
+    + (extra||'') + '</button>';
+  return '<nav class="mgz-rail" aria-label="Espaços">'
+    + '<span class="lg" title="Modesto Growth Partners"></span>'
+    + '<span class="sep"></span>'
+    + bt('chat','💬','MGP Chat', n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+    + bt('home','◧','Início')
+    + bt('tasks','▤','Demandas')
+    + bt('docs','🗂','Documentos')
+    + '<span class="esp"></span>'
+    + '<button title="Falar com o Luquinhas" onclick="MGLuq.abrir()"><span>🐤</span></button>'
+    + '<button title="Seu perfil" onclick="MGChat.meuPerfil()" style="background:none">'
+      + MGU.avatar(eu, {tam:34, presenca:true}) + '</button>'
+    + bt('settings','⚙','Configurações')
+  + '</nav>';
 }
 
 /* ----- lateral ----- */
@@ -18283,7 +18357,7 @@ function ladoHTML(){
     + '<div class="mgz-marca"><span class="lg"></span><span class="tx">'
       + '<b>MGP Tasks</b><span>CONVERSAS</span></span></div>'
     + '<div class="mgz-busca"><span style="opacity:.5">⌕</span>'
-      + '<input id="mgz-busca-in" placeholder="Buscar conversa ou pessoa" value="' + esc(busca) + '"'
+      + '<input id="mgz-busca-in" placeholder="Achar ou começar uma conversa" value="' + esc(busca) + '"'
       + ' oninput="MGChat.filtrar(this.value)">'
       + (busca ? '<button class="x" onclick="MGChat.filtrar(\'\')" title="Limpar">✕</button>' : '')
     + '</div>'
@@ -18323,24 +18397,70 @@ function ladoHTML(){
 function infoHTML(){
   const c = CHANNELS.find(x=>x.id===CHAN);
   if(!c) return '';
+  if(c.tipo === 'dm') return perfilHTML(c);
+
   const gente = membrosDoCanal(c);
   const arquivos = [];
   (CHMSGS[CHAN]||[]).forEach(m => (m.anexos||[]).forEach(a => arquivos.push({a, m})));
   return '<aside class="mgz-info">'
-    + '<h4>' + (c.tipo==='dm' ? 'Conversa' : 'Membros') + ' · ' + gente.length + '</h4>'
+    + '<h4>Membros · ' + gente.length + '</h4>'
     + (gente.length ? gente.map(u=>{
         const on = estaOnline(u.id);
-        return '<div class="p">' + MGU.avatar(u, {tam:28, presenca:true})
+        return '<button class="p" onclick="MGChat.verPerfil(\'' + escJS(u.id) + '\')">'
+          + MGU.avatar(u, {tam:28, presenca:true})
           + '<span class="tx"><b>' + esc(u.nome) + '</b>'
           + '<span>' + (on===null ? (u.ehEquipe?'Equipe':'Cliente')
-                                  : (on ? 'disponível' : 'ausente')) + '</span></span></div>';
+                                  : (on ? 'disponível' : 'ausente')) + '</span></span></button>';
       }).join('') : '<div class="nada">Ninguém listado.</div>')
     + '<h4>Arquivos · ' + arquivos.length + '</h4>'
     + (arquivos.length ? arquivos.slice(-12).reverse().map(({a})=>
-        '<button class="arq" onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">'
+        '<button class="arq" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')">'
         + '<span>' + iconeArq(a) + '</span><span class="tx">' + esc(a.nome||'arquivo') + '</span></button>'
       ).join('') : '<div class="nada">Nenhum arquivo por aqui.</div>')
     + '</aside>';
+}
+
+/* Cartão de perfil, no espírito do painel de usuário do Discord: faixa
+   colorida, foto grande, nome, papel e os dados que existem de verdade.
+   Nada aqui é inventado: a data vem do diretório e os canais em comum
+   vêm de uma consulta, não de estimativa. */
+function perfilHTML(c){
+  const alvo = perfilAberto || (c && c.tipo === 'dm' ? outroLado(c) : null);
+  const u = MGU.get(alvo);
+  if(!u){
+    return '<aside class="mgz-info"><div class="nada" style="margin:auto">'
+      + 'Não consegui identificar esta pessoa.</div></aside>';
+  }
+  const on = estaOnline(u.id);
+  const desde = u.desde
+    ? new Date(u.desde).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+    : null;
+  const emComum = perfilExtra && perfilExtra.id === u.id ? perfilExtra.canais : null;
+  const jaTemDM = CHANNELS.some(x=>x.tipo==='dm' && outroLado(x) === u.id);
+  return '<aside class="mgz-info mgz-perfil">'
+    + '<div class="faixa" style="background:' + esc(u.cor || 'var(--brass)') + '"></div>'
+    + '<div class="foto">' + MGU.avatar(u, {tam:74, forma:'quadrado', presenca:true}) + '</div>'
+    + '<div class="ficha">'
+      + '<b>' + esc(u.nome) + '</b>'
+      + '<span class="ap">' + esc(MGU.norm(u.nome).replace(/\s+/g,'.')) + '</span>'
+      + '<span class="tag ' + (u.ehEquipe?'eq':'cli') + '">'
+        + (u.ehEquipe ? 'Equipe Modesto' : (u.clienteId ? esc(clientName(u.clienteId)) : 'Cliente')) + '</span>'
+      + '<div class="linha"><span class="mgu-pt ' + (on ? 'on' : '') + '"></span>'
+        + (on === null ? 'presença indisponível' : on ? 'disponível agora' : 'ausente') + '</div>'
+      + (u.email ? '<div class="dado"><span>E-mail</span><b>' + esc(u.email) + '</b></div>' : '')
+      + (desde ? '<div class="dado"><span>Membro desde</span><b>' + esc(desde) + '</b></div>' : '')
+      + '<div class="dado"><span>Canais em comum</span><b>'
+        + (emComum === null ? '<i style="opacity:.5">conferindo…</i>' : emComum) + '</b></div>'
+      + (u.resolvido ? '' : '<div class="aviso">Esta pessoa aparece só pelo nome em demandas antigas '
+        + 'e não tem cadastro na plataforma.</div>')
+      + '<div class="bts">'
+        + (u.resolvido && (!jaTemDM || (c && outroLado(c) !== u.id))
+            ? '<button class="btn-p" onclick="MGChat.abrirDireta(\'' + escJS(u.id) + '\')">Enviar mensagem</button>'
+            : '')
+        + '<button class="mgz-fio" onclick="MGLuq.sobrePessoa(\'' + escJS(u.id) + '\')">Perguntar ao Luquinhas</button>'
+        + (isAdmin() ? '<button class="mgz-fio" onclick="showView(\'equipe\')">Ver perfil completo</button>' : '')
+      + '</div>'
+    + '</div></aside>';
 }
 
 /* ----- conversa ----- */
@@ -18366,9 +18486,12 @@ function mainHTML(){
         + '<span class="nmc">' + esc(nomeCanal(c)) + '</span></b>'
       + '<small>' + sub + '</small></span>'
       + (isAdmin() && c.tipo !== 'dm'
-          ? '<button class="bt" onclick="MGChat.renomear()">Renomear</button>' : '')
-      + '<button class="bt ' + (painelInfo?'on':'') + '" onclick="MGChat.alternarInfo()"'
-        + ' title="Membros e arquivos">☰</button>'
+          ? '<button class="bt ic" onclick="MGChat.renomear()" title="Renomear canal">✎</button>' : '')
+      + '<button class="bt ic" onclick="MGLuq.abrir()" title="Falar com o Luquinhas">🐤</button>'
+      + '<button class="bt ic" onclick="MGChat.abrirBusca()" title="Buscar mensagem">⌕</button>'
+      + '<button class="bt ic ' + (painelDir==='info'?'on':'') + '" onclick="MGChat.alternarInfo()"'
+        + ' title="' + (c.tipo==='dm' ? 'Perfil' : 'Membros e arquivos') + '">'
+        + (c.tipo==='dm' ? '👤' : '☰') + '</button>'
     + '</div>'
     + '<div class="mgz-msgs" id="mgz-msgs">' + mensagensHTML() + '</div>'
     + '<div class="mgz-comp">' + composerHTML(c) + '</div>'
@@ -18385,16 +18508,50 @@ function mensagensHTML(){
     return '<div class="mgz-erro"><span>⚠</span><span><b>Não foi possível carregar as mensagens.</b><br>'
       + esc(erroMsgs) + '</span><button onclick="MGChat.recarregarMsgs()">Tentar de novo</button></div>';
   }
+  if(achados) return buscaHTML();
+
   const salvas = CHMSGS[CHAN] || [];
   const emVoo  = pendentes.filter(p=>p.channel_id===CHAN);
-  const lista  = salvas.concat(emVoo);
+  const meus   = locais[CHAN] || [];
+  const lista  = salvas.concat(emVoo, meus);
   if(!lista.length){
     const c = CHANNELS.find(x=>x.id===CHAN);
     return '<div class="mgz-centro"><div class="ic">👋</div>'
       + '<h3>Comece a conversa</h3>'
-      + '<p>Nenhuma mensagem em ' + esc(nomeCanal(c)) + ' ainda. Escreva a primeira abaixo.</p></div>';
+      + '<p>Nenhuma mensagem em ' + esc(nomeCanal(c)) + ' ainda. Escreva a primeira abaixo, '
+      + 'ou digite <b>/</b> para ver os comandos.</p></div>';
   }
+  const {raizes, filhos} = organizar(lista);
+  return blocoHTML(raizes, filhos, false);
+}
 
+/* Separa a conversa em mensagens-raiz e respostas de thread. Resposta de
+   resposta sobe para a raiz do fio, para a thread ficar plana como no
+   Slack. Resposta cuja raiz não está carregada aparece solta em vez de
+   sumir da tela. */
+function organizar(lista){
+  const porId = new Map(lista.map(m=>[String(m.id), m]));
+  const raizDe = id=>{
+    let atual = porId.get(String(id)), voltas = 0;
+    while(atual && atual.reply_to && porId.has(String(atual.reply_to)) && voltas++ < 30){
+      atual = porId.get(String(atual.reply_to));
+    }
+    return atual ? String(atual.id) : null;
+  };
+  const raizes = [], filhos = new Map();
+  lista.forEach(m=>{
+    if(!m.reply_to){ raizes.push(m); return }
+    const r = raizDe(m.id);
+    if(!r || r === String(m.id)){ raizes.push(m); return }
+    if(!filhos.has(r)) filhos.set(r, []);
+    filhos.get(r).push(m);
+  });
+  return {raizes, filhos};
+}
+
+/* desenha uma sequência de mensagens; `naThread` tira o aviso de fio e
+   as ações que não fazem sentido dentro do painel da direita */
+function blocoHTML(lista, filhos, naThread){
   let dia = '', autorAnt = null, tsAnt = 0, out = '';
   lista.forEach(m=>{
     const d = dataDe(m.created_at);
@@ -18406,33 +18563,172 @@ function mensagensHTML(){
            + '<span class="de">sistema</span></div>';
       return;
     }
-    const u = autorDe(m);
+    const ehLuq   = m.kind === 'luquinhas';
+    const ehLocal = !!m.__local;
+    const u = ehLuq || ehLocal ? null : autorDe(m);
+    const chave = ehLuq ? 'luq' : ehLocal ? 'local' : m.author_id;
     const t = new Date(m.created_at).getTime();
-    const segue = (autorAnt === m.author_id) && (t - tsAnt <= 5*60000)
-               && !m.reply_to && !(m.anexos||[]).length;
-    autorAnt = m.author_id; tsAnt = t;
-    const meu = ME && m.author_id === ME.id;
+    const fio = naThread ? '' : fioHTML(m, filhos);
+    const segue = (autorAnt === chave) && (t - tsAnt <= 5*60000)
+               && !fio && !(m.anexos||[]).length && !ehLocal;
+    autorAnt = chave; tsAnt = t;
+    const meu = ME && m.author_id === ME.id && !ehLuq && !ehLocal;
 
     out += '<div class="mgz-m ' + (segue?'segue ':'') + (m.__pendente?'enviando ':'')
-        + (m.__falhou?'falhou ':'') + '" data-id="' + esc(String(m.id)) + '">'
+        + (m.__falhou?'falhou ':'') + (ehLuq||ehLocal?'luq ':'')
+        + (m.__pensando?'pensando ':'') + '" data-id="' + esc(String(m.id)) + '">'
       + '<span class="hora-lat">' + horaDe(m.created_at) + '</span>'
-      + MGU.avatar(u, {tam:36, forma:'quadrado', presenca:!segue})
+      + (ehLuq || ehLocal ? '<span class="mgz-luqav">🐤</span>'
+                          : MGU.avatar(u, {tam:36, forma:'quadrado', presenca:!segue}))
       + '<div class="bd">'
-        + citacaoHTML(m)
-        + '<div class="hd"><span class="quem">' + esc(u.nome) + '</span>'
-          + (u.ehCliente && u.resolvido ? '<span class="mgu-rl cli">cliente</span>' : '')
-          + '<span class="hora">' + horaDe(m.created_at) + '</span></div>'
-        + '<div class="tx">' + corpoHTML(m.body) + '</div>'
+        + (naThread ? '' : citacaoHTML(m))
+        + '<div class="hd"><span class="quem">'
+          + (ehLuq || ehLocal ? 'Luquinhas' : esc(u.nome)) + '</span>'
+          + (ehLuq || ehLocal ? '<span class="selo">IA</span>' : '')
+          + (!ehLuq && !ehLocal && u.ehCliente && u.resolvido ? '<span class="mgu-rl cli">cliente</span>' : '')
+          + '<span class="hora">' + horaDe(m.created_at) + '</span>'
+          + (ehLocal ? '<span class="hora">· só você vê</span>' : '')
+        + '</div>'
+        + '<div class="tx">' + (m.__html || corpoHTML(m.body)) + '</div>'
         + anexosHTML(m)
+        + (m.__acao ? acaoHTML(m) : '')
         + (m.__falhou
-            ? '<button class="refazer" onclick="MGChat.reenviar(\'' + esc(String(m.id)) + '\')">'
+            ? '<button class="refazer" onclick="MGChat.reenviar(\'' + escJS(String(m.id)) + '\')">'
               + 'não enviou · tentar de novo</button>' : '')
-        + '<div class="mgz-reacoes">' + reacoesHTML(m) + '</div>'
+        + (ehLocal ? '' : '<div class="mgz-reacoes">' + reacoesHTML(m) + '</div>')
+        + fio
       + '</div>'
-      + (m.__pendente ? '' : acoesHTML(m, meu))
+      + (m.__pendente || ehLocal ? '' : acoesHTML(m, meu, naThread))
       + '</div>';
   });
   return out;
+}
+
+/* aviso de thread embaixo da mensagem-raiz. A contagem vem do banco
+   (mg_threads), então uma thread antiga não aparece com menos respostas
+   do que realmente tem só porque a janela carregada é limitada. */
+function fioHTML(m, filhos){
+  const doBanco = (THREADS[CHAN] || {})[String(m.id)];
+  const aqui    = (filhos && filhos.get(String(m.id))) || [];
+  const n = Math.max(doBanco ? doBanco.respostas : 0, aqui.length);
+  if(!n) return '';
+  const autores = [...new Set([].concat(doBanco ? doBanco.autores : [],
+                                        aqui.map(x=>x.author_id)))].filter(Boolean).slice(0,3);
+  const quando = (aqui.length ? aqui[aqui.length-1].created_at : null)
+              || (doBanco ? doBanco.ultima : null);
+  return '<button class="mgz-fio" onclick="MGChat.abrirThread(\'' + escJS(String(m.id)) + '\')">'
+    + '<span class="avs">' + autores.map(id=>MGU.avatar(id,{tam:20})).join('') + '</span>'
+    + '<span>' + n + ' resposta' + (n===1?'':'s') + '</span>'
+    + (quando ? '<span class="qd">' + esc(horaDe(quando)) + '</span>' : '')
+    + '</button>';
+}
+
+/* ----- painel da direita em modo thread ----- */
+function threadHTML(){
+  const raiz = msg(thread);
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(!raiz){
+    return '<aside class="mgz-th"><div class="mgz-th-topo">'
+      + '<span class="tx"><b>Thread</b><small>mensagem indisponível</small></span>'
+      + '<button class="x" onclick="MGChat.fecharThread()" title="Fechar">✕</button></div>'
+      + '<div class="mgz-th-corpo"><div class="mgz-centro"><div class="ic">🧵</div>'
+      + '<h3>Mensagem não encontrada</h3>'
+      + '<p>Ela pode ter sido excluída enquanto a thread estava aberta.</p></div></div></aside>';
+  }
+  const u = raiz.kind === 'luquinhas' ? null : autorDe(raiz);
+  const filhas = (CHMSGS[CHAN] || []).filter(m=>String(m.reply_to) === String(raiz.id))
+    .concat(pendentes.filter(m=>m.channel_id===CHAN && String(m.reply_to)===String(raiz.id)))
+    .concat((locais[CHAN]||[]).filter(m=>String(m.reply_to)===String(raiz.id)));
+
+  return '<aside class="mgz-th">'
+    + '<div class="mgz-th-topo">'
+      + '<span class="tx"><b>Thread</b><small>em ' + esc(nomeCanal(c)) + '</small></span>'
+      + '<button class="x" onclick="MGChat.fecharThread()" title="Fechar thread">✕</button>'
+    + '</div>'
+    + '<div class="mgz-th-corpo" id="mgz-th-corpo">'
+      + '<div class="mgz-th-raiz">'
+        + '<div class="lin">'
+          + (raiz.kind === 'luquinhas' ? '<span class="mgz-luqav" style="width:24px;height:24px;font-size:13px">🐤</span>'
+                                       : MGU.avatar(u, {tam:24}))
+          + '<b>' + (raiz.kind === 'luquinhas' ? 'Luquinhas' : esc(u.nome)) + '</b>'
+          + '<span>' + esc(dataDe(raiz.created_at)) + ' · ' + horaDe(raiz.created_at) + '</span>'
+        + '</div>'
+        + '<div class="tx">' + corpoHTML(raiz.body) + '</div>'
+        + anexosHTML(raiz)
+      + '</div>'
+      + (threadCarregando
+          ? '<div class="mgz-esq"><div class="l"><span class="b av"></span><span>'
+            + '<span class="b l1"></span><span class="b l2"></span></span></div></div>'
+          : filhas.length
+            ? '<div class="mgz-th-conta">' + filhas.length + ' resposta' + (filhas.length===1?'':'s') + '</div>'
+              + blocoHTML(filhas, null, true)
+            : '<div class="mgz-centro" style="padding:22px 16px"><div class="ic">↩</div>'
+              + '<h3>Sem respostas ainda</h3>'
+              + '<p>Responda abaixo. A thread fica aqui, sem poluir a conversa.</p></div>')
+    + '</div>'
+    + '<div class="mgz-comp">' + composerHTML(c, 'th') + '</div>'
+  + '</aside>';
+}
+
+/* ----- resultado da busca por mensagem ----- */
+function buscaHTML(){
+  if(!achados.pronto){
+    return '<div class="mgz-esq">' + Array.from({length:3}).map(()=>
+      '<div class="l"><span><span class="b l1"></span><span class="b l2"></span></span></div>').join('') + '</div>';
+  }
+  if(achados.erro){
+    return '<div class="mgz-erro"><span>⚠</span><span><b>A busca falhou.</b><br>'
+      + esc(achados.erro) + '</span><button onclick="MGChat.limparBusca()">Voltar</button></div>';
+  }
+  if(!achados.linhas.length){
+    return '<div class="mgz-centro"><div class="ic">⌕</div><h3>Nada encontrado</h3>'
+      + '<p>Nenhuma mensagem com "' + esc(achados.termo) + '" nas conversas que você participa.</p>'
+      + '<button class="btn-p" onclick="MGChat.limparBusca()">Voltar para a conversa</button></div>';
+  }
+  const marca = txt=>{
+    const t = String(txt||'').slice(0,220);
+    const i = MGU.norm(t).indexOf(MGU.norm(achados.termo));
+    if(i < 0) return esc(t);
+    const n = achados.termo.length;
+    return esc(t.slice(0,i)) + '<mark>' + esc(t.slice(i,i+n)) + '</mark>' + esc(t.slice(i+n));
+  };
+  return '<div class="mgz-th-conta" style="margin:12px 20px 4px">'
+      + achados.linhas.length + ' resultado' + (achados.linhas.length===1?'':'s')
+      + ' para "' + esc(achados.termo) + '"'
+      + '<button class="mgz-fio" style="margin-left:auto" onclick="MGChat.limparBusca()">voltar</button></div>'
+    + '<div class="mgz-busca-res">' + achados.linhas.map(m=>{
+        const canal = CHANNELS.find(c=>c.id===m.channel_id);
+        const u = m.kind === 'luquinhas' ? null : (MGU.get(m.author_id) || MGU.seguro(m.author_name));
+        return '<button class="r" onclick="MGChat.irParaMensagem(\'' + escJS(String(m.channel_id))
+          + '\',\'' + escJS(String(m.id)) + '\')">'
+          + '<span class="top">' + (u ? MGU.avatar(u,{tam:18}) : '<span class="mgz-luqav" style="width:18px;height:18px;font-size:11px">🐤</span>')
+          + '<b>' + (u ? esc(u.nome) : 'Luquinhas') + '</b>'
+          + '<span>' + esc(canal ? nomeCanal(canal) : 'conversa') + ' · '
+          + esc(dataDe(m.created_at)) + ' ' + horaDe(m.created_at) + '</span></span>'
+          + '<span class="cp">' + marca(m.body) + '</span></button>';
+      }).join('') + '</div>';
+}
+
+/* cartão de confirmação de uma ação proposta pelo Luquinhas */
+function acaoHTML(m){
+  const a = m.__acao;
+  if(a.estado === 'feito'){
+    return '<div class="mgz-cit" style="border-left-color:var(--ok, #2E9E6B)"><b>✓ '
+      + esc(a.titulo) + '</b><span class="t">executado</span></div>';
+  }
+  if(a.estado === 'cancelado'){
+    return '<div class="mgz-cit"><b>' + esc(a.titulo) + '</b><span class="t">cancelado</span></div>';
+  }
+  return '<div class="mgz-th-raiz" style="margin:8px 0 0">'
+    + '<div class="lin"><b>' + esc(a.titulo) + '</b></div>'
+    + a.campos.map(c=>'<div class="tx" style="font-size:12.5px"><b>' + esc(c.rotulo) + ':</b> '
+        + esc(c.valor) + '</div>').join('')
+    + '<div style="display:flex;gap:8px;margin-top:10px">'
+      + '<button class="btn-p" ' + (a.estado==='executando'?'disabled':'')
+        + ' onclick="MGLuq.confirmar(\'' + escJS(String(a.id)) + '\')">'
+        + (a.estado==='executando' ? 'Executando…' : 'Confirmar') + '</button>'
+      + '<button class="mgz-fio" onclick="MGLuq.cancelar(\'' + escJS(String(a.id)) + '\')">Cancelar</button>'
+    + '</div></div>';
 }
 function citacaoHTML(m){
   if(!m.reply_to) return '';
@@ -18472,57 +18768,76 @@ function reacoesHTML(m){
        '<button class="mgz-rea add" title="Reagir"'
        + ' onclick="MGChat.abrirEmojis(\'' + esc(String(m.id)) + '\',event)">＋</button>');
 }
-function acoesHTML(m, meu){
-  const id = esc(String(m.id));
+function acoesHTML(m, meu, naThread){
+  const id = escJS(String(m.id));
   return '<div class="mgz-acoes">'
     + '<button title="Reagir" onclick="MGChat.abrirEmojis(\'' + id + '\',event)">☺</button>'
-    + '<button title="Responder" onclick="MGChat.responder(\'' + id + '\')">↩</button>'
+    + (naThread ? '' : '<button title="Responder na thread" onclick="MGChat.abrirThread(\'' + id + '\')">↩</button>')
     + '<button title="Copiar" onclick="MGChat.copiar(\'' + id + '\')">⧉</button>'
+    + '<button title="Perguntar ao Luquinhas sobre isto"'
+      + ' onclick="MGLuq.sobreMensagem(\'' + id + '\')">🐤</button>'
     + ((meu || isAdmin())
         ? '<span class="div"></span><button title="Excluir" onclick="MGChat.excluir(\'' + id + '\')">🗑</button>'
         : '')
     + '</div>';
 }
 
-/* ----- caixa de escrita ----- */
-function composerHTML(c){
+/* ----- caixa de escrita -----
+   A mesma função desenha a caixa da conversa e a da thread. `onde` é ''
+   para a conversa e 'th' para a thread, e vira sufixo dos ids, para os
+   dois campos coexistirem na tela sem se atropelar. */
+function composerHTML(c, onde){
+  const th = onde === 'th';
+  const sufixo = th ? '-th' : '';
   const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
   const podeAnexar = isAdmin() || c.tipo === 'client';
-  return (respondendo
-      ? '<div class="mgz-resp"><span>↩</span><span class="t">Respondendo <b>'
-        + esc(respondendo.autor) + '</b> · ' + esc(respondendo.texto) + '</span>'
-        + '<button class="x" onclick="MGChat.cancelarResposta()">✕</button></div>'
-      : '')
+  const f = th ? filaTh : fila;
+  const alvo = th ? 'MGChat.enviarThread()' : 'MGChat.enviar()';
+  return (th ? '' : menuComandosHTML())
     + '<div class="mgz-caixa">'
       + '<div class="mgz-fer">'
-        + '<button title="Negrito" onclick="MGChat.fmt(\'*\')"><b>B</b></button>'
-        + '<button title="Itálico" onclick="MGChat.fmt(\'_\')"><i>I</i></button>'
-        + '<button title="Riscado" onclick="MGChat.fmt(\'~\')"><s>S</s></button>'
-        + '<button title="Código" onclick="MGChat.fmt(\'`\')">&lt;/&gt;</button>'
-        + '<span class="div"></span>'
-        + '<button title="Lista" onclick="MGChat.fmtLinha(\'• \')">☰</button>'
-        + '<button title="Citação" onclick="MGChat.fmtLinha(\'&gt; \')">❝</button>'
+        + '<button title="Negrito" onclick="MGChat.fmt(\'*\',\'' + onde + '\')"><b>B</b></button>'
+        + '<button title="Itálico" onclick="MGChat.fmt(\'_\',\'' + onde + '\')"><i>I</i></button>'
+        + '<button title="Riscado" onclick="MGChat.fmt(\'~\',\'' + onde + '\')"><s>S</s></button>'
+        + '<button title="Código" onclick="MGChat.fmt(\'`\',\'' + onde + '\')">&lt;/&gt;</button>'
         + '<span class="div"></span>'
         + '<button title="Emoji" onclick="MGChat.emojiNoTexto(event)">☺</button>'
-        + (podeAnexar ? '<button title="Anexar arquivo" onclick="MGChat.escolherArquivo()">📎</button>' : '')
+        + (podeAnexar ? '<button title="Anexar arquivo" onclick="MGChat.escolherArquivo(\'' + onde + '\')">📎</button>' : '')
+        + '<button title="Chamar o Luquinhas" onclick="MGChat.chamarLuquinhas(\'' + onde + '\')">🐤</button>'
+        + (th ? '' : '<button title="Comandos" onclick="MGChat.abrirComandos()">/</button>')
       + '</div>'
-      + (fila.length ? '<div class="mgz-fila">' + fila.map((f,i)=>
-          '<span class="it">' + iconeArq(f) + ' ' + esc(f.nome) + ' <span style="color:var(--muted)">'
-          + tamanho(f.tamanho) + '</span>'
-          + '<button onclick="MGChat.tirarDaFila(' + i + ')" title="Remover">✕</button></span>').join('')
+      + (f.length ? '<div class="mgz-fila">' + f.map((x,i)=>
+          '<span class="it">' + iconeArq(x) + ' ' + esc(x.nome) + ' <span style="color:var(--muted)">'
+          + tamanho(x.tamanho) + '</span>'
+          + '<button onclick="MGChat.tirarDaFila(' + i + ',\'' + onde + '\')" title="Remover">✕</button></span>').join('')
         + '</div>' : '')
-      + '<textarea id="mgz-in" rows="1" placeholder="Mensagem para ' + esc(nomeCanal(c)) + '"'
-        + ' onkeydown="MGChat.tecla(event)" oninput="MGChat.digitou(this)"></textarea>'
+      + (podeAnexar ? '<button class="mais" onclick="MGChat.escolherArquivo(\'' + onde + '\')"'
+          + ' title="Anexar arquivo">＋</button>' : '')
+      + '<textarea id="mgz-in' + sufixo + '" rows="1" placeholder="'
+        + (th ? 'Responder na thread' : 'Mensagem para ' + esc(nomeCanal(c)) + ' · digite / para comandos')
+        + '" onkeydown="MGChat.tecla(event,\'' + onde + '\')"'
+        + ' oninput="MGChat.digitou(this,\'' + onde + '\')"></textarea>'
       + '<div class="mgz-baixo"><span class="sp"></span>'
-        + '<button class="env" id="mgz-env" onclick="MGChat.enviar()" title="Enviar">➤</button></div>'
+        + '<button class="env" id="mgz-env' + sufixo + '" onclick="' + alvo + '" title="Enviar">➤</button></div>'
     + '</div>'
-    + '<div class="mgz-dica" id="mgz-dica">'
-      + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha</span>'
-                    : '<span><b>Ctrl+Enter</b> envia · <b>Enter</b> quebra linha</span>')
-      + '<span class="mgz-cmds">'
-        + '<button onclick="MGChat.exemploDemanda()">#adicionardemanda</button>'
-        + '<button onclick="MGChat.exemploDocumento()">#adicionardocumento</button>'
-      + '</span></div>';
+    + (th ? '' : '<div class="mgz-dica" id="mgz-dica">'
+      + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha · <b>/</b> comandos · <b>@Luquinhas</b> chama a IA</span>'
+                    : '<span><b>Ctrl+Enter</b> envia · <b>/</b> comandos · <b>@Luquinhas</b> chama a IA</span>')
+      + '</div>');
+}
+
+/* menu que aparece quando a mensagem começa com barra */
+function menuComandosHTML(){
+  if(!cmdLista.length) return '';
+  return '<div class="mgz-cmdmenu" id="mgz-cmdmenu">'
+    + '<div class="cab">Comandos</div>'
+    + cmdLista.map((c,i)=>
+        '<button class="' + (i===cmdSel?'sel':'') + '"'
+        + ' onmousedown="event.preventDefault();MGChat.escolherComando(' + i + ')">'
+        + '<span class="ic">' + c.icone + '</span>'
+        + '<span class="tx"><b>/' + esc(c.nome) + '</b><span>' + esc(c.descricao) + '</span></span>'
+        + '<span class="at">' + esc(c.uso || '') + '</span></button>').join('')
+  + '</div>';
 }
 function pintarDigitando(){
   const el = document.getElementById('mgz-dica'); if(!el) return;
@@ -18543,55 +18858,153 @@ function pintarDigitando(){
 /* ---------------------------------------------------------------------
    7. Ações
    --------------------------------------------------------------------- */
-function caixa(){ return document.getElementById('mgz-in') }
-function digitou(ta){
+function caixa(onde){ return document.getElementById('mgz-in' + (onde==='th'?'-th':'')) }
+function filaDe(onde){ return onde==='th' ? filaTh : fila }
+
+function digitou(ta, onde){
   ta.style.height = 'auto';
   ta.style.height = Math.min(ta.scrollHeight, 180) + 'px';
-  const b = document.getElementById('mgz-env');
-  if(b) b.disabled = !ta.value.trim() && !fila.length;
+  const b = document.getElementById('mgz-env' + (onde==='th'?'-th':''));
+  if(b) b.disabled = !ta.value.trim() && !filaDe(onde).length;
+  if(onde !== 'th') atualizarComandos(ta.value);
   avisarDigitando();
 }
-function tecla(e){
-  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
-  if(e.key === 'Enter'){
-    if(enterEnvia && !e.shiftKey){ e.preventDefault(); enviar(); return }
-    if(!enterEnvia && (e.ctrlKey || e.metaKey)){ e.preventDefault(); enviar(); return }
-  }
-  if(e.key === 'Escape' && respondendo){ e.preventDefault(); cancelarResposta() }
-  setTimeout(()=>digitou(e.target), 0);
+
+/* menu de comandos: só aparece na primeira linha e enquanto a mensagem
+   inteira é o comando, para não atrapalhar quem escreve uma barra no
+   meio do texto */
+function atualizarComandos(valor){
+  const m = /^\/([a-zà-ú]*)$/i.exec(String(valor||''));
+  const antes = cmdLista.length;
+  cmdLista = (m && window.MGCmd) ? MGCmd.buscar(m[1]).slice(0,7) : [];
+  if(cmdLista.length !== antes || cmdLista.length) pintarComandos();
+  else if(antes) pintarComandos();
 }
-function fmt(marca){
-  const ta = caixa(); if(!ta) return;
+function pintarComandos(){
+  const comp = document.querySelector('.mgz-main .mgz-comp');
+  if(!comp) return;
+  const velho = document.getElementById('mgz-cmdmenu');
+  const html = menuComandosHTML();
+  if(!html){ if(velho) velho.remove(); return }
+  if(velho) velho.outerHTML = html; else comp.insertAdjacentHTML('afterbegin', html);
+}
+function abrirComandos(){
+  const ta = caixa(''); if(!ta) return;
+  if(!/^\//.test(ta.value)) ta.value = '/' + ta.value;
+  ta.focus(); digitou(ta, '');
+}
+function escolherComando(i){
+  const c = cmdLista[i]; if(!c) return;
+  const ta = caixa(''); if(!ta) return;
+  ta.value = '/' + c.nome + (c.uso ? ' ' : '');
+  cmdLista = []; pintarComandos();
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  digitou(ta, '');
+  if(!c.uso) enviar();
+}
+
+function tecla(e, onde){
+  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
+  /* com o menu de comandos aberto, as setas e o Enter pertencem a ele */
+  if(onde !== 'th' && cmdLista.length){
+    if(e.key === 'ArrowDown'){ e.preventDefault(); cmdSel = (cmdSel+1) % cmdLista.length; pintarComandos(); return }
+    if(e.key === 'ArrowUp'){ e.preventDefault(); cmdSel = (cmdSel-1+cmdLista.length) % cmdLista.length; pintarComandos(); return }
+    if(e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)){ e.preventDefault(); escolherComando(cmdSel); return }
+    if(e.key === 'Escape'){ e.preventDefault(); cmdLista = []; pintarComandos(); return }
+  }
+  if(e.key === 'Enter'){
+    if(enterEnvia && !e.shiftKey){ e.preventDefault(); onde==='th' ? enviarThread() : enviar(); return }
+    if(!enterEnvia && (e.ctrlKey || e.metaKey)){ e.preventDefault(); onde==='th' ? enviarThread() : enviar(); return }
+  }
+  if(e.key === 'Escape'){
+    if(onde === 'th'){ e.preventDefault(); fecharThread(); return }
+    if(achados){ e.preventDefault(); limparBusca(); return }
+  }
+  setTimeout(()=>digitou(e.target, onde), 0);
+}
+function fmt(marca, onde){
+  const ta = caixa(onde); if(!ta) return;
   const i = ta.selectionStart, f = ta.selectionEnd, t = ta.value;
   const sel = t.slice(i,f) || 'texto';
   ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
   ta.focus(); ta.setSelectionRange(i+marca.length, i+marca.length+sel.length);
 }
-function fmtLinha(prefixo){
-  const ta = caixa(); if(!ta) return;
+function fmtLinha(prefixo, onde){
+  const ta = caixa(onde); if(!ta) return;
   const i = ta.selectionStart, t = ta.value;
   const ini = t.lastIndexOf('\n', i-1) + 1;
   ta.value = t.slice(0,ini) + prefixo + t.slice(ini);
   ta.focus(); ta.setSelectionRange(i+prefixo.length, i+prefixo.length);
 }
 
-async function enviar(){
-  const ta = caixa(); if(!ta || !CHAN) return;
-  const corpo = ta.value.trim();
-  if(!corpo && !fila.length) return;
+/* ----- threads ----- */
+async function abrirThread(id){
+  const m = msg(id); if(!m) return;
+  /* responder a uma resposta prende o fio na raiz, para a thread ficar
+     plana e não virar árvore */
+  let raiz = m;
+  const todas = CHMSGS[CHAN] || [];
+  let voltas = 0;
+  while(raiz.reply_to && voltas++ < 30){
+    const pai = todas.find(x=>String(x.id) === String(raiz.reply_to));
+    if(!pai) break;
+    raiz = pai;
+  }
+  thread = String(raiz.id);
+  painelDir = 'thread';
+  threadCarregando = true;
+  desenhar();
+  try{
+    const {data, error} = await sb.from('messages').select('*')
+      .eq('channel_id', CHAN).eq('reply_to', thread)
+      .order('created_at',{ascending:true}).limit(300);
+    if(error) throw error;
+    const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
+    (data||[]).forEach(x=>{ if(!lista.some(y=>y.id===x.id)) lista.push(x) });
+  }catch(e){
+    toast('Não foi possível carregar a thread: ' + ((e&&e.message)||''));
+  }finally{
+    threadCarregando = false;
+    desenhar();
+    const ta = caixa('th'); if(ta) ta.focus();
+  }
+}
+function fecharThread(){ thread = null; painelDir = null; filaTh = []; desenhar() }
+function enviarThread(){ return enviar('th') }
 
-  const alvo = respondendo ? respondendo.id : null;
-  const anexosPendentes = fila.slice();
-  ta.value = ''; ta.style.height = 'auto'; respondendo = null; fila = [];
+/* ----- envio -----
+   Uma função só serve a conversa e a thread. Na thread, reply_to é a
+   mensagem-raiz aberta; na conversa, é nulo. */
+async function enviar(onde){
+  const th = onde === 'th';
+  const ta = caixa(onde); if(!ta || !CHAN) return;
+  const corpo = ta.value.trim();
+  const f = filaDe(onde);
+  if(!corpo && !f.length) return;
+
+  /* comando de barra não vira mensagem: ele executa */
+  if(!th && /^\//.test(corpo)){
+    ta.value = ''; ta.style.height = 'auto';
+    cmdLista = []; pintarComandos(); digitou(ta, onde);
+    if(window.MGCmd) return MGCmd.executar(corpo);
+    return local('O sistema de comandos não carregou. Recarregue a página.');
+  }
+
+  const alvo = th ? thread : null;
+  const anexosPendentes = f.slice();
+  ta.value = ''; ta.style.height = 'auto';
+  if(th) filaTh = []; else fila = [];
 
   const provisorio = {
-    id: 'tmp-' + Date.now(), channel_id: CHAN, author_id: ME.id, author_name: ME.name,
+    id: 'tmp-' + Date.now() + Math.random().toString(16).slice(2,6),
+    channel_id: CHAN, author_id: ME.id, author_name: ME.name,
     body: corpo, kind:'user', created_at: new Date().toISOString(),
     reply_to: alvo, reactions:{}, anexos:[], __pendente:true,
   };
   pendentes.push(provisorio);
-  desenhar(); rolarFim(true);
+  desenhar(); if(!th) rolarFim(true);
 
+  let salva = null;
   try{
     const anexos = anexosPendentes.length ? await subirArquivos(anexosPendentes) : [];
     const linha = {channel_id: CHAN, author_id: ME.id, author_name: ME.name, body: corpo || ' '};
@@ -18599,27 +19012,37 @@ async function enviar(){
     if(anexos.length) linha.anexos = anexos;
 
     let {data, error} = await sb.from('messages').insert(linha).select().single();
-    /* banco sem as colunas novas: envia sem elas em vez de falhar */
     if(error && /reply_to|anexos/i.test(error.message||'')){
       delete linha.reply_to; delete linha.anexos;
       ({data, error} = await sb.from('messages').insert(linha).select().single());
     }
     if(error) throw error;
+    salva = data;
 
     pendentes = pendentes.filter(p=>p.id !== provisorio.id);
     const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
     if(data && !lista.some(m=>m.id===data.id)) lista.push(data);
-    desenhar(); rolarFim(true);
+    if(alvo){
+      const t = (THREADS[CHAN] = THREADS[CHAN] || {});
+      t[alvo] = t[alvo] || {respostas:0, ultima:null, autores:[]};
+      t[alvo].respostas++; t[alvo].ultima = data.created_at;
+      if(!t[alvo].autores.includes(ME.id)) t[alvo].autores.push(ME.id);
+    }
+    desenhar(); if(!th) rolarFim(true);
   }catch(e){
     const m = (e && e.message) || '';
     provisorio.__pendente = false; provisorio.__falhou = true; provisorio.__corpo = corpo;
     desenhar();
-    if(/row-level security|permission/i.test(m)) toast('O banco recusou: você não tem acesso a este canal');
+    if(/row-level security|permission/i.test(m)) toast('O banco recusou: você não tem acesso a esta conversa');
     else toast('Não foi possível enviar: ' + m);
     console.error('[chat] envio', e);
     return;
   }
 
+  /* @Luquinhas responde para todo mundo, dentro da própria conversa */
+  if(/@luquinhas\b/i.test(corpo) && window.MGLuq){
+    MGLuq.noCanal(corpo, CHAN, alvo || (salva ? salva.id : null));
+  }
   if(/#adicionardemanda\b/i.test(corpo)   && typeof chCriarDemanda   === 'function') chCriarDemanda(corpo);
   if(/#adicionardocumento\b/i.test(corpo) && typeof chCriarDocumento === 'function') chCriarDocumento(corpo);
 }
@@ -18627,33 +19050,113 @@ function reenviar(id){
   const i = pendentes.findIndex(p=>String(p.id)===String(id));
   if(i < 0) return;
   const p = pendentes[i];
+  const th = !!p.reply_to && String(p.reply_to) === String(thread);
   pendentes.splice(i,1);
-  const ta = caixa();
+  const ta = caixa(th ? 'th' : '');
   if(ta){ ta.value = p.__corpo || p.body || ''; }
   desenhar();
-  enviar();
+  enviar(th ? 'th' : '');
 }
 
+/* ----- resposta efêmera do Luquinhas e dos comandos -----
+   Só quem pediu vê, e não vai para o banco. É o mesmo comportamento de
+   resposta de comando do Slack, e evita poluir a conversa dos outros. */
+function local(texto, extra){
+  if(!CHAN) return;
+  const l = (locais[CHAN] = locais[CHAN] || []);
+  const m = Object.assign({
+    id: 'loc-' + Date.now() + Math.random().toString(16).slice(2,6),
+    channel_id: CHAN, author_id: null, body: texto || '',
+    kind: 'luquinhas', created_at: new Date().toISOString(),
+    reactions: {}, anexos: [], __local: true,
+  }, extra || {});
+  l.push(m);
+  if(l.length > 40) l.splice(0, l.length - 40);
+  desenhar(); rolarFim(true);
+  return m;
+}
+function atualizarLocal(id, campos){
+  const l = locais[CHAN] || [];
+  const m = l.find(x=>String(x.id) === String(id));
+  if(!m) return null;
+  Object.assign(m, campos);
+  desenhar();
+  return m;
+}
+function limparLocais(){ if(CHAN) locais[CHAN] = []; desenhar() }
+
+/* ----- busca de mensagem ----- */
+async function buscarMensagens(termo){
+  const t = String(termo||'').trim();
+  if(t.length < 2){ toast('Escreva ao menos dois caracteres'); return }
+  achados = {termo:t, pronto:false, linhas:[], erro:null};
+  desenhar();
+  try{
+    const {data, error} = await sb.rpc('mg_buscar_mensagens', {p_termo:t, p_limite:40});
+    if(error) throw error;
+    achados = {termo:t, pronto:true, linhas:data||[], erro:null};
+  }catch(e){
+    achados = {termo:t, pronto:true, linhas:[], erro:(e&&e.message)||'erro'};
+  }
+  desenhar();
+}
+function limparBusca(){ achados = null; desenhar(); rolarFim(true) }
+async function irParaMensagem(cid, mid){
+  achados = null;
+  if(cid !== CHAN) await abrir(cid);
+  else desenhar();
+  setTimeout(()=>irPara(mid), 120);
+}
+
+function meuPerfil(){ return verPerfil(ME ? ME.id : null) }
+
+/* Abre o cartão de perfil no painel da direita e busca no banco o que
+   não dá para saber pela tela, como os canais em comum. */
+async function verPerfil(id){
+  if(!id) return;
+  perfilAberto = id;
+  perfilExtra = null;
+  painelDir = 'info';
+  thread = null;
+  desenhar();
+  if(ME && id === ME.id){ perfilExtra = {id, canais: CHANNELS.length}; desenhar(); return }
+  try{
+    const {data, error} = await sb.rpc('mg_canais_em_comum', {p_outro: id});
+    if(error) throw error;
+    perfilExtra = {id, canais: Number(data) || 0};
+  }catch(e){
+    perfilExtra = {id, canais: '—'};
+  }
+  desenhar();
+}
+function chamarLuquinhas(onde){
+  const ta = caixa(onde); if(!ta) return;
+  if(!/@luquinhas/i.test(ta.value)){
+    ta.value = '@Luquinhas ' + ta.value;
+  }
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  digitou(ta, onde);
+}
 /* ----- anexos ----- */
 function pastaDoCanal(){
   const c = CHANNELS.find(x=>x.id===CHAN);
   if(c && c.tipo === 'client' && c.client_id) return c.client_id + '/chat';
   return 'equipe/chat';
 }
-function escolherArquivo(){
+function escolherArquivo(onde){
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true;
   inp.onchange = e=>{
     [...e.target.files].forEach(f=>{
       if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
-      fila.push({nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f});
+      filaDe(onde).push({nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f});
     });
     desenhar();
-    const ta = caixa(); if(ta) ta.focus();
+    const ta = caixa(onde); if(ta) ta.focus();
   };
   inp.click();
 }
-function tirarDaFila(i){ fila.splice(i,1); desenhar() }
+function tirarDaFila(i, onde){ filaDe(onde).splice(i,1); desenhar() }
 async function subirArquivos(itens){
   const out = [];
   for(const f of itens){
@@ -18686,15 +19189,15 @@ async function abrirAnexo(path){
 /* ----- mensagem ----- */
 function msg(id){
   return (CHMSGS[CHAN]||[]).find(m=>String(m.id)===String(id))
-      || pendentes.find(m=>String(m.id)===String(id));
+      || pendentes.find(m=>String(m.id)===String(id))
+      || (locais[CHAN]||[]).find(m=>String(m.id)===String(id));
 }
-function responder(id){
-  const m = msg(id); if(!m) return;
-  respondendo = {id:m.id, autor:autorDe(m).nome, texto:String(m.body||'').slice(0,120)};
-  desenhar();
-  const ta = caixa(); if(ta) ta.focus();
-}
-function cancelarResposta(){ respondendo = null; desenhar() }
+/* Responder deixou de ser citação solta na conversa: agora abre a
+   thread no painel da direita, como no Slack e no Discord. Os nomes
+   antigos continuam existindo porque outras partes do arquivo os
+   chamam, e agora eles apontam para a thread. */
+function responder(id){ return abrirThread(id) }
+function cancelarResposta(){ return fecharThread() }
 function copiar(id){
   const m = msg(id); if(!m) return;
   navigator.clipboard.writeText(m.body||'')
@@ -18805,43 +19308,39 @@ async function renomear(){
     await carregarCanais(); desenhar(); toast('Canal renomeado');
   }catch(e){ toast('Não foi possível renomear') }
 }
-/* a conversa direta nasce com chave canônica dm:<idA>:<idB>, com os ids
-   ordenados. É isso que impede a duplicata que existia antes */
-function chaveDireta(a, b){ return 'dm:' + [a,b].sort().join(':') }
+/* A conversa direta é aberta por mg_abrir_dm, no banco. Três motivos:
+   quem não é admin não tem permissão de inserir em channels e antes não
+   conseguia começar conversa nenhuma; a conversa é identificada pelo
+   CONJUNTO DE MEMBROS e não pelo nome, então a existente é reencontrada
+   em vez de duplicada; e a função confere se as duas pessoas podem mesmo
+   se falar, com a mesma regra do diretório. */
 function escolherPessoa(){
-  const gente = MGU.todos({exceto: ME ? ME.id : null});
-  if(!gente.length){ toast('Ninguém mais cadastrado'); return }
-  const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm').map(c=>outroLado(c)).filter(Boolean));
-  const novos = gente.filter(u=>!jaTem.has(u.id));
-  const lista = (novos.length ? novos : gente);
-  const txt = lista.map((u,i)=>(i+1) + '. ' + u.nome + (u.ehEquipe?'':' (cliente)')).join('\n');
-  const r = prompt('Conversar com quem?\n\n' + txt + '\n\nDigite o número:');
-  const i = parseInt(r,10) - 1;
-  if(isNaN(i) || !lista[i]) return;
-  abrirDireta(lista[i].id);
+  CH_FILTER = ''; painelDir = null;
+  desenhar();
+  const i = document.getElementById('mgz-busca-in');
+  if(i){ i.focus(); i.placeholder = 'Quem você quer chamar?' }
+  toast('Digite o nome de quem você quer chamar');
 }
 async function abrirDireta(outroId){
   if(!ME || !outroId) return;
-  const chave = chaveDireta(ME.id, outroId);
-  const existente = CHANNELS.find(c=>c.tipo==='dm' && (c.nome === chave || outroLado(c) === outroId));
-  if(existente){ CH_FILTER=''; await abrir(existente.id); return }
+  const jaAberta = CHANNELS.find(c=>c.tipo==='dm' && outroLado(c) === outroId);
+  if(jaAberta){ CH_FILTER=''; await abrir(jaAberta.id); return }
   try{
-    const {data: achado} = await sb.from('channels').select('*')
-      .eq('tipo','dm').eq('nome', chave).maybeSingle();
-    let canal = achado;
-    if(!canal){
-      const {data, error} = await sb.from('channels')
-        .insert({tipo:'dm', nome:chave, client_id:null, created_by:ME.id}).select().single();
-      if(error) throw error;
-      canal = data;
-    }
-    await entrar(canal.id, [ME.id, outroId]);
+    const {data, error} = await sb.rpc('mg_abrir_dm', {p_outro: outroId});
+    if(error) throw error;
+    if(!data) throw new Error('o banco não devolveu a conversa');
     await carregarCanais();
-    CHMSGS[canal.id] = CHMSGS[canal.id] || [];
+    CHMSGS[data] = CHMSGS[data] || [];
     CH_FILTER = '';
-    await abrir(canal.id);
-  }catch(e){ toast('Não foi possível abrir a conversa: ' + ((e&&e.message)||'')) }
+    await abrir(data);
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/permiss|42501/i.test(m)) toast('Você não tem permissão para falar com esta pessoa');
+    else if(/não encontrada|P0002/i.test(m)) toast('Essa pessoa não existe mais na plataforma');
+    else toast('Não foi possível abrir a conversa: ' + m);
+  }
 }
+
 /* provisionamento explícito: era automático e disparava 403 em looping */
 async function configurar(){
   if(!isAdmin()) return;
@@ -18908,8 +19407,19 @@ function filtrar(v){ CH_FILTER = v || ''; desenhar();
   const i = document.getElementById('mgz-busca-in');
   if(i && document.activeElement !== i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length) } }
 function focarBusca(){ const i = document.getElementById('mgz-busca-in'); if(i) i.focus() }
-function voltar(){ document.body.classList.remove('mgz-conversa'); desenhar() }
-function alternarInfo(){ painelInfo = !painelInfo; desenhar() }
+function voltar(){ document.body.classList.remove('mgz-conversa'); painelDir = null; thread = null; desenhar() }
+function abrirBusca(){
+  const t = prompt('Buscar mensagem em todas as suas conversas:', achados ? achados.termo : '');
+  if(t === null) return;
+  if(!t.trim()) return limparBusca();
+  buscarMensagens(t);
+}
+function alternarInfo(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(painelDir === 'info'){ painelDir = null; perfilAberto = null; desenhar(); return }
+  if(c && c.tipo === 'dm') return verPerfil(outroLado(c));
+  painelDir = 'info'; perfilAberto = null; thread = null; desenhar();
+}
 function alternarEmpresa(cid){
   if(empresasAbertas.has(cid)) empresasAbertas.delete(cid); else empresasAbertas.add(cid);
   desenhar();
@@ -18919,13 +19429,19 @@ async function recarregarMsgs(){ erroMsgs = null; desenhar(); await carregarMsgs
 
 return {
   iniciar, desenhar, abrir, abrirDireta, escolherPessoa, filtrar, focarBusca, voltar,
-  alternarInfo, alternarEmpresa, enviar, reenviar, tecla, digitou, fmt, fmtLinha,
+  alternarInfo, alternarEmpresa, enviar, enviarThread, reenviar, tecla, digitou, fmt, fmtLinha,
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, renomear, configurar, recarregar, recarregarMsgs,
-  carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais,
+  carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
+  /* thread, comandos, busca e apoio ao Luquinhas */
+  abrirThread, fecharThread, abrirComandos, escolherComando, chamarLuquinhas,
+  buscarMensagens, abrirBusca, limparBusca, irParaMensagem, meuPerfil, verPerfil,
+  local, atualizarLocal, limparLocais, msg, autorDe, subirArquivos,
   online: estaOnline, nomeCanal, outroLado, totalNaoLidas, membrosDoCanal,
+  get canal(){ return CHAN },
+  get threadAberta(){ return thread },
 };
 })();
 window.MGChat = MGChat;
@@ -18992,6 +19508,12 @@ async function mgCarregarNaoLidas(){
     const n = MGChat.totalNaoLidas();
     const extra = '<button onclick="MGChat.focarBusca()" title="Buscar conversa ou pessoa">'
         + '<span class="ic">⌕</span><span class="rot">Buscar</span></button>'
+      + '<button onclick="MGChat.abrirBusca()" title="Buscar dentro das mensagens">'
+        + '<span class="ic">🔎</span><span class="rot">Mensagens</span></button>'
+      + '<button onclick="MGChat.abrirComandos()" title="Comandos">'
+        + '<span class="ic">/</span><span class="rot">Comandos</span></button>'
+      + '<button onclick="MGLuq.abrir()" title="Falar com o Luquinhas">'
+        + '<span class="ic">🐤</span><span class="rot">Luquinhas</span></button>'
       + '<button onclick="MGChat.escolherPessoa()" title="Nova conversa direta">'
         + '<span class="ic">✎</span><span class="rot">Nova conversa</span></button>'
       + (isAdmin() ? '<button onclick="MGChat.configurar()" title="Configurar canais">'
@@ -19036,6 +19558,761 @@ async function mgCarregarNaoLidas(){
     if(VIEW === 'chat'){ try{ MGChat.desenhar() }catch(e){} }
   });
 })();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · LUQUINHAS · estilo
+   O assistente mora num canto fixo da tela e acompanha a plataforma
+   inteira, não só o chat. As cores saem das variáveis de sempre, então
+   o tema claro e o escuro acompanham sem regra extra.
+   ===================================================================== */
+.mgl-bolha{position:fixed;right:20px;bottom:84px;z-index:70;width:56px;height:56px;border-radius:50%;
+  border:1px solid var(--brass);background:var(--brass-soft);font-size:27px;line-height:1;
+  display:grid;place-items:center;font-family:inherit;cursor:pointer;
+  box-shadow:0 14px 34px -14px rgba(0,0,0,.45);transition:transform .18s,box-shadow .18s}
+.mgl-bolha:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 18px 40px -14px rgba(0,0,0,.5)}
+.mgl-bolha.oculta{display:none}
+.mgl-bolha .pt{position:absolute;right:2px;bottom:4px;width:13px;height:13px;border-radius:50%;
+  background:var(--muted2);border:2px solid var(--card)}
+.mgl-bolha.pronto .pt{background:#2E9E6B}
+.mgl-bolha.ruim .pt{background:var(--danger)}
+.mgl-bolha .n{position:fixed;pointer-events:none}
+
+.mgl-painel{position:fixed;right:20px;bottom:84px;z-index:71;width:390px;max-width:calc(100vw - 32px);
+  height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;
+  background:var(--card);border:1px solid var(--line2);border-radius:18px;overflow:hidden;
+  box-shadow:0 26px 60px -22px rgba(0,0,0,.55);
+  animation:mglSobe .2s cubic-bezier(.2,.7,.3,1)}
+.mgl-painel.on{display:flex}
+@keyframes mglSobe{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.mgl-topo{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);
+  background:var(--card2);flex-shrink:0}
+.mgl-topo .av{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:19px;
+  background:var(--brass-soft);border:1px solid var(--brass);flex-shrink:0}
+.mgl-topo .tx{min-width:0;flex:1}
+.mgl-topo .tx b{display:block;font-size:14px;font-weight:700;line-height:1.2}
+.mgl-topo .tx span{display:block;font-size:11px;color:var(--muted)}
+.mgl-topo button{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
+  color:var(--muted);font-size:13px;font-family:inherit;flex-shrink:0}
+.mgl-topo button:hover{border-color:var(--brass);color:var(--brass2)}
+
+.mgl-corpo{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.mgl-b{max-width:88%;font-size:13.5px;line-height:1.6;border-radius:13px;padding:9px 12px;
+  white-space:pre-wrap;word-break:break-word}
+.mgl-b.eu{align-self:flex-end;background:var(--brass);color:var(--ink2);border-bottom-right-radius:5px}
+.mgl-b.ia{align-self:flex-start;background:var(--card2);border:1px solid var(--line);
+  border-bottom-left-radius:5px}
+.mgl-b.erro{align-self:stretch;max-width:100%;background:rgba(184,74,62,.09);
+  border:1px solid rgba(184,74,62,.32)}
+.mgl-b code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+  background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.mgl-pensa{align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:12.5px;
+  color:var(--muted);font-style:italic}
+.mgl-pensa .p{display:flex;gap:3px}
+.mgl-pensa .p i{width:5px;height:5px;border-radius:50%;background:var(--brass);
+  animation:mglPula 1s infinite ease-in-out}
+.mgl-pensa .p i:nth-child(2){animation-delay:.15s}
+.mgl-pensa .p i:nth-child(3){animation-delay:.3s}
+@keyframes mglPula{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.mgl-passos{align-self:flex-start;font-size:11px;color:var(--muted2);display:flex;flex-wrap:wrap;gap:5px}
+.mgl-passos span{border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+
+.mgl-acao{align-self:stretch;max-width:100%;border:1px solid var(--brass);border-radius:13px;
+  background:var(--brass-soft);padding:11px 13px}
+.mgl-acao h5{margin:0 0 8px;font-size:13px;font-weight:700}
+.mgl-acao .c{font-size:12.5px;line-height:1.6;margin-bottom:2px}
+.mgl-acao .c b{color:var(--muted)}
+.mgl-acao .bts{display:flex;gap:8px;margin-top:10px}
+.mgl-acao .bts button{border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:700;
+  font-family:inherit;border:1px solid var(--line2);background:var(--card);color:var(--text)}
+.mgl-acao .bts button.ok{background:var(--brass);border-color:var(--brass);color:var(--ink2)}
+.mgl-acao .bts button:disabled{opacity:.55}
+.mgl-acao.feita{border-color:#2E9E6B;background:rgba(46,158,107,.09)}
+.mgl-acao.falhou{border-color:var(--danger);background:rgba(184,74,62,.09)}
+
+.mgl-vazio{margin:auto;text-align:center;padding:20px 10px}
+.mgl-vazio .ic{font-size:38px;margin-bottom:8px}
+.mgl-vazio h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:0 0 6px}
+.mgl-vazio p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 12px}
+.mgl-sug{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.mgl-sug button{border:1px solid var(--line2);border-radius:999px;padding:5px 11px;font-size:11.5px;
+  font-family:inherit;background:var(--card);color:var(--muted)}
+.mgl-sug button:hover{border-color:var(--brass);color:var(--brass2)}
+
+.mgl-baixo{border-top:1px solid var(--line);padding:10px 12px;flex-shrink:0;background:var(--card)}
+.mgl-caixa{display:flex;align-items:flex-end;gap:8px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:12px;padding:7px 9px}
+.mgl-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgl-caixa textarea{flex:1;min-width:0;border:0;background:none;outline:none;resize:none;font-size:13.5px;
+  font-family:inherit;color:var(--text);line-height:1.5;max-height:110px}
+.mgl-caixa button{width:32px;height:32px;border-radius:9px;border:0;background:var(--brass);
+  color:var(--ink2);font-size:14px;flex-shrink:0;font-family:inherit}
+.mgl-caixa button:disabled{opacity:.4}
+.mgl-nota{font-size:10.5px;color:var(--muted2);margin-top:6px;line-height:1.5}
+
+@media(max-width:720px){
+  .mgl-bolha{right:14px;bottom:78px;width:50px;height:50px;font-size:24px}
+  .mgl-painel{right:8px;left:8px;bottom:74px;width:auto;height:min(70vh,520px)}
+}
+@media (prefers-reduced-motion: reduce){
+  .mgl-painel{animation:none}
+  .mgl-pensa .p i{animation:none}
+}
+</style>
+
+<script>
+/* =====================================================================
+   SEÇÃO · COMANDOS · registro central
+   ---------------------------------------------------------------------
+   Um comando é um objeto num registro, não um `if` no meio do envio.
+   Para acrescentar outro depois, basta chamar MGCmd.registrar: nada do
+   chat precisa mudar.
+
+   Cada comando declara:
+     nome, apelidos  como se escreve
+     icone, descricao, uso   o que aparece no menu da barra
+     permissao()     se a pessoa pode ver e usar
+     precisaIA       se depende do Luquinhas para funcionar
+     executar(arg)   o que faz
+
+   Permissão aqui é conveniência de tela. Quem realmente decide é a RLS
+   do banco: um comando que a pessoa não pode executar falha lá, com
+   mensagem clara, e não porque o botão sumiu.
+   ===================================================================== */
+const MGCmd = (function(){
+
+const REG = [];
+function registrar(c){ REG.push(c); return c }
+function norm(s){ return (typeof MGU !== 'undefined' ? MGU.norm(s) : String(s||'').toLowerCase()) }
+
+function visiveis(){ return REG.filter(c => !c.permissao || c.permissao()) }
+function buscar(termo){
+  const t = norm(termo);
+  if(!t) return visiveis();
+  return visiveis().filter(c =>
+    norm(c.nome).startsWith(t) || (c.apelidos||[]).some(a=>norm(a).startsWith(t))
+  ).concat(visiveis().filter(c =>
+    !norm(c.nome).startsWith(t) && norm(c.descricao).includes(t)
+  ));
+}
+function achar(nome){
+  const t = norm(nome);
+  return visiveis().find(c => norm(c.nome) === t || (c.apelidos||[]).some(a=>norm(a) === t)) || null;
+}
+
+/* recebe a linha inteira ("/demanda ajustar o gráfico") e despacha */
+async function executar(linha){
+  const m = /^\/([a-zA-Zà-úÀ-Ú0-9_-]+)\s*([\s\S]*)$/.exec(String(linha||'').trim());
+  if(!m) return MGChat.local('Não entendi o comando. Digite `/ajuda` para ver a lista.');
+  const c = achar(m[1]);
+  const arg = (m[2] || '').trim();
+  if(!c){
+    const perto = buscar(m[1]).slice(0,3).map(x=>'`/'+x.nome+'`').join(', ');
+    return MGChat.local('O comando `/' + m[1] + '` não existe.'
+      + (perto ? ' Você quis dizer ' + perto + '?' : ' Digite `/ajuda` para ver a lista.'));
+  }
+  if(c.uso && !arg && c.exigeArg !== false){
+    return MGChat.local('O comando `/' + c.nome + '` precisa de um complemento.\nExemplo: `/'
+      + c.nome + ' ' + c.exemplo + '`');
+  }
+  if(c.precisaIA && (!window.MGLuq || !MGLuq.ligado())){
+    return MGChat.local('Este comando depende do Luquinhas, e ele não está disponível agora.\n'
+      + (window.MGLuq ? MGLuq.motivo() : 'O assistente não carregou.'));
+  }
+  try{
+    return await c.executar(arg);
+  }catch(e){
+    console.error('[comando] ' + c.nome, e);
+    return MGChat.local('O comando `/' + c.nome + '` falhou: ' + ((e && e.message) || 'erro desconhecido'));
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Os comandos da plataforma. A terminologia é a do MGP: demanda,
+   cliente, projeto, briefing, equipe.
+   --------------------------------------------------------------------- */
+registrar({
+  nome:'demanda', apelidos:['tarefa','task'], icone:'📝',
+  descricao:'Transforma o que você escrever numa demanda estruturada',
+  uso:'<descrição>', exemplo:'revisar os criativos da próxima campanha do Cliente Um',
+  precisaIA:true,
+  executar: arg => MGLuq.pedirNoChat(
+    'Prepare uma demanda a partir disto: ' + arg
+    + '\nGere um título curto no imperativo e uma descrição organizada.')
+});
+
+registrar({
+  nome:'resumo', apelidos:['resumir'], icone:'🧾',
+  descricao:'Resume esta conversa, ou a thread aberta', uso:'', exigeArg:false,
+  precisaIA:true,
+  executar: () => {
+    const th = MGChat.threadAberta;
+    return MGLuq.pedirNoChat(th
+      ? 'Leia a thread aberta e resuma em tópicos curtos: o que foi decidido, o que ficou pendente e de quem é cada pendência.'
+      : 'Leia esta conversa e resuma em tópicos curtos: o que foi decidido, o que ficou pendente e de quem é cada pendência.');
+  }
+});
+
+registrar({
+  nome:'pendencias', apelidos:['pendências','abertas'], icone:'📌',
+  descricao:'Lista as demandas em aberto de um cliente',
+  uso:'<cliente>', exemplo:'Cliente Um', precisaIA:true,
+  executar: arg => MGLuq.pedirNoChat(
+    'Liste as demandas em aberto do cliente "' + arg + '". '
+    + 'Mostre título, status, responsável e prazo. Se o cliente não existir, diga isso.')
+});
+
+registrar({
+  nome:'luquinhas', apelidos:['ia','ai','pergunta'], icone:'🐤',
+  descricao:'Pergunta qualquer coisa ao Luquinhas',
+  uso:'<pergunta>', exemplo:'quantas demandas estão atrasadas?', precisaIA:true,
+  executar: arg => MGLuq.pedirNoChat(arg)
+});
+
+registrar({
+  nome:'buscar', apelidos:['procurar'], icone:'🔎',
+  descricao:'Procura um texto nas mensagens que você pode ler',
+  uso:'<texto>', exemplo:'criativo aprovado',
+  executar: arg => MGChat.buscarMensagens(arg)
+});
+
+registrar({
+  nome:'pessoa', apelidos:['dm','conversar'], icone:'👤',
+  descricao:'Abre conversa direta com alguém da plataforma',
+  uso:'<nome>', exemplo:'Elias',
+  executar: async arg => {
+    const achados = MGU.buscar(arg).filter(u => !ME || u.id !== ME.id);
+    if(!achados.length) return MGChat.local('Não encontrei ninguém com "' + arg + '".');
+    if(achados.length === 1) return MGChat.abrirDireta(achados[0].id);
+    return MGChat.local('Encontrei mais de uma pessoa com "' + arg + '":\n'
+      + achados.slice(0,6).map(u=>'· ' + u.nome).join('\n')
+      + '\n\nEscreva o nome completo.');
+  }
+});
+
+registrar({
+  nome:'cliente', apelidos:['empresa'], icone:'🏢',
+  descricao:'Mostra o resumo de um cliente e abre o canal dele',
+  uso:'<nome>', exemplo:'Cliente Um',
+  executar: async arg => {
+    const {data, error} = await sb.from('clients').select('id,nome,resumo,plano_midia')
+      .ilike('nome', '%' + arg + '%').limit(5);
+    if(error) return MGChat.local('Não consegui consultar os clientes: ' + error.message);
+    if(!data || !data.length) return MGChat.local('Nenhum cliente com "' + arg + '".');
+    if(data.length > 1){
+      return MGChat.local('"' + arg + '" bate com mais de um cliente:\n'
+        + data.map(c=>'· ' + c.nome).join('\n'));
+    }
+    const c = data[0];
+    const canal = (CHANNELS||[]).find(x=>x.tipo==='client' && x.client_id===c.id);
+    MGChat.local('*' + c.nome + '*\n' + (c.resumo || 'Sem resumo cadastrado.')
+      + '\nPlano de mídia: ' + (c.plano_midia ? 'sim' : 'não')
+      + (canal ? '\n\nAbrindo o canal desta empresa.' : '\n\nEsta empresa ainda não tem canal no chat.'));
+    if(canal) setTimeout(()=>MGChat.abrir(canal.id), 500);
+  }
+});
+
+registrar({
+  nome:'demandas', apelidos:['quadro','kanban'], icone:'▤',
+  descricao:'Vai para o quadro de demandas', uso:'', exigeArg:false,
+  executar: () => { showView('tasks') }
+});
+
+registrar({
+  nome:'briefing', icone:'📋',
+  descricao:'Abre o briefing de plano de mídia', uso:'', exigeArg:false,
+  executar: () => { showView('briefing') }
+});
+
+registrar({
+  nome:'ajuda', apelidos:['help','comandos'], icone:'❓',
+  descricao:'Mostra todos os comandos disponíveis', uso:'', exigeArg:false,
+  executar: () => MGChat.local(
+    'Comandos disponíveis:\n'
+    + visiveis().map(c=>'`/' + c.nome + (c.uso ? ' ' + c.uso : '') + '` — ' + c.descricao).join('\n')
+    + '\n\nVocê também pode escrever `@Luquinhas` no meio de uma mensagem: aí a resposta '
+    + 'aparece para todo mundo da conversa, não só para você.')
+});
+
+registrar({
+  nome:'limpar', apelidos:['fechar'], icone:'🧹',
+  descricao:'Some com as respostas que só você está vendo', uso:'', exigeArg:false,
+  executar: () => MGChat.limparLocais()
+});
+
+return {registrar, buscar, achar, executar, visiveis};
+})();
+window.MGCmd = MGCmd;
+</script>
+
+<script>
+/* =====================================================================
+   SEÇÃO · LUQUINHAS · assistente da plataforma
+   ---------------------------------------------------------------------
+   Aqui só existe a tela. Quem fala com a IA é a função luquinhas, no
+   servidor, porque a chave do provedor não pode aparecer no navegador.
+
+   Duas garantias vêm do desenho, não de boa vontade do modelo:
+
+   1. A função roda com o Authorization de quem está usando, ou seja,
+      com a RLS da pessoa. Se ela não pode criar uma demanda na mão,
+      também não consegue pelo Luquinhas.
+
+   2. Escrita nunca acontece dentro da conversa com o modelo. O modelo
+      só PROPÕE; a execução é uma segunda chamada, disparada por este
+      arquivo depois que a pessoa clicou em Confirmar. Por isso o texto
+      "criei a demanda" não pode ser inventado: quem informa o resultado
+      é o banco, e é ele que preenche o cartão de resultado abaixo.
+   ===================================================================== */
+const MGLuq = (function(){
+
+let painel = null, bolha = null;
+let aberto = false;
+let hist = [];                 /* {papel, texto, acao, passos, erro}      */
+let pensando = false;
+let estado = 'desconhecido';   /* desconhecido | ok | sem_chave | ...     */
+let motivoTxt = '';
+let carregado = false;
+const ACOES = new Map();
+
+const SUGESTOES = [
+  'Quais demandas estão em aberto?',
+  'Resuma minha semana',
+  'Quem é o responsável pelas entregas de hoje?',
+];
+
+/* ---------------------------------------------------------------------
+   1. Ponte com o servidor
+   --------------------------------------------------------------------- */
+async function chamar(corpo){
+  try{
+    const {data, error} = await sb.functions.invoke('luquinhas', {body: corpo});
+    if(error){
+      /* a função devolve JSON mesmo quando o status não é 2xx */
+      try{
+        const j = await error.context.json();
+        if(j && typeof j.ok !== 'undefined') return j;
+      }catch(_){}
+      return {ok:false, codigo:'rede',
+              erro:'Não consegui falar com o servidor do Luquinhas: '
+                   + ((error && error.message) || 'falha de rede') + '.'};
+    }
+    return data || {ok:false, codigo:'vazio', erro:'O servidor respondeu vazio.'};
+  }catch(e){
+    return {ok:false, codigo:'rede',
+            erro:'Não consegui falar com o servidor do Luquinhas: '
+                 + ((e && e.message) || 'falha de rede') + '.'};
+  }
+}
+function registrarEstado(r){
+  if(r.ok){ estado = 'ok'; motivoTxt = ''; return }
+  if(r.codigo === 'sem_chave' || r.codigo === 'chave_invalida'){
+    estado = r.codigo; motivoTxt = r.erro || '';
+  }
+  pintarBolha();
+}
+function ligado(){ return estado !== 'sem_chave' && estado !== 'chave_invalida' }
+function motivo(){
+  return motivoTxt || 'O Luquinhas ainda não tem chave de IA configurada. '
+    + 'Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.';
+}
+
+/* contexto mínimo: só o que o modelo precisa para saber onde a pessoa
+   está. Os dados em si ele busca com as ferramentas dele, sob a RLS. */
+function contexto(){
+  const c = {};
+  try{
+    if(window.MGChat && VIEW === 'chat' && MGChat.canal){
+      const canal = (CHANNELS||[]).find(x=>x.id === MGChat.canal);
+      c.canal_id = MGChat.canal;
+      c.canal_nome = canal ? MGChat.nomeCanal(canal) : '';
+      if(MGChat.threadAberta) c.raiz_thread = MGChat.threadAberta;
+    }
+  }catch(_){}
+  c.tela = (typeof VIEW !== 'undefined') ? VIEW : '';
+  return c;
+}
+function conversa(){
+  return hist.filter(h=>h.texto && !h.erro)
+             .map(h=>({role: h.papel === 'user' ? 'user' : 'assistant', content: h.texto}))
+             .slice(-16);
+}
+
+/* ---------------------------------------------------------------------
+   2. Memória
+   --------------------------------------------------------------------- */
+async function guardar(papel, texto, dados){
+  if(!ME || !texto) return;
+  try{
+    await sb.from('assistant_messages')
+      .insert({user_id: ME.id, papel, conteudo: texto, dados: dados || {}});
+  }catch(_){ /* memória é conforto, não requisito */ }
+}
+async function carregarMemoria(){
+  if(carregado || !ME) return;
+  carregado = true;
+  try{
+    const {data, error} = await sb.from('assistant_messages')
+      .select('papel,conteudo,created_at').eq('user_id', ME.id)
+      .order('created_at',{ascending:false}).limit(20);
+    if(error) throw error;
+    hist = (data||[]).reverse().map(r=>({papel: r.papel, texto: r.conteudo}));
+    pintar();
+  }catch(_){ /* sem memória o painel abre vazio, e tudo bem */ }
+}
+async function limpar(){
+  if(!confirm('Apagar esta conversa com o Luquinhas?')) return;
+  hist = []; ACOES.clear(); pintar();
+  try{ await sb.from('assistant_messages').delete().eq('user_id', ME.id) }catch(_){}
+}
+
+/* ---------------------------------------------------------------------
+   3. Painel
+   --------------------------------------------------------------------- */
+function montar(){
+  if(painel) return;
+  bolha = document.createElement('button');
+  bolha.className = 'mgl-bolha';
+  bolha.title = 'Luquinhas, o Claude dentro do MGP';
+  bolha.innerHTML = '🐤<span class="pt"></span>';
+  bolha.onclick = alternar;
+  document.body.appendChild(bolha);
+
+  painel = document.createElement('section');
+  painel.className = 'mgl-painel';
+  painel.setAttribute('aria-label','Luquinhas');
+  painel.innerHTML =
+      '<div class="mgl-topo"><span class="av">🐤</span>'
+    + '<span class="tx"><b>Luquinhas</b><span id="mgl-sub">Claude, dentro do MGP</span></span>'
+    + '<button title="Apagar a conversa" onclick="MGLuq.limpar()">🧹</button>'
+    + '<button title="Minimizar" onclick="MGLuq.fechar()">—</button></div>'
+    + '<div class="mgl-corpo" id="mgl-corpo"></div>'
+    + '<div class="mgl-baixo"><div class="mgl-caixa">'
+      + '<textarea id="mgl-in" rows="1" placeholder="Pergunte ou peça alguma coisa"'
+      + ' onkeydown="MGLuq.tecla(event)" oninput="MGLuq.digitou(this)"></textarea>'
+      + '<button id="mgl-env" onclick="MGLuq.enviar()" title="Enviar" disabled>➤</button>'
+    + '</div><div class="mgl-nota">Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
+    + 'e nada é criado sem você confirmar.</div></div>';
+  document.body.appendChild(painel);
+  pintarBolha();
+}
+function pintarBolha(){
+  if(!bolha) return;
+  bolha.classList.toggle('oculta', aberto);
+  bolha.classList.toggle('pronto', estado === 'ok');
+  bolha.classList.toggle('ruim', estado === 'sem_chave' || estado === 'chave_invalida');
+}
+function alternar(){ aberto ? fechar() : abrir() }
+function abrir(){
+  montar();
+  aberto = true;
+  painel.classList.add('on');
+  pintarBolha();
+  carregarMemoria();
+  pintar();
+  const ta = document.getElementById('mgl-in'); if(ta) ta.focus();
+}
+function fechar(){
+  aberto = false;
+  if(painel) painel.classList.remove('on');
+  pintarBolha();
+}
+
+function marcado(txt){
+  return (typeof corpoHTML === 'function') ? corpoHTML(txt) : esc(txt);
+}
+function acaoHTMLPainel(a){
+  const cls = a.estado === 'feito' ? ' feita' : a.estado === 'falhou' ? ' falhou' : '';
+  let bts = '';
+  if(a.estado === 'proposta' || a.estado === 'executando'){
+    bts = '<div class="bts">'
+      + '<button class="ok" ' + (a.estado==='executando'?'disabled':'')
+      + ' onclick="MGLuq.confirmar(\'' + escJS(a.id) + '\')">'
+      + (a.estado === 'executando' ? 'Executando…' : 'Confirmar') + '</button>'
+      + '<button onclick="MGLuq.cancelar(\'' + escJS(a.id) + '\')">Cancelar</button></div>';
+  }
+  return '<div class="mgl-acao' + cls + '">'
+    + '<h5>' + esc(a.titulo)
+      + (a.estado === 'feito' ? ' · feito' : a.estado === 'cancelado' ? ' · cancelado'
+       : a.estado === 'falhou' ? ' · não deu' : '') + '</h5>'
+    + a.campos.map(c=>'<div class="c"><b>' + esc(c.rotulo) + ':</b> ' + esc(c.valor) + '</div>').join('')
+    + (a.resposta ? '<div class="c" style="margin-top:8px">' + marcado(a.resposta) + '</div>' : '')
+    + bts + '</div>';
+}
+function pintar(){
+  const cx = document.getElementById('mgl-corpo'); if(!cx) return;
+  const sub = document.getElementById('mgl-sub');
+  if(sub){
+    sub.textContent = pensando ? 'pensando…'
+      : estado === 'sem_chave' || estado === 'chave_invalida' ? 'indisponível'
+      : 'Claude, dentro do MGP';
+  }
+  if(!hist.length && !pensando){
+    cx.innerHTML = '<div class="mgl-vazio"><div class="ic">🐤</div>'
+      + '<h4>Oi, eu sou o Luquinhas</h4>'
+      + '<p>Sou o Claude ligado às ferramentas do MGP. Pergunto ao banco antes de responder '
+      + 'e não invento dado. Para criar ou alterar alguma coisa, eu monto a proposta e você confirma.</p>'
+      + '<div class="mgl-sug">' + SUGESTOES.map(s=>
+          '<button onclick="MGLuq.sugestao(\'' + escJS(s) + '\')">' + esc(s) + '</button>').join('')
+      + '</div></div>';
+    return;
+  }
+  cx.innerHTML = hist.map(h=>{
+      if(h.acao) return acaoHTMLPainel(h.acao);
+      const cls = h.erro ? 'ia erro' : h.papel === 'user' ? 'eu' : 'ia';
+      return '<div class="mgl-b ' + cls + '">' + marcado(h.texto) + '</div>'
+        + (h.passos && h.passos.length
+            ? '<div class="mgl-passos">' + h.passos.map(p=>'<span>consultou ' + esc(p) + '</span>').join('') + '</div>'
+            : '');
+    }).join('')
+    + (pensando ? '<div class="mgl-pensa"><span class="p"><i></i><i></i><i></i></span>'
+                + 'Luquinhas está pensando…</div>' : '');
+  cx.scrollTop = cx.scrollHeight;
+}
+
+function digitou(ta){
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
+  const b = document.getElementById('mgl-env');
+  if(b) b.disabled = !ta.value.trim() || pensando;
+}
+function tecla(e){
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); enviar(); return }
+  if(e.key === 'Escape'){ e.preventDefault(); fechar(); return }
+  setTimeout(()=>digitou(e.target), 0);
+}
+function sugestao(t){
+  const ta = document.getElementById('mgl-in');
+  if(ta){ ta.value = t; digitou(ta); ta.focus() }
+  enviar();
+}
+
+/* ---------------------------------------------------------------------
+   4. Perguntar, no painel
+   --------------------------------------------------------------------- */
+async function enviar(){
+  const ta = document.getElementById('mgl-in');
+  const txt = ta ? ta.value.trim() : '';
+  if(!txt || pensando) return;
+  ta.value = ''; ta.style.height = 'auto'; digitou(ta);
+  return perguntar(txt);
+}
+async function perguntar(texto){
+  abrir();
+  hist.push({papel:'user', texto});
+  guardar('user', texto);
+  pensando = true; pintar();
+
+  const r = await chamar({modo:'conversar', mensagens: conversa(), contexto: contexto()});
+  pensando = false;
+  registrarEstado(r);
+
+  if(!r.ok){
+    hist.push({papel:'assistant', texto: r.erro || 'Não consegui responder agora.', erro:true});
+    pintar();
+    return r;
+  }
+  const passos = (r.passos||[]).map(p=>p.ferramenta).filter(Boolean);
+  if(r.tipo === 'confirmar'){
+    if(r.texto) hist.push({papel:'assistant', texto:r.texto, passos});
+    const a = novaAcao(r);
+    hist.push({papel:'assistant', acao:a});
+    guardar('assistant', r.texto || r.titulo, {acao:r.acao});
+  }else{
+    hist.push({papel:'assistant', texto: r.texto, passos});
+    guardar('assistant', r.texto);
+  }
+  pintar();
+  return r;
+}
+function novaAcao(r){
+  const a = {
+    id: 'ac-' + Date.now() + Math.random().toString(16).slice(2,6),
+    titulo: r.titulo || 'Confirmar ação',
+    campos: r.campos || [],
+    acao: r.acao,
+    estado: 'proposta',
+    resposta: '',
+  };
+  ACOES.set(a.id, a);
+  return a;
+}
+
+/* ---------------------------------------------------------------------
+   5. Executar, só depois da confirmação
+   --------------------------------------------------------------------- */
+async function confirmar(id){
+  const a = ACOES.get(id);
+  if(!a || a.estado !== 'proposta') return;
+  a.estado = 'executando';
+  repintarTudo();
+
+  const r = await chamar({modo:'executar', acao: a.acao});
+
+  if(r.ok && r.tipo === 'resultado'){
+    a.estado = 'feito';
+    a.resposta = descreverResultado(r.resultado);
+    guardar('sistema', 'executou ' + a.acao.ferramenta, {resultado:r.resultado});
+    if(typeof toast === 'function') toast('Feito ✓');
+    /* a plataforma precisa enxergar o registro novo sem recarregar */
+    try{ if(typeof loadTasks === 'function') await loadTasks() }catch(_){}
+    try{ if(typeof render === 'function') render() }catch(_){}
+  }else{
+    a.estado = 'falhou';
+    a.resposta = r.erro || 'O banco recusou e nada foi criado.';
+  }
+  repintarTudo();
+  return r;
+}
+function cancelar(id){
+  const a = ACOES.get(id);
+  if(!a || (a.estado !== 'proposta' && a.estado !== 'falhou')) return;
+  a.estado = 'cancelado';
+  repintarTudo();
+}
+/* o cartão pode estar no painel, no chat, ou nos dois */
+function repintarTudo(){
+  pintar();
+  try{ if(window.MGChat && VIEW === 'chat') MGChat.desenhar() }catch(_){}
+}
+function descreverResultado(res){
+  if(!res) return 'Feito.';
+  if(res.demanda){
+    const d = res.demanda;
+    return (res.criou ? 'Demanda criada' : 'Demanda atualizada') + ': *' + (d.title||'') + '*'
+      + (d.status ? '\nStatus: ' + d.status : '')
+      + (d.due ? '\nEntrega: ' + d.due : '')
+      + (d.assignees && d.assignees.length ? '\nResponsáveis: ' + d.assignees.join(', ') : '');
+  }
+  if(res.projeto) return 'Projeto criado: *' + (res.projeto.nome||'') + '*';
+  if(res.comentario) return 'Comentário publicado na demanda.';
+  return 'Feito.';
+}
+
+/* ---------------------------------------------------------------------
+   6. Dentro do chat
+   --------------------------------------------------------------------- */
+/* comando de barra: a resposta é efêmera, só quem pediu vê */
+async function pedirNoChat(texto){
+  if(!window.MGChat || VIEW !== 'chat') return perguntar(texto);
+  const espera = MGChat.local('Luquinhas está pensando…', {__pensando:true});
+  const r = await chamar({
+    modo:'conversar',
+    mensagens: [{role:'user', content: texto}],
+    contexto: contexto(),
+  });
+  registrarEstado(r);
+  if(!r.ok){
+    MGChat.atualizarLocal(espera.id, {body: r.erro || 'Não consegui responder agora.', __pensando:false});
+    return r;
+  }
+  if(r.tipo === 'confirmar'){
+    const a = novaAcao(r);
+    MGChat.atualizarLocal(espera.id, {
+      body: r.texto || 'Confere antes de eu executar:', __pensando:false, __acao:a });
+  }else{
+    MGChat.atualizarLocal(espera.id, {body: r.texto, __pensando:false});
+  }
+  return r;
+}
+
+/* @Luquinhas numa mensagem: a resposta vale para a conversa inteira, e
+   por isso vai para o banco por mg_luq_publicar, que confere se quem
+   pediu realmente participa do canal. */
+async function noCanal(texto, canalId, respostaA){
+  const espera = MGChat.local('Luquinhas está pensando…', {__pensando:true});
+  const limpo = String(texto||'').replace(/@luquinhas/ig,'').trim();
+  const ctx = contexto();
+  ctx.canal_id = canalId;
+  const r = await chamar({
+    modo:'conversar',
+    mensagens: [{role:'user', content: limpo || 'Resuma esta conversa.'}],
+    contexto: ctx,
+  });
+  registrarEstado(r);
+
+  if(!r.ok){
+    MGChat.atualizarLocal(espera.id, {body: r.erro || 'Não consegui responder agora.', __pensando:false});
+    return r;
+  }
+  if(r.tipo === 'confirmar'){
+    /* proposta de escrita não vira mensagem pública: ela é de quem pediu */
+    const a = novaAcao(r);
+    MGChat.atualizarLocal(espera.id, {
+      body: r.texto || 'Confere antes de eu executar:', __pensando:false, __acao:a });
+    return r;
+  }
+  try{
+    const {error} = await sb.rpc('mg_luq_publicar',
+      {p_canal: canalId, p_texto: r.texto, p_reply_to: respostaA || null});
+    if(error) throw error;
+    MGChat.atualizarLocal(espera.id, {body:'Respondi na conversa.', __pensando:false});
+    await MGChat.carregarMsgs(canalId);
+    MGChat.desenhar();
+  }catch(e){
+    MGChat.atualizarLocal(espera.id, {
+      body: 'Respondi, mas não consegui publicar na conversa ('
+        + ((e&&e.message)||'erro') + '). A resposta foi:\n\n' + r.texto,
+      __pensando:false});
+  }
+  return r;
+}
+
+function sobrePessoa(id){
+  const u = (typeof MGU !== 'undefined') ? MGU.get(id) : null;
+  if(!u) return;
+  abrir();
+  const ta = document.getElementById('mgl-in');
+  if(ta){
+    ta.value = 'O que ' + u.nome + ' tem em aberto na plataforma?';
+    digitou(ta); ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+}
+
+/* botão de assistente na régua de ações de uma mensagem */
+function sobreMensagem(id){
+  if(!window.MGChat) return;
+  const m = MGChat.msg(id);
+  if(!m) return;
+  const autor = m.kind === 'luquinhas' ? 'Luquinhas' : MGChat.autorDe(m).nome;
+  abrir();
+  const ta = document.getElementById('mgl-in');
+  if(ta){
+    ta.value = 'Sobre esta mensagem de ' + autor + ': "'
+      + String(m.body||'').slice(0,200) + '"\n\n';
+    digitou(ta); ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   7. Entrada
+   --------------------------------------------------------------------- */
+function ligar(){
+  montar();
+  /* a bolha só aparece para quem tem sessão */
+  const ver = () => {
+    const tem = (typeof ME !== 'undefined') && ME && ME.id;
+    if(bolha) bolha.style.display = tem ? '' : 'none';
+    if(!tem && aberto) fechar();
+  };
+  ver();
+  setInterval(ver, 1500);
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', ligar);
+}else{ ligar() }
+
+return {
+  abrir, fechar, alternar, enviar, tecla, digitou, sugestao, limpar,
+  perguntar, pedirNoChat, noCanal, sobreMensagem, sobrePessoa,
+  confirmar, cancelar, ligado, motivo,
+  get estado(){ return estado },
+};
+})();
+window.MGLuq = MGLuq;
 </script>
 
 </body>
