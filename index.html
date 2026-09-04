@@ -5505,18 +5505,21 @@ function mgAvatarResp(nome, tamanho){
 }
 
 /* ---- bloco de responsáveis do card ---- */
-function mgBlocoResp(assignees){
-  const as = (assignees||[]).filter(Boolean);
+/* Aceita a demanda inteira (preferido, porque aí o vínculo por id vale)
+   ou só a lista de nomes, que é como as camadas antigas chamavam. */
+function mgBlocoResp(entrada){
+  const t = Array.isArray(entrada) ? {assignees: entrada, assignee_ids: []} : (entrada || {});
+  const as = (typeof MGU !== 'undefined') ? MGU.responsaveis(t)
+           : (t.assignees||[]).filter(Boolean).map(n=>({id:n, nome:n, primeiro:n}));
   if(!as.length) return '';
-  const meus = as.filter(a=> (typeof mgSouEu==='function') && mgSouEu(a));
-  const souEu = meus.length>0;
-  /* se a demanda é minha, meu nome vem primeiro */
-  const ordem = souEu ? [...meus, ...as.filter(a=>!meus.includes(a))] : as;
+  const meus = as.filter(u=> (typeof MGU !== 'undefined') && MGU.souEu(u));
+  const souEu = meus.length > 0;
+  /* se a demanda é minha, eu venho primeiro */
+  const ordem = souEu ? [...meus, ...as.filter(u=>!meus.includes(u))] : as;
   const mostra = ordem.slice(0,3);
-  const rotulo = (typeof firstName==='function') ? firstName(ordem[0]) : String(ordem[0]).split(' ')[0];
   return `<div class="mg-resp">
-    <span class="pilha">${mostra.map(a=>mgAvatarResp(a)).join('')}</span>
-    <span class="quem ${souEu?'eu':''}">${esc(rotulo)}</span>
+    <span class="pilha">${mostra.map(u=>mgAvatarResp(u)).join('')}</span>
+    <span class="quem ${souEu?'eu':''}">${esc(ordem[0].primeiro)}</span>
     ${ordem.length>1?`<span class="mais">+${ordem.length-1}</span>`:''}
     ${souEu?`<span class="selo-eu">você</span>`:''}
   </div>`;
@@ -5529,11 +5532,16 @@ function mgAplicarRespNosCards(raiz){
   const alvo = raiz || document;
   alvo.querySelectorAll('.card-t .avs').forEach(avs=>{
     if(avs.dataset.mgFeito) return;
+    /* o card carrega o id da demanda, então dá para resolver pelo
+       vínculo por id em vez de reler os nomes do próprio HTML */
+    const card = avs.closest('.card-t');
+    const t = (card && typeof TASKS !== 'undefined')
+      ? TASKS.find(x=>String(x.id) === String(card.dataset.id)) : null;
     const nomes = [...avs.querySelectorAll('.av')]
       .map(a=>(a.getAttribute('title')||a.textContent||'').trim())
       .filter(Boolean);
-    if(!nomes.length) return;
-    const html = mgBlocoResp(nomes);
+    if(!t && !nomes.length) return;
+    const html = mgBlocoResp(t || nomes);
     if(!html) return;
     const caixa = document.createElement('div');
     caixa.innerHTML = html;
@@ -17344,6 +17352,29 @@ const MGU = (function(){
   }
   function souEu(ref){ const u = get(ref); return !!(u && typeof ME!=='undefined' && ME && u.id === ME.id) }
 
+  /* Responsáveis de uma demanda, sempre como pessoa canônica.
+     tasks.assignee_ids é o vínculo de verdade e vem primeiro; o texto de
+     tasks.assignees entra só para quem ainda não tem cadastro (hoje
+     'Lucas' e 'Renato'), e nesses casos vira identidade estável em vez
+     de sumir. A ordem do texto é preservada, para a tela não trocar de
+     lugar sem motivo. */
+  function responsaveis(t){
+    if(!t) return [];
+    const porIds = (t.assignee_ids || []).map(id=>get(id)).filter(Boolean);
+    const nomes  = (t.assignees || []).filter(Boolean);
+    if(!nomes.length) return porIds;
+    const vistos = new Set();
+    const saida = [];
+    nomes.forEach(n=>{
+      const u = porIds.find(x => norm(x.primeiro) === norm(n) || norm(x.nome) === norm(n))
+             || get(n) || fantasma(n);
+      if(u && !vistos.has(u.id)){ vistos.add(u.id); saida.push(u) }
+    });
+    /* id vinculado que o texto não menciona não pode ficar de fora */
+    porIds.forEach(u=>{ if(!vistos.has(u.id)){ vistos.add(u.id); saida.push(u) } });
+    return saida;
+  }
+
   /* atualização local depois de trocar nome ou foto, para a tela não
      precisar recarregar para ficar consistente */
   function atualizar(id, campos){
@@ -17371,7 +17402,7 @@ const MGU = (function(){
   }
   function aoMudar(f){ ouvintes.push(f) }
 
-  return {get, seguro, avatar, chip, eu, souEu, carregar, atualizar,
+  return {get, seguro, avatar, chip, eu, souEu, responsaveis, carregar, atualizar,
           todos, buscar, aoMudar, iniciaisDe, corDe, primeiroNome, norm,
           get carregado(){ return carregado }};
 })();
