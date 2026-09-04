@@ -7250,7 +7250,7 @@ renderHome = function(){
 
 /* ---------- 1. páginas centralizadas ---------- */
 :root{ --mg-larg:1180px }
-body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home){
+body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home):not(#v-chat){
   max-width:var(--mg-larg); margin-left:auto; margin-right:auto; width:100%;
 }
 /* Centralizar só a caixa não bastava: os blocos internos têm largura
@@ -17474,11 +17474,18 @@ async function loadTeam(){
    fontes e os raios saem das variáveis da própria plataforma, então o
    tema claro e o escuro acompanham sem regra extra.
    ===================================================================== */
-body.mg-e-chat .content{padding:0;overflow:hidden}
+/* O chat ocupa tudo o que existe abaixo da barra do topo, de ponta a
+   ponta. A altura sai de flexbox e não de conta com pixel: `.layout` passa
+   a ter altura fixa de viewport e cada nível repassa o espaço adiante.
+   Assim nada precisa ser recalculado quando a barra muda de tamanho. */
+body.mg-e-chat .layout{height:100vh;min-height:0;overflow:hidden}
+body.mg-e-chat .main{min-height:0;overflow:hidden}
+body.mg-e-chat .content{padding:0;overflow:hidden;display:flex;min-height:0;flex:1}
 #v-chat.on{display:flex}
 #v-chat{gap:0;background:var(--card);color:var(--text);overflow:hidden;
   height:calc(100vh - 96px);min-height:460px;border-top:1px solid var(--line);position:relative}
-body.mg-e-chat #v-chat{height:calc(100vh - 84px);border-radius:0;border-left:0;border-right:0}
+body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none;
+  margin:0;border-radius:0;border-left:0;border-right:0}
 
 /* ---------- 1. coluna das conversas ---------- */
 .mgz-side{width:264px;flex-shrink:0;display:flex;flex-direction:column;min-width:0;
@@ -17719,27 +17726,6 @@ body.mg-sem-hora .mgz-m .hora{display:none}
   border-radius:8px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--danger);
   font-family:inherit;flex-shrink:0}
 
-/* ---------- 7. trilha de espaços (referência Discord) ----------
-   Barra estreita à esquerda de tudo. Não substitui a navegação da
-   plataforma: cada botão chama o mesmo showView de sempre. */
-.mgz-rail{width:64px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;
-  gap:6px;padding:12px 0 10px;background:var(--card2);border-right:1px solid var(--line)}
-.mgz-rail .lg{width:38px;height:38px;border-radius:12px;flex-shrink:0;margin-bottom:4px;
-  background:var(--mg-logo) center/contain no-repeat}
-.mgz-rail .sep{width:26px;height:1px;background:var(--line);margin:4px 0}
-.mgz-rail .esp{flex:1}
-.mgz-rail button{position:relative;width:42px;height:42px;border-radius:13px;border:0;
-  background:var(--card);color:var(--muted);font-size:17px;font-family:inherit;
-  display:grid;place-items:center;transition:border-radius .16s,background .16s,color .16s}
-.mgz-rail button:hover{border-radius:12px;background:var(--brass-soft);color:var(--brass2)}
-.mgz-rail button.on{background:var(--brass);color:var(--ink2)}
-.mgz-rail button.on::before{content:"";position:absolute;left:-11px;top:50%;transform:translateY(-50%);
-  width:4px;height:22px;border-radius:0 3px 3px 0;background:var(--brass)}
-.mgz-rail button .n{position:absolute;top:-3px;right:-3px;background:var(--danger);color:#fff;
-  font-size:9.5px;font-weight:700;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
-  display:grid;place-items:center;border:2px solid var(--card2)}
-.mgz-rail .mgu-av{cursor:pointer}
-
 /* ---------- 8. painel direito: membros OU thread ---------- */
 .mgz-th{width:340px;flex-shrink:0;display:flex;flex-direction:column;min-width:0;
   background:var(--card);border-left:1px solid var(--line);
@@ -17794,11 +17780,14 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-cmdmenu button .at{font-size:10.5px;color:var(--muted2);font-weight:700;flex-shrink:0}
 .mgz-comp{position:relative}
 
-/* ---------- 10. mensagem do Luquinhas dentro da conversa ---------- */
+/* ---------- 10. mensagem do Kronos dentro da conversa ---------- */
 .mgz-m.luq{background:linear-gradient(90deg,var(--brass-soft),transparent 62%)}
 .mgz-m.luq .quem{color:var(--brass2)}
-.mgz-luqav{width:36px;height:36px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
-  font-size:19px;background:var(--brass-soft);border:1px solid var(--brass)}
+/* O gato é preto, então o fundo dele é dourado fixo nos dois temas. Se
+   herdasse a cor do tema, no escuro sumiria contra o próprio fundo. */
+.mgz-gato{width:36px;height:36px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+  background:#E9DCBB;border:1px solid var(--brass)}
+.mg-gato{display:block}
 .mgz-m .selo{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   color:var(--brass2);border:1px solid var(--brass);border-radius:5px;padding:1px 5px}
 .mgz-m.pensando .tx{color:var(--muted);font-style:italic}
@@ -17859,9 +17848,6 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 }
 @media(max-width:900px){
   .mgz-side{width:232px}
-  .mgz-rail{width:54px}
-  .mgz-rail button{width:38px;height:38px;font-size:15px}
-  .mgz-rail .lg{width:32px;height:32px}
   body.mgz-info-on .mgz-info{position:absolute;right:0;top:0;bottom:0;z-index:8;width:250px;
     box-shadow:-18px 0 40px -22px rgba(0,0,0,.4)}
   .mgz-th{position:absolute;right:0;top:0;bottom:0;z-index:9;width:330px;
@@ -17870,11 +17856,9 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 @media(max-width:720px){
   #v-chat{height:calc(100vh - 78px)}
   body.mg-e-chat #v-chat{height:calc(100vh - 76px)}
-  .mgz-rail{position:absolute;left:0;top:0;bottom:0;z-index:11;width:54px}
-  .mgz-side{position:absolute;left:54px;right:0;top:0;bottom:0;width:auto;z-index:9;border-right:0}
+  .mgz-side{position:absolute;inset:0;width:100%;z-index:9;border-right:0}
   body.mgz-conversa .mgz-side{display:none}
   body:not(.mgz-conversa) .mgz-main{display:none}
-  body.mgz-conversa .mgz-main{margin-left:54px}
   .mgz-voltar{display:block}
   .mgz-m{padding-left:14px;padding-right:14px}
   .mgz-comp{padding:6px 12px 12px}
@@ -17901,6 +17885,23 @@ body.mg-sem-hora .mgz-m .hora{display:none}
    recurso para quem não existe mais no diretório. Quem manda é
    `author_id`.
    ===================================================================== */
+/* O gato do Kronos. Desenhado, e não emoji: o emoji de gato preto é
+   uma sequência com juntor e em vários sistemas aparece como um gato
+   comum seguido de um quadrado preto. */
+function mgGato(tam){
+  const t = tam || 20;
+  return '<svg class="mg-gato" viewBox="0 0 32 32" width="' + t + '" height="' + t + '"'
+    + ' aria-hidden="true" focusable="false">'
+    + '<path fill="#17150F" d="M5 3.4l4.6 4.8A11.7 11.7 0 0116 6.9c2.4 0 4.6.5 6.4 1.3L27 3.4v10.2'
+    + 'a11 11 0 01-22 0V3.4z"/>'
+    + '<ellipse cx="11.6" cy="14.6" rx="1.7" ry="2.2" fill="#E8C25C"/>'
+    + '<ellipse cx="20.4" cy="14.6" rx="1.7" ry="2.2" fill="#E8C25C"/>'
+    + '<path fill="#E8C25C" d="M16 18.6l-1.7 1.5h3.4L16 18.6z"/>'
+    + '<path stroke="#E8C25C" stroke-width="1" stroke-linecap="round" fill="none"'
+    + ' d="M16 20.6v1.4M16 22c-.9 1-2.4 1-3.2.1M16 22c.9 1 2.4 1 3.2.1"/>'
+    + '</svg>';
+}
+
 const MGChat = (function(){
 
 /* ---------------------------------------------------------------------
@@ -18296,7 +18297,7 @@ function desenhar(){
   const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
   const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
 
-  el.innerHTML = railHTML() + ladoHTML() + mainHTML()
+  el.innerHTML = ladoHTML() + mainHTML()
     + (painelDir === 'thread' ? threadHTML()
      : painelDir === 'info'   ? infoHTML() : '');
 
@@ -18310,31 +18311,6 @@ function desenhar(){
   const cth = document.getElementById('mgz-th-corpo');
   if(cth){ cth.scrollTop = (guardadoTh !== null && guardadoTh > 0) ? guardadoTh : cth.scrollHeight }
   if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
-}
-
-/* ----- trilha de espaços (a coluna estreita da esquerda) -----
-   Ela não cria navegação nova: cada botão chama o mesmo showView que o
-   resto da plataforma usa, então sair daqui cai exatamente onde caía. */
-function railHTML(){
-  const eu = MGU.eu();
-  const n  = totalNaoLidas();
-  const bt = (v, ic, rot, extra) =>
-    '<button class="' + (VIEW===v?'on':'') + '" title="' + esc(rot) + '"'
-    + ' onclick="showView(\'' + escJS(v) + '\')"><span>' + ic + '</span>'
-    + (extra||'') + '</button>';
-  return '<nav class="mgz-rail" aria-label="Espaços">'
-    + '<span class="lg" title="Modesto Growth Partners"></span>'
-    + '<span class="sep"></span>'
-    + bt('chat','💬','MGP Chat', n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
-    + bt('home','◧','Início')
-    + bt('tasks','▤','Demandas')
-    + bt('docs','🗂','Documentos')
-    + '<span class="esp"></span>'
-    + '<button title="Falar com o Luquinhas" onclick="MGLuq.abrir()"><span>🐤</span></button>'
-    + '<button title="Seu perfil" onclick="MGChat.meuPerfil()" style="background:none">'
-      + MGU.avatar(eu, {tam:34, presenca:true}) + '</button>'
-    + bt('settings','⚙','Configurações')
-  + '</nav>';
 }
 
 /* ----- lateral ----- */
@@ -18488,7 +18464,7 @@ function perfilHTML(c){
         + (u.resolvido && (!jaTemDM || (c && outroLado(c) !== u.id))
             ? '<button class="btn-p" onclick="MGChat.abrirDireta(\'' + escJS(u.id) + '\')">Enviar mensagem</button>'
             : '')
-        + '<button class="mgz-fio" onclick="MGLuq.sobrePessoa(\'' + escJS(u.id) + '\')">Perguntar ao Luquinhas</button>'
+        + '<button class="mgz-fio" onclick="MGKronos.sobrePessoa(\'' + escJS(u.id) + '\')">Perguntar ao Kronos</button>'
         + (isAdmin() ? '<button class="mgz-fio" onclick="showView(\'equipe\')">Ver perfil completo</button>' : '')
       + '</div>'
     + '</div></aside>';
@@ -18518,7 +18494,7 @@ function mainHTML(){
       + '<small>' + sub + '</small></span>'
       + (isAdmin() && c.tipo !== 'dm'
           ? '<button class="bt ic" onclick="MGChat.renomear()" title="Renomear canal">✎</button>' : '')
-      + '<button class="bt ic" onclick="MGLuq.abrir()" title="Falar com o Luquinhas">🐤</button>'
+      + '<button class="bt ic" onclick="MGKronos.abrir()" title="Falar com o Kronos">' + mgGato(16) + '</button>'
       + '<button class="bt ic" onclick="MGChat.abrirBusca()" title="Buscar mensagem">⌕</button>'
       + '<button class="bt ic ' + (painelDir==='info'?'on':'') + '" onclick="MGChat.alternarInfo()"'
         + ' title="' + (c.tipo==='dm' ? 'Perfil' : 'Membros e arquivos') + '">'
@@ -18594,7 +18570,7 @@ function blocoHTML(lista, filhos, naThread){
            + '<span class="de">sistema</span></div>';
       return;
     }
-    const ehLuq   = m.kind === 'luquinhas';
+    const ehLuq   = m.kind === 'kronos';
     const ehLocal = !!m.__local;
     const u = ehLuq || ehLocal ? null : autorDe(m);
     const chave = ehLuq ? 'luq' : ehLocal ? 'local' : m.author_id;
@@ -18609,12 +18585,12 @@ function blocoHTML(lista, filhos, naThread){
         + (m.__falhou?'falhou ':'') + (ehLuq||ehLocal?'luq ':'')
         + (m.__pensando?'pensando ':'') + '" data-id="' + esc(String(m.id)) + '">'
       + '<span class="hora-lat">' + horaDe(m.created_at) + '</span>'
-      + (ehLuq || ehLocal ? '<span class="mgz-luqav">🐤</span>'
+      + (ehLuq || ehLocal ? '<span class="mgz-gato">' + mgGato(21) + '</span>'
                           : MGU.avatar(u, {tam:36, forma:'quadrado', presenca:!segue}))
       + '<div class="bd">'
         + (naThread ? '' : citacaoHTML(m))
         + '<div class="hd"><span class="quem">'
-          + (ehLuq || ehLocal ? 'Luquinhas' : esc(u.nome)) + '</span>'
+          + (ehLuq || ehLocal ? 'Kronos' : esc(u.nome)) + '</span>'
           + (ehLuq || ehLocal ? '<span class="selo">IA</span>' : '')
           + (!ehLuq && !ehLocal && u.ehCliente && u.resolvido ? '<span class="mgu-rl cli">cliente</span>' : '')
           + '<span class="hora">' + horaDe(m.created_at) + '</span>'
@@ -18666,7 +18642,7 @@ function threadHTML(){
       + '<h3>Mensagem não encontrada</h3>'
       + '<p>Ela pode ter sido excluída enquanto a thread estava aberta.</p></div></div></aside>';
   }
-  const u = raiz.kind === 'luquinhas' ? null : autorDe(raiz);
+  const u = raiz.kind === 'kronos' ? null : autorDe(raiz);
   const filhas = (CHMSGS[CHAN] || []).filter(m=>String(m.reply_to) === String(raiz.id))
     .concat(pendentes.filter(m=>m.channel_id===CHAN && String(m.reply_to)===String(raiz.id)))
     .concat((locais[CHAN]||[]).filter(m=>String(m.reply_to)===String(raiz.id)));
@@ -18679,9 +18655,9 @@ function threadHTML(){
     + '<div class="mgz-th-corpo" id="mgz-th-corpo">'
       + '<div class="mgz-th-raiz">'
         + '<div class="lin">'
-          + (raiz.kind === 'luquinhas' ? '<span class="mgz-luqav" style="width:24px;height:24px;font-size:13px">🐤</span>'
+          + (raiz.kind === 'kronos' ? '<span class="mgz-gato" style="width:24px;height:24px">' + mgGato(15) + '</span>'
                                        : MGU.avatar(u, {tam:24}))
-          + '<b>' + (raiz.kind === 'luquinhas' ? 'Luquinhas' : esc(u.nome)) + '</b>'
+          + '<b>' + (raiz.kind === 'kronos' ? 'Kronos' : esc(u.nome)) + '</b>'
           + '<span>' + esc(dataDe(raiz.created_at)) + ' · ' + horaDe(raiz.created_at) + '</span>'
         + '</div>'
         + '<div class="tx">' + corpoHTML(raiz.body) + '</div>'
@@ -18729,18 +18705,18 @@ function buscaHTML(){
       + '<button class="mgz-fio" style="margin-left:auto" onclick="MGChat.limparBusca()">voltar</button></div>'
     + '<div class="mgz-busca-res">' + achados.linhas.map(m=>{
         const canal = CHANNELS.find(c=>c.id===m.channel_id);
-        const u = m.kind === 'luquinhas' ? null : (MGU.get(m.author_id) || MGU.seguro(m.author_name));
+        const u = m.kind === 'kronos' ? null : (MGU.get(m.author_id) || MGU.seguro(m.author_name));
         return '<button class="r" onclick="MGChat.irParaMensagem(\'' + escJS(String(m.channel_id))
           + '\',\'' + escJS(String(m.id)) + '\')">'
-          + '<span class="top">' + (u ? MGU.avatar(u,{tam:18}) : '<span class="mgz-luqav" style="width:18px;height:18px;font-size:11px">🐤</span>')
-          + '<b>' + (u ? esc(u.nome) : 'Luquinhas') + '</b>'
+          + '<span class="top">' + (u ? MGU.avatar(u,{tam:18}) : '<span class="mgz-gato" style="width:18px;height:18px">' + mgGato(12) + '</span>')
+          + '<b>' + (u ? esc(u.nome) : 'Kronos') + '</b>'
           + '<span>' + esc(canal ? nomeCanal(canal) : 'conversa') + ' · '
           + esc(dataDe(m.created_at)) + ' ' + horaDe(m.created_at) + '</span></span>'
           + '<span class="cp">' + marca(m.body) + '</span></button>';
       }).join('') + '</div>';
 }
 
-/* cartão de confirmação de uma ação proposta pelo Luquinhas */
+/* cartão de confirmação de uma ação proposta pelo Kronos */
 function acaoHTML(m){
   const a = m.__acao;
   if(a.estado === 'feito'){
@@ -18756,9 +18732,9 @@ function acaoHTML(m){
         + esc(c.valor) + '</div>').join('')
     + '<div style="display:flex;gap:8px;margin-top:10px">'
       + '<button class="btn-p" ' + (a.estado==='executando'?'disabled':'')
-        + ' onclick="MGLuq.confirmar(\'' + escJS(String(a.id)) + '\')">'
+        + ' onclick="MGKronos.confirmar(\'' + escJS(String(a.id)) + '\')">'
         + (a.estado==='executando' ? 'Executando…' : 'Confirmar') + '</button>'
-      + '<button class="mgz-fio" onclick="MGLuq.cancelar(\'' + escJS(String(a.id)) + '\')">Cancelar</button>'
+      + '<button class="mgz-fio" onclick="MGKronos.cancelar(\'' + escJS(String(a.id)) + '\')">Cancelar</button>'
     + '</div></div>';
 }
 function citacaoHTML(m){
@@ -18805,8 +18781,8 @@ function acoesHTML(m, meu, naThread){
     + '<button title="Reagir" onclick="MGChat.abrirEmojis(\'' + id + '\',event)">☺</button>'
     + (naThread ? '' : '<button title="Responder na thread" onclick="MGChat.abrirThread(\'' + id + '\')">↩</button>')
     + '<button title="Copiar" onclick="MGChat.copiar(\'' + id + '\')">⧉</button>'
-    + '<button title="Perguntar ao Luquinhas sobre isto"'
-      + ' onclick="MGLuq.sobreMensagem(\'' + id + '\')">🐤</button>'
+    + '<button title="Perguntar ao Kronos sobre isto"'
+      + ' onclick="MGKronos.sobreMensagem(\'' + id + '\')">' + mgGato(14) + '</button>'
     + ((meu || isAdmin())
         ? '<span class="div"></span><button title="Excluir" onclick="MGChat.excluir(\'' + id + '\')">🗑</button>'
         : '')
@@ -18834,7 +18810,7 @@ function composerHTML(c, onde){
         + '<span class="div"></span>'
         + '<button title="Emoji" onclick="MGChat.emojiNoTexto(event)">☺</button>'
         + (podeAnexar ? '<button title="Anexar arquivo" onclick="MGChat.escolherArquivo(\'' + onde + '\')">📎</button>' : '')
-        + '<button title="Chamar o Luquinhas" onclick="MGChat.chamarLuquinhas(\'' + onde + '\')">🐤</button>'
+        + '<button title="Chamar o Kronos" onclick="MGChat.chamarKronos(\'' + onde + '\')">' + mgGato(15) + '</button>'
         + (th ? '' : '<button title="Comandos" onclick="MGChat.abrirComandos()">/</button>')
       + '</div>'
       + (f.length ? '<div class="mgz-fila">' + f.map((x,i)=>
@@ -18852,8 +18828,8 @@ function composerHTML(c, onde){
         + '<button class="env" id="mgz-env' + sufixo + '" onclick="' + alvo + '" title="Enviar">➤</button></div>'
     + '</div>'
     + (th ? '' : '<div class="mgz-dica" id="mgz-dica">'
-      + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha · <b>/</b> comandos · <b>@Luquinhas</b> chama a IA</span>'
-                    : '<span><b>Ctrl+Enter</b> envia · <b>/</b> comandos · <b>@Luquinhas</b> chama a IA</span>')
+      + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha · <b>/</b> comandos · <b>@Kronos</b> chama a IA</span>'
+                    : '<span><b>Ctrl+Enter</b> envia · <b>/</b> comandos · <b>@Kronos</b> chama a IA</span>')
       + '</div>');
 }
 
@@ -19070,9 +19046,9 @@ async function enviar(onde){
     return;
   }
 
-  /* @Luquinhas responde para todo mundo, dentro da própria conversa */
-  if(/@luquinhas\b/i.test(corpo) && window.MGLuq){
-    MGLuq.noCanal(corpo, CHAN, alvo || (salva ? salva.id : null));
+  /* @Kronos responde para todo mundo, dentro da própria conversa */
+  if(/@kronos\b/i.test(corpo) && window.MGKronos){
+    MGKronos.noCanal(corpo, CHAN, alvo || (salva ? salva.id : null));
   }
   if(/#adicionardemanda\b/i.test(corpo)   && typeof chCriarDemanda   === 'function') chCriarDemanda(corpo);
   if(/#adicionardocumento\b/i.test(corpo) && typeof chCriarDocumento === 'function') chCriarDocumento(corpo);
@@ -19089,7 +19065,7 @@ function reenviar(id){
   enviar(th ? 'th' : '');
 }
 
-/* ----- resposta efêmera do Luquinhas e dos comandos -----
+/* ----- resposta efêmera do Kronos e dos comandos -----
    Só quem pediu vê, e não vai para o banco. É o mesmo comportamento de
    resposta de comando do Slack, e evita poluir a conversa dos outros. */
 function local(texto, extra){
@@ -19098,7 +19074,7 @@ function local(texto, extra){
   const m = Object.assign({
     id: 'loc-' + Date.now() + Math.random().toString(16).slice(2,6),
     channel_id: CHAN, author_id: null, body: texto || '',
-    kind: 'luquinhas', created_at: new Date().toISOString(),
+    kind: 'kronos', created_at: new Date().toISOString(),
     reactions: {}, anexos: [], __local: true,
   }, extra || {});
   l.push(m);
@@ -19160,10 +19136,10 @@ async function verPerfil(id){
   }
   desenhar();
 }
-function chamarLuquinhas(onde){
+function chamarKronos(onde){
   const ta = caixa(onde); if(!ta) return;
-  if(!/@luquinhas/i.test(ta.value)){
-    ta.value = '@Luquinhas ' + ta.value;
+  if(!/@kronos/i.test(ta.value)){
+    ta.value = '@Kronos ' + ta.value;
   }
   ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
   digitou(ta, onde);
@@ -19466,8 +19442,8 @@ return {
   novoCanalCliente, novoCanalEquipe, renomear, configurar, recarregar, recarregarMsgs,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
-  /* thread, comandos, busca e apoio ao Luquinhas */
-  abrirThread, fecharThread, abrirComandos, escolherComando, chamarLuquinhas,
+  /* thread, comandos, busca e apoio ao Kronos */
+  abrirThread, fecharThread, abrirComandos, escolherComando, chamarKronos,
   buscarMensagens, abrirBusca, limparBusca, irParaMensagem, meuPerfil, verPerfil,
   local, atualizarLocal, limparLocais, msg, autorDe, subirArquivos,
   online: estaOnline, nomeCanal, outroLado, totalNaoLidas, membrosDoCanal,
@@ -19543,8 +19519,8 @@ async function mgCarregarNaoLidas(){
         + '<span class="ic">🔎</span><span class="rot">Mensagens</span></button>'
       + '<button onclick="MGChat.abrirComandos()" title="Comandos">'
         + '<span class="ic">/</span><span class="rot">Comandos</span></button>'
-      + '<button onclick="MGLuq.abrir()" title="Falar com o Luquinhas">'
-        + '<span class="ic">🐤</span><span class="rot">Luquinhas</span></button>'
+      + '<button onclick="MGKronos.abrir()" title="Falar com o Kronos">'
+        + '<span class="ic">' + mgGato(16) + '</span><span class="rot">Kronos</span></button>'
       + '<button onclick="MGChat.escolherPessoa()" title="Nova conversa direta">'
         + '<span class="ic">✎</span><span class="rot">Nova conversa</span></button>'
       + (isAdmin() ? '<button onclick="MGChat.configurar()" title="Configurar canais">'
@@ -19593,102 +19569,102 @@ async function mgCarregarNaoLidas(){
 
 <style>
 /* =====================================================================
-   SEÇÃO · LUQUINHAS · estilo
+   SEÇÃO · KRONOS · estilo
    O assistente mora num canto fixo da tela e acompanha a plataforma
    inteira, não só o chat. As cores saem das variáveis de sempre, então
    o tema claro e o escuro acompanham sem regra extra.
    ===================================================================== */
-.mgl-bolha{position:fixed;right:20px;bottom:84px;z-index:70;width:56px;height:56px;border-radius:50%;
-  border:1px solid var(--brass);background:var(--brass-soft);font-size:27px;line-height:1;
+.mgk-bolha{position:fixed;right:20px;bottom:84px;z-index:70;width:56px;height:56px;border-radius:50%;
+  border:1px solid var(--brass);background:#E9DCBB;line-height:1;
   display:grid;place-items:center;font-family:inherit;cursor:pointer;
   box-shadow:0 14px 34px -14px rgba(0,0,0,.45);transition:transform .18s,box-shadow .18s}
-.mgl-bolha:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 18px 40px -14px rgba(0,0,0,.5)}
-.mgl-bolha.oculta{display:none}
-.mgl-bolha .pt{position:absolute;right:2px;bottom:4px;width:13px;height:13px;border-radius:50%;
+.mgk-bolha:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 18px 40px -14px rgba(0,0,0,.5)}
+.mgk-bolha.oculta{display:none}
+.mgk-bolha .pt{position:absolute;right:2px;bottom:4px;width:13px;height:13px;border-radius:50%;
   background:var(--muted2);border:2px solid var(--card)}
-.mgl-bolha.pronto .pt{background:#2E9E6B}
-.mgl-bolha.ruim .pt{background:var(--danger)}
-.mgl-bolha .n{position:fixed;pointer-events:none}
+.mgk-bolha.pronto .pt{background:#2E9E6B}
+.mgk-bolha.ruim .pt{background:var(--danger)}
+.mgk-bolha .n{position:fixed;pointer-events:none}
 
-.mgl-painel{position:fixed;right:20px;bottom:84px;z-index:71;width:390px;max-width:calc(100vw - 32px);
+.mgk-painel{position:fixed;right:20px;bottom:84px;z-index:71;width:390px;max-width:calc(100vw - 32px);
   height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;
   background:var(--card);border:1px solid var(--line2);border-radius:18px;overflow:hidden;
   box-shadow:0 26px 60px -22px rgba(0,0,0,.55);
   animation:mglSobe .2s cubic-bezier(.2,.7,.3,1)}
-.mgl-painel.on{display:flex}
+.mgk-painel.on{display:flex}
 @keyframes mglSobe{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.mgl-topo{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);
+.mgk-topo{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);
   background:var(--card2);flex-shrink:0}
-.mgl-topo .av{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:19px;
-  background:var(--brass-soft);border:1px solid var(--brass);flex-shrink:0}
-.mgl-topo .tx{min-width:0;flex:1}
-.mgl-topo .tx b{display:block;font-size:14px;font-weight:700;line-height:1.2}
-.mgl-topo .tx span{display:block;font-size:11px;color:var(--muted)}
-.mgl-topo button{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
+.mgk-topo .av{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:#E9DCBB;border:1px solid var(--brass);flex-shrink:0}
+.mgk-topo .tx{min-width:0;flex:1}
+.mgk-topo .tx b{display:block;font-size:14px;font-weight:700;line-height:1.2}
+.mgk-topo .tx span{display:block;font-size:11px;color:var(--muted)}
+.mgk-topo button{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
   color:var(--muted);font-size:13px;font-family:inherit;flex-shrink:0}
-.mgl-topo button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgk-topo button:hover{border-color:var(--brass);color:var(--brass2)}
 
-.mgl-corpo{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
-.mgl-b{max-width:88%;font-size:13.5px;line-height:1.6;border-radius:13px;padding:9px 12px;
+.mgk-corpo{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.mgk-b{max-width:88%;font-size:13.5px;line-height:1.6;border-radius:13px;padding:9px 12px;
   white-space:pre-wrap;word-break:break-word}
-.mgl-b.eu{align-self:flex-end;background:var(--brass);color:var(--ink2);border-bottom-right-radius:5px}
-.mgl-b.ia{align-self:flex-start;background:var(--card2);border:1px solid var(--line);
+.mgk-b.eu{align-self:flex-end;background:var(--brass);color:var(--ink2);border-bottom-right-radius:5px}
+.mgk-b.ia{align-self:flex-start;background:var(--card2);border:1px solid var(--line);
   border-bottom-left-radius:5px}
-.mgl-b.erro{align-self:stretch;max-width:100%;background:rgba(184,74,62,.09);
+.mgk-b.erro{align-self:stretch;max-width:100%;background:rgba(184,74,62,.09);
   border:1px solid rgba(184,74,62,.32)}
-.mgl-b code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+.mgk-b code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
   background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
-.mgl-pensa{align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:12.5px;
+.mgk-pensa{align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:12.5px;
   color:var(--muted);font-style:italic}
-.mgl-pensa .p{display:flex;gap:3px}
-.mgl-pensa .p i{width:5px;height:5px;border-radius:50%;background:var(--brass);
+.mgk-pensa .p{display:flex;gap:3px}
+.mgk-pensa .p i{width:5px;height:5px;border-radius:50%;background:var(--brass);
   animation:mglPula 1s infinite ease-in-out}
-.mgl-pensa .p i:nth-child(2){animation-delay:.15s}
-.mgl-pensa .p i:nth-child(3){animation-delay:.3s}
+.mgk-pensa .p i:nth-child(2){animation-delay:.15s}
+.mgk-pensa .p i:nth-child(3){animation-delay:.3s}
 @keyframes mglPula{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
-.mgl-passos{align-self:flex-start;font-size:11px;color:var(--muted2);display:flex;flex-wrap:wrap;gap:5px}
-.mgl-passos span{border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.mgk-passos{align-self:flex-start;font-size:11px;color:var(--muted2);display:flex;flex-wrap:wrap;gap:5px}
+.mgk-passos span{border:1px solid var(--line);border-radius:6px;padding:1px 6px}
 
-.mgl-acao{align-self:stretch;max-width:100%;border:1px solid var(--brass);border-radius:13px;
+.mgk-acao{align-self:stretch;max-width:100%;border:1px solid var(--brass);border-radius:13px;
   background:var(--brass-soft);padding:11px 13px}
-.mgl-acao h5{margin:0 0 8px;font-size:13px;font-weight:700}
-.mgl-acao .c{font-size:12.5px;line-height:1.6;margin-bottom:2px}
-.mgl-acao .c b{color:var(--muted)}
-.mgl-acao .bts{display:flex;gap:8px;margin-top:10px}
-.mgl-acao .bts button{border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:700;
+.mgk-acao h5{margin:0 0 8px;font-size:13px;font-weight:700}
+.mgk-acao .c{font-size:12.5px;line-height:1.6;margin-bottom:2px}
+.mgk-acao .c b{color:var(--muted)}
+.mgk-acao .bts{display:flex;gap:8px;margin-top:10px}
+.mgk-acao .bts button{border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:700;
   font-family:inherit;border:1px solid var(--line2);background:var(--card);color:var(--text)}
-.mgl-acao .bts button.ok{background:var(--brass);border-color:var(--brass);color:var(--ink2)}
-.mgl-acao .bts button:disabled{opacity:.55}
-.mgl-acao.feita{border-color:#2E9E6B;background:rgba(46,158,107,.09)}
-.mgl-acao.falhou{border-color:var(--danger);background:rgba(184,74,62,.09)}
+.mgk-acao .bts button.ok{background:var(--brass);border-color:var(--brass);color:var(--ink2)}
+.mgk-acao .bts button:disabled{opacity:.55}
+.mgk-acao.feita{border-color:#2E9E6B;background:rgba(46,158,107,.09)}
+.mgk-acao.falhou{border-color:var(--danger);background:rgba(184,74,62,.09)}
 
-.mgl-vazio{margin:auto;text-align:center;padding:20px 10px}
-.mgl-vazio .ic{font-size:38px;margin-bottom:8px}
-.mgl-vazio h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:0 0 6px}
-.mgl-vazio p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 12px}
-.mgl-sug{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
-.mgl-sug button{border:1px solid var(--line2);border-radius:999px;padding:5px 11px;font-size:11.5px;
+.mgk-vazio{margin:auto;text-align:center;padding:20px 10px}
+.mgk-vazio .ic{font-size:38px;margin-bottom:8px}
+.mgk-vazio h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:0 0 6px}
+.mgk-vazio p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 12px}
+.mgk-sug{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.mgk-sug button{border:1px solid var(--line2);border-radius:999px;padding:5px 11px;font-size:11.5px;
   font-family:inherit;background:var(--card);color:var(--muted)}
-.mgl-sug button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgk-sug button:hover{border-color:var(--brass);color:var(--brass2)}
 
-.mgl-baixo{border-top:1px solid var(--line);padding:10px 12px;flex-shrink:0;background:var(--card)}
-.mgl-caixa{display:flex;align-items:flex-end;gap:8px;background:var(--card2);border:1px solid var(--line2);
+.mgk-baixo{border-top:1px solid var(--line);padding:10px 12px;flex-shrink:0;background:var(--card)}
+.mgk-caixa{display:flex;align-items:flex-end;gap:8px;background:var(--card2);border:1px solid var(--line2);
   border-radius:12px;padding:7px 9px}
-.mgl-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
-.mgl-caixa textarea{flex:1;min-width:0;border:0;background:none;outline:none;resize:none;font-size:13.5px;
+.mgk-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgk-caixa textarea{flex:1;min-width:0;border:0;background:none;outline:none;resize:none;font-size:13.5px;
   font-family:inherit;color:var(--text);line-height:1.5;max-height:110px}
-.mgl-caixa button{width:32px;height:32px;border-radius:9px;border:0;background:var(--brass);
+.mgk-caixa button{width:32px;height:32px;border-radius:9px;border:0;background:var(--brass);
   color:var(--ink2);font-size:14px;flex-shrink:0;font-family:inherit}
-.mgl-caixa button:disabled{opacity:.4}
-.mgl-nota{font-size:10.5px;color:var(--muted2);margin-top:6px;line-height:1.5}
+.mgk-caixa button:disabled{opacity:.4}
+.mgk-nota{font-size:10.5px;color:var(--muted2);margin-top:6px;line-height:1.5}
 
 @media(max-width:720px){
-  .mgl-bolha{right:14px;bottom:78px;width:50px;height:50px;font-size:24px}
-  .mgl-painel{right:8px;left:8px;bottom:74px;width:auto;height:min(70vh,520px)}
+  .mgk-bolha{right:14px;bottom:78px;width:50px;height:50px;font-size:24px}
+  .mgk-painel{right:8px;left:8px;bottom:74px;width:auto;height:min(70vh,520px)}
 }
 @media (prefers-reduced-motion: reduce){
-  .mgl-painel{animation:none}
-  .mgl-pensa .p i{animation:none}
+  .mgk-painel{animation:none}
+  .mgk-pensa .p i{animation:none}
 }
 </style>
 
@@ -19704,7 +19680,7 @@ async function mgCarregarNaoLidas(){
      nome, apelidos  como se escreve
      icone, descricao, uso   o que aparece no menu da barra
      permissao()     se a pessoa pode ver e usar
-     precisaIA       se depende do Luquinhas para funcionar
+     precisaIA       se depende do Kronos para funcionar
      executar(arg)   o que faz
 
    Permissão aqui é conveniência de tela. Quem realmente decide é a RLS
@@ -19747,9 +19723,9 @@ async function executar(linha){
     return MGChat.local('O comando `/' + c.nome + '` precisa de um complemento.\nExemplo: `/'
       + c.nome + ' ' + c.exemplo + '`');
   }
-  if(c.precisaIA && (!window.MGLuq || !MGLuq.ligado())){
-    return MGChat.local('Este comando depende do Luquinhas, e ele não está disponível agora.\n'
-      + (window.MGLuq ? MGLuq.motivo() : 'O assistente não carregou.'));
+  if(c.precisaIA && (!window.MGKronos || !MGKronos.ligado())){
+    return MGChat.local('Este comando depende do Kronos, e ele não está disponível agora.\n'
+      + (window.MGKronos ? MGKronos.motivo() : 'O assistente não carregou.'));
   }
   try{
     return await c.executar(arg);
@@ -19768,7 +19744,7 @@ registrar({
   descricao:'Transforma o que você escrever numa demanda estruturada',
   uso:'<descrição>', exemplo:'revisar os criativos da próxima campanha do Cliente Um',
   precisaIA:true,
-  executar: arg => MGLuq.pedirNoChat(
+  executar: arg => MGKronos.pedirNoChat(
     'Prepare uma demanda a partir disto: ' + arg
     + '\nGere um título curto no imperativo e uma descrição organizada.')
 });
@@ -19779,7 +19755,7 @@ registrar({
   precisaIA:true,
   executar: () => {
     const th = MGChat.threadAberta;
-    return MGLuq.pedirNoChat(th
+    return MGKronos.pedirNoChat(th
       ? 'Leia a thread aberta e resuma em tópicos curtos: o que foi decidido, o que ficou pendente e de quem é cada pendência.'
       : 'Leia esta conversa e resuma em tópicos curtos: o que foi decidido, o que ficou pendente e de quem é cada pendência.');
   }
@@ -19789,16 +19765,16 @@ registrar({
   nome:'pendencias', apelidos:['pendências','abertas'], icone:'📌',
   descricao:'Lista as demandas em aberto de um cliente',
   uso:'<cliente>', exemplo:'Cliente Um', precisaIA:true,
-  executar: arg => MGLuq.pedirNoChat(
+  executar: arg => MGKronos.pedirNoChat(
     'Liste as demandas em aberto do cliente "' + arg + '". '
     + 'Mostre título, status, responsável e prazo. Se o cliente não existir, diga isso.')
 });
 
 registrar({
-  nome:'luquinhas', apelidos:['ia','ai','pergunta'], icone:'🐤',
-  descricao:'Pergunta qualquer coisa ao Luquinhas',
+  nome:'kronos', apelidos:['ia','ai','pergunta','kronos'], icone:'🐱',
+  descricao:'Pergunta qualquer coisa ao Kronos',
   uso:'<pergunta>', exemplo:'quantas demandas estão atrasadas?', precisaIA:true,
-  executar: arg => MGLuq.pedirNoChat(arg)
+  executar: arg => MGKronos.pedirNoChat(arg)
 });
 
 registrar({
@@ -19862,7 +19838,7 @@ registrar({
   executar: () => MGChat.local(
     'Comandos disponíveis:\n'
     + visiveis().map(c=>'`/' + c.nome + (c.uso ? ' ' + c.uso : '') + '` — ' + c.descricao).join('\n')
-    + '\n\nVocê também pode escrever `@Luquinhas` no meio de uma mensagem: aí a resposta '
+    + '\n\nVocê também pode escrever `@Kronos` no meio de uma mensagem: aí a resposta '
     + 'aparece para todo mundo da conversa, não só para você.')
 });
 
@@ -19879,16 +19855,16 @@ window.MGCmd = MGCmd;
 
 <script>
 /* =====================================================================
-   SEÇÃO · LUQUINHAS · assistente da plataforma
+   SEÇÃO · KRONOS · assistente da plataforma
    ---------------------------------------------------------------------
-   Aqui só existe a tela. Quem fala com a IA é a função luquinhas, no
+   Aqui só existe a tela. Quem fala com a IA é a função kronos, no
    servidor, porque a chave do provedor não pode aparecer no navegador.
 
    Duas garantias vêm do desenho, não de boa vontade do modelo:
 
    1. A função roda com o Authorization de quem está usando, ou seja,
       com a RLS da pessoa. Se ela não pode criar uma demanda na mão,
-      também não consegue pelo Luquinhas.
+      também não consegue pelo Kronos.
 
    2. Escrita nunca acontece dentro da conversa com o modelo. O modelo
       só PROPÕE; a execução é uma segunda chamada, disparada por este
@@ -19896,7 +19872,7 @@ window.MGCmd = MGCmd;
       "criei a demanda" não pode ser inventado: quem informa o resultado
       é o banco, e é ele que preenche o cartão de resultado abaixo.
    ===================================================================== */
-const MGLuq = (function(){
+const MGKronos = (function(){
 
 let painel = null, bolha = null;
 let aberto = false;
@@ -19918,7 +19894,7 @@ const SUGESTOES = [
    --------------------------------------------------------------------- */
 async function chamar(corpo){
   try{
-    const {data, error} = await sb.functions.invoke('luquinhas', {body: corpo});
+    const {data, error} = await sb.functions.invoke('kronos', {body: corpo});
     if(error){
       /* a função devolve JSON mesmo quando o status não é 2xx */
       try{
@@ -19926,13 +19902,13 @@ async function chamar(corpo){
         if(j && typeof j.ok !== 'undefined') return j;
       }catch(_){}
       return {ok:false, codigo:'rede',
-              erro:'Não consegui falar com o servidor do Luquinhas: '
+              erro:'Não consegui falar com o servidor do Kronos: '
                    + ((error && error.message) || 'falha de rede') + '.'};
     }
     return data || {ok:false, codigo:'vazio', erro:'O servidor respondeu vazio.'};
   }catch(e){
     return {ok:false, codigo:'rede',
-            erro:'Não consegui falar com o servidor do Luquinhas: '
+            erro:'Não consegui falar com o servidor do Kronos: '
                  + ((e && e.message) || 'falha de rede') + '.'};
   }
 }
@@ -19945,7 +19921,7 @@ function registrarEstado(r){
 }
 function ligado(){ return estado !== 'sem_chave' && estado !== 'chave_invalida' }
 function motivo(){
-  return motivoTxt || 'O Luquinhas ainda não tem chave de IA configurada. '
+  return motivoTxt || 'O Kronos ainda não tem chave de IA configurada. '
     + 'Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.';
 }
 
@@ -19993,7 +19969,7 @@ async function carregarMemoria(){
   }catch(_){ /* sem memória o painel abre vazio, e tudo bem */ }
 }
 async function limpar(){
-  if(!confirm('Apagar esta conversa com o Luquinhas?')) return;
+  if(!confirm('Apagar esta conversa com o Kronos?')) return;
   hist = []; ACOES.clear(); pintar();
   try{ await sb.from('assistant_messages').delete().eq('user_id', ME.id) }catch(_){}
 }
@@ -20004,26 +19980,26 @@ async function limpar(){
 function montar(){
   if(painel) return;
   bolha = document.createElement('button');
-  bolha.className = 'mgl-bolha';
-  bolha.title = 'Luquinhas, o Claude dentro do MGP';
-  bolha.innerHTML = '🐤<span class="pt"></span>';
+  bolha.className = 'mgk-bolha';
+  bolha.title = 'Kronos, o Claude dentro do MGP';
+  bolha.innerHTML = mgGato(30) + '<span class="pt"></span>';
   bolha.onclick = alternar;
   document.body.appendChild(bolha);
 
   painel = document.createElement('section');
-  painel.className = 'mgl-painel';
-  painel.setAttribute('aria-label','Luquinhas');
+  painel.className = 'mgk-painel';
+  painel.setAttribute('aria-label','Kronos');
   painel.innerHTML =
-      '<div class="mgl-topo"><span class="av">🐤</span>'
-    + '<span class="tx"><b>Luquinhas</b><span id="mgl-sub">Claude, dentro do MGP</span></span>'
-    + '<button title="Apagar a conversa" onclick="MGLuq.limpar()">🧹</button>'
-    + '<button title="Minimizar" onclick="MGLuq.fechar()">—</button></div>'
-    + '<div class="mgl-corpo" id="mgl-corpo"></div>'
-    + '<div class="mgl-baixo"><div class="mgl-caixa">'
-      + '<textarea id="mgl-in" rows="1" placeholder="Pergunte ou peça alguma coisa"'
-      + ' onkeydown="MGLuq.tecla(event)" oninput="MGLuq.digitou(this)"></textarea>'
-      + '<button id="mgl-env" onclick="MGLuq.enviar()" title="Enviar" disabled>➤</button>'
-    + '</div><div class="mgl-nota">Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
+      '<div class="mgk-topo"><span class="av">' + mgGato(21) + '</span>'
+    + '<span class="tx"><b>Kronos</b><span id="mgk-sub">Claude, dentro do MGP</span></span>'
+    + '<button title="Apagar a conversa" onclick="MGKronos.limpar()">🧹</button>'
+    + '<button title="Minimizar" onclick="MGKronos.fechar()">—</button></div>'
+    + '<div class="mgk-corpo" id="mgk-corpo"></div>'
+    + '<div class="mgk-baixo"><div class="mgk-caixa">'
+      + '<textarea id="mgk-in" rows="1" placeholder="Pergunte ou peça alguma coisa"'
+      + ' onkeydown="MGKronos.tecla(event)" oninput="MGKronos.digitou(this)"></textarea>'
+      + '<button id="mgk-env" onclick="MGKronos.enviar()" title="Enviar" disabled>➤</button>'
+    + '</div><div class="mgk-nota">Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
     + 'e nada é criado sem você confirmar.</div></div>';
   document.body.appendChild(painel);
   pintarBolha();
@@ -20042,7 +20018,7 @@ function abrir(){
   pintarBolha();
   carregarMemoria();
   pintar();
-  const ta = document.getElementById('mgl-in'); if(ta) ta.focus();
+  const ta = document.getElementById('mgk-in'); if(ta) ta.focus();
 }
 function fechar(){
   aberto = false;
@@ -20059,11 +20035,11 @@ function acaoHTMLPainel(a){
   if(a.estado === 'proposta' || a.estado === 'executando'){
     bts = '<div class="bts">'
       + '<button class="ok" ' + (a.estado==='executando'?'disabled':'')
-      + ' onclick="MGLuq.confirmar(\'' + escJS(a.id) + '\')">'
+      + ' onclick="MGKronos.confirmar(\'' + escJS(a.id) + '\')">'
       + (a.estado === 'executando' ? 'Executando…' : 'Confirmar') + '</button>'
-      + '<button onclick="MGLuq.cancelar(\'' + escJS(a.id) + '\')">Cancelar</button></div>';
+      + '<button onclick="MGKronos.cancelar(\'' + escJS(a.id) + '\')">Cancelar</button></div>';
   }
-  return '<div class="mgl-acao' + cls + '">'
+  return '<div class="mgk-acao' + cls + '">'
     + '<h5>' + esc(a.titulo)
       + (a.estado === 'feito' ? ' · feito' : a.estado === 'cancelado' ? ' · cancelado'
        : a.estado === 'falhou' ? ' · não deu' : '') + '</h5>'
@@ -20072,40 +20048,40 @@ function acaoHTMLPainel(a){
     + bts + '</div>';
 }
 function pintar(){
-  const cx = document.getElementById('mgl-corpo'); if(!cx) return;
-  const sub = document.getElementById('mgl-sub');
+  const cx = document.getElementById('mgk-corpo'); if(!cx) return;
+  const sub = document.getElementById('mgk-sub');
   if(sub){
     sub.textContent = pensando ? 'pensando…'
       : estado === 'sem_chave' || estado === 'chave_invalida' ? 'indisponível'
       : 'Claude, dentro do MGP';
   }
   if(!hist.length && !pensando){
-    cx.innerHTML = '<div class="mgl-vazio"><div class="ic">🐤</div>'
-      + '<h4>Oi, eu sou o Luquinhas</h4>'
+    cx.innerHTML = '<div class="mgk-vazio"><div class="ic">' + mgGato(40) + '</div>'
+      + '<h4>Oi, eu sou o Kronos</h4>'
       + '<p>Sou o Claude ligado às ferramentas do MGP. Pergunto ao banco antes de responder '
       + 'e não invento dado. Para criar ou alterar alguma coisa, eu monto a proposta e você confirma.</p>'
-      + '<div class="mgl-sug">' + SUGESTOES.map(s=>
-          '<button onclick="MGLuq.sugestao(\'' + escJS(s) + '\')">' + esc(s) + '</button>').join('')
+      + '<div class="mgk-sug">' + SUGESTOES.map(s=>
+          '<button onclick="MGKronos.sugestao(\'' + escJS(s) + '\')">' + esc(s) + '</button>').join('')
       + '</div></div>';
     return;
   }
   cx.innerHTML = hist.map(h=>{
       if(h.acao) return acaoHTMLPainel(h.acao);
       const cls = h.erro ? 'ia erro' : h.papel === 'user' ? 'eu' : 'ia';
-      return '<div class="mgl-b ' + cls + '">' + marcado(h.texto) + '</div>'
+      return '<div class="mgk-b ' + cls + '">' + marcado(h.texto) + '</div>'
         + (h.passos && h.passos.length
-            ? '<div class="mgl-passos">' + h.passos.map(p=>'<span>consultou ' + esc(p) + '</span>').join('') + '</div>'
+            ? '<div class="mgk-passos">' + h.passos.map(p=>'<span>consultou ' + esc(p) + '</span>').join('') + '</div>'
             : '');
     }).join('')
-    + (pensando ? '<div class="mgl-pensa"><span class="p"><i></i><i></i><i></i></span>'
-                + 'Luquinhas está pensando…</div>' : '');
+    + (pensando ? '<div class="mgk-pensa"><span class="p"><i></i><i></i><i></i></span>'
+                + 'Kronos está pensando…</div>' : '');
   cx.scrollTop = cx.scrollHeight;
 }
 
 function digitou(ta){
   ta.style.height = 'auto';
   ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
-  const b = document.getElementById('mgl-env');
+  const b = document.getElementById('mgk-env');
   if(b) b.disabled = !ta.value.trim() || pensando;
 }
 function tecla(e){
@@ -20114,7 +20090,7 @@ function tecla(e){
   setTimeout(()=>digitou(e.target), 0);
 }
 function sugestao(t){
-  const ta = document.getElementById('mgl-in');
+  const ta = document.getElementById('mgk-in');
   if(ta){ ta.value = t; digitou(ta); ta.focus() }
   enviar();
 }
@@ -20123,7 +20099,7 @@ function sugestao(t){
    4. Perguntar, no painel
    --------------------------------------------------------------------- */
 async function enviar(){
-  const ta = document.getElementById('mgl-in');
+  const ta = document.getElementById('mgk-in');
   const txt = ta ? ta.value.trim() : '';
   if(!txt || pensando) return;
   ta.value = ''; ta.style.height = 'auto'; digitou(ta);
@@ -20227,7 +20203,7 @@ function descreverResultado(res){
 /* comando de barra: a resposta é efêmera, só quem pediu vê */
 async function pedirNoChat(texto){
   if(!window.MGChat || VIEW !== 'chat') return perguntar(texto);
-  const espera = MGChat.local('Luquinhas está pensando…', {__pensando:true});
+  const espera = MGChat.local('Kronos está pensando…', {__pensando:true});
   const r = await chamar({
     modo:'conversar',
     mensagens: [{role:'user', content: texto}],
@@ -20248,12 +20224,12 @@ async function pedirNoChat(texto){
   return r;
 }
 
-/* @Luquinhas numa mensagem: a resposta vale para a conversa inteira, e
-   por isso vai para o banco por mg_luq_publicar, que confere se quem
+/* @Kronos numa mensagem: a resposta vale para a conversa inteira, e
+   por isso vai para o banco por mg_kronos_publicar, que confere se quem
    pediu realmente participa do canal. */
 async function noCanal(texto, canalId, respostaA){
-  const espera = MGChat.local('Luquinhas está pensando…', {__pensando:true});
-  const limpo = String(texto||'').replace(/@luquinhas/ig,'').trim();
+  const espera = MGChat.local('Kronos está pensando…', {__pensando:true});
+  const limpo = String(texto||'').replace(/@kronos/ig,'').trim();
   const ctx = contexto();
   ctx.canal_id = canalId;
   const r = await chamar({
@@ -20275,7 +20251,7 @@ async function noCanal(texto, canalId, respostaA){
     return r;
   }
   try{
-    const {error} = await sb.rpc('mg_luq_publicar',
+    const {error} = await sb.rpc('mg_kronos_publicar',
       {p_canal: canalId, p_texto: r.texto, p_reply_to: respostaA || null});
     if(error) throw error;
     MGChat.atualizarLocal(espera.id, {body:'Respondi na conversa.', __pensando:false});
@@ -20294,7 +20270,7 @@ function sobrePessoa(id){
   const u = (typeof MGU !== 'undefined') ? MGU.get(id) : null;
   if(!u) return;
   abrir();
-  const ta = document.getElementById('mgl-in');
+  const ta = document.getElementById('mgk-in');
   if(ta){
     ta.value = 'O que ' + u.nome + ' tem em aberto na plataforma?';
     digitou(ta); ta.focus();
@@ -20307,9 +20283,9 @@ function sobreMensagem(id){
   if(!window.MGChat) return;
   const m = MGChat.msg(id);
   if(!m) return;
-  const autor = m.kind === 'luquinhas' ? 'Luquinhas' : MGChat.autorDe(m).nome;
+  const autor = m.kind === 'kronos' ? 'Kronos' : MGChat.autorDe(m).nome;
   abrir();
-  const ta = document.getElementById('mgl-in');
+  const ta = document.getElementById('mgk-in');
   if(ta){
     ta.value = 'Sobre esta mensagem de ' + autor + ': "'
       + String(m.body||'').slice(0,200) + '"\n\n';
@@ -20343,7 +20319,7 @@ return {
   get estado(){ return estado },
 };
 })();
-window.MGLuq = MGLuq;
+window.MGKronos = MGKronos;
 </script>
 
 </body>

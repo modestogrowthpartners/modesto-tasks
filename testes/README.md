@@ -16,12 +16,12 @@ Reproduz o contrato que o `index.html` usa: `from`, `rpc`, `auth`,
 `file://`: em `file://` o Chromium desliga o `localStorage` e o teste de
 persistência não valeria nada.
 
-O comportamento do Luquinhas é escolhido em tempo de teste:
+O comportamento do Kronos é escolhido em tempo de teste:
 
 ```js
-window.__LUQ_MODO = 'texto' | 'confirmar' | 'sem_chave' | 'fora'
-window.__LUQ_EXEC_FALHA = 1     // força o banco a recusar a execução
-window.__LUQ_PUBLICAR_FALHA = 1 // força falha ao publicar no canal
+window.__KRONOS_MODO = 'texto' | 'confirmar' | 'sem_chave' | 'fora'
+window.__KRONOS_EXEC_FALHA = 1     // força o banco a recusar a execução
+window.__KRONOS_PUBLICAR_FALHA = 1 // força falha ao publicar no canal
 ```
 
 ## `regressao.mjs`

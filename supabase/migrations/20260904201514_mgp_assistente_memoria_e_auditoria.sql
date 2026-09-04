@@ -1,4 +1,4 @@
--- Conversa do usuário com o Luquinhas no painel flutuante.
+-- Conversa do usuário com o Kronos no painel flutuante.
 create table if not exists public.assistant_messages (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references public.profiles(id) on delete cascade,
@@ -18,7 +18,7 @@ create policy am_sel on public.assistant_messages for select using (user_id = au
 create policy am_ins on public.assistant_messages for insert with check (user_id = auth.uid());
 create policy am_del on public.assistant_messages for delete using (user_id = auth.uid());
 
--- Registro de toda ação de escrita que o Luquinhas executou, com o
+-- Registro de toda ação de escrita que o Kronos executou, com o
 -- resultado real. Serve de auditoria e é o que permite afirmar depois
 -- se algo aconteceu ou não.
 create table if not exists public.assistant_actions (
@@ -43,9 +43,9 @@ create policy aa_sel on public.assistant_actions for select
 create policy aa_ins on public.assistant_actions for insert
   with check (user_id = auth.uid());
 
--- Resposta do Luquinhas publicada dentro de um canal, sem autor humano.
+-- Resposta do Kronos publicada dentro de um canal, sem autor humano.
 -- Continua respeitando can_see_channel: só publica onde quem pediu já lê.
-create or replace function public.mg_luq_publicar(
+create or replace function public.mg_kronos_publicar(
   p_canal uuid, p_texto text, p_reply_to uuid default null)
 returns public.messages language plpgsql security definer set search_path to 'public' as $$
 declare v public.messages;
@@ -65,11 +65,11 @@ begin
   end if;
 
   insert into public.messages (channel_id, author_id, author_name, body, kind, reply_to)
-       values (p_canal, null, 'Luquinhas', p_texto, 'luquinhas', p_reply_to)
+       values (p_canal, null, 'Kronos', p_texto, 'kronos', p_reply_to)
     returning * into v;
   return v;
 end;
 $$;
 
-revoke all on function public.mg_luq_publicar(uuid,text,uuid) from public;
-grant execute on function public.mg_luq_publicar(uuid,text,uuid) to authenticated;
+revoke all on function public.mg_kronos_publicar(uuid,text,uuid) from public;
+grant execute on function public.mg_kronos_publicar(uuid,text,uuid) to authenticated;

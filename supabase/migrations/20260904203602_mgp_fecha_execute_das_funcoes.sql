@@ -25,7 +25,7 @@ revoke all on function public.mg_abrir_dm(uuid)              from anon;
 revoke all on function public.mg_threads(uuid)               from anon;
 revoke all on function public.mg_buscar_mensagens(text,int)  from anon;
 revoke all on function public.mg_pode_ver_pessoa(uuid)       from anon;
-revoke all on function public.mg_luq_publicar(uuid,text,uuid) from anon;
+revoke all on function public.mg_kronos_publicar(uuid,text,uuid) from anon;
 revoke all on function public.mg_toggle_reaction(uuid,text)  from anon;
 revoke all on function public.mg_unread()                    from anon;
 revoke all on function public.save_my_checklist(jsonb)       from anon;
