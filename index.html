@@ -1,6 +1,211 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<!--
+=======================================================================
+  MGP TASKS — índice do arquivo
+=======================================================================
+
+  Aplicação de página única. O código está marcado por SEÇÕES de
+  domínio: procure por "SEÇÃO · <NOME>" para saltar até a parte que
+  interessa. O índice abaixo dá a linha de cada bloco.
+
+  ATENÇÃO À ORDEM. Fora a seção CHAT, as demais foram escritas como
+  camadas: um bloco guarda a função anterior e a substitui por uma
+  versão que chama a antiga. A ordem de execução importa, e mover um
+  bloco de lugar muda o comportamento. Funções com mais camadas:
+
+      showView             22 camadas
+      render               16 camadas
+      boot                 14 camadas
+      mgDockItens          10 camadas
+      mgAtalhos             8 camadas
+      renderDetailBody      7 camadas
+      renderDocsView        6 camadas
+      abrirEditarCliente    5 camadas
+      renderHome            5 camadas
+      visibleTasks          5 camadas
+
+  Consolidar essas camadas é o próximo passo da limpeza: cada uma
+  precisa virar uma função só, com teste, módulo a módulo.
+
+-----------------------------------------------------------------------
+  ÍNDICE POR SEÇÃO
+-----------------------------------------------------------------------
+
+  BASE   (5 blocos)
+      linha   216  CSS  estrutura, estado e funções de base
+      linha   961  JS   estrutura, estado e funções de base
+
+  NÚCLEO   (8 blocos)
+      linha  9850  CSS  reconhecer "falta no banco" em qualquer sotaque
+      linha  9863  JS   tradução das mensagens de erro do banco
+      linha  9979  CSS  a tela diz com qual banco está falando
+      linha 10001  JS   diagnóstico da conexão com o banco
+      linha 10842  CSS  saber qual versão está no ar
+      linha 10856  JS   versão no ar
+      linha 15245  CSS  a página parava de piscar
+      linha 15286  JS   redesenhar só quando algo muda
+
+  ACESSO   (5 blocos)
+      linha  3731  CSS  mensagens de login claras
+      linha  3743  JS   por que o acesso criado não entrava
+      linha  4173  CSS  aviso de configuração do acesso
+      linha  4194  JS   "criei, tem que funcionar"
+      linha  6362  JS   "Logins de e-mail estão desativados"
+
+  MARCA   (6 blocos)
+      linha  6250  CSS  Portal Modesto: nome, logo e limpeza da tela de entrada
+      linha  6263  JS   nome e limpeza da tela de entrada
+      linha  6299  CSS  marca na aba do navegador e no topo da plataforma
+      linha  6312  JS   ícone da aba e marca no topo
+      linha 16515  CSS  a logo da Modesto no lugar do "M"
+      linha 16557  JS   logo da Modesto
+
+  SHELL   (18 blocos)
+      linha   752  CSS  barra lateral estreita (ícone em cima, rótulo embaixo)
+      linha  2391  JS   barra lateral estreita e logo do cliente
+      linha  2512  CSS  nas telas de Documentos e Chat, esconde os controles do Kanban
+      linha  4745  CSS  menu do usuário na barra de cima (com Sair)
+      linha  4786  JS   menu do usuário, com saída sempre à mão
+      linha  6457  CSS  nomes no lugar, cards parados, MGP escurecendo no fundo
+      linha  6484  JS   tradução automática, logo parada e fundo
+      linha  7152  CSS  barra de baixo, menu do quadro, histórico e modo cliente
+      linha  7367  JS   ver o cabeçalho do bloco de estilo acima
+      linha  8679  CSS  barra única e som das demandas
+      linha  9392  CSS  boas-vindas, filtros e fundo da plataforma
+      linha  9456  JS   boas-vindas, filtros e fundo da plataforma
+      linha 10818  CSS  texto preto no tema escuro
+      linha 13950  CSS  o menu lateral inteiro passa para a barra de baixo
+      linha 14008  JS   menu de navegação na barra de baixo
+      linha 14104  CSS  menu do usuário e telas desativadas
+      linha 14163  JS   menu do usuário e telas desativadas
+
+  INÍCIO   (10 blocos)
+      linha  3912  CSS  Início (hub) + barra que recolhe ao escolher
+      linha  3983  JS   tela de Início e barra que recolhe
+      linha  4325  CSS  Início centralizado, sem barra lateral
+      linha  4355  JS   Início centralizado
+      linha  5212  CSS  cards do Início maiores, coloridos e com logos girando
+      linha  5270  JS   cards do Início
+      linha  6952  CSS  painel das demandas no Início
+      linha  7004  JS   o Início ganha o panorama das demandas
+      linha 14312  CSS  progresso por cliente e projetos
+      linha 14430  JS   progresso por cliente e projetos
+
+  DEMANDAS   (26 blocos)
+      linha  4504  CSS  Kanban, Quadro e Calendário viram um módulo só
+      linha  4524  JS   Kanban, Quadro e Calendário num módulo só
+      linha  5362  CSS  foto e nome do responsável no card
+      linha  5391  JS   foto e nome do responsável no card
+      linha  5932  CSS  colunas, gestão de pessoas e checklist de verdade
+      linha  6000  JS   ordem das colunas, gestão de pessoas e checklist
+      linha  6524  CSS  avatar do responsável: sem realce, com foto
+      linha  6533  JS   avatar do responsável
+      linha  6826  CSS  vários cronômetros ao mesmo tempo
+      linha  6848  JS   vários cronômetros ao mesmo tempo
+      linha 10703  CSS  painel de detalhe em duas colunas
+      linha 10738  JS   painel de detalhe em duas colunas
+      linha 10893  CSS  reordenar cards, filtros de cliente e entrega
+      linha 10942  JS   reordenar cards, filtros de cliente e entrega
+      linha 11282  CSS  anexos, projetos e demanda urgente
+      linha 11384  JS   anexos, projetos e demanda urgente
+      linha 11865  CSS  subtarefas com data, responsável e tempo
+      linha 11926  JS   subtarefas com data, responsável e tempo
+      linha 15212  CSS  coluna "Próximas entregas"
+      linha 15225  JS   coluna Próximas entregas
+      linha 15423  CSS  ordenar por data de entrega num clique
+      linha 15434  JS   ordenar por data de entrega
+      linha 15492  CSS  Dash de volta e editar demanda
+      linha 15512  JS   Dash de volta e editar demanda
+      linha 15695  CSS  o painel de filtros fechava ao clicar em Todos/Nenhum
+      linha 15716  JS   painel de filtros
+
+  PROJETOS   (2 blocos)
+      linha 14836  CSS  projeto no detalhe da demanda
+      linha 14850  JS   projeto no detalhe da demanda
+
+  CLIENTES   (11 blocos)
+      linha  2732  CSS  configurações em janela, cadastro de cliente completo
+      linha  2772  JS   configurações em janela e cadastro de cliente
+      linha  2973  JS   vínculo do perfil à empresa
+      linha  3100  CSS  janelas animadas + cadastro de cliente em popup
+      linha  3154  JS   cadastro de cliente em janela animada
+      linha  3275  CSS  editar cliente numa janela + página do documento
+      linha  3309  JS   editar cliente e página do documento
+      linha  3556  CSS  acessos dentro da janela de editar cliente
+      linha  3577  JS   criar o e-mail de acesso do cliente também depois,
+      linha  5825  CSS  remover um acesso da lista
+      linha  5843  JS   excluir um acesso de cliente
+
+  EQUIPE   (4 blocos)
+      linha  6579  CSS  fundo discreto, cadastro pela Equipe, nomes editáveis
+      linha  6605  JS   cadastro de pessoas e nomes editáveis
+      linha 16785  CSS  o administrador passa a gerenciar os perfis
+      linha 16817  JS   gerenciar perfis
+
+  DOCUMENTOS   (6 blocos)
+      linha   707  CSS  estilo do módulo de documentos
+      linha  2176  JS   módulo de documentos
+      linha  3863  CSS  voltar sempre visível na página do documento
+      linha  3879  JS   botão de voltar bem visível na página do documento
+      linha  4860  CSS  vários acertos pedidos
+      linha  4907  JS   abrir e excluir documentos, som e perfil
+
+  CHAT   (1 bloco)
+      linha 17047  CSS  estilo
+
+  BRIEFING   (10 blocos)
+      linha 12162  CSS  Briefing de plano de mídia
+      linha 12269  JS   Briefing
+      linha 12889  CSS  a equipe também começa um briefing
+      linha 12904  JS   a equipe também começa um briefing
+      linha 12993  CSS  anexos e destinatários
+      linha 13042  JS   anexos e destinatários
+      linha 13338  CSS  confirmação e aviso à equipe
+      linha 13382  JS   confirmação e aviso à equipe
+      linha 13676  CSS  o briefing enviado vira documento
+      linha 13705  JS   o briefing enviado vira documento
+
+  PLANO DE MÍDIA   (8 blocos)
+      linha  7931  CSS  plano de mídia, calendário e celular
+      linha  8095  JS   ver o cabeçalho do bloco de estilo acima
+      linha  8975  CSS  confirmação ao salvar o plano
+      linha 10108  CSS  o plano de mídia ganha duas leituras novas
+      linha 10214  JS   resumo visual e cronograma
+      linha 10527  CSS  o plano de mídia passa a abrir no formato novo
+      linha 10535  JS   abre no resumo visual
+
+  PACING   (2 blocos)
+      linha  9094  CSS  Pacing diário na plataforma
+      linha  9162  JS   Pacing
+
+  NOTIFICAÇÕES   (2 blocos)
+      linha 14956  CSS  a enxurrada de notificações
+      linha 14982  JS   controle da enxurrada de avisos
+
+  CONFIGURAÇÕES   (2 blocos)
+      linha  5537  CSS  Preferências em duas colunas, no espírito do Slack
+      linha  5588  JS   Preferências no formato de duas colunas
+
+  VISÃO DO CLIENTE   (14 blocos)
+      linha  2531  CSS  visão restrita do cliente + aba de acessos
+      linha  2564  JS   visão restrita do cliente
+      linha  4631  CSS  a pasta do cliente com cara de pasta dele
+      linha  4658  JS   pasta de documentos do cliente
+      linha 13590  CSS  o cliente entra no Briefing sem ser redirecionado
+      linha 13604  JS   o cliente entra no Briefing
+      linha 13876  CSS  o cliente precisa de um caminho até o Briefing
+      linha 13888  JS   caminho do cliente até o Briefing
+      linha 15848  CSS  o cliente passa a ver as demandas da empresa dele
+      linha 15941  JS   demandas da empresa do cliente
+      linha 16182  CSS  a visão do cliente, no desenho da referência
+      linha 16298  JS   quadro do cliente em cinco colunas
+      linha 16601  CSS  a página do cliente vira uma só
+      linha 16656  JS   a página do cliente vira uma só
+
+=======================================================================
+-->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Modesto Tasks — Gestão de Demandas</title>
@@ -501,7 +706,7 @@ body.hide-card-av .card-t .avs{display:none}
 </style>
 <style>
 /* =====================================================================
-   ADIÇÃO — Documentos e Chat
+   SEÇÃO · DOCUMENTOS — estilo do módulo de documentos
    Usa as mesmas variáveis do app, então acompanha tema claro/escuro,
    densidade e arredondamento sem precisar de nada extra.
    ===================================================================== */
@@ -546,7 +751,7 @@ body.hide-card-av .card-t .avs{display:none}
 </style>
 <style>
 /* =====================================================================
-   ADIÇÃO 2 — barra lateral estreita (ícone em cima, rótulo embaixo)
+   SEÇÃO · SHELL — barra lateral estreita (ícone em cima, rótulo embaixo)
    + logos de cliente no chat
    ===================================================================== */
 
@@ -1970,7 +2175,7 @@ function fixPlaceholders(){
 </script>
 <script>
 /* =====================================================================
-   ADIÇÃO — módulos Documentos e Chat
+   SEÇÃO · DOCUMENTOS — módulo de documentos
    ---------------------------------------------------------------------
    Nada do app original foi alterado. Este bloco apenas ACRESCENTA:
      • duas entradas no menu (Documentos e Chat);
@@ -2185,7 +2390,7 @@ function uploadDoc(){
 </script>
 <script>
 /* =====================================================================
-   ADIÇÃO 2
+   SEÇÃO · SHELL — barra lateral estreita e logo do cliente
    • tira o Dashboard do menu
    • barra lateral estreita (ícone em cima, rótulo embaixo)
    • chat já configurado: um canal por cliente + canais da equipe + diretas,
@@ -2305,7 +2510,7 @@ openDoc = async function(id){
 };
 </script>
 <style>
-/* ADIÇÃO 3 — nas telas de Documentos e Chat, esconde os controles do Kanban */
+/* SEÇÃO · SHELL — nas telas de Documentos e Chat, esconde os controles do Kanban */
 body.mg-sem-tarefas .topbar .search,
 body.mg-sem-tarefas .topbar #cfilter,
 body.mg-sem-tarefas .topbar #filter-btn,
@@ -2324,7 +2529,7 @@ body.mg-sem-tarefas .topbar .btn-p.admin-only{display:none!important}
 })();
 </script>
 <style>
-/* ADIÇÃO 4 — visão restrita do cliente + aba de acessos */
+/* SEÇÃO · VISÃO DO CLIENTE — visão restrita do cliente + aba de acessos */
 body.mg-cliente .side-today,
 body.mg-cliente .side-late{display:none!important}
 body.mg-cliente .topbar .search,
@@ -2358,7 +2563,7 @@ body.mg-cliente .topbar .portal-link{display:none!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 4
+   SEÇÃO · VISÃO DO CLIENTE — visão restrita do cliente
    • CLIENTE entra e vê SÓ a pasta de documentos da empresa dele
    • ADMIN ganha a aba "Acessos" para criar e-mail e senha do cliente
    ===================================================================== */
@@ -2525,7 +2730,7 @@ async function criarAcesso(){
 }
 </script>
 <style>
-/* ADIÇÃO 5 — configurações em janela, cadastro de cliente completo */
+/* SEÇÃO · CLIENTES — configurações em janela, cadastro de cliente completo */
 .mg-modal{position:fixed;inset:0;background:rgba(12,11,9,.55);backdrop-filter:blur(3px);
   display:none;place-items:center;z-index:120;padding:24px}
 .mg-modal.on{display:grid}
@@ -2566,7 +2771,7 @@ async function criarAcesso(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 5
+   SEÇÃO · CLIENTES — configurações em janela e cadastro de cliente
    • tira a aba Equipe (o que ela fazia foi para Acessos)
    • engrenagem decente no canal "Geral"
    • Configurações vira janela, com conta e notificações
@@ -2767,7 +2972,7 @@ renderDocsView = function(){
 </script>
 <script>
 /* =====================================================================
-   ADIÇÃO 6
+   SEÇÃO · CLIENTES — vínculo do perfil à empresa
    • tira a aba "Acessos" — criar acesso passa a existir só no cadastro
      de cliente novo
    • amarra o perfil do cliente à empresa de forma confiável, com
@@ -2894,7 +3099,7 @@ async function criarClienteCompleto(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 7 — janelas animadas + cadastro de cliente em popup
+   SEÇÃO · CLIENTES — janelas animadas + cadastro de cliente em popup
    ===================================================================== */
 
 /* ---- animação de entrada e saída das janelas ---- */
@@ -2948,7 +3153,7 @@ async function criarClienteCompleto(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 7
+   SEÇÃO · CLIENTES — cadastro de cliente em janela animada
    • cadastro de cliente vira janela, aberta por botão
    • janelas com animação de entrada e saída
    ===================================================================== */
@@ -3069,7 +3274,7 @@ document.addEventListener('keydown', e=>{
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 8 — editar cliente numa janela + página do documento
+   SEÇÃO · CLIENTES — editar cliente numa janela + página do documento
    ===================================================================== */
 .mg-edit-logo{display:flex;align-items:center;gap:14px;margin-bottom:6px}
 .mg-edit-logo .lg{width:56px;height:56px;border-radius:12px;display:grid;place-items:center;overflow:hidden;
@@ -3103,7 +3308,7 @@ document.addEventListener('keydown', e=>{
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 8
+   SEÇÃO · CLIENTES — editar cliente e página do documento
    • linha do cliente com um único botão: Editar (janela com logo, nome,
      resumo e exclusão)
    • clicar no documento abre uma PÁGINA do documento, que mostra o
@@ -3349,7 +3554,7 @@ renderDocsView = function(){
 })();
 </script>
 <style>
-/* ADIÇÃO 9 — acessos dentro da janela de editar cliente */
+/* SEÇÃO · CLIENTES — acessos dentro da janela de editar cliente */
 .mg-acessos{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
 .mg-acessos .cab{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .mg-acessos .cab h4{font-family:var(--font-d);font-size:15px;font-weight:500;flex:1}
@@ -3371,7 +3576,7 @@ renderDocsView = function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 9 — criar o e-mail de acesso do cliente também depois,
+   SEÇÃO · CLIENTES — criar o e-mail de acesso do cliente também depois,
    pela janela de editar, e para mais de uma pessoa por empresa
    ===================================================================== */
 
@@ -3524,7 +3729,7 @@ criarClienteCompleto = async function(){
 };
 </script>
 <style>
-/* ADIÇÃO 10 — mensagens de login claras */
+/* SEÇÃO · ACESSO — mensagens de login claras */
 #li-err{line-height:1.55}
 #li-err b{color:inherit}
 .mg-liberar{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -3537,7 +3742,7 @@ criarClienteCompleto = async function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 10 — por que o acesso criado não entrava
+   SEÇÃO · ACESSO — por que o acesso criado não entrava
    ---------------------------------------------------------------------
    Duas causas, tratadas aqui:
    1) o login dizia sempre "e-mail ou senha inválidos", escondendo o
@@ -3656,7 +3861,7 @@ function liberarTodosAcessos(){
 }
 </script>
 <style>
-/* ADIÇÃO 11 — voltar sempre visível na página do documento */
+/* SEÇÃO · DOCUMENTOS — voltar sempre visível na página do documento */
 .mg-voltar{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line2);
   border-radius:10px;padding:8px 14px 8px 11px;font-size:13px;font-weight:600;color:var(--text);
   margin-bottom:14px;font-family:inherit;
@@ -3673,7 +3878,7 @@ function liberarTodosAcessos(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 11 — botão de voltar bem visível na página do documento
+   SEÇÃO · DOCUMENTOS — botão de voltar bem visível na página do documento
    ===================================================================== */
 const _mg11Docs = renderDocsView;
 renderDocsView = function(){
@@ -3706,7 +3911,7 @@ document.addEventListener('keydown', e=>{
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 12 — Início (hub) + barra que recolhe ao escolher
+   SEÇÃO · INÍCIO — Início (hub) + barra que recolhe ao escolher
    ===================================================================== */
 
 /* ---- a barra sai de cena quando você entra num módulo ---- */
@@ -3777,7 +3982,7 @@ body.mg-cliente .mg-home{display:none!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 12
+   SEÇÃO · INÍCIO — tela de Início e barra que recolhe
    • tela de Início: escolhe o módulo e vê o resumo do seu dia
    • a barra lateral recolhe ao entrar num módulo; o botão de início
      na barra de cima traz você de volta
@@ -3966,7 +4171,7 @@ function mgIrParaDemanda(id){
 })();
 </script>
 <style>
-/* ADIÇÃO 13 — aviso de configuração do acesso */
+/* SEÇÃO · ACESSO — aviso de configuração do acesso */
 .mg-alerta{display:flex;gap:12px;align-items:flex-start;border-radius:13px;padding:14px 16px;
   font-size:13px;line-height:1.55;margin-bottom:16px;
   background:rgba(217,131,36,.10);border:1px solid rgba(217,131,36,.32);
@@ -3988,7 +4193,7 @@ function mgIrParaDemanda(id){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 13 — "criei, tem que funcionar"
+   SEÇÃO · ACESSO — "criei, tem que funcionar"
    ---------------------------------------------------------------------
    O acesso só não entra direto porque o Supabase está com a confirmação
    por e-mail ligada. Isso é um botão no painel, que a plataforma não tem
@@ -4119,7 +4324,7 @@ mgEnriquecerAviso = function(idCaixa, email){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 14 — Início centralizado, sem barra lateral
+   SEÇÃO · INÍCIO — Início centralizado, sem barra lateral
    ===================================================================== */
 body.mg-inicio .side{width:0!important;opacity:0;transform:translateX(-16px);pointer-events:none;overflow:hidden}
 body.mg-inicio .topbar .search,
@@ -4149,7 +4354,7 @@ body.mg-inicio #v-home.on{display:flex;flex-direction:column;align-items:center;
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 14
+   SEÇÃO · INÍCIO — Início centralizado
    1) Início ocupa a tela inteira, centralizado — sem barra lateral
    2) "Suas demandas de hoje" passa a reconhecer você de verdade
       (acento, sobrenome e nome vindo do e-mail)
@@ -4298,7 +4503,7 @@ chCriarDemanda = async function(texto){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 15 — Kanban, Quadro e Calendário viram um módulo só
+   SEÇÃO · DEMANDAS — Kanban, Quadro e Calendário viram um módulo só
    ===================================================================== */
 #mg-subnav{display:none;align-items:center;gap:10px;padding:14px 30px 0;flex-wrap:wrap}
 body.mg-tasks #mg-subnav{display:flex;animation:mgSobe .32s cubic-bezier(.22,1,.36,1) both}
@@ -4318,7 +4523,7 @@ body.mg-tasks .view.on{animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 15
+   SEÇÃO · DEMANDAS — Kanban, Quadro e Calendário num módulo só
    Kanban, Quadro e Calendário são três jeitos de olhar a mesma coisa.
    Viram um item só na barra — "Modesto Tasks" — com um seletor de
    visualização dentro.
@@ -4425,7 +4630,7 @@ if(_mg15Overdue){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 16 — a pasta do cliente com cara de pasta dele
+   SEÇÃO · VISÃO DO CLIENTE — a pasta do cliente com cara de pasta dele
    ===================================================================== */
 .mg-capa{display:flex;align-items:center;gap:20px;padding:6px 0 26px;margin-bottom:8px;
   border-bottom:1px solid var(--line);
@@ -4452,7 +4657,7 @@ if(_mg15Overdue){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 16
+   SEÇÃO · VISÃO DO CLIENTE — pasta de documentos do cliente
    O cliente tem uma empresa só — mostrar "categorias" e uma "pasta por
    cliente" com uma pasta dentro não ajuda ninguém. Ele passa a ver o
    nome da empresa em destaque e, logo abaixo, os documentos dele
@@ -4539,7 +4744,7 @@ renderDocsView = function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 17 — menu do usuário na barra de cima (com Sair)
+   SEÇÃO · SHELL — menu do usuário na barra de cima (com Sair)
    A barra lateral recolhe quase sempre, então o "Sair" que vivia nela
    ficava fora de alcance. Agora ele mora no topo, sempre visível.
    ===================================================================== */
@@ -4580,7 +4785,7 @@ renderDocsView = function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 17 — menu do usuário, com saída sempre à mão
+   SEÇÃO · SHELL — menu do usuário, com saída sempre à mão
    ===================================================================== */
 (function(){
   const topo=document.querySelector('.topbar');
@@ -4654,7 +4859,7 @@ function mgAtualizarEu(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 18 — vários acertos pedidos
+   SEÇÃO · DOCUMENTOS — vários acertos pedidos
    ===================================================================== */
 
 /* 1. o atalho para o Portal sai do topo */
@@ -4701,7 +4906,7 @@ body[data-cards="p"]  .dcard .ti{font-size:13.5px}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 18
+   SEÇÃO · DOCUMENTOS — abrir e excluir documentos, som e perfil
    • tira o botão Portal
    • "Abrir arquivo" abre mesmo (não baixa); "Baixar" é que baixa
    • Excluir documento (admin)
@@ -5006,7 +5211,7 @@ function mgAlternarBloco(btn){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 19 — cards do Início maiores, coloridos e com logos girando
+   SEÇÃO · INÍCIO — cards do Início maiores, coloridos e com logos girando
    ===================================================================== */
 
 /* uma linha só nas telas largas; quebra com elegância nas menores */
@@ -5064,7 +5269,7 @@ function mgAlternarBloco(btn){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 19
+   SEÇÃO · INÍCIO — cards do Início
    • cada módulo com sua cor, para a tela não ficar toda igual
    • cards maiores, cabendo numa linha só nas telas largas
    • o card de Clientes mostra as logos das empresas, alternando
@@ -5156,7 +5361,7 @@ showView = function(v){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 20 — foto e nome do responsável no card
+   SEÇÃO · DEMANDAS — foto e nome do responsável no card
    ===================================================================== */
 .mg-resp{display:flex;align-items:center;gap:7px;min-width:0}
 .mg-resp .pilha{display:flex;align-items:center;flex-shrink:0}
@@ -5185,7 +5390,7 @@ body.hide-card-av .mg-resp{display:none}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 20
+   SEÇÃO · DEMANDAS — foto e nome do responsável no card
    Os cards mostravam só as iniciais do responsável. Agora mostram a
    FOTO do perfil e o NOME — e destacam quando a demanda é sua.
    ===================================================================== */
@@ -5331,7 +5536,7 @@ function mgAplicarRespNosCards(raiz){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 21 — Preferências em duas colunas, no espírito do Slack
+   SEÇÃO · CONFIGURAÇÕES — Preferências em duas colunas, no espírito do Slack
    ===================================================================== */
 #mg-cfg .cx{max-width:940px;height:min(78vh,660px)}
 #mg-cfg .cc{padding:0;display:flex;overflow:hidden;flex:1}
@@ -5382,7 +5587,7 @@ function mgAplicarRespNosCards(raiz){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 21 — Preferências no formato de duas colunas
+   SEÇÃO · CONFIGURAÇÕES — Preferências no formato de duas colunas
    ===================================================================== */
 const MG_PREF_ABAS = [
   {id:'perfil',   ic:'☺', nome:'Meu perfil',      grupo:'Você'},
@@ -5619,7 +5824,7 @@ abrirConfig = function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 23 — remover um acesso da lista
+   SEÇÃO · CLIENTES — remover um acesso da lista
    ===================================================================== */
 .mg-lista-ac .p{position:relative;padding-right:44px}
 .mg-lista-ac .p .apagar{position:absolute;right:8px;top:50%;transform:translateY(-50%);
@@ -5637,7 +5842,7 @@ abrirConfig = function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 23 — excluir um acesso de cliente
+   SEÇÃO · CLIENTES — excluir um acesso de cliente
    O login em si vive no Auth do Supabase, que a plataforma não pode
    apagar sozinha (isso exigiria a chave secreta do projeto). O que
    fazemos aqui é remover o VÍNCULO: a pessoa deixa de pertencer à
@@ -5726,7 +5931,7 @@ carregarAcessosCliente = async function(id){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 24 — colunas, gestão de pessoas e checklist de verdade
+   SEÇÃO · DEMANDAS — colunas, gestão de pessoas e checklist de verdade
    ===================================================================== */
 
 /* ---- checklist ---- */
@@ -5794,7 +5999,7 @@ carregarAcessosCliente = async function(id){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 24
+   SEÇÃO · DEMANDAS — ordem das colunas, gestão de pessoas e checklist
    1) "Feito" passa para antes de "Impeditivo/Aprovação"
    2) Equipe: o administrador controla as pessoas
    3) Checklist com estados (pendente, em andamento, feito)
@@ -6044,7 +6249,7 @@ saveChk = async function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 25 — Portal Modesto: nome, logo e limpeza da tela de entrada
+   SEÇÃO · MARCA — Portal Modesto: nome, logo e limpeza da tela de entrada
    ===================================================================== */
 #login .cross{display:none!important}          /* o link para o Portal sai */
 
@@ -6057,7 +6262,7 @@ saveChk = async function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 25
+   SEÇÃO · MARCA — nome e limpeza da tela de entrada
    • "Modesto Tasks" passa a ser "Portal Modesto" na tela de entrada
    • o link "Ir para o Portal de Clientes" sai (a plataforma é o portal)
    • a logo da empresa entra aqui
@@ -6093,7 +6298,7 @@ try{ document.title = 'Portal Modesto'; }catch(_){}
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 26 — marca na aba do navegador e no topo da plataforma
+   SEÇÃO · MARCA — marca na aba do navegador e no topo da plataforma
    ===================================================================== */
 .mg-marca-topo{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;
   background:var(--brass);color:var(--ink2);font-family:var(--font-d);font-weight:600;font-size:18px;
@@ -6106,7 +6311,7 @@ body.mg-inicio .mg-marca-topo{display:none}   /* no Início a tela já é a marc
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 26
+   SEÇÃO · MARCA — ícone da aba e marca no topo
    • ícone na aba do navegador (estava com o globo genérico)
    • marca no topo da plataforma, ao lado do botão Início
    ---------------------------------------------------------------------
@@ -6156,7 +6361,7 @@ mgDefinirIcone();
 </script>
 <script>
 /* =====================================================================
-   ADIÇÃO 27 — "Logins de e-mail estão desativados"
+   SEÇÃO · ACESSO — "Logins de e-mail estão desativados"
    Ao desligar a confirmação de e-mail, é fácil desligar sem querer o
    PROVEDOR de e-mail inteiro no Supabase. Aí ninguém entra — nem o
    administrador. Aqui a plataforma passa a reconhecer esse caso, dizer
@@ -6251,7 +6456,7 @@ const MG_LINK_EMAIL = 'https://supabase.com/dashboard/project/eeqaabwsheaiwyhujc
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 28 — nomes no lugar, cards parados, MGP escurecendo no fundo
+   SEÇÃO · SHELL — nomes no lugar, cards parados, MGP escurecendo no fundo
    ===================================================================== */
 
 /* ---- o card de Clientes deixa de trocar de logo sozinho ---- */
@@ -6278,7 +6483,7 @@ body.theme-dark .bg-marks{animation:mgFundoEscureceNoite 14s ease-in-out infinit
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 28
+   SEÇÃO · SHELL — tradução automática, logo parada e fundo
    1) O Chrome estava TRADUZINDO a página sozinho — por isso apareceu
       "Tarefas de Modesto", "Bater papo", "Lista de verificação".
       A página já é em português; agora ela pede para não ser traduzida.
@@ -6318,7 +6523,7 @@ mgMontarLogos = function(card){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 29 — avatar do responsável: sem realce, com foto
+   SEÇÃO · DEMANDAS — avatar do responsável: sem realce, com foto
    ===================================================================== */
 /* o avatar de quem é você fica igual aos outros — o que muda é a foto */
 .mg-resp .av.eu{border-color:var(--card)!important;box-shadow:none!important}
@@ -6327,7 +6532,7 @@ mgMontarLogos = function(card){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 29
+   SEÇÃO · DEMANDAS — avatar do responsável
    • sem anel em volta do seu avatar (ele parecia maior que os outros)
    • a SUA foto passa a aparecer sempre: em vez de depender do mapa de
      fotos carregado no início, usamos direto a foto do seu perfil
@@ -6373,7 +6578,7 @@ mgAvatarResp = function(nome){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 30 — fundo discreto, cadastro pela Equipe, nomes editáveis
+   SEÇÃO · EQUIPE — fundo discreto, cadastro pela Equipe, nomes editáveis
    ===================================================================== */
 
 /* ---- o MGP volta a ser marca d'água ----
@@ -6399,7 +6604,7 @@ body.theme-dark .bg-anim .bg-marks text{opacity:.07!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 30
+   SEÇÃO · EQUIPE — cadastro de pessoas e nomes editáveis
    1) fundo MGP de volta ao tom de marca d'água
    2) dá para cadastrar gente (equipe ou cliente) pela tela de Equipe
    3) quem está sem nome mostra o e-mail, e o nome pode ser preenchido ali
@@ -6620,7 +6825,7 @@ function mgEditarNome(btn, id){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 31 — vários cronômetros ao mesmo tempo
+   SEÇÃO · DEMANDAS — vários cronômetros ao mesmo tempo
    ===================================================================== */
 .mg-cron{display:none;align-items:center;gap:9px;background:rgba(217,131,36,.12);
   border:1px solid rgba(217,131,36,.38);border-radius:11px;padding:7px 12px;font-size:12.5px;
@@ -6642,7 +6847,7 @@ body.theme-dark .card-t .tchip.mg-rodando{color:#e0a860}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 31
+   SEÇÃO · DEMANDAS — vários cronômetros ao mesmo tempo
    O app pausava automaticamente qualquer outro cronômetro seu antes de
    iniciar um novo — por isso só um rodava por vez. Essa trava saiu:
    agora dá para cronometrar várias demandas ao mesmo tempo.
@@ -6746,7 +6951,7 @@ setInterval(()=>{ try{ mgAtualizarCron() }catch(_){} }, 5000);
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 32 — painel das demandas no Início
+   SEÇÃO · INÍCIO — painel das demandas no Início
    ===================================================================== */
 .mg-painel-dash{margin-top:34px;animation:mgSobe .5s cubic-bezier(.22,1,.36,1) .42s both;text-align:left}
 .mg-dash-tt{font-family:var(--font-d);font-size:19px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:10px}
@@ -6798,7 +7003,7 @@ setInterval(()=>{ try{ mgAtualizarCron() }catch(_){} }, 5000);
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 32 — o Início ganha o panorama das demandas
+   SEÇÃO · INÍCIO — o Início ganha o panorama das demandas
    • como estão distribuídas por situação
    • quem entregou e quanto cada um entregou
    ===================================================================== */
@@ -6946,7 +7151,7 @@ renderHome = function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 33
+   SEÇÃO · SHELL — barra de baixo, menu do quadro, histórico e modo cliente
    1) páginas centralizadas (a de Clientes vivia encostada na esquerda)
    2) seletor de visualização no rodapé, no lugar do segmento do topo
    3) menu do quadro (⋯): classificar, recolher listas, arquivadas,
@@ -7161,7 +7366,7 @@ body.mg-espelhando .mg-qmenu{height:calc(100vh - 38px);top:38px}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 33 — ver o cabeçalho do bloco de estilo acima
+   SEÇÃO · SHELL — ver o cabeçalho do bloco de estilo acima
    ===================================================================== */
 
 /* =====================================================================
@@ -7416,7 +7621,7 @@ async function mgArquivar(id, valor){
   const {error} = await sb.from('tasks').update({archived:!!valor}).eq('id',id);
   if(error){
     if(/column .*archived|archived.* does not exist/i.test(error.message||'')){
-      toast('Rode antes o SQL da ADIÇÃO 33 (coluna "archived")');
+      toast('Rode antes o SQL das demandas arquivadas (coluna "archived")');
     } else toast('Não foi possível arquivar');
     console.error(error); return;
   }
@@ -7430,7 +7635,7 @@ async function mgArquivarConcluidas(){
   if(!confirm(`Arquivar ${alvos.length} demanda(s) concluída(s)? Elas somem do quadro, mas continuam no banco.`)) return;
   const {error} = await sb.from('tasks').update({archived:true}).in('id', alvos.map(t=>t.id));
   if(error){
-    if(/column .*archived|archived.* does not exist/i.test(error.message||'')) toast('Rode antes o SQL da ADIÇÃO 33 (coluna "archived")');
+    if(/column .*archived|archived.* does not exist/i.test(error.message||'')) toast('Rode antes o SQL das demandas arquivadas (coluna "archived")');
     else toast('Não foi possível arquivar');
     console.error(error); return;
   }
@@ -7725,7 +7930,7 @@ function mgDesenharListaEspelho(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 34
+   SEÇÃO · PLANO DE MÍDIA — plano de mídia, calendário e celular
    1) calendário que cabe na página
    2) desempenho: menos conta repetida e menos pintura
    3) celular: a plataforma inteira utilizável no telefone
@@ -7889,7 +8094,7 @@ body.mg-oculto .bg-anim *{animation-play-state:paused!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 34 — ver o cabeçalho do bloco de estilo acima
+   SEÇÃO · PLANO DE MÍDIA — ver o cabeçalho do bloco de estilo acima
    ===================================================================== */
 
 /* =====================================================================
@@ -8054,7 +8259,7 @@ async function mgPMSalvar(){
     mgPMDesenhar();
   }catch(e){
     const m=(e&&e.message)||'';
-    if(/relation .*media_plans|does not exist/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 34');
+    if(/relation .*media_plans|does not exist/i.test(m)) toast('Rode antes o SQL do plano de mídia');
     else if(/row-level security|permission/i.test(m))    toast('Sem permissão para salvar este plano');
     else toast('Não foi possível salvar: '+m);
     console.error(e);
@@ -8420,7 +8625,7 @@ function mgPMInterruptorHTML(marcado){
         const c=(CLIENTS||[]).find(x=>x.id===id); if(c) c.plano_midia=querPlano;
         mgPMAjustarAbasCliente();
       }catch(e){
-        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Rode antes o SQL da ADIÇÃO 34');
+        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Rode antes o SQL do plano de mídia');
         else console.warn('[plano de mídia]', e);
       }
     }
@@ -8463,7 +8668,7 @@ function mgPMInterruptorHTML(marcado){
           toast('Plano de mídia ativado para '+nome);
         }
       }catch(e){
-        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Empresa criada — mas rode o SQL da ADIÇÃO 34 para o plano de mídia');
+        if(/column .*plano_midia/i.test((e&&e.message)||'')) toast('Empresa criada — mas rode o SQL do plano de mídia para o plano de mídia');
         else console.warn('[plano de mídia]', e);
       }
     }
@@ -8473,7 +8678,7 @@ function mgPMInterruptorHTML(marcado){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 35
+   SEÇÃO · SHELL — barra única e som das demandas
    1) Salvar no rodapé da janela de editar cliente
    2) chat ocupando a tela inteira
    3) a barra de cima sai — fica só a barra de baixo, em todas as telas,
@@ -8525,7 +8730,7 @@ body.mg-sem-topo #filter-panel{top:auto;bottom:86px;right:22px}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 35 — ver o cabeçalho do bloco de estilo acima
+   SEÇÃO · SHELL — ver o cabeçalho do bloco de estilo acima
    ===================================================================== */
 
 /* =====================================================================
@@ -8769,13 +8974,13 @@ function mgAlternarSom(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 37
+   SEÇÃO · PLANO DE MÍDIA — confirmação ao salvar o plano
    • o interruptor do plano volta para depois dos campos (antes dos botões)
    • quando o banco recusa gravar o plano, a janela DIZ isso, em vez de
      mostrar "salvo" em verde e esconder o problema num toast
    ===================================================================== */
 
-/* a ADIÇÃO 35 tinha jogado o interruptor para o topo com `order:-1`,
+/* a SEÇÃO · SHELL — barra única e som das demandas tinha jogado o interruptor para o topo com `order:-1`,
    brigando com o script que move os botões para baixo dele. Sem o order,
    a ordem fica: campos → plano de mídia → Salvar/Cancelar. */
 #mg-edcli .mg-pm-liga{order:0}
@@ -8789,10 +8994,10 @@ function mgAlternarSom(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 37 — ver o cabeçalho do bloco de estilo acima
+   SEÇÃO · PLANO DE MÍDIA — ver o cabeçalho do bloco de estilo acima
    ===================================================================== */
 
-/* A ADIÇÃO 34 avisava a falha só por toast, que some antes da janela
+/* A SEÇÃO · PLANO DE MÍDIA — plano de mídia, calendário e celular avisava a falha só por toast, que some antes da janela
    fechar. Agora a mensagem fica dentro da janela, junto do resultado. */
 (function(){
   if(typeof salvarCliente!=='function') return;
@@ -8888,7 +9093,7 @@ function mgAvisoPlanoFalhou(motivo){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 38 — Pacing diário na plataforma
+   SEÇÃO · PACING — Pacing diário na plataforma
    Lê a tabela `pacing`, alimentada pelo Apps Script que hoje monta o
    relatório do Slack.
    ===================================================================== */
@@ -8956,7 +9161,7 @@ function mgAvisoPlanoFalhou(motivo){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 38 — Pacing
+   SEÇÃO · PACING — Pacing
    ===================================================================== */
 let MG_PC        = [];     /* linhas cruas, últimos dias */
 let MG_PC_DIA    = null;   /* dia sendo exibido */
@@ -9186,7 +9391,7 @@ async function mgPacingAtualizar(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 39
+   SEÇÃO · SHELL — boas-vindas, filtros e fundo da plataforma
    1) a barra de baixo some no login e nas boas-vindas
    2) boas-vindas viram "Modesto Portal" e dá para revê-las
    3) filtro por cliente (vários) e por data de criação no Kanban
@@ -9250,7 +9455,7 @@ body.mg-larg-total{--mg-larg:100%}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 39
+   SEÇÃO · SHELL — boas-vindas, filtros e fundo da plataforma
    ===================================================================== */
 
 /* =====================================================================
@@ -9644,7 +9849,7 @@ function mgAplicarExtras(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 40 — reconhecer "falta no banco" em qualquer sotaque
+   SEÇÃO · NÚCLEO — reconhecer "falta no banco" em qualquer sotaque
    ===================================================================== */
 .mg-falta{font-size:13.5px;color:var(--muted);background:var(--card2);
   border:1px dashed var(--line2);border-radius:14px;padding:30px 26px;text-align:center;
@@ -9657,7 +9862,7 @@ function mgAplicarExtras(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 40
+   SEÇÃO · NÚCLEO — tradução das mensagens de erro do banco
    O PostgREST (a camada que o Supabase usa) não fala como o Postgres:
    quando falta uma tabela ele responde
        "Could not find the table 'public.pacing' in the schema cache"
@@ -9773,7 +9978,7 @@ function mgAvisoFalta(oQue, arquivo){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 41 — a tela diz com qual banco está falando
+   SEÇÃO · NÚCLEO — a tela diz com qual banco está falando
    ===================================================================== */
 .mg-diag{margin-top:16px;text-align:left;display:inline-block;max-width:100%}
 .mg-diag-btn{background:var(--card);border:1px solid var(--line2);border-radius:10px;
@@ -9795,7 +10000,7 @@ function mgAvisoFalta(oQue, arquivo){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 41
+   SEÇÃO · NÚCLEO — diagnóstico da conexão com o banco
    Quando falta alguma coisa no banco, a dúvida sempre é a mesma: foi
    esquecido, ou foi rodado no projeto errado? A tela passa a responder
    isso sozinha.
@@ -9902,7 +10107,7 @@ async function mgTestarBanco(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 42 — o plano de mídia ganha duas leituras novas
+   SEÇÃO · PLANO DE MÍDIA — o plano de mídia ganha duas leituras novas
    • Resumo visual: fluxograma semana a semana, no espírito do plano
      tático que as agências mandam em slide
    • Cronograma: os marcos da operação, do briefing ao encerramento
@@ -10008,7 +10213,7 @@ async function mgTestarBanco(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 42 — resumo visual e cronograma
+   SEÇÃO · PLANO DE MÍDIA — resumo visual e cronograma
    ===================================================================== */
 let MG_PM_ABA = 'tatico';
 
@@ -10321,7 +10526,7 @@ function mgPMCabecalho(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 43 — o plano de mídia passa a abrir no formato novo
+   SEÇÃO · PLANO DE MÍDIA — o plano de mídia passa a abrir no formato novo
    O fluxograma vira a leitura principal; a tabela continua a um clique,
    porque é nela que o cliente ajusta o orçamento.
    ===================================================================== */
@@ -10329,7 +10534,7 @@ function mgPMCabecalho(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 43
+   SEÇÃO · PLANO DE MÍDIA — abre no resumo visual
    ===================================================================== */
 
 /* o plano abre no resumo visual */
@@ -10497,7 +10702,7 @@ function mgPMAbasHTML(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 44
+   SEÇÃO · DEMANDAS — painel de detalhe em duas colunas
    1) a barra de baixo não fica mais por cima do painel de detalhe
    2) o painel alarga e as Subtarefas ficam ao lado das Anotações
    ===================================================================== */
@@ -10532,7 +10737,7 @@ body .slide{width:min(1080px,96vw)}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 44
+   SEÇÃO · DEMANDAS — painel de detalhe em duas colunas
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -10612,7 +10817,7 @@ function mgDetalheEmColunas(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 45 — texto preto no tema escuro
+   SEÇÃO · SHELL — texto preto no tema escuro
 
    Causa: nenhum navegador faz <button> herdar a cor do texto. Sem uma
    regra explícita, o botão usa o preto do sistema. No tema claro isso
@@ -10636,7 +10841,7 @@ button{color:inherit}
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 46 — saber qual versão está no ar
+   SEÇÃO · NÚCLEO — saber qual versão está no ar
 
    Toda vez que subimos um arquivo novo fica a dúvida: o que o navegador
    está servindo é o novo ou uma cópia guardada? Este bloco responde isso
@@ -10650,7 +10855,7 @@ button{color:inherit}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 46
+   SEÇÃO · NÚCLEO — versão no ar
    ===================================================================== */
 const MG_VERSAO = 71;
 const MG_VERSAO_DATA = '2026-08-06';
@@ -10687,7 +10892,7 @@ function mgVersao(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 47
+   SEÇÃO · DEMANDAS — reordenar cards, filtros de cliente e entrega
    1) a ferramenta passa a se chamar MGP Tasks
    2) arrastar cards dentro da própria coluna para reordenar
    3) filtro por data de entrega, com período
@@ -10711,7 +10916,7 @@ function mgVersao(){
 .mg-f-periodo span{font-size:11.5px;color:var(--muted)}
 
 /* ---------- 5. folga para a barra de baixo ----------
-   A ADIÇÃO 44 já esconde a barra quando há painel aberto. Isto é a
+   A SEÇÃO · DEMANDAS — painel de detalhe em duas colunas já esconde a barra quando há painel aberto. Isto é a
    segunda linha de defesa: mesmo que a barra apareça por algum caminho
    que eu não previ, as janelas reservam espaço para ela. */
 body.mg-com-dock .modal{align-items:flex-start;padding-bottom:110px}
@@ -10736,7 +10941,7 @@ body.mg-com-dock .modal-c{margin-top:auto;margin-bottom:auto}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 47
+   SEÇÃO · DEMANDAS — reordenar cards, filtros de cliente e entrega
    ===================================================================== */
 
 /* =====================================================================
@@ -11076,7 +11281,7 @@ setTimeout(mgFDesenhar, 1400);
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 48
+   SEÇÃO · DEMANDAS — anexos, projetos e demanda urgente
    1) anexar arquivos à demanda
    2) seção Projetos — demanda dentro de demanda
    3) demanda urgente, em vermelho, visível para todo mundo
@@ -11178,7 +11383,7 @@ setTimeout(mgFDesenhar, 1400);
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 48
+   SEÇÃO · DEMANDAS — anexos, projetos e demanda urgente
    ===================================================================== */
 
 function mgFalta(e, campo){
@@ -11228,7 +11433,7 @@ async function mgAnexar(){
       renderDetailBody();
       toast(novos.length===1 ? 'Arquivo anexado ✓' : novos.length+' arquivos anexados ✓');
     }catch(err){
-      if(mgFalta(err,'anexos')) toast('Rode antes o SQL da ADIÇÃO 48');
+      if(mgFalta(err,'anexos')) toast('Rode antes o SQL dos anexos e das urgentes');
       else toast('Não foi possível anexar: ' + ((err&&err.message)||''));
       console.error(err);
     }finally{
@@ -11312,7 +11517,7 @@ async function mgVincular(idFilho, idPai){
     if(VIEW==='projetos') mgProjetosDesenhar(); else render();
     toast(idPai ? 'Demanda agrupada no projeto' : 'Demanda solta do projeto');
   }catch(e){
-    if(mgFalta(e,'parent_id')) toast('Rode antes o SQL da ADIÇÃO 48');
+    if(mgFalta(e,'parent_id')) toast('Rode antes o SQL dos anexos e das urgentes');
     else toast('Não foi possível agrupar');
   }
 }
@@ -11440,7 +11645,7 @@ async function mgMarcarUrgente(id, valor){
     else toast('Urgência removida');
   }catch(e){
     t.urgente = !valor;
-    if(mgFalta(e,'urgente')) toast('Rode antes o SQL da ADIÇÃO 48');
+    if(mgFalta(e,'urgente')) toast('Rode antes o SQL dos anexos e das urgentes');
     else toast('Não foi possível marcar');
   }
 }
@@ -11620,7 +11825,7 @@ function mgUrgConferir(){
         alvo.urgente = quer;
       }
       render();
-    }catch(e){ if(mgFalta(e,'urgente')) toast('Rode antes o SQL da ADIÇÃO 48') }
+    }catch(e){ if(mgFalta(e,'urgente')) toast('Rode antes o SQL dos anexos e das urgentes') }
     return r;
   };
 })();
@@ -11659,7 +11864,7 @@ function mgFUrgente(){ MG_F_URGENTE = !MG_F_URGENTE; mgFDesenhar(); mgFAtualizar
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 49
+   SEÇÃO · DEMANDAS — subtarefas com data, responsável e tempo
    1) subtarefa com data, responsável e tempo
    2) data de abertura fixa no card, abaixo do título
    3) cronômetro dá lugar ao tempo informado à mão, somando as subtarefas
@@ -11720,7 +11925,7 @@ function mgFUrgente(){ MG_F_URGENTE = !MG_F_URGENTE; mgFDesenhar(); mgFAtualizar
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 49
+   SEÇÃO · DEMANDAS — subtarefas com data, responsável e tempo
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -11956,7 +12161,7 @@ function mgTempoDesenhar(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 50 — Briefing de plano de mídia
+   SEÇÃO · BRIEFING — Briefing de plano de mídia
    O cliente preenche, revê num resumo, corrige se quiser e envia.
    Ao enviar: cria o card e dispara o e-mail para as duas partes.
    ===================================================================== */
@@ -12063,7 +12268,7 @@ function mgTempoDesenhar(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 50 — Briefing
+   SEÇÃO · BRIEFING — Briefing
    ===================================================================== */
 let MG_BF        = null;     /* briefing em edição */
 let MG_BF_ID     = null;
@@ -12169,7 +12374,7 @@ async function mgBFSalvar(status){
     return r.data;
   }catch(e){
     const m = (e && e.message) || '';
-    if(/relation .*briefings|schema cache/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 50');
+    if(/relation .*briefings|schema cache/i.test(m)) toast('Rode antes o SQL do briefing');
     else toast('Não foi possível salvar: ' + m);
     console.error(e);
     return null;
@@ -12683,7 +12888,7 @@ function mgBFDesenhar(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 51 — a equipe também começa um briefing
+   SEÇÃO · BRIEFING — a equipe também começa um briefing
 
    O botão "Novo briefing" só aparecia quando havia uma empresa
    vinculada ao acesso. Como o admin não tem empresa, a condição dava
@@ -12698,7 +12903,7 @@ function mgBFDesenhar(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 51
+   SEÇÃO · BRIEFING — a equipe também começa um briefing
    ===================================================================== */
 
 /* refaz só a lista, com a escolha de empresa para quem é da equipe */
@@ -12787,7 +12992,7 @@ function mgBFTrocarEmpresa(id){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 52
+   SEÇÃO · BRIEFING — anexos e destinatários
    1) anexar arquivos de verdade no briefing
    2) escolher para quem o e-mail vai, na hora de enviar
    3) campo de contatos na ficha da empresa
@@ -12836,7 +13041,7 @@ function mgBFTrocarEmpresa(id){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 52
+   SEÇÃO · BRIEFING — anexos e destinatários
    ===================================================================== */
 
 /* =====================================================================
@@ -13123,7 +13328,7 @@ function mgBFCamposCliente(c){
       const c = (CLIENTS||[]).find(x=>x.id===id);
       if(c) Object.assign(c, corpo);
     }catch(e){
-      if(/column .*emails_/i.test((e&&e.message)||'')) toast('Rode antes o SQL da ADIÇÃO 52');
+      if(/column .*emails_/i.test((e&&e.message)||'')) toast('Rode antes o SQL dos contatos do cliente');
       else console.warn('[cliente] e-mails', e);
     }
     return r;
@@ -13132,7 +13337,7 @@ function mgBFCamposCliente(c){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 53
+   SEÇÃO · BRIEFING — confirmação e aviso à equipe
    1) os arquivos do briefing ficam guardados para os dois lados
    2) a equipe é avisada no portal quando um briefing chega
    3) o cliente vê uma confirmação ao finalizar
@@ -13176,7 +13381,7 @@ function mgBFCamposCliente(c){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 53
+   SEÇÃO · BRIEFING — confirmação e aviso à equipe
    ===================================================================== */
 
 /* =====================================================================
@@ -13352,7 +13557,7 @@ async function mgBFConferirNovos(){
 /* =====================================================================
    PARTE 1 — deixar claro que os arquivos ficam guardados
 
-   Atenção: mgBFDesenhar (ADIÇÃO 50) chama mgBFResumo por referência
+   Atenção: mgBFDesenhar (SEÇÃO · BRIEFING — briefing de plano de mídia) chama mgBFResumo por referência
    capturada antes destas adições, então embrulhar mgBFResumo não surte
    efeito na tela. Inserimos o aviso depois que a tela é montada.
    ===================================================================== */
@@ -13384,9 +13589,9 @@ function mgBFAvisoGuardados(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 54 — o cliente entra no Briefing sem ser redirecionado
+   SEÇÃO · VISÃO DO CLIENTE — o cliente entra no Briefing sem ser redirecionado
 
-   A ADIÇÃO 50 acrescentou 'briefing' à lista de abas do cliente, mas a
+   A SEÇÃO · BRIEFING — briefing de plano de mídia acrescentou 'briefing' à lista de abas do cliente, mas a
    guarda que redireciona ("se não é admin e a aba não está na lista,
    manda para a primeira") foi capturada no carregamento, quando a lista
    ainda só tinha 'docs'. Resultado: clicar em Briefing devolvia o
@@ -13398,7 +13603,7 @@ function mgBFAvisoGuardados(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 54
+   SEÇÃO · VISÃO DO CLIENTE — o cliente entra no Briefing
    ===================================================================== */
 
 /* 1. garante as abas do cliente logo no início, antes de qualquer
@@ -13407,7 +13612,7 @@ function mgAbasCliente(){
   if(typeof ABAS_DO_CLIENTE === 'undefined') return;
   if(!ABAS_DO_CLIENTE.includes('briefing')) ABAS_DO_CLIENTE.push('briefing');
   /* o plano de mídia só entra se a empresa tiver o recurso ligado —
-     quem cuida disso é mgPMAjustarAbasCliente, da ADIÇÃO 34 */
+     quem cuida disso é mgPMAjustarAbasCliente, da SEÇÃO · PLANO DE MÍDIA — plano de mídia, calendário e celular */
 }
 mgAbasCliente();
 
@@ -13433,7 +13638,7 @@ mgAbasCliente();
 })();
 
 /* 4. o cliente cai na pasta dele ao entrar — mas sem atropelar quem já
-      navegou. A ADIÇÃO 4 agenda `showView(ABAS_DO_CLIENTE[0])` para 400 ms
+      navegou. A SEÇÃO · VISÃO DO CLIENTE — visão restrita do cliente agenda `showView(ABAS_DO_CLIENTE[0])` para 400 ms
       e 1500 ms depois do carregamento; quem clicasse em Briefing nesse
       intervalo era devolvido para Documentos.
 
@@ -13470,7 +13675,7 @@ let MG_ATE = Date.now() + 4000;   /* janela em que os temporizadores agem */
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 55 — o briefing enviado vira documento
+   SEÇÃO · BRIEFING — o briefing enviado vira documento
 
    Ao enviar, o briefing aparece na aba Documentos do cliente, na seção
    "Briefings" — junto de apresentações, propostas e weeklys. Cliente e
@@ -13499,7 +13704,7 @@ let MG_ATE = Date.now() + 4000;   /* janela em que os temporizadores agem */
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 55
+   SEÇÃO · BRIEFING — o briefing enviado vira documento
    ===================================================================== */
 
 /* 1. "Briefings" entra na lista de seções da pasta de documentos */
@@ -13533,9 +13738,9 @@ async function mgBFCriarDocumento(briefingId, clientId, titulo, dados){
   }catch(e){
     const m = (e && e.message) || '';
     if(/invalid input value for enum|violates check constraint/i.test(m))
-      toast('Briefing enviado — mas rode o SQL da ADIÇÃO 55 para ele aparecer em Documentos');
+      toast('Briefing enviado — mas rode o SQL dos documentos para ele aparecer em Documentos');
     else if(/row-level security|permission/i.test(m))
-      toast('Briefing enviado — falta permissão para registrá-lo em Documentos (ADIÇÃO 55)');
+      toast('Briefing enviado — falta permissão para registrá-lo em Documentos (SEÇÃO · BRIEFING — o briefing enviado vira documento)');
     else console.warn('[briefing→documento]', e);
     return false;
   }
@@ -13615,7 +13820,7 @@ async function mgBFVAbrir(briefingId, titulo){
       const corpo = molde.querySelector('.mg-bf-res-b');
       const cartao = molde.querySelector('.mg-bf-res');
       miolo = corpo ? corpo.innerHTML : (cartao ? cartao.innerHTML : molde.innerHTML);
-      /* a seção de arquivos (ADIÇÃO 52) é inserida FORA do cartão, na
+      /* a seção de arquivos (SEÇÃO · BRIEFING — anexos e destinatários) é inserida FORA do cartão, na
          raiz do resumo — então ela não vem no innerHTML acima */
       [...molde.children].forEach(el=>{
         if(el.classList && el.classList.contains('mg-bf-res')) return;
@@ -13670,7 +13875,7 @@ async function mgBFVAbrir(briefingId, titulo){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 56 — o cliente precisa de um caminho até o Briefing
+   SEÇÃO · VISÃO DO CLIENTE — o cliente precisa de um caminho até o Briefing
 
    No modo cliente a barra de baixo mostrava só as ações da tela aberta
    (Pastas, Histórico). Como o menu lateral não fica à mão nessa visão,
@@ -13682,7 +13887,7 @@ async function mgBFVAbrir(briefingId, titulo){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 56
+   SEÇÃO · VISÃO DO CLIENTE — caminho do cliente até o Briefing
    ===================================================================== */
 
 /* rótulos e ícones das abas que o cliente enxerga */
@@ -13705,7 +13910,7 @@ function mgNavClienteHTML(){
 }
 
 /* Navegação por clique.
-   A ADIÇÃO 54 bloqueia o retorno à aba padrão logo após o carregamento,
+   A SEÇÃO · VISÃO DO CLIENTE — o cliente entra no Briefing bloqueia o retorno à aba padrão logo após o carregamento,
    para os temporizadores de boot não atropelarem quem já escolheu uma
    tela. Só que ela não distingue o empurrão automático de um clique de
    verdade — e voltar aos Documentos ficava bloqueado. Aqui dizemos
@@ -13744,7 +13949,7 @@ function mgIrPara(v){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 57 — o menu lateral inteiro passa para a barra de baixo
+   SEÇÃO · SHELL — o menu lateral inteiro passa para a barra de baixo
 
    Com doze itens, listar tudo na horizontal transformava a barra numa
    faixa de ponta a ponta e empurrava as ações da tela para fora da
@@ -13802,7 +14007,7 @@ body.mg-sem-side .content{margin-left:0!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 57
+   SEÇÃO · SHELL — menu de navegação na barra de baixo
    ===================================================================== */
 document.body.classList.add('mg-sem-side');
 
@@ -13872,7 +14077,7 @@ function mgNavBarraHTML(){
     let base = _d();
     const nav = mgNavBarraHTML();
     if(!nav) return base;
-    /* remove o "Início" solto e a navegação do cliente da ADIÇÃO 56 */
+    /* remove o "Início" solto e a navegação do cliente da SEÇÃO · VISÃO DO CLIENTE — caminho do cliente até o Briefing */
     base = base.replace(/<button onclick="mgIrPara\('home'\)"[\s\S]*?<\/button>/, '')
                .replace(/<button onclick="showView\('home'\)"[\s\S]*?<\/button>/, '')
                .replace(/<span class="mg-nav-cli">[\s\S]*?<\/span><span class="sep"><\/span>/, '');
@@ -13898,13 +14103,13 @@ if(typeof mgIrPara !== 'function'){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 58
+   SEÇÃO · SHELL — menu do usuário e telas desativadas
    1) o menu do usuário voltou a abrir — estava recortado pela barra
    2) Plano de mídia e Pacing saem de cena até estarem prontos
    ===================================================================== */
 
 /* ---------- 1. menu do usuário ----------
-   A ADIÇÃO 57 deu `overflow-x:auto` à barra para ela rolar por dentro
+   A SEÇÃO · SHELL — menu de navegação na barra de baixo deu `overflow-x:auto` à barra para ela rolar por dentro
    quando o conteúdo não cabe. Só que overflow recorta TUDO que sai da
    caixa — inclusive o painel do menu, que abre para cima. Resultado: o
    clique funcionava, mas o painel ficava invisível.
@@ -13916,7 +14121,7 @@ body .mg-eu-menu[data-mg-solto]{
   position:fixed;
   top:auto;
   right:auto;
-  /* A ADIÇÃO 35 fixou `bottom: calc(100% + 10px)` para o menu abrir para
+  /* A SEÇÃO · SHELL — barra única e som das demandas fixou `bottom: calc(100% + 10px)` para o menu abrir para
      cima. Com `top` E `bottom` definidos ao mesmo tempo, o navegador
      calcula a altura pela distância entre os dois — o painel virava uma
      faixa de 18px. Anulando o bottom, ele volta a ter a altura do
@@ -13948,7 +14153,7 @@ body.mg-eu-aberto .mg-dock{overflow:visible}
    da classe no corpo, já que ele não é mais filho de #mg-eu.aberto */
 body .mg-eu-menu[data-mg-solto]{display:none}
 body.mg-eu-aberto .mg-eu-menu[data-mg-solto]{display:block}
-/* a animação de entrada da ADIÇÃO 35 usa transform, que deslocava o
+/* a animação de entrada da SEÇÃO · SHELL — barra única e som das demandas usa transform, que deslocava o
    painel do ponto calculado — fora da barra ela não é necessária */
 body .mg-eu-menu[data-mg-solto]{animation:none!important;transform:none!important}
 
@@ -13957,7 +14162,7 @@ body .mg-eu-menu[data-mg-solto]{animation:none!important;transform:none!importan
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 58
+   SEÇÃO · SHELL — menu do usuário e telas desativadas
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -14106,7 +14311,7 @@ const MG_ESCONDIDOS = ['plano', 'pacing'];
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 59
+   SEÇÃO · INÍCIO — progresso por cliente e projetos
    1) os cards do Início cabem numa linha só
    2) gráfico de progresso por cliente
    3) Projetos deixa de ser aba e vira parte do módulo de Demandas
@@ -14224,7 +14429,7 @@ body .mg-atalho .ic-wrap,body .mg-atalho .ico{width:36px;height:36px;font-size:1
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 59
+   SEÇÃO · INÍCIO — progresso por cliente e projetos
    ===================================================================== */
 const MG_FEITO = ['Feito','Concluído Atendimento'];
 const MG_PJ_CORES = ['#C7871E','#2E9E6B','#2D6FCF','#8E3FBE','#D9531E','#12A38F','#D01F45','#7C8A97'];
@@ -14630,7 +14835,7 @@ function mgPjDesenhar(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 60
+   SEÇÃO · PROJETOS — projeto no detalhe da demanda
    • some a seção de projeto duplicada no detalhe da demanda
    • dá para criar um projeto sem sair dali
    ===================================================================== */
@@ -14644,13 +14849,13 @@ function mgPjDesenhar(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 60
+   SEÇÃO · PROJETOS — projeto no detalhe da demanda
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
    1. A seção antiga sai de cena.
 
-   A ADIÇÃO 48 tinha criado uma seção "Projeto" baseada em parent_id —
+   A SEÇÃO · DEMANDAS — anexos, projetos e demanda urgente tinha criado uma seção "Projeto" baseada em parent_id —
    demanda dentro de demanda. A 59 trocou o modelo por projetos de
    verdade, mas não removeu a antiga, e as duas passaram a aparecer
    juntas. Neutralizamos a antiga devolvendo texto vazio.
@@ -14750,12 +14955,12 @@ async function mgPjCriarAqui(taskId){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 61 — a enxurrada de notificações
+   SEÇÃO · NOTIFICAÇÕES — a enxurrada de notificações
 
    Sintoma: dezenas de avisos de demanda ao mesmo tempo e a plataforma
    travando.
 
-   Duas causas somadas, ambas da ADIÇÃO 39:
+   Duas causas somadas, ambas da SEÇÃO · SHELL — boas-vindas, filtros e fundo da plataforma:
 
    1. A semeadura ("marque o que já existe como visto") só rodava se o
       armazenamento do navegador estivesse vazio. Limpou o cache, entrou
@@ -14776,7 +14981,7 @@ async function mgPjCriarAqui(taskId){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 61
+   SEÇÃO · NOTIFICAÇÕES — controle da enxurrada de avisos
    ===================================================================== */
 
 /* Quantos avisos de demanda cabem na central de uma vez.
@@ -14802,7 +15007,7 @@ function mgAvisosDesde(){
   return d;
 }
 
-/* substitui a versão da ADIÇÃO 39 */
+/* substitui a versão da SEÇÃO · SHELL — boas-vindas, filtros e fundo da plataforma */
 mgSemearVistas = function(){
   if(MG_VISTAS_INICIADO) return;
   MG_VISTAS_INICIADO = true;
@@ -15006,7 +15211,7 @@ mgConferirMinhas = function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 62 — coluna "Próximas entregas"
+   SEÇÃO · DEMANDAS — coluna "Próximas entregas"
 
    Entra logo depois de "Não iniciado", antes de "Entregas do dia":
    o que já foi planejado mas ainda não é para hoje.
@@ -15019,7 +15224,7 @@ mgConferirMinhas = function(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 62
+   SEÇÃO · DEMANDAS — coluna Próximas entregas
    ===================================================================== */
 (function(){
   if(typeof COLS === 'undefined') return;
@@ -15039,7 +15244,7 @@ mgConferirMinhas = function(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 63 — a página parava de piscar
+   SEÇÃO · NÚCLEO — a página parava de piscar
 
    Sintoma: a tela "atualiza" sozinha e os ícones pulam.
 
@@ -15080,7 +15285,7 @@ body.mg-ja-carregou .mg-dock{animation:none!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 63
+   SEÇÃO · NÚCLEO — redesenhar só quando algo muda
    ===================================================================== */
 
 /* Depois do primeiro desenho, marcamos a página como "já carregada" e
@@ -15217,7 +15422,7 @@ let MG_EM_REFRESH = false;
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 64 — ordenar por data de entrega num clique
+   SEÇÃO · DEMANDAS — ordenar por data de entrega num clique
 
    A ordenação por prazo já existia, mas escondida no menu do quadro
    (⋯ → Classificar). Agora é um botão na barra: clicou, os cards se
@@ -15228,11 +15433,11 @@ let MG_EM_REFRESH = false;
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 64
+   SEÇÃO · DEMANDAS — ordenar por data de entrega
    ===================================================================== */
 
 /* Alterna entre a ordem do quadro e a ordem por entrega.
-   Reaproveita MG_ORDEM, que a ADIÇÃO 33 já usa em todas as
+   Reaproveita MG_ORDEM, que a SEÇÃO · SHELL — barra de baixo, menu do quadro, histórico e modo cliente já usa em todas as
    visualizações — Kanban, Quadro e Calendário de uma vez. */
 function mgOrdenarPorEntrega(){
   MG_ORDEM = (MG_ORDEM === 'prazo') ? 'padrao' : 'prazo';
@@ -15264,7 +15469,7 @@ function mgOrdenarPorEntrega(){
 
 /* Sem data de entrega vai para o fim — senão as demandas sem prazo
    ficariam na frente das que têm, que é o contrário do útil.
-   A ADIÇÃO 33 já fazia isso; aqui garantimos que continue valendo
+   A SEÇÃO · SHELL — barra de baixo, menu do quadro, histórico e modo cliente já fazia isso; aqui garantimos que continue valendo
    mesmo que a lista de ordenações mude. */
 (function(){
   if(typeof visibleTasks !== 'function') return;
@@ -15286,7 +15491,7 @@ function mgOrdenarPorEntrega(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 65
+   SEÇÃO · DEMANDAS — Dash de volta e editar demanda
    1) o Dash das demandas volta ao menu
    2) botão de editar no painel de detalhe, para trocar o cliente
    ===================================================================== */
@@ -15306,13 +15511,13 @@ function mgOrdenarPorEntrega(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 65
+   SEÇÃO · DEMANDAS — Dash de volta e editar demanda
    ===================================================================== */
 
 /* =====================================================================
    PARTE 1 — O DASH DE VOLTA
 
-   O dashboard nunca foi apagado: a ADIÇÃO 2 apenas o tirou do menu e
+   O dashboard nunca foi apagado: a SEÇÃO · SHELL — barra lateral estreita e logo do cliente apenas o tirou do menu e
    passou a redirecionar quem tentasse abri-lo para o quadro. Aqui
    desfazemos as duas coisas.
    ===================================================================== */
@@ -15325,7 +15530,7 @@ function mgOrdenarPorEntrega(){
     {v:'dashboard', ic:'◔', label:'Dash', admin:true});
 })();
 
-/* A ADIÇÃO 2 troca 'dashboard' por 'board' logo na primeira camada de
+/* A SEÇÃO · SHELL — barra lateral estreita e logo do cliente troca 'dashboard' por 'board' logo na primeira camada de
    showView, antes de qualquer coisa que eu embrulhe por fora. Em vez de
    tentar desfazer isso — o que exigiria mexer no código dela —, abrimos
    a tela nós mesmos, com o mesmo trabalho que showView faria. */
@@ -15489,7 +15694,7 @@ function mgEditarDemanda(id){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 66 — o painel de filtros fechava ao clicar em Todos/Nenhum
+   SEÇÃO · DEMANDAS — o painel de filtros fechava ao clicar em Todos/Nenhum
 
    Causa: existe um vigia que fecha o painel quando o clique acontece
    fora dele (linha 1128 do index.html):
@@ -15510,7 +15715,7 @@ function mgEditarDemanda(id){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 66
+   SEÇÃO · DEMANDAS — painel de filtros
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -15642,7 +15847,7 @@ function mgFAtualizarMarcas(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 67 — o cliente passa a ver as demandas da empresa dele
+   SEÇÃO · VISÃO DO CLIENTE — o cliente passa a ver as demandas da empresa dele
 
    Uma visão simplificada: quatro colunas em vez de sete, sem os termos
    internos da equipe. A tradução já existia no código (CLIENT_COLS e
@@ -15735,7 +15940,7 @@ function mgFAtualizarMarcas(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 67
+   SEÇÃO · VISÃO DO CLIENTE — demandas da empresa do cliente
    ===================================================================== */
 
 /* a aba entra para o cliente, logo antes de Documentos */
@@ -15976,14 +16181,14 @@ async function mgCdNova(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 68 — a visão do cliente, no desenho da referência
+   SEÇÃO · VISÃO DO CLIENTE — a visão do cliente, no desenho da referência
 
    Cinco colunas, cards enxutos (só ícone e título) e um painel lateral
    que mostra apenas o que interessa ao cliente: descrição, subtarefas,
    anexos e anotações — mais as datas de abertura e última atualização.
    ===================================================================== */
 .mg-cd{max-width:none;margin:0}
-/* a regra de centralização (ADIÇÃO 34) limita as telas a 1180px, o que
+/* a regra de centralização (SEÇÃO · PLANO DE MÍDIA — plano de mídia, calendário e celular) limita as telas a 1180px, o que
    deixa cinco colunas estreitas demais. Esta é a exceção. */
 body #v-minhas.on{max-width:1560px!important}
 .mg-cd-cab{align-items:flex-start;border-bottom:0;padding-bottom:0}
@@ -16054,7 +16259,7 @@ body #v-minhas.on{max-width:1560px!important}
 .mg-cd-jan .cab h3{font-size:20px;line-height:1.3;padding-right:34px}
 .mg-cd-jan .cab .est{margin-top:11px;margin-bottom:0}
 /* O ✕ está FORA de .cab no HTML (é irmão dele), então o seletor
-   `.mg-cd-jan .cab .x` da ADIÇÃO 67 nunca o alcançava e ele caía no
+   `.mg-cd-jan .cab .x` da SEÇÃO · VISÃO DO CLIENTE — demandas da empresa do cliente nunca o alcançava e ele caía no
    canto da tela. Alcançamos direto pelo filho da janela. */
 body .mg-cd-jan{position:relative}
 body .mg-cd-jan > .x{position:absolute!important;top:20px!important;right:20px!important;
@@ -16092,7 +16297,7 @@ body .mg-cd-jan > .x:hover{border-color:var(--brass);color:var(--text)}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 68
+   SEÇÃO · VISÃO DO CLIENTE — quadro do cliente em cinco colunas
    ===================================================================== */
 
 /* As cinco colunas da referência.
@@ -16309,7 +16514,7 @@ async function mgCdBaixar(i){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 69 — a logo da Modesto no lugar do "M"
+   SEÇÃO · MARCA — a logo da Modesto no lugar do "M"
 
    O símbolo vai embutido no próprio arquivo, sem depender de link
    externo: assim ele aparece mesmo se a hospedagem mudar, e não há uma
@@ -16351,7 +16556,7 @@ async function mgCdBaixar(i){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 69
+   SEÇÃO · MARCA — logo da Modesto
    ===================================================================== */
 const MG_LOGO = 'data:image/png;base64,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';
 
@@ -16395,7 +16600,7 @@ setTimeout(mgLogoNoFundo, 800);
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 70 — a página do cliente vira uma só
+   SEÇÃO · VISÃO DO CLIENTE — a página do cliente vira uma só
 
    Ele abre e já vê as demandas; rolando, encontra os documentos; e no
    fim, dois botões para preencher o briefing e acompanhar o plano de
@@ -16450,7 +16655,7 @@ body.mg-cliente #v-minhas.on{max-width:1560px!important}
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 70
+   SEÇÃO · VISÃO DO CLIENTE — a página do cliente vira uma só
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -16579,7 +16784,7 @@ function mgPgSecoesHTML(){
 </script>
 <style>
 /* =====================================================================
-   ADIÇÃO 71 — o administrador passa a gerenciar os perfis
+   SEÇÃO · EQUIPE — o administrador passa a gerenciar os perfis
 
    Trocar a foto, corrigir o nome, mudar o papel e, no caso de cliente,
    definir de qual empresa é o acesso. O banco já permitia (a política
@@ -16611,7 +16816,7 @@ function mgPgSecoesHTML(){
 </style>
 <script>
 /* =====================================================================
-   ADIÇÃO 71
+   SEÇÃO · EQUIPE — gerenciar perfis
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -16730,7 +16935,7 @@ async function mgEqEmpresa(id, clientId){
 /* ---------------------------------------------------------------------
    A aba Equipe, refeita com tudo isso
    --------------------------------------------------------------------- */
-/* Quem realmente desenha esta tela é `renderEquipeMG` (ADIÇÃO 20), não
+/* Quem realmente desenha esta tela é `renderEquipeMG` (SEÇÃO · DEMANDAS — foto e nome do responsável no card), não
    a `renderEquipe` original — o render aponta para ela desde então.
    Substituímos as duas, para funcionar por qualquer caminho. */
 renderEquipe = async function(){
@@ -16806,7 +17011,7 @@ renderEquipe = async function(){
     </div>`;
 };
 
-/* a tela é desenhada por renderEquipeMG desde a ADIÇÃO 20 */
+/* a tela é desenhada por renderEquipeMG desde a SEÇÃO · DEMANDAS — foto e nome do responsável no card */
 if(typeof renderEquipeMG === 'function') renderEquipeMG = renderEquipe;
 
 /* remover o acesso de alguém */
