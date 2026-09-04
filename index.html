@@ -19202,7 +19202,8 @@ function blocoHTML(lista, filhos, naThread){
         + (m.__falhou
             ? '<button class="refazer" onclick="MGChat.reenviar(\'' + escJS(String(m.id)) + '\')">'
               + 'não enviou · tentar de novo</button>' : '')
-        + (ehLocal ? '' : '<div class="mgz-reacoes">' + reacoesHTML(m) + '</div>')
+        + (function(){ const r = ehLocal ? '' : reacoesHTML(m);
+             return r ? '<div class="mgz-reacoes">' + r + '</div>' : '' })()
         + fio
       + '</div>'
       + (m.__pendente || ehLocal ? '' : acoesHTML(m, meu, naThread))
@@ -19434,12 +19435,12 @@ function reacoesHTML(m){
       const minha = ME && g.includes(ME.id);
       const quem = g.map(id=>{ const u = MGU.get(id); return u ? u.primeiro : '' }).filter(Boolean).join(', ');
       return '<button class="mgz-rea ' + (minha?'minha':'') + '" title="' + esc(quem) + '"'
-        + ' onclick="MGChat.reagir(\'' + esc(String(m.id)) + '\',\'' + k + '\')">'
+        + ' onclick="MGChat.reagir(\'' + escJS(String(m.id)) + '\',\'' + k + '\')">'
         + k + '<span class="n">' + g.length + '</span></button>';
-    }).join('')
-    + (m.__pendente ? '' :
-       '<button class="mgz-rea add" title="Reagir"'
-       + ' onclick="MGChat.abrirEmojis(\'' + esc(String(m.id)) + '\',event)">＋</button>');
+    }).join('');
+  /* O "＋" ficava embaixo de TODA mensagem, mesmo sem nenhuma reação, e
+     enchia a conversa de bolinhas vazias. Reagir continua a um clique,
+     pelo ☺ da régua que aparece ao passar o mouse. */
 }
 function acoesHTML(m, meu, naThread){
   const id = escJS(String(m.id));
