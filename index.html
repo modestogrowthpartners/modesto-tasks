@@ -17044,414 +17044,766 @@ async function mgEqRemover(id, nome){
   };
 })();
 </script>
+<script>
+/* =====================================================================
+   SEÇÃO · IDENTIDADE · resolução canônica de pessoas
+   ---------------------------------------------------------------------
+   Por que existe.
+
+   A plataforma tinha, ao mesmo tempo:
+     · 43 consultas soltas a `profiles` espalhadas pelas telas;
+     · `avatarInner(nome, url)`, que recebia nome e foto por parâmetro;
+     · `MG_FOTOS`, um mapa "pedaço do nome -> foto" montado por heurística;
+     · `TEAM`, carregado só para quem é admin;
+     · `ASSIGNEE_OPTS`, uma lista de PRIMEIROS NOMES em texto;
+     · `messages.author_name`, o nome congelado no momento do envio.
+
+   Cada componente decidia sozinho como desenhar uma pessoa, e por isso o
+   mesmo usuário aparecia com foto num lugar e sem foto em outro.
+
+   Aqui existe uma porta só:
+
+       MGU.get(referência) -> { id, nome, iniciais, avatar, cor, papel }
+
+   A referência aceita o id (a fonte de verdade), um objeto de usuário, ou
+   um nome solto (ponte para o que ainda guarda texto, como
+   tasks.assignees). O retorno é sempre o mesmo formato, sempre com
+   avatar resolvido ou um substituto estável.
+
+   No banco, a leitura passa pela view `user_directory`, que devolve
+   apenas id, nome, avatar, papel e empresa. A tabela `profiles` segue
+   fechada: antes, quem era cliente só enxergava o próprio registro e por
+   isso não conseguia resolver ninguém no chat.
+   ===================================================================== */
+const MGU = (function(){
+
+  const porId    = new Map();   // id            -> usuário canônico
+  const porChave = new Map();   // nome normalizado -> id  (ponte legada)
+  let   carregado = false;
+  let   carregando = null;
+  const ouvintes = [];
+
+  /* cores estáveis do substituto de avatar: a mesma pessoa recebe sempre
+     a mesma cor, em qualquer tela, porque sai do id e não da posição */
+  const PALETA = ['#C7871E','#2E9E6B','#2D6FCF','#8E3FBE','#D9531E',
+                  '#12A38F','#D01F45','#5E8A00','#3949C0','#0E8FA8'];
+
+  function norm(s){
+    return String(s||'').toLowerCase().normalize('NFD')
+      .replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  function ehUUID(s){
+    return typeof s === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  }
+  function iniciaisDe(nome){
+    const p = String(nome||'?').trim().split(/\s+/).filter(Boolean);
+    if(!p.length) return '?';
+    if(p.length === 1) return p[0].slice(0,2).toUpperCase();
+    return (p[0][0] + p[p.length-1][0]).toUpperCase();
+  }
+  function corDe(chave){
+    const s = String(chave||'');
+    let h = 0;
+    for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) | 0 }
+    return PALETA[Math.abs(h) % PALETA.length];
+  }
+  function primeiroNome(nome){ return String(nome||'').trim().split(/\s+/)[0] || '' }
+
+  /* monta o registro canônico a partir de uma linha do diretório */
+  function canonico(linha){
+    const nome = String(linha.nome || linha.name || '').trim() || 'Sem nome';
+    const papel = linha.role || 'client';
+    return {
+      __mgu:     true,
+      id:        linha.id,
+      nome:      nome,
+      primeiro:  primeiroNome(nome),
+      iniciais:  iniciaisDe(nome),
+      avatar:    linha.avatar_url || null,
+      cor:       corDe(linha.id || nome),
+      papel:     papel,
+      email:     linha.email || null,
+      clienteId: linha.client_id || null,
+      ehEquipe:  papel === 'admin',
+      ehCliente: papel !== 'admin',
+      resolvido: true,
+    };
+  }
+  /* pessoa citada só por nome e sem cadastro: identidade estável mesmo
+     assim, para não virar avatar vazio nem nome diferente a cada tela */
+  function fantasma(nome){
+    const n = String(nome||'').trim() || 'Sem nome';
+    return {
+      __mgu:true,
+      id:'nome:'+norm(n), nome:n, primeiro:primeiroNome(n), iniciais:iniciaisDe(n),
+      avatar:null, cor:corDe(norm(n)), papel:null, email:null, clienteId:null,
+      ehEquipe:false, ehCliente:false, resolvido:false,
+    };
+  }
+
+  function indexar(u){
+    porId.set(u.id, u);
+    const cheio = norm(u.nome);
+    const prim  = norm(u.primeiro);
+    if(cheio) porChave.set(cheio, u.id);
+    /* o primeiro nome só vira atalho se não for ambíguo entre duas pessoas */
+    if(prim && prim !== cheio){
+      if(porChave.has(prim) && porChave.get(prim) !== u.id) porChave.set(prim, '__ambiguo__');
+      else porChave.set(prim, u.id);
+    }
+  }
+
+  async function carregar(forcar){
+    if(carregado && !forcar) return true;
+    if(carregando) return carregando;
+    carregando = (async ()=>{
+      try{
+        let {data, error} = await sb.from('user_directory')
+          .select('id,nome,avatar_url,role,client_id,email');
+        /* banco ainda sem a view: cai para profiles, que funciona para admin */
+        if(error){
+          const r = await sb.from('profiles').select('id,nome,avatar_url,role,client_id');
+          if(r.error) throw r.error;
+          data = r.data;
+        }
+        porId.clear(); porChave.clear();
+        (data||[]).forEach(l => indexar(canonico(l)));
+        carregado = true;
+        sincronizarEu();
+        ouvintes.forEach(f => { try{ f() }catch(e){} });
+        return true;
+      }catch(e){
+        console.warn('[identidade] não foi possível carregar o diretório', e);
+        return false;
+      }finally{ carregando = null }
+    })();
+    return carregando;
+  }
+
+  /* o usuário logado é o mesmo registro do diretório, não uma cópia */
+  function sincronizarEu(){
+    if(typeof ME === 'undefined' || !ME || !ME.id) return;
+    const u = porId.get(ME.id);
+    if(u){
+      ME.name = u.nome;
+      ME.avatar_url = u.avatar;
+    }else{
+      indexar(canonico({id:ME.id, nome:ME.name, avatar_url:ME.avatar_url,
+                        role:ME.role, client_id:ME.client_id, email:ME.email}));
+    }
+  }
+
+  function get(ref){
+    if(ref === null || ref === undefined || ref === '') return null;
+    if(typeof ref === 'object'){
+      if(ref.__mgu) return ref;
+      if(ref.id && porId.has(ref.id)) return porId.get(ref.id);
+      if(ref.id || ref.nome || ref.name) return canonico(ref);
+      return null;
+    }
+    const s = String(ref);
+    /* id sempre primeiro: é ele a fonte de verdade. O formato do id não
+       entra na decisão, senão um banco com id fora do padrão UUID faria
+       a pessoa cair no caminho de nome solto. */
+    if(porId.has(s)) return porId.get(s);
+    if(s.startsWith('nome:')) return fantasma(s.slice(5));
+    if(ehUUID(s)) return null;              /* id de alguém fora do diretório */
+    const id = porChave.get(norm(s));
+    if(id && id !== '__ambiguo__' && porId.has(id)) return porId.get(id);
+    return fantasma(s);
+  }
+  /* nunca devolve nulo: quem desenha não precisa tratar ausência */
+  function seguro(ref){ return get(ref) || fantasma('Sem nome') }
+
+  /* ---------- desenho ---------- */
+  function esc2(s){ return (typeof esc === 'function') ? esc(s) : String(s==null?'':s) }
+
+  function avatar(ref, opc){
+    const o = opc || {};
+    const u = seguro(ref);
+    const t = o.tam || 32;
+    const raio = o.forma === 'quadrado' ? Math.round(t*0.28) + 'px' : '50%';
+    const online = (o.presenca && window.MGChat && window.MGChat.online)
+                 ? window.MGChat.online(u.id) : null;
+    const fonte = Math.max(9, Math.round(t*0.38));
+    const dentro = u.avatar
+      ? '<img src="' + esc2(u.avatar) + '" alt="" loading="lazy" '
+        + 'onerror="this.replaceWith(document.createTextNode(\'' + esc2(u.iniciais) + '\'))">'
+      : esc2(u.iniciais);
+    return '<span class="mgu-av' + (o.classe ? ' '+o.classe : '') + '"'
+      + ' data-uid="' + esc2(u.id) + '"'
+      + ' title="' + esc2(o.titulo || u.nome) + '"'
+      + ' style="width:' + t + 'px;height:' + t + 'px;border-radius:' + raio
+      + ';font-size:' + fonte + 'px;background:' + (u.avatar ? 'transparent' : u.cor) + '">'
+      + dentro
+      + (online !== null
+          ? '<i class="mgu-pt ' + (online ? 'on' : '') + '" style="width:'
+            + Math.max(8, Math.round(t*0.28)) + 'px;height:'
+            + Math.max(8, Math.round(t*0.28)) + 'px"></i>'
+          : '')
+      + '</span>';
+  }
+  function chip(ref, opc){
+    const o = opc || {};
+    const u = seguro(ref);
+    return '<span class="mgu-chip">' + avatar(u, o)
+      + '<span class="mgu-nm">' + esc2(o.curto ? u.primeiro : u.nome) + '</span>'
+      + (o.papel && u.papel ? '<span class="mgu-rl ' + (u.ehCliente?'cli':'') + '">'
+          + (u.ehEquipe ? 'equipe' : 'cliente') + '</span>' : '')
+      + '</span>';
+  }
+
+  function eu(){
+    if(typeof ME === 'undefined' || !ME || !ME.id) return null;
+    return porId.get(ME.id) || canonico({id:ME.id, nome:ME.name, avatar_url:ME.avatar_url,
+                                         role:ME.role, client_id:ME.client_id});
+  }
+  function souEu(ref){ const u = get(ref); return !!(u && typeof ME!=='undefined' && ME && u.id === ME.id) }
+
+  /* atualização local depois de trocar nome ou foto, para a tela não
+     precisar recarregar para ficar consistente */
+  function atualizar(id, campos){
+    const u = porId.get(id);
+    if(!u) return;
+    if('nome' in campos && campos.nome){
+      u.nome = campos.nome; u.primeiro = primeiroNome(campos.nome); u.iniciais = iniciaisDe(campos.nome);
+      indexar(u);
+    }
+    if('avatar' in campos) u.avatar = campos.avatar || null;
+    sincronizarEu();
+    ouvintes.forEach(f => { try{ f() }catch(e){} });
+  }
+  function todos(filtro){
+    const l = [...porId.values()];
+    const f = filtro || {};
+    return l.filter(u => (!f.equipe || u.ehEquipe) && (!f.cliente || u.ehCliente)
+                      && (!f.exceto || u.id !== f.exceto))
+            .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
+  }
+  function buscar(termo){
+    const t = norm(termo);
+    if(!t) return todos();
+    return todos().filter(u => norm(u.nome).includes(t) || norm(u.email||'').includes(t));
+  }
+  function aoMudar(f){ ouvintes.push(f) }
+
+  return {get, seguro, avatar, chip, eu, souEu, carregar, atualizar,
+          todos, buscar, aoMudar, iniciaisDe, corDe, primeiroNome, norm,
+          get carregado(){ return carregado }};
+})();
+
+/* ---------------------------------------------------------------------
+   Compatibilidade: as funções antigas continuam existindo, mas agora
+   todas passam pela mesma resolução. É isso que faz a foto aparecer
+   igual no card da demanda, na lista da equipe, no chat e no menu.
+   --------------------------------------------------------------------- */
+function avatarInner(nome, url){
+  if(url) return '<img src="' + esc(url) + '" alt="">';
+  const u = MGU.get(nome);
+  if(u && u.avatar) return '<img src="' + esc(u.avatar) + '" alt="">';
+  return esc(u ? u.iniciais : initials(nome));
+}
+function mgFotoDe(nome){
+  const u = MGU.get(nome);
+  return (u && u.resolvido) ? {nome:u.nome, url:u.avatar} : null;
+}
+function mgAvatarResp(nome){
+  const u  = MGU.seguro(nome);
+  const eu = MGU.souEu(u);
+  return MGU.avatar(u, {tam:24, classe:'av' + (eu ? ' eu' : ''),
+                        titulo: u.nome + (eu ? ' (você)' : '')});
+}
+async function mgCarregarFotos(){
+  await MGU.carregar(true);
+  MG_FOTOS = {};
+  MGU.todos().forEach(u=>{
+    MG_FOTOS[MGU.norm(u.primeiro)] = {nome:u.nome, url:u.avatar};
+    MG_FOTOS[MGU.norm(u.nome)]     = {nome:u.nome, url:u.avatar};
+  });
+}
+/* "esta demanda é minha?" passa a comparar identidade, não pedaço de texto */
+function mgSouEu(nome){
+  const u = MGU.get(nome);
+  if(!u || typeof ME === 'undefined' || !ME) return false;
+  if(u.id === ME.id) return true;
+  if(u.resolvido) return false;
+  return MGU.norm(u.primeiro) === MGU.norm((ME.name||'').split(' ')[0]);
+}
+/* o diretório passa a ser carregado para todo mundo, não só para admin */
+async function loadTeam(){
+  await MGU.carregar(true);
+  TEAM = MGU.todos({equipe:true}).map(u=>({id:u.id, nome:u.nome, role:'admin'}));
+}
+</script>
+<style>
+/* SEÇÃO · IDENTIDADE · avatar e chip, o mesmo desenho em toda a plataforma */
+.mgu-av{position:relative;display:inline-grid;place-items:center;flex-shrink:0;
+  overflow:visible;font-weight:700;color:#fff;line-height:1;letter-spacing:.2px;
+  background-clip:padding-box}
+.mgu-av img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.mgu-pt{position:absolute;right:-1px;bottom:-1px;border-radius:50%;
+  background:var(--muted2);border:2px solid var(--card);box-sizing:content-box}
+.mgu-pt.on{background:#2E9E6B}
+.mgu-chip{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.mgu-chip .mgu-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.mgu-rl{font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--brass2);background:rgba(194,161,91,.16);padding:1px 7px;border-radius:999px;flex-shrink:0}
+.mgu-rl.cli{color:#7C8A97;background:rgba(124,138,151,.18)}
+</style>
 <style>
 /* =====================================================================
    SEÇÃO · CHAT · estilo
-   Prefixo próprio (mgx-) para não herdar nada do chat antigo.
+   Ambiente de conversa em tela cheia. Referência de estrutura no Slack
+   (hierarquia, busca, tipografia sóbria) e de presença no Discord
+   (avatar forte, quem está online, painel de membros). As cores, as
+   fontes e os raios saem das variáveis da própria plataforma, então o
+   tema claro e o escuro acompanham sem regra extra.
    ===================================================================== */
+body.mg-e-chat .content{padding:0;overflow:hidden}
 #v-chat.on{display:flex}
-#v-chat{gap:0;height:calc(100vh - 96px);min-height:420px;border:1px solid var(--line);
-  border-radius:14px;overflow:hidden;background:var(--card)}
-body.mg-e-chat .content{padding:0}
-body.mg-e-chat #v-chat{height:calc(100vh - 92px);border-radius:0;border-left:0;border-right:0;border-top:0}
+#v-chat{gap:0;background:var(--card);color:var(--text);overflow:hidden;
+  height:calc(100vh - 96px);min-height:460px;border-top:1px solid var(--line);position:relative}
+body.mg-e-chat #v-chat{height:calc(100vh - 84px);border-radius:0;border-left:0;border-right:0}
 
-/* ---------- coluna dos canais ---------- */
-.mgx-lado{width:246px;flex-shrink:0;border-right:1px solid var(--line);display:flex;
-  flex-direction:column;background:var(--card2);min-width:0}
-.mgx-busca{margin:12px 12px 6px;display:flex;align-items:center;gap:8px;background:var(--card);
-  border:1px solid var(--line);border-radius:9px;padding:7px 10px}
-.mgx-busca input{border:0;background:none;outline:none;font-size:12.5px;width:100%;
-  font-family:inherit;color:var(--text);min-width:0}
-.mgx-lista{flex:1;overflow:auto;padding:0 8px 14px}
-.mgx-sec{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.7px;
+/* ---------- 1. coluna das conversas ---------- */
+.mgz-side{width:264px;flex-shrink:0;display:flex;flex-direction:column;min-width:0;
+  background:var(--card2);border-right:1px solid var(--line)}
+.mgz-marca{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;
+  border-bottom:1px solid var(--line);min-height:60px}
+.mgz-marca .lg{width:30px;height:30px;border-radius:9px;flex-shrink:0;
+  background:var(--mg-logo) center/contain no-repeat}
+.mgz-marca .tx{min-width:0;flex:1}
+.mgz-marca .tx b{display:block;font-family:var(--font-d);font-size:15px;font-weight:500;
+  line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-marca .tx span{display:block;font-size:10.5px;color:var(--muted);letter-spacing:.3px}
+
+.mgz-busca{margin:12px 12px 4px;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line2);border-radius:9px;padding:8px 11px}
+.mgz-busca:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgz-busca input{border:0;background:none;outline:none;font-size:13px;width:100%;min-width:0;
+  font-family:inherit;color:var(--text)}
+.mgz-busca .x{background:none;border:0;color:var(--muted2);font-size:13px;padding:0 2px;font-family:inherit}
+
+.mgz-lista{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 8px 14px}
+.mgz-sec{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.8px;
   text-transform:uppercase;color:var(--muted2);font-weight:700;padding:14px 8px 5px}
-.mgx-sec .add{margin-left:auto;background:none;border:0;color:var(--muted2);width:20px;height:20px;
-  border-radius:6px;font-size:15px;line-height:1;font-family:inherit}
-.mgx-sec .add:hover{background:var(--card);color:var(--brass2)}
-.mgx-i{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:var(--muted);
-  font-size:13px;font-weight:500;background:none;border:0;text-align:left;width:100%;
-  font-family:inherit;transition:background .15s,color .15s}
-.mgx-i:hover{background:var(--card);color:var(--text)}
-.mgx-i.on{background:var(--brass);color:var(--ink2);font-weight:700}
-.mgx-i.novo{font-weight:700;color:var(--text)}
-.mgx-i .h{width:16px;text-align:center;flex-shrink:0;opacity:.7}
-.mgx-i .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgx-i .n{background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:18px;
-  height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
-.mgx-i.on .n{background:var(--ink2);color:var(--brass)}
-.mgx-emp{margin-bottom:2px}
-.mgx-emp .cab{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
-  padding:7px 10px;border-radius:8px;font-family:inherit;font-size:12.5px;font-weight:700;
-  color:var(--text);text-align:left}
-.mgx-emp .cab:hover{background:var(--card)}
-.mgx-emp .cab .seta{font-size:9px;color:var(--muted2);width:10px;flex-shrink:0;transition:transform .2s}
-.mgx-emp.aberta .cab .seta{transform:rotate(90deg)}
-.mgx-emp .cab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgx-emp .cab .n{background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:17px;
-  height:17px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
-.mgx-emp .dentro{display:none;padding-left:8px;margin-left:9px;border-left:1px solid var(--line)}
-.mgx-emp.aberta .dentro{display:block}
-.mgx-lg{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;
-  overflow:hidden;flex-shrink:0;font-weight:700;color:#fff;font-size:9px;line-height:1}
-.mgx-lg img{width:100%;height:100%;object-fit:contain;background:#fff}
-.mgx-nada{font-size:11.5px;color:var(--muted2);padding:5px 10px}
+.mgz-sec .add{margin-left:auto;background:none;border:0;color:var(--muted2);width:20px;height:20px;
+  border-radius:6px;font-size:15px;line-height:1;font-family:inherit;flex-shrink:0}
+.mgz-sec .add:hover{background:var(--card);color:var(--brass2)}
 
-/* ---------- conversa ---------- */
-.mgx-conv{flex:1;min-width:0;display:flex;flex-direction:column}
-.mgx-topo{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line);
-  min-height:56px;flex-wrap:wrap;border-left:3px solid var(--cor-canal,transparent)}
-.mgx-topo .nm{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
-.mgx-topo .sub{font-size:12px;color:var(--muted);padding-left:10px;border-left:1px solid var(--line2)}
-.mgx-topo .sp{flex:1}
-.mgx-topo .bt{background:none;border:1px solid var(--line2);border-radius:9px;padding:6px 12px;
-  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted)}
-.mgx-topo .bt:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-i{display:flex;align-items:center;gap:9px;width:100%;padding:6px 9px;border:0;border-radius:8px;
+  background:none;color:var(--muted);font-size:13.5px;font-weight:500;text-align:left;
+  font-family:inherit;transition:background .13s,color .13s}
+.mgz-i:hover{background:var(--card);color:var(--text)}
+.mgz-i.on{background:var(--brass);color:var(--ink2);font-weight:700}
+.mgz-i.novo{color:var(--text);font-weight:700}
+.mgz-i .h{width:17px;flex-shrink:0;text-align:center;opacity:.65;font-weight:400}
+.mgz-i .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-i .n{flex-shrink:0;background:var(--danger);color:#fff;font-size:10px;font-weight:700;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
+.mgz-i.on .n{background:var(--ink2);color:var(--brass-soft)}
+.mgz-i .mgu-av{margin:-1px 0}
 
-.mgx-msgs{flex:1;overflow:auto;padding:14px 0 10px;display:flex;flex-direction:column}
-.mgx-dia{align-self:stretch;display:flex;align-items:center;gap:12px;margin:16px 20px 8px;
-  color:var(--muted);font-size:12px;font-weight:700}
-.mgx-dia::before,.mgx-dia::after{content:"";flex:1;height:1px;background:var(--line)}
-.mgx-dia span{background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
+.mgz-emp{margin-bottom:1px}
+.mgz-emp .cab{display:flex;align-items:center;gap:8px;width:100%;padding:6px 9px;border:0;
+  border-radius:8px;background:none;color:var(--text);font-size:12.5px;font-weight:700;
+  text-align:left;font-family:inherit}
+.mgz-emp .cab:hover{background:var(--card)}
+.mgz-emp .cab .seta{width:10px;flex-shrink:0;font-size:9px;color:var(--muted2);transition:transform .18s}
+.mgz-emp.aberta .cab .seta{transform:rotate(90deg)}
+.mgz-emp .cab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-emp .cab .n{flex-shrink:0;background:var(--danger);color:#fff;font-size:10px;font-weight:700;
+  min-width:17px;height:17px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
+.mgz-emp .dentro{display:none;margin-left:9px;padding-left:8px;border-left:1px solid var(--line)}
+.mgz-emp.aberta .dentro{display:block}
+.mgz-vazio-sec{font-size:11.5px;color:var(--muted2);padding:4px 10px 6px}
 
-.mgx-msg{display:flex;gap:11px;padding:5px 20px;position:relative}
-.mgx-msg:hover{background:var(--card2)}
-.mgx-msg .av{width:36px;height:36px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
-  font-weight:700;font-size:13px;color:#1a1a18;overflow:hidden}
-.mgx-msg .av img{width:100%;height:100%;object-fit:cover}
-.mgx-msg .bd{min-width:0;flex:1}
-.mgx-msg .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.mgx-msg .quem{font-weight:700;font-size:13.5px}
-.mgx-msg .rl{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
-  color:var(--brass2);background:rgba(194,161,91,.16);padding:1px 7px;border-radius:999px}
-.mgx-msg .rl.cli{color:#7C8A97;background:rgba(124,138,151,.18)}
-.mgx-msg .hora{font-size:11px;color:var(--muted2)}
-.mgx-msg .tx{font-size:14px;line-height:1.52;margin-top:2px;white-space:pre-wrap;word-break:break-word}
-.mgx-msg.segue{padding-top:1px;padding-bottom:1px}
-.mgx-msg.segue .av,.mgx-msg.segue .hd{display:none}
-.mgx-msg.segue .bd{margin-left:47px}
-.mgx-msg.segue .hora-lat{position:absolute;left:20px;top:3px;width:36px;text-align:center;
+.mgz-eu{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);
+  background:var(--card)}
+.mgz-eu .tx{min-width:0;flex:1}
+.mgz-eu .tx b{display:block;font-size:13px;font-weight:700;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-eu .tx span{display:block;font-size:11px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-eu .bt{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
+  color:var(--muted);font-size:13px;flex-shrink:0;font-family:inherit}
+.mgz-eu .bt:hover{border-color:var(--brass);color:var(--brass2)}
+
+/* ---------- 2. conversa ---------- */
+.mgz-main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--card)}
+.mgz-topo{display:flex;align-items:center;gap:11px;padding:11px 18px;min-height:60px;
+  border-bottom:1px solid var(--line);flex-shrink:0}
+.mgz-topo .tt{min-width:0;flex:1}
+.mgz-topo .tt b{display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:700;
+  line-height:1.25;min-width:0}
+.mgz-topo .tt b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-topo .tt small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-topo .bt{background:none;border:1px solid var(--line2);border-radius:9px;padding:7px 12px;
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);flex-shrink:0}
+.mgz-topo .bt:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-topo .bt.on{border-color:var(--brass);color:var(--brass2);background:rgba(194,161,91,.1)}
+.mgz-voltar{display:none;background:none;border:0;font-size:17px;color:var(--muted);
+  padding:4px 6px;font-family:inherit;flex-shrink:0}
+
+.mgz-msgs{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 0 8px;
+  display:flex;flex-direction:column;scroll-behavior:smooth}
+.mgz-dia{align-self:stretch;display:flex;align-items:center;gap:12px;margin:14px 20px 8px;
+  font-size:11.5px;font-weight:700;color:var(--muted)}
+.mgz-dia::before,.mgz-dia::after{content:"";flex:1;height:1px;background:var(--line)}
+.mgz-dia span{background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
+
+.mgz-m{display:flex;gap:11px;padding:4px 20px;position:relative}
+.mgz-m:hover{background:var(--card2)}
+.mgz-m .bd{min-width:0;flex:1}
+.mgz-m .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mgz-m .quem{font-weight:700;font-size:13.5px}
+.mgz-m .hora{font-size:11px;color:var(--muted2)}
+.mgz-m .tx{font-size:14px;line-height:1.55;margin-top:1px;white-space:pre-wrap;word-break:break-word}
+.mgz-m .tx code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+  background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.mgz-m.segue{padding-top:1px;padding-bottom:1px}
+.mgz-m.segue > .mgu-av,.mgz-m.segue .hd{display:none}
+.mgz-m.segue .bd{margin-left:47px}
+.mgz-m.segue .hora-lat{position:absolute;left:20px;top:2px;width:36px;text-align:center;
   font-size:10.5px;color:var(--muted2);opacity:0;transition:opacity .12s}
-.mgx-msg.segue:hover .hora-lat{opacity:1}
-.mgx-msg.alvo{background:rgba(194,161,91,.14)}
-body.mg-chat-compacto .mgx-msg{padding-top:2px;padding-bottom:2px}
-body.mg-chat-compacto .mgx-msg .tx{font-size:13px;line-height:1.45}
-body.mg-sem-hora .mgx-msg .hora{display:none}
+.mgz-m.segue:hover .hora-lat{opacity:1}
+.mgz-m.alvo{background:rgba(194,161,91,.16)}
+.mgz-m.enviando{opacity:.55}
+.mgz-m.falhou .tx{color:var(--danger)}
+.mgz-m .refazer{background:none;border:0;color:var(--danger);font-size:11.5px;font-weight:700;
+  text-decoration:underline;font-family:inherit;padding:2px 0}
+body.mg-chat-compacto .mgz-m{padding-top:1px;padding-bottom:1px}
+body.mg-chat-compacto .mgz-m .tx{font-size:13px;line-height:1.45}
+body.mg-sem-hora .mgz-m .hora{display:none}
 
-.mgx-sis{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
-  background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin:5px 20px}
-.mgx-sis .pt{width:9px;height:9px;border-radius:3px;background:var(--brass);flex-shrink:0}
-.mgx-sis .de{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.4px;
-  text-transform:uppercase;color:var(--brass2)}
+.mgz-sis{display:flex;align-items:center;gap:9px;margin:6px 20px;padding:8px 13px;font-size:12.5px;
+  color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:10px}
+.mgz-sis .pt{width:8px;height:8px;border-radius:50%;background:var(--brass);flex-shrink:0}
+.mgz-sis .de{margin-left:auto;font-size:9.5px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--brass2);flex-shrink:0}
 
-.mgx-cit{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
-  margin-bottom:3px;cursor:pointer;max-width:100%}
-.mgx-cit::before{content:"";width:22px;height:9px;border-left:2px solid var(--line2);
-  border-top:2px solid var(--line2);border-top-left-radius:6px;margin-left:4px;flex-shrink:0;
+.mgz-cit{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
+  margin-bottom:2px;cursor:pointer;max-width:100%}
+.mgz-cit::before{content:"";width:20px;height:8px;border-left:2px solid var(--line2);
+  border-top:2px solid var(--line2);border-top-left-radius:6px;margin-left:2px;flex-shrink:0;
   align-self:flex-end;margin-bottom:2px}
-.mgx-cit b{color:var(--text);flex-shrink:0}
-.mgx-cit .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
-.mgx-cit:hover .t{text-decoration:underline}
+.mgz-cit b{color:var(--text);flex-shrink:0}
+.mgz-cit .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
+.mgz-cit:hover .t{text-decoration:underline}
 
-.mgx-acoes{position:absolute;top:-12px;right:14px;display:none;align-items:center;gap:1px;
-  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;
-  box-shadow:0 6px 18px -6px rgba(0,0,0,.28);z-index:4}
-.mgx-msg:hover .mgx-acoes,.mgx-acoes:focus-within{display:flex}
-.mgx-acoes button{background:none;border:0;font-size:14px;line-height:1;padding:5px 7px;
+.mgz-anexos{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
+.mgz-anexo{display:flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:10px;padding:8px 12px;font-family:inherit;color:var(--text);font-size:12.5px;
+  max-width:280px;text-align:left}
+.mgz-anexo:hover{border-color:var(--brass)}
+.mgz-anexo .ic{font-size:16px;flex-shrink:0}
+.mgz-anexo .tx2{min-width:0}
+.mgz-anexo .tx2 b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-anexo .tx2 span{font-size:10.5px;color:var(--muted)}
+.mgz-img{max-width:min(340px,72%);border-radius:11px;border:1px solid var(--line);display:block;
+  margin-top:7px;cursor:pointer}
+
+.mgz-acoes{position:absolute;top:-13px;right:16px;display:none;align-items:center;gap:1px;
+  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;z-index:4;
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.28)}
+.mgz-m:hover .mgz-acoes,.mgz-acoes:focus-within{display:flex}
+.mgz-acoes button{background:none;border:0;font-size:14px;line-height:1;padding:5px 7px;
   border-radius:7px;color:var(--muted);font-family:inherit}
-.mgx-acoes button:hover{background:var(--card2);color:var(--text)}
-.mgx-acoes .div{width:1px;height:16px;background:var(--line);margin:0 3px}
+.mgz-acoes button:hover{background:var(--card2);color:var(--text)}
+.mgz-acoes .div{width:1px;height:15px;background:var(--line);margin:0 2px}
 
-.mgx-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.mgx-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
+.mgz-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.mgz-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
   border:1px solid var(--line2);border-radius:999px;padding:2px 9px;font-size:12px;
   font-family:inherit;color:var(--text);line-height:1.6}
-.mgx-rea.minha{background:rgba(194,161,91,.16);border-color:var(--brass)}
-.mgx-rea .n{font-size:11px;font-weight:700;color:var(--muted)}
-.mgx-rea.minha .n{color:var(--brass2)}
-.mgx-rea.add{border-style:dashed;color:var(--muted2)}
-.mgx-emojis{position:fixed;z-index:140;background:var(--card);border:1px solid var(--line2);
+.mgz-rea.minha{background:rgba(194,161,91,.16);border-color:var(--brass)}
+.mgz-rea .n{font-size:11px;font-weight:700;color:var(--muted)}
+.mgz-rea.minha .n{color:var(--brass2)}
+.mgz-rea.add{border-style:dashed;color:var(--muted2)}
+.mgz-emojis{position:fixed;z-index:150;background:var(--card);border:1px solid var(--line2);
   border-radius:13px;padding:9px;display:none;grid-template-columns:repeat(6,1fr);gap:3px;
-  box-shadow:0 20px 46px -18px rgba(0,0,0,.4)}
-.mgx-emojis.on{display:grid}
-.mgx-emojis button{background:none;border:0;font-size:19px;padding:6px;border-radius:8px;line-height:1}
-.mgx-emojis button:hover{background:var(--card2)}
+  box-shadow:0 20px 46px -18px rgba(0,0,0,.42)}
+.mgz-emojis.on{display:grid}
+.mgz-emojis button{background:none;border:0;font-size:19px;padding:6px;border-radius:8px;
+  line-height:1;font-family:inherit}
+.mgz-emojis button:hover{background:var(--card2)}
 
-/* ---------- caixa de escrita ---------- */
-.mgx-comp{padding:8px 20px 16px}
-.mgx-resp{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line2);
-  border-bottom:0;border-radius:11px 11px 0 0;padding:8px 13px;font-size:12.5px;color:var(--muted)}
-.mgx-resp b{color:var(--text)}
-.mgx-resp .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgx-resp .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 7px;
+/* ---------- 3. caixa de escrita ---------- */
+.mgz-comp{padding:6px 18px 14px;flex-shrink:0}
+.mgz-resp{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line2);
+  border-bottom:0;border-radius:11px 11px 0 0;padding:7px 13px;font-size:12.5px;color:var(--muted)}
+.mgz-resp b{color:var(--text)}
+.mgz-resp .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-resp .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 6px;
   border-radius:6px;font-family:inherit}
-.mgx-caixa{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line2);
+.mgz-caixa{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line2);
   border-radius:11px;overflow:hidden}
-.mgx-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
-.mgx-fer{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--line);
+.mgz-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgz-fer{display:flex;align-items:center;gap:2px;padding:5px 7px;border-bottom:1px solid var(--line);
   background:var(--card2)}
-.mgx-fer button{background:none;border:0;width:28px;height:26px;border-radius:5px;color:var(--muted);
+.mgz-fer button{background:none;border:0;width:28px;height:26px;border-radius:6px;color:var(--muted);
   font-size:13px;font-family:inherit;display:grid;place-items:center}
-.mgx-fer button:hover{background:var(--card);color:var(--text)}
-.mgx-fer .div{width:1px;height:16px;background:var(--line2);margin:0 5px}
-.mgx-caixa textarea{border:0;background:none;outline:none;font-family:inherit;font-size:14px;
-  resize:none;max-height:160px;color:var(--text);line-height:1.5;padding:11px 13px 4px}
-.mgx-baixo{display:flex;align-items:center;gap:6px;padding:4px 8px 8px}
-.mgx-baixo .sp{flex:1}
-.mgx-baixo .env{background:var(--brass);border:0;color:#1a1a18;width:32px;height:30px;border-radius:7px;
-  display:grid;place-items:center;font-size:14px;font-family:inherit}
-.mgx-baixo .env.pronto{background:var(--st-done);color:#fff}
-.mgx-dica{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:4px}
-.mgx-dica b{color:var(--brass2)}
-.mgx-cmds{display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:6px}
-.mgx-cmds button{background:var(--card2);border:1px solid var(--line2);border-radius:999px;
-  padding:3px 10px;font-size:11px;font-weight:600;color:var(--muted);font-family:inherit}
-.mgx-cmds button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-fer button:hover{background:var(--card);color:var(--text)}
+.mgz-fer .div{width:1px;height:15px;background:var(--line2);margin:0 4px}
+.mgz-caixa textarea{border:0;background:none;outline:none;font-family:inherit;font-size:14px;
+  resize:none;max-height:180px;color:var(--text);line-height:1.55;padding:11px 13px 4px}
+.mgz-baixo{display:flex;align-items:center;gap:8px;padding:4px 8px 8px}
+.mgz-baixo .sp{flex:1}
+.mgz-baixo .env{background:var(--brass);border:0;color:var(--ink2);min-width:34px;height:31px;
+  border-radius:8px;display:grid;place-items:center;font-size:14px;font-family:inherit;padding:0 10px}
+.mgz-baixo .env:hover{background:var(--brass2);color:#fff}
+.mgz-baixo .env:disabled{opacity:.4}
+.mgz-fila{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px}
+.mgz-fila .it{display:inline-flex;align-items:center;gap:7px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:8px;padding:5px 9px;font-size:11.5px}
+.mgz-fila .it button{background:none;border:0;color:var(--muted2);font-size:12px;font-family:inherit}
+.mgz-dica{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:3px;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:16px}
+.mgz-dica b{color:var(--brass2)}
+.mgz-cmds{display:inline-flex;gap:6px;flex-wrap:wrap}
+.mgz-cmds button{background:var(--card2);border:1px solid var(--line2);border-radius:999px;
+  padding:2px 9px;font-size:10.5px;font-weight:600;color:var(--muted);font-family:inherit}
+.mgz-cmds button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-digitando{font-style:italic}
 
-.mgx-aviso{margin:auto;max-width:520px;text-align:center;padding:30px}
-.mgx-aviso h3{font-family:var(--font-d);font-size:20px;font-weight:500;margin-bottom:8px}
-.mgx-aviso p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
-.mgx-vazio{margin:auto;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7;padding:30px}
+/* ---------- 4. painel de contexto ---------- */
+.mgz-info{width:236px;flex-shrink:0;border-left:1px solid var(--line);background:var(--card2);
+  display:flex;flex-direction:column;overflow-y:auto}
+.mgz-info h4{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted2);
+  font-weight:700;padding:16px 16px 7px;margin:0}
+.mgz-info .p{display:flex;align-items:center;gap:9px;padding:6px 14px;font-size:13px}
+.mgz-info .p .tx{min-width:0;flex:1}
+.mgz-info .p .tx b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-info .p .tx span{display:block;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-info .arq{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:12px;
+  width:100%;background:none;border:0;text-align:left;font-family:inherit;color:var(--text)}
+.mgz-info .arq:hover{background:var(--card)}
+.mgz-info .arq .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-info .nada{font-size:12px;color:var(--muted2);padding:2px 16px 10px}
 
-@media(max-width:760px){
-  .mgx-lado{width:100%;position:absolute;inset:0;z-index:5;background:var(--card2)}
-  body.mgx-conversa .mgx-lado{display:none}
-  #v-chat{position:relative}
-  .mgx-voltar{display:inline-flex!important}
+/* ---------- 5. estados ---------- */
+.mgz-centro{margin:auto;text-align:center;padding:34px 26px;max-width:420px}
+.mgz-centro .ic{font-size:30px;opacity:.5;margin-bottom:12px}
+.mgz-centro h3{font-family:var(--font-d);font-size:18px;font-weight:500;margin:0 0 8px}
+.mgz-centro p{font-size:13.5px;color:var(--muted);line-height:1.65;margin:0 0 14px}
+.mgz-esq{padding:16px 20px}
+.mgz-esq .l{display:flex;gap:11px;margin-bottom:16px}
+.mgz-esq .b{background:var(--line);border-radius:8px;animation:mgzPulsa 1.3s ease-in-out infinite}
+.mgz-esq .b.av{width:36px;height:36px;border-radius:9px;flex-shrink:0}
+.mgz-esq .b.l1{height:11px;width:120px;margin-bottom:8px}
+.mgz-esq .b.l2{height:11px;width:min(60%,320px)}
+.mgz-esq .b.l3{height:11px;width:min(40%,210px);margin-top:7px}
+@keyframes mgzPulsa{0%,100%{opacity:.45}50%{opacity:.9}}
+.mgz-erro{display:flex;align-items:flex-start;gap:10px;margin:10px 18px;padding:11px 14px;
+  font-size:12.5px;line-height:1.55;border-radius:11px;
+  background:rgba(184,74,62,.09);border:1px solid rgba(184,74,62,.32)}
+.mgz-erro b{color:var(--text)}
+.mgz-erro button{margin-left:auto;background:none;border:1px solid rgba(184,74,62,.4);
+  border-radius:8px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--danger);
+  font-family:inherit;flex-shrink:0}
+
+/* ---------- 6. responsivo ---------- */
+@media(max-width:1180px){ .mgz-info{display:none} body.mgz-info-on .mgz-info{display:flex} }
+@media(max-width:900px){
+  .mgz-side{width:232px}
+  body.mgz-info-on .mgz-info{position:absolute;right:0;top:0;bottom:0;z-index:8;width:250px;
+    box-shadow:-18px 0 40px -22px rgba(0,0,0,.4)}
 }
-.mgx-voltar{display:none;background:none;border:0;font-size:16px;color:var(--muted);
-  padding:4px 8px;border-radius:7px;font-family:inherit}
+@media(max-width:720px){
+  #v-chat{height:calc(100vh - 78px)}
+  body.mg-e-chat #v-chat{height:calc(100vh - 76px)}
+  .mgz-side{position:absolute;inset:0;width:100%;z-index:9;border-right:0}
+  body.mgz-conversa .mgz-side{display:none}
+  body:not(.mgz-conversa) .mgz-main{display:none}
+  .mgz-voltar{display:block}
+  .mgz-m{padding-left:14px;padding-right:14px}
+  .mgz-comp{padding:6px 12px 12px}
+  .mgz-topo{padding:10px 12px}
+  body.mgz-info-on .mgz-info{width:100%;position:absolute;inset:0;z-index:10}
+}
+@media (prefers-reduced-motion: reduce){
+  .mgz-msgs{scroll-behavior:auto}
+  .mgz-esq .b{animation:none}
+}
 </style>
 <script>
 /* =====================================================================
-   SEÇÃO · CHAT
+   SEÇÃO · CHAT · ambiente de conversa
    ---------------------------------------------------------------------
-   Substitui o chat antigo, que estava espalhado em seis blocos (adições
-   1, 2, 22, 35 e 36) e se sobrescrevia. Aqui está tudo num lugar só.
+   Tudo do chat vive aqui: dados, tempo real, presença, desenho e ações.
+   Toda pessoa exibida passa por MGU (SEÇÃO · IDENTIDADE), então o nome e
+   a foto são os mesmos aqui, no card da demanda e no menu do usuário.
 
-   O que estava quebrado, e por quê:
-
-   1) 403 ao usar o chat. A cada abertura da tela, o app tentava
-      "provisionar" os canais: um upsert em channel_members para TODAS as
-      pessoas. Upsert exige policy de UPDATE, e só existia a da própria
-      linha · o banco recusava 103 vezes por sessão. O provisionamento
-      automático saiu; virou um botão do administrador. A policy de admin
-      também foi criada, para o upsert deixar de ser proibido.
-
-   2) Canais duplicados e conversas chamadas "— ↔ Fulano". O
-      provisionamento rodava com a lista de canais desatualizada e com o
-      nome do usuário ainda vazio. Agora a conversa direta é criada sob
-      demanda, com chave canônica (os dois ids ordenados), então não
-      duplica e o nome é resolvido na hora de exibir.
-
-   3) Excluir mensagem não fazia nada: não havia policy de DELETE. Criada.
-
-   4) Reagir gravava direto na tabela por uma policy `using (true)` ·
-      qualquer pessoa podia reescrever o texto de qualquer mensagem.
-      Agora passa pela função mg_toggle_reaction, que confere o acesso.
-
-   5) Contar não lidas baixava 400 mensagens a cada abertura. Virou uma
-      chamada só (mg_unread).
-
-   6) O som de mensagem nova nunca tocava: o handler era registrado
-      depois do subscribe, e o supabase-js ignora isso. Agora é antes.
+   `messages.author_name` continua sendo gravado, mas só como último
+   recurso para quem não existe mais no diretório. Quem manda é
+   `author_id`.
    ===================================================================== */
+const MGChat = (function(){
 
 /* ---------------------------------------------------------------------
    1. Estado
-   Os nomes públicos (CHANNELS, CHAN, CHMSGS, CH_READY, loadMsgs...) são
-   os mesmos de antes de propósito: outras telas e os comandos
-   #adicionardemanda / #adicionardocumento continuam funcionando.
    --------------------------------------------------------------------- */
-let CHANNELS   = [];      /* canais visíveis para quem está logado      */
-let CHAN       = null;    /* id do canal aberto                          */
-let CHMSGS     = {};      /* { canalId: [mensagens] }                    */
-let CH_READY   = null;    /* null = não verificado, true/false           */
-let CH_FILTER  = '';      /* texto da busca de conversas                 */
-let CH_ERRO    = null;
-let CH_MEMBROS = {};      /* { canalId: { perfilId: {apelido,avatar_url} } } */
-let CH_NAOLIDAS= {};      /* { canalId: quantidade }                     */
-let CH_PERFIS  = [];      /* perfis, para nome/foto e para abrir diretas */
-let CH_RESP    = null;    /* mensagem sendo respondida                   */
-let CH_RT      = null;    /* assinatura de tempo real                    */
-let CH_EMP_ABERTAS = new Set();
-
-const CH_EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡','🚀','😮','👏'];
+const EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡','🚀','😮','👏'];
+let carregandoMsgs = false;
+let erroMsgs = null;
+let erroCanais = null;
+let empresasAbertas = new Set();
+let respondendo = null;
+let fila = [];              /* anexos escolhidos, ainda não enviados     */
+let pendentes = [];         /* mensagens em voo, para render otimista    */
+let online = new Set();     /* ids presentes agora                        */
+let digitando = new Map();  /* canalId -> Map(uid, expiraEm)             */
+let canalRT = null;
+let canalPresenca = null;
+let painelInfo = false;
+let ultimoScroll = 0;
 
 /* ---------------------------------------------------------------------
-   2. Leitura do banco
+   2. Dados
    --------------------------------------------------------------------- */
-async function loadChannels(){
-  const {data,error} = await sb.from('channels').select('*').order('tipo').order('nome');
-  if(error) throw error;
-  CHANNELS = (data||[]).filter(chVisivel);
-  if(CHAN && !CHANNELS.some(c=>c.id===CHAN)) CHAN = null;
-  if(!CHAN && CHANNELS.length) CHAN = chPrimeiro();
+async function carregarCanais(){
+  try{
+    const {data, error} = await sb.from('channels').select('*').order('tipo').order('nome');
+    if(error) throw error;
+    CHANNELS = (data||[]).filter(visivel);
+    erroCanais = null;
+    if(CHAN && !CHANNELS.some(c=>c.id===CHAN)) CHAN = null;
+    if(!CHAN) CHAN = primeiroCanal();
+  }catch(e){
+    erroCanais = (e && e.message) || 'erro';
+    throw e;
+  }
 }
-/* esconde o lixo herdado: diretas sem os dois lados, criadas pelo
-   provisionamento antigo. Não apaga nada · só não mostra. */
-function chVisivel(c){
+/* esconde o lixo herdado do provisionamento antigo: conversas diretas
+   criadas sem os dois lados, com nome "— ↔ Fulano" */
+function visivel(c){
   if(c.tipo !== 'dm') return true;
   const n = String(c.nome||'');
   if(n.startsWith('dm:')) return true;
   return !n.startsWith('— ') && !n.includes('↔ —') && n.includes('↔');
 }
-function chPrimeiro(){
+function primeiroCanal(){
   const c = CHANNELS.find(x=>x.tipo==='team') || CHANNELS[0];
   return c ? c.id : null;
 }
-async function loadMsgs(cid){
+async function carregarMsgs(cid){
   if(!cid) return;
-  const {data,error} = await sb.from('messages').select('*')
-    .eq('channel_id', cid).order('created_at',{ascending:true}).limit(300);
-  if(error) throw error;
-  CHMSGS[cid] = data || [];
-}
-async function chLoadPerfis(){
-  const {data} = await sb.from('profiles').select('id,nome,role,client_id,avatar_url');
-  CH_PERFIS = data || [];
-}
-async function chLoadMembros(cid){
-  if(!cid) return;
-  const {data} = await sb.from('channel_members').select('*').eq('channel_id', cid);
-  const m = {};
-  (data||[]).forEach(x=>{ m[x.profile_id] = {apelido:x.apelido||null, avatar_url:x.avatar_url||null} });
-  CH_MEMBROS[cid] = m;
-}
-/* uma chamada só, em vez das 400 mensagens que o app baixava antes */
-async function chLoadNaoLidas(){
+  carregandoMsgs = true; erroMsgs = null;
   try{
-    const {data,error} = await sb.rpc('mg_unread');
+    const {data, error} = await sb.from('messages').select('*')
+      .eq('channel_id', cid).order('created_at',{ascending:true}).limit(400);
+    if(error) throw error;
+    CHMSGS[cid] = data || [];
+  }catch(e){
+    erroMsgs = (e && e.message) || 'erro';
+  }finally{ carregandoMsgs = false }
+}
+async function carregarMembros(cid){
+  if(!cid) return;
+  try{
+    const {data} = await sb.from('channel_members').select('*').eq('channel_id', cid);
+    const m = {};
+    (data||[]).forEach(x=>{ m[x.profile_id] = {apelido:x.apelido||null, avatar_url:x.avatar_url||null} });
+    CH_MEMBROS[cid] = m;
+  }catch(e){ CH_MEMBROS[cid] = CH_MEMBROS[cid] || {} }
+}
+async function carregarNaoLidas(){
+  try{
+    const {data, error} = await sb.rpc('mg_unread');
     if(error) throw error;
     const m = {};
-    (data||[]).forEach(r=>{ if(r.nao_lidas > 0) m[r.channel_id] = Number(r.nao_lidas) });
+    (data||[]).forEach(r=>{ if(Number(r.nao_lidas) > 0) m[r.channel_id] = Number(r.nao_lidas) });
     CH_NAOLIDAS = m;
-  }catch(e){ /* banco antigo, sem a função: segue sem contador */ }
+  }catch(e){ /* banco antigo: segue sem contador */ }
 }
-function chTotalNaoLidas(){
-  return Object.values(CH_NAOLIDAS).reduce((a,n)=>a+n, 0);
-}
+function totalNaoLidas(){ return Object.values(CH_NAOLIDAS).reduce((a,n)=>a+n,0) }
 
-async function chIniciar(){
+async function iniciar(){
   try{
-    const {error} = await sb.from('channels').select('id').limit(1);
-    if(error) throw error;
+    await MGU.carregar();
+    await carregarCanais();
     CH_READY = true;
-    await Promise.all([loadChannels(), chLoadPerfis(), chLoadNaoLidas()]);
-    if(CHAN) await Promise.all([loadMsgs(CHAN), chLoadMembros(CHAN)]);
-    chSubscribe();
+    await carregarNaoLidas();
+    if(CHAN) await Promise.all([carregarMsgs(CHAN), carregarMembros(CHAN)]);
+    assinar();
+    ligarPresenca();
   }catch(e){
     CH_READY = false;
-    CH_ERRO = (e && e.message) || 'erro';
+    erroCanais = (e && e.message) || 'erro';
   }
-}
-/* compatibilidade: a tela de Início ainda chama este nome */
-async function checkChatTables(){ if(CH_READY===null) await chIniciar(); }
-
-/* ---------------------------------------------------------------------
-   3. Nomes e aparência dos canais
-   --------------------------------------------------------------------- */
-function chPerfil(id){ return CH_PERFIS.find(p=>p.id===id) || null }
-
-function mgChanNome(c){
-  if(!c) return '—';
-  if(c.tipo === 'client') return clientName(c.client_id);
-  if(c.tipo !== 'dm') return c.nome;
-  /* chave canônica nova: dm:<idA>:<idB> · mostra o outro lado */
-  if(String(c.nome||'').startsWith('dm:')){
-    const ids = c.nome.slice(3).split(':');
-    const outro = ids.find(x => !ME || x !== ME.id) || ids[0];
-    const p = chPerfil(outro);
-    return p ? p.nome : 'Conversa direta';
-  }
-  /* formato antigo "Fulano ↔ Beltrano" */
-  const partes = String(c.nome||'').split('↔').map(s=>s.trim());
-  const eu = (ME && ME.name || '').trim();
-  return partes.find(p=>p && p!==eu) || partes[0] || 'Conversa direta';
-}
-function chCor(c){
-  if(!c) return null;
-  if(c.cor) return c.cor;
-  if(c.tipo === 'client' && c.client_id) return clientColor(c.client_id);
-  return null;
-}
-function chMarca(c, px){
-  const s = px || 20;
-  if(c && c.tipo === 'client' && typeof mgClientLogo === 'function') return mgClientLogo(c.client_id, s);
-  if(c && c.tipo === 'dm'){
-    const nm = mgChanNome(c);
-    return '<span class="mgx-lg" style="width:'+s+'px;height:'+s+'px;background:#7C8A97">'
-         + esc(initials(nm)) + '</span>';
-  }
-  return '<span class="h">#</span>';
-}
-/* nome e foto de quem escreveu, respeitando o apelido do canal */
-function chAutor(m){
-  const id  = m.author_id;
-  const mem = (CH_MEMBROS[m.channel_id] || {})[id] || {};
-  const p   = chPerfil(id);
-  const nome = mem.apelido || (p && p.nome) || m.author_name || '—';
-  let foto = mem.avatar_url || (p && p.avatar_url) || null;
-  if(ME && id === ME.id && ME.avatar_url && !mem.avatar_url) foto = ME.avatar_url;
-  return {nome, foto, cliente: !!(p && p.role !== 'admin')};
 }
 
 /* ---------------------------------------------------------------------
-   4. Abrir canal
+   3. Tempo real e presença
+   Os handlers são registrados ANTES do subscribe: o supabase-js ignora
+   os que chegam depois, e era por isso que o aviso de mensagem nova
+   nunca disparava.
    --------------------------------------------------------------------- */
-async function openChan(id){
-  if(!id) return;
-  CHAN = id;
-  CH_RESP = null;
-  document.body.classList.add('mgx-conversa');
-  if(!CHMSGS[id] || !CH_MEMBROS[id]){
-    renderChatView();
-    try{ await Promise.all([loadMsgs(id), chLoadMembros(id)]) }catch(e){ console.warn('[chat]', e) }
-  }
-  await chMarcarLido(id);
-  renderChatView();
-  chRolarFim();
-}
-/* garante a linha do membro (é ela que guarda o "li até aqui") */
-async function chMarcarLido(id){
-  if(!ME || !id) return;
-  delete CH_NAOLIDAS[id];
-  const agora = new Date().toISOString();
+function assinar(){
+  if(canalRT) return;
   try{
-    const {data} = await sb.from('channel_members').update({last_read_at: agora})
-      .eq('channel_id', id).eq('profile_id', ME.id).select('profile_id');
-    if(!data || !data.length){
-      await sb.from('channel_members')
-        .upsert([{channel_id:id, profile_id:ME.id, last_read_at:agora}],
-                {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
-    }
-  }catch(e){ /* não impede o uso do chat */ }
-  if(typeof updateNotifBadge === 'function'){ try{ updateNotifBadge() }catch(e){} }
-}
-function chRolarFim(){
-  const cx = document.getElementById('mgx-msgs');
-  if(cx) cx.scrollTop = cx.scrollHeight;
-}
-function chFilter(v){ CH_FILTER = (v||'').toLowerCase(); renderChatView() }
-function mgChatBuscar(){ const i = document.getElementById('mgx-busca-in'); if(i) i.focus() }
-function chVoltarLista(){ document.body.classList.remove('mgx-conversa'); renderChatView() }
-
-/* ---------------------------------------------------------------------
-   5. Tempo real
-   O bug antigo: a adição 18 registrava o handler do som DEPOIS do
-   subscribe, e o supabase-js só considera os handlers registrados antes.
-   --------------------------------------------------------------------- */
-function chSubscribe(){
-  if(CH_RT) return;
-  try{
-    CH_RT = sb.channel('mgx-chat')
-      .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, p => chChegou(p.new))
-      .on('postgres_changes', {event:'DELETE', schema:'public', table:'messages'}, p => chSumiu(p.old))
-      .on('postgres_changes', {event:'UPDATE', schema:'public', table:'messages'}, p => chMudou(p.new))
+    canalRT = sb.channel('mgz-mensagens')
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, p=>chegou(p.new))
+      .on('postgres_changes', {event:'UPDATE', schema:'public', table:'messages'}, p=>mudou(p.new))
+      .on('postgres_changes', {event:'DELETE', schema:'public', table:'messages'}, p=>sumiu(p.old))
+      .on('broadcast', {event:'digitando'}, p=>marcarDigitando(p && p.payload))
       .subscribe();
-  }catch(e){ /* tempo real é opcional */ }
+  }catch(e){ /* sem tempo real o chat continua funcionando por recarga */ }
 }
-function chChegou(m){
+function ligarPresenca(){
+  if(canalPresenca || !ME) return;
+  try{
+    canalPresenca = sb.channel('mgz-presenca', {config:{presence:{key:ME.id}}});
+    canalPresenca.on('presence', {event:'sync'}, ()=>{
+      try{
+        const est = canalPresenca.presenceState() || {};
+        online = new Set(Object.keys(est));
+        if(VIEW === 'chat') desenhar();
+      }catch(e){}
+    });
+    canalPresenca.subscribe(st=>{
+      if(st === 'SUBSCRIBED' && canalPresenca.track){
+        try{ canalPresenca.track({em:Date.now()}) }catch(e){}
+      }
+    });
+  }catch(e){ /* presença é opcional */ }
+}
+function estaOnline(uid){
+  if(!online.size) return null;               /* presença indisponível */
+  return online.has(uid);
+}
+function avisarDigitando(){
+  if(!canalRT || !ME || !CHAN) return;
+  const agora = Date.now();
+  if(avisarDigitando._ate && agora < avisarDigitando._ate) return;
+  avisarDigitando._ate = agora + 2500;
+  try{ canalRT.send({type:'broadcast', event:'digitando', payload:{uid:ME.id, cid:CHAN}}) }catch(e){}
+}
+function marcarDigitando(p){
+  if(!p || !p.uid || !p.cid || (ME && p.uid === ME.id)) return;
+  if(!digitando.has(p.cid)) digitando.set(p.cid, new Map());
+  digitando.get(p.cid).set(p.uid, Date.now() + 4000);
+  if(VIEW === 'chat' && p.cid === CHAN) pintarDigitando();
+}
+function quemDigita(){
+  const m = digitando.get(CHAN);
+  if(!m) return [];
+  const agora = Date.now();
+  const vivos = [];
+  m.forEach((ate, uid)=>{ if(ate > agora) vivos.push(uid); else m.delete(uid) });
+  return vivos;
+}
+setInterval(()=>{ if(VIEW==='chat') pintarDigitando() }, 1500);
+
+function chegou(m){
   if(!m || !m.channel_id) return;
+  /* tira o otimista equivalente, se este for o eco do meu envio */
+  const i = pendentes.findIndex(p => p.channel_id===m.channel_id && p.body===m.body
+                                  && ME && m.author_id===ME.id);
+  if(i >= 0) pendentes.splice(i,1);
   const lista = CHMSGS[m.channel_id];
   if(lista){
     if(lista.some(x=>x.id===m.id)) return;
@@ -17459,603 +17811,969 @@ function chChegou(m){
   }
   const meu = ME && m.author_id === ME.id;
   if(!meu){
-    if(m.channel_id === CHAN && VIEW === 'chat'){
-      chMarcarLido(m.channel_id);
-    }else{
-      CH_NAOLIDAS[m.channel_id] = (CH_NAOLIDAS[m.channel_id] || 0) + 1;
+    if(m.channel_id === CHAN && VIEW === 'chat'){ marcarLido(m.channel_id) }
+    else{
+      CH_NAOLIDAS[m.channel_id] = (CH_NAOLIDAS[m.channel_id]||0) + 1;
       if(typeof mgSom === 'function'){ try{ mgSom('nova') }catch(e){} }
+      if(typeof updateNotifBadge === 'function'){ try{ updateNotifBadge() }catch(e){} }
     }
   }
-  if(VIEW === 'chat') renderChatView();
+  if(VIEW === 'chat') desenhar();
 }
-function chSumiu(m){
-  if(!m || !CHMSGS[m.channel_id]) return;
-  CHMSGS[m.channel_id] = CHMSGS[m.channel_id].filter(x=>x.id!==m.id);
-  if(VIEW === 'chat') renderChatView();
-}
-function chMudou(m){
+function mudou(m){
   if(!m || !CHMSGS[m.channel_id]) return;
   const i = CHMSGS[m.channel_id].findIndex(x=>x.id===m.id);
   if(i >= 0) CHMSGS[m.channel_id][i] = m;
-  if(VIEW === 'chat') renderChatView();
+  if(VIEW === 'chat') desenhar();
+}
+function sumiu(m){
+  if(!m || !CHMSGS[m.channel_id]) return;
+  CHMSGS[m.channel_id] = CHMSGS[m.channel_id].filter(x=>x.id!==m.id);
+  if(VIEW === 'chat') desenhar();
 }
 
 /* ---------------------------------------------------------------------
-   6. Desenho da tela
+   4. Identidade do canal
    --------------------------------------------------------------------- */
-function chData(ts){
-  const d = new Date(ts), h = new Date(), o = new Date(Date.now() - 864e5);
+function outroLado(c){
+  if(!c || c.tipo !== 'dm') return null;
+  const n = String(c.nome||'');
+  if(n.startsWith('dm:')){
+    const ids = n.slice(3).split(':');
+    return ids.find(x => !ME || x !== ME.id) || ids[0];
+  }
+  /* formato antigo "Fulano ↔ Beltrano": resolve pelo membro que não sou eu */
+  const membros = Object.keys(CH_MEMBROS[c.id] || {});
+  const outro = membros.find(x => !ME || x !== ME.id);
+  if(outro) return outro;
+  const partes = n.split('↔').map(s=>s.trim());
+  const eu = (ME && ME.name || '').trim();
+  const nome = partes.find(p => p && p !== eu) || partes[0];
+  const u = MGU.get(nome);
+  return u ? u.id : null;
+}
+function nomeCanal(c){
+  if(!c) return '—';
+  if(c.tipo === 'client') return clientName(c.client_id);
+  if(c.tipo === 'dm'){
+    const u = MGU.get(outroLado(c));
+    return u ? u.nome : 'Conversa direta';
+  }
+  return c.nome;
+}
+function corCanal(c){
+  if(!c) return null;
+  if(c.cor) return c.cor;
+  if(c.tipo === 'client' && c.client_id) return clientColor(c.client_id);
+  return null;
+}
+function marcaCanal(c, tam){
+  const t = tam || 20;
+  if(!c) return '';
+  if(c.tipo === 'client' && typeof mgClientLogo === 'function') return mgClientLogo(c.client_id, t);
+  if(c.tipo === 'dm') return MGU.avatar(outroLado(c), {tam:t, presenca:true});
+  return '<span class="h" style="font-size:' + Math.round(t*0.8) + 'px">#</span>';
+}
+/* quem participa: para canal de cliente, a equipe mais as pessoas da
+   empresa; para os demais, os membros gravados */
+function membrosDoCanal(c){
+  if(!c) return [];
+  const ids = new Set(Object.keys(CH_MEMBROS[c.id] || {}));
+  if(c.tipo === 'client'){
+    MGU.todos({equipe:true}).forEach(u=>ids.add(u.id));
+    MGU.todos().filter(u=>u.clienteId === c.client_id).forEach(u=>ids.add(u.id));
+  }
+  if(c.tipo === 'dm'){ const o = outroLado(c); if(o) ids.add(o); if(ME) ids.add(ME.id) }
+  return [...ids].map(id=>MGU.get(id)).filter(Boolean)
+    .sort((a,b)=>{
+      const oa = estaOnline(a.id) ? 0 : 1, ob = estaOnline(b.id) ? 0 : 1;
+      return oa !== ob ? oa - ob : a.nome.localeCompare(b.nome,'pt');
+    });
+}
+/* o apelido por canal continua valendo, mas só troca o nome exibido */
+function autorDe(m){
+  const base = MGU.get(m.author_id) || MGU.get(m.author_name) || MGU.seguro(m.author_name);
+  const ap = (CH_MEMBROS[m.channel_id] || {})[m.author_id];
+  if(ap && (ap.apelido || ap.avatar_url)){
+    return Object.assign({}, base, {
+      nome: ap.apelido || base.nome,
+      avatar: ap.avatar_url || base.avatar,
+    });
+  }
+  return base;
+}
+
+/* ---------------------------------------------------------------------
+   5. Abrir e marcar como lido
+   --------------------------------------------------------------------- */
+async function abrir(id){
+  if(!id) return;
+  CHAN = id; respondendo = null; fila = []; erroMsgs = null;
+  document.body.classList.add('mgz-conversa');
+  const precisa = !CHMSGS[id] || !CH_MEMBROS[id];
+  if(precisa){ desenhar(); await Promise.all([carregarMsgs(id), carregarMembros(id)]) }
+  await marcarLido(id);
+  desenhar();
+  rolarFim(true);
+}
+async function marcarLido(id){
+  if(!ME || !id) return;
+  delete CH_NAOLIDAS[id];
+  const agora = new Date().toISOString();
+  try{
+    const {data} = await sb.from('channel_members').update({last_read_at: agora})
+      .eq('channel_id', id).eq('profile_id', ME.id).select('profile_id');
+    if(!data || !data.length){
+      await sb.from('channel_members').upsert(
+        [{channel_id:id, profile_id:ME.id, last_read_at:agora}],
+        {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
+    }
+  }catch(e){ /* não impede o uso */ }
+  if(typeof updateNotifBadge === 'function'){ try{ updateNotifBadge() }catch(e){} }
+}
+function rolarFim(forcar){
+  const cx = document.getElementById('mgz-msgs');
+  if(!cx) return;
+  const perto = cx.scrollHeight - cx.scrollTop - cx.clientHeight < 160;
+  if(forcar || perto) cx.scrollTop = cx.scrollHeight;
+}
+
+/* ---------------------------------------------------------------------
+   6. Desenho
+   --------------------------------------------------------------------- */
+function dataDe(ts){
+  const d = new Date(ts), h = new Date(), o = new Date(Date.now()-864e5);
   if(d.toDateString() === h.toDateString()) return 'Hoje';
   if(d.toDateString() === o.toDateString()) return 'Ontem';
-  return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
 }
-function chHora(ts){
+function horaDe(ts){
   const d = new Date(ts);
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 }
-function chCombina(c){
+function tamanho(b){
+  if(!b) return '';
+  if(b < 1024) return b + ' B';
+  if(b < 1048576) return (b/1024).toFixed(0) + ' KB';
+  return (b/1048576).toFixed(1).replace('.',',') + ' MB';
+}
+function ehImagem(a){ return /^image\//.test(a.tipo||'') || /\.(png|jpe?g|gif|webp)$/i.test(a.nome||'') }
+function iconeArq(a){
+  const e = String(a.nome||'').split('.').pop().toLowerCase();
+  if(/pdf/.test(e)) return '📕';
+  if(/(xlsx?|csv)/.test(e)) return '📊';
+  if(/(docx?|txt|md)/.test(e)) return '📄';
+  if(/(pptx?|key)/.test(e)) return '📽️';
+  if(/(zip|rar|7z)/.test(e)) return '🗜️';
+  return '📎';
+}
+/* marcação leve, no espírito do que a caixa de escrita oferece */
+function corpoHTML(txt){
+  let s = esc(txt||'');
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/(^|\s)\*([^*\n]+)\*/g, '$1<b>$2</b>');
+  s = s.replace(/(^|\s)_([^_\n]+)_/g, '$1<i>$2</i>');
+  s = s.replace(/(^|\s)~([^~\n]+)~/g, '$1<s>$2</s>');
+  return s;
+}
+function combina(c){
   if(!CH_FILTER) return true;
-  return mgChanNome(c).toLowerCase().includes(CH_FILTER)
-      || String(c.nome||'').toLowerCase().includes(CH_FILTER);
+  return MGU.norm(nomeCanal(c)).includes(MGU.norm(CH_FILTER))
+      || MGU.norm(c.nome||'').includes(MGU.norm(CH_FILTER));
 }
 
-function renderChatView(){
+function desenhar(){
   const el = document.getElementById('v-chat'); if(!el) return;
 
   if(CH_READY === null){
-    el.innerHTML = '<div class="mgx-vazio">Abrindo o chat…</div>';
-    chIniciar().then(renderChatView);
+    el.innerHTML = '<div class="mgz-centro"><div class="ic">💬</div>'
+      + '<h3>Abrindo as conversas</h3><p>Um instante.</p></div>';
+    iniciar().then(desenhar);
     return;
   }
   if(CH_READY === false){
-    el.innerHTML = '<div class="mgx-aviso"><h3>O chat não pôde ser aberto</h3>'
-      + '<p>O banco recusou a leitura dos canais.</p>'
-      + '<p style="font-size:12px">' + esc(CH_ERRO || '') + '</p></div>';
+    el.innerHTML = '<div class="mgz-centro"><div class="ic">⚠</div>'
+      + '<h3>Não foi possível abrir o chat</h3>'
+      + '<p>O banco recusou a leitura das conversas.</p>'
+      + '<p style="font-size:12px">' + esc(erroCanais||'') + '</p>'
+      + '<button class="btn-p" onclick="MGChat.recarregar()">Tentar de novo</button></div>';
     return;
   }
 
-  el.innerHTML = '<aside class="mgx-lado">' + chLadoHTML() + '</aside>'
-               + '<div class="mgx-conv">' + chConversaHTML() + '</div>';
-
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  el.style.setProperty('--cor-canal', chCor(cur) || 'transparent');
-  document.body.classList.toggle('mg-sem-hora',
-    typeof mgP === 'function' && mgP('horas') === 'off');
-  chRolarFim();
+  const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
+  el.innerHTML = ladoHTML() + mainHTML() + (painelInfo ? infoHTML() : '');
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  el.style.setProperty('--cor-canal', corCanal(c) || 'transparent');
+  document.body.classList.toggle('mg-sem-hora', typeof mgP==='function' && mgP('horas')==='off');
+  document.body.classList.toggle('mgz-info-on', painelInfo);
+  const cx = document.getElementById('mgz-msgs');
+  if(cx){ cx.scrollTop = (guardado !== null && guardado > 0) ? guardado : cx.scrollHeight }
   if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
 }
 
-/* ----- coluna da esquerda ----- */
-function chLadoHTML(){
-  const doCliente = CHANNELS.filter(c=>c.tipo==='client');
-  const daEquipe  = CHANNELS.filter(c=>c.tipo==='team'  && chCombina(c));
-  const diretas   = CHANNELS.filter(c=>c.tipo==='dm'    && chCombina(c));
+/* ----- lateral ----- */
+function ladoHTML(){
+  const eu = MGU.eu();
+  const busca = CH_FILTER;
 
-  /* clientes agrupados por empresa: uma empresa pode ter vários canais */
+  const doCliente = CHANNELS.filter(c=>c.tipo==='client');
+  const daEquipe  = CHANNELS.filter(c=>c.tipo==='team' && combina(c));
+  const diretas   = CHANNELS.filter(c=>c.tipo==='dm'   && combina(c));
+
   const porEmpresa = new Map();
   doCliente.forEach(c=>{
     if(!porEmpresa.has(c.client_id)) porEmpresa.set(c.client_id, []);
     porEmpresa.get(c.client_id).push(c);
   });
   const grupos = [...porEmpresa.entries()]
-    .map(([cid, cs])=>({cid, cs, nome: clientName(cid),
-                        naoLidas: cs.reduce((a,c)=>a+(CH_NAOLIDAS[c.id]||0), 0)}))
-    .filter(g => !CH_FILTER || g.nome.toLowerCase().includes(CH_FILTER) || g.cs.some(chCombina))
+    .map(([cid, cs])=>({cid, cs, nome:clientName(cid),
+      naoLidas: cs.reduce((a,c)=>a+(CH_NAOLIDAS[c.id]||0),0)}))
+    .filter(g => !busca || MGU.norm(g.nome).includes(MGU.norm(busca)) || g.cs.some(combina))
     .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
 
-  const item = c => {
+  const item = c=>{
     const n = CH_NAOLIDAS[c.id] || 0;
-    return '<button class="mgx-i ' + (c.id===CHAN?'on':'') + ' ' + (n?'novo':'') + '"'
-         + ' onclick="openChan(\'' + esc(c.id) + '\')">'
-         + chMarca(c, 18)
-         + '<span class="nm">' + esc(mgChanNome(c)) + '</span>'
-         + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
-         + '</button>';
+    return '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
+      + ' onclick="MGChat.abrir(\'' + esc(c.id) + '\')">'
+      + marcaCanal(c, 20)
+      + '<span class="nm">' + esc(nomeCanal(c)) + '</span>'
+      + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+      + '</button>';
   };
 
-  let html = '<div class="mgx-busca"><span style="opacity:.5">⌕</span>'
-    + '<input id="mgx-busca-in" placeholder="Buscar conversa…" value="' + esc(CH_FILTER) + '"'
-    + ' oninput="chFilter(this.value)"></div><div class="mgx-lista">';
+  /* pessoas: quando há busca, permite abrir conversa com quem ainda não
+     tem conversa aberta. É o caminho de "achar um membro e falar com ele" */
+  let pessoas = '';
+  if(busca && ME){
+    const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm').map(c=>outroLado(c)).filter(Boolean));
+    const achados = MGU.buscar(busca).filter(u=>u.id !== ME.id && !jaTem.has(u.id)).slice(0,8);
+    if(achados.length){
+      pessoas = '<div class="mgz-sec">Pessoas</div>'
+        + achados.map(u =>
+            '<button class="mgz-i" onclick="MGChat.abrirDireta(\'' + esc(u.id) + '\')">'
+            + MGU.avatar(u, {tam:20, presenca:true})
+            + '<span class="nm">' + esc(u.nome) + '</span>'
+            + '<span class="h" title="Abrir conversa">✎</span></button>'
+          ).join('');
+    }
+  }
 
-  /* clientes */
-  html += '<div class="mgx-sec">Clientes'
-       + (isAdmin() ? '<button class="add" title="Configurar canais" onclick="chConfigurar()">⚙</button>' : '')
-       + '</div>';
-  html += grupos.length ? grupos.map(g=>{
-      const aberta = CH_EMP_ABERTAS.has(g.cid) || g.cs.some(c=>c.id===CHAN) || !!CH_FILTER;
-      if(aberta) CH_EMP_ABERTAS.add(g.cid);
-      const marca = (typeof mgClientLogo === 'function') ? mgClientLogo(g.cid, 18)
-        : '<span class="mgx-lg" style="background:' + clientColor(g.cid) + '"></span>';
-      return '<div class="mgx-emp ' + (aberta?'aberta':'') + '">'
-        + '<button class="cab" onclick="chAlternarEmpresa(\'' + esc(g.cid) + '\')">'
-        + '<span class="seta">▶</span>' + marca
-        + '<span class="nm">' + esc(g.nome) + '</span>'
-        + (g.naoLidas ? '<span class="n">' + g.naoLidas + '</span>' : '')
-        + (isAdmin() ? '<span class="add" title="Novo canal desta empresa"'
-            + ' onclick="event.stopPropagation();chNovoCanalCliente(\'' + esc(g.cid) + '\')">＋</span>' : '')
-        + '</button><div class="dentro">' + g.cs.map(item).join('') + '</div></div>';
-    }).join('')
-    : '<div class="mgx-nada">nenhum</div>';
-
-  /* equipe */
-  html += '<div class="mgx-sec">Equipe'
-       + (isAdmin() ? '<button class="add" title="Novo canal interno" onclick="chNovoCanalEquipe()">＋</button>' : '')
-       + '</div>';
-  html += daEquipe.length ? daEquipe.map(item).join('') : '<div class="mgx-nada">nenhum</div>';
-
-  /* conversas diretas */
-  html += '<div class="mgx-sec">Conversas diretas'
-       + '<button class="add" title="Nova conversa" onclick="chNovaDireta()">＋</button></div>';
-  html += diretas.length ? diretas.map(item).join('') : '<div class="mgx-nada">nenhuma</div>';
-
-  return html + '</div>';
+  return '<aside class="mgz-side">'
+    + '<div class="mgz-marca"><span class="lg"></span><span class="tx">'
+      + '<b>MGP Tasks</b><span>CONVERSAS</span></span></div>'
+    + '<div class="mgz-busca"><span style="opacity:.5">⌕</span>'
+      + '<input id="mgz-busca-in" placeholder="Buscar conversa ou pessoa" value="' + esc(busca) + '"'
+      + ' oninput="MGChat.filtrar(this.value)">'
+      + (busca ? '<button class="x" onclick="MGChat.filtrar(\'\')" title="Limpar">✕</button>' : '')
+    + '</div>'
+    + '<div class="mgz-lista">'
+      + pessoas
+      + '<div class="mgz-sec">Clientes'
+        + (isAdmin() ? '<button class="add" title="Configurar canais" onclick="MGChat.configurar()">⚙</button>' : '')
+      + '</div>'
+      + (grupos.length ? grupos.map(g=>{
+          const aberta = empresasAbertas.has(g.cid) || g.cs.some(c=>c.id===CHAN) || !!busca;
+          if(aberta) empresasAbertas.add(g.cid);
+          const marca = (typeof mgClientLogo==='function') ? mgClientLogo(g.cid, 18)
+            : '<span class="h"></span>';
+          return '<div class="mgz-emp ' + (aberta?'aberta':'') + '">'
+            + '<button class="cab" onclick="MGChat.alternarEmpresa(\'' + esc(g.cid) + '\')">'
+              + '<span class="seta">▶</span>' + marca
+              + '<span class="nm">' + esc(g.nome) + '</span>'
+              + (g.naoLidas ? '<span class="n">' + g.naoLidas + '</span>' : '')
+              + (isAdmin() ? '<span class="add" title="Novo canal desta empresa"'
+                  + ' onclick="event.stopPropagation();MGChat.novoCanalCliente(\'' + esc(g.cid) + '\')">＋</span>' : '')
+            + '</button><div class="dentro">' + g.cs.map(item).join('') + '</div></div>';
+        }).join('') : '<div class="mgz-vazio-sec">nenhum canal ainda</div>')
+      + '<div class="mgz-sec">Equipe'
+        + (isAdmin() ? '<button class="add" title="Novo canal interno" onclick="MGChat.novoCanalEquipe()">＋</button>' : '')
+      + '</div>'
+      + (daEquipe.length ? daEquipe.map(item).join('') : '<div class="mgz-vazio-sec">nenhum canal</div>')
+      + '<div class="mgz-sec">Conversas diretas'
+        + '<button class="add" title="Nova conversa" onclick="MGChat.escolherPessoa()">＋</button></div>'
+      + (diretas.length ? diretas.map(item).join('') : '<div class="mgz-vazio-sec">nenhuma ainda</div>')
+    + '</div>'
+    + '<div class="mgz-eu">' + MGU.avatar(eu, {tam:32, presenca:true})
+      + '<span class="tx"><b>' + esc(eu ? eu.nome : '—') + '</b>'
+      + '<span>' + (eu && eu.ehEquipe ? 'Equipe Modesto' : (eu && eu.clienteId ? esc(clientName(eu.clienteId)) : 'Cliente')) + '</span></span>'
+      + '<button class="bt" title="Configurações" onclick="showView(\'settings\')">⚙</button>'
+    + '</div></aside>';
 }
-function chAlternarEmpresa(cid){
-  if(CH_EMP_ABERTAS.has(cid)) CH_EMP_ABERTAS.delete(cid); else CH_EMP_ABERTAS.add(cid);
-  renderChatView();
+function infoHTML(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(!c) return '';
+  const gente = membrosDoCanal(c);
+  const arquivos = [];
+  (CHMSGS[CHAN]||[]).forEach(m => (m.anexos||[]).forEach(a => arquivos.push({a, m})));
+  return '<aside class="mgz-info">'
+    + '<h4>' + (c.tipo==='dm' ? 'Conversa' : 'Membros') + ' · ' + gente.length + '</h4>'
+    + (gente.length ? gente.map(u=>{
+        const on = estaOnline(u.id);
+        return '<div class="p">' + MGU.avatar(u, {tam:28, presenca:true})
+          + '<span class="tx"><b>' + esc(u.nome) + '</b>'
+          + '<span>' + (on===null ? (u.ehEquipe?'Equipe':'Cliente')
+                                  : (on ? 'disponível' : 'ausente')) + '</span></span></div>';
+      }).join('') : '<div class="nada">Ninguém listado.</div>')
+    + '<h4>Arquivos · ' + arquivos.length + '</h4>'
+    + (arquivos.length ? arquivos.slice(-12).reverse().map(({a})=>
+        '<button class="arq" onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">'
+        + '<span>' + iconeArq(a) + '</span><span class="tx">' + esc(a.nome||'arquivo') + '</span></button>'
+      ).join('') : '<div class="nada">Nenhum arquivo por aqui.</div>')
+    + '</aside>';
 }
 
 /* ----- conversa ----- */
-function chConversaHTML(){
+function mainHTML(){
   const c = CHANNELS.find(x=>x.id===CHAN);
   if(!c){
-    return '<div class="mgx-vazio">Escolha uma conversa à esquerda.'
+    return '<div class="mgz-main"><div class="mgz-centro"><div class="ic">💬</div>'
+      + '<h3>Escolha uma conversa</h3>'
+      + '<p>Selecione um canal à esquerda, ou busque uma pessoa para começar uma conversa direta.</p>'
       + (isAdmin() && !CHANNELS.length
-         ? '<br><br><button class="btn-p" onclick="chConfigurar()">Configurar os canais</button>' : '')
-      + '</div>';
+          ? '<button class="btn-p" onclick="MGChat.configurar()">Configurar os canais</button>' : '')
+      + '</div></div>';
   }
-  const sub = c.tipo === 'client' ? 'equipe ↔ ' + esc(clientName(c.client_id))
-            : c.tipo === 'team'   ? 'canal interno' : 'conversa direta';
+  const sub = c.tipo === 'client' ? 'Equipe Modesto e ' + esc(clientName(c.client_id))
+            : c.tipo === 'team'   ? 'Canal interno da equipe'
+            : (function(){ const on = estaOnline(outroLado(c));
+                return on === null ? 'Conversa direta' : (on ? 'Disponível agora' : 'Ausente') })();
 
-  return '<div class="mgx-topo">'
-    + '<button class="mgx-voltar" onclick="chVoltarLista()" title="Voltar">←</button>'
-    + '<span class="nm">' + chMarca(c, 24) + '<span>' + esc(mgChanNome(c)) + '</span></span>'
-    + '<span class="sub">' + sub + '</span><span class="sp"></span>'
-    + (isAdmin() ? '<button class="bt" onclick="chRenomear()">Renomear</button>' : '')
+  return '<div class="mgz-main">'
+    + '<div class="mgz-topo">'
+      + '<button class="mgz-voltar" onclick="MGChat.voltar()" title="Voltar">←</button>'
+      + '<span class="tt"><b>' + marcaCanal(c, 26)
+        + '<span class="nmc">' + esc(nomeCanal(c)) + '</span></b>'
+      + '<small>' + sub + '</small></span>'
+      + (isAdmin() && c.tipo !== 'dm'
+          ? '<button class="bt" onclick="MGChat.renomear()">Renomear</button>' : '')
+      + '<button class="bt ' + (painelInfo?'on':'') + '" onclick="MGChat.alternarInfo()"'
+        + ' title="Membros e arquivos">☰</button>'
     + '</div>'
-    + '<div class="mgx-msgs" id="mgx-msgs">' + chMensagensHTML(c) + '</div>'
-    + '<div class="mgx-comp">' + chComposerHTML(c) + '</div>';
+    + '<div class="mgz-msgs" id="mgz-msgs">' + mensagensHTML() + '</div>'
+    + '<div class="mgz-comp">' + composerHTML(c) + '</div>'
+  + '</div>';
 }
 
-function chMensagensHTML(c){
-  const lista = CHMSGS[CHAN];
-  if(!lista) return '<div class="mgx-vazio">Carregando…</div>';
-  if(!lista.length) return '<div class="mgx-vazio">Nenhuma mensagem ainda. Diga oi!</div>';
+function mensagensHTML(){
+  if(carregandoMsgs && !CHMSGS[CHAN]){
+    return '<div class="mgz-esq">' + Array.from({length:5}).map(()=>
+        '<div class="l"><span class="b av"></span><span><span class="b l1"></span>'
+      + '<span class="b l2"></span><span class="b l3"></span></span></div>').join('') + '</div>';
+  }
+  if(erroMsgs){
+    return '<div class="mgz-erro"><span>⚠</span><span><b>Não foi possível carregar as mensagens.</b><br>'
+      + esc(erroMsgs) + '</span><button onclick="MGChat.recarregarMsgs()">Tentar de novo</button></div>';
+  }
+  const salvas = CHMSGS[CHAN] || [];
+  const emVoo  = pendentes.filter(p=>p.channel_id===CHAN);
+  const lista  = salvas.concat(emVoo);
+  if(!lista.length){
+    const c = CHANNELS.find(x=>x.id===CHAN);
+    return '<div class="mgz-centro"><div class="ic">👋</div>'
+      + '<h3>Comece a conversa</h3>'
+      + '<p>Nenhuma mensagem em ' + esc(nomeCanal(c)) + ' ainda. Escreva a primeira abaixo.</p></div>';
+  }
 
   let dia = '', autorAnt = null, tsAnt = 0, out = '';
-  lista.forEach(m => {
-    const d = chData(m.created_at);
-    if(d !== dia){ dia = d; autorAnt = null; out += '<div class="mgx-dia"><span>' + esc(d) + '</span></div>' }
+  lista.forEach(m=>{
+    const d = dataDe(m.created_at);
+    if(d !== dia){ dia = d; autorAnt = null; out += '<div class="mgz-dia"><span>' + esc(d) + '</span></div>' }
 
     if(m.kind === 'system'){
       autorAnt = null;
-      out += '<div class="mgx-sis"><span class="pt"></span><span>' + esc(m.body||'') + '</span>'
+      out += '<div class="mgz-sis"><span class="pt"></span><span>' + esc(m.body||'') + '</span>'
            + '<span class="de">sistema</span></div>';
       return;
     }
-
-    const a = chAutor(m);
+    const u = autorDe(m);
     const t = new Date(m.created_at).getTime();
-    /* agrupa mensagens seguidas da mesma pessoa em até 5 minutos */
-    const segue = (autorAnt === m.author_id) && (t - tsAnt <= 5*60000) && !m.reply_to;
+    const segue = (autorAnt === m.author_id) && (t - tsAnt <= 5*60000)
+               && !m.reply_to && !(m.anexos||[]).length;
     autorAnt = m.author_id; tsAnt = t;
-
     const meu = ME && m.author_id === ME.id;
-    const av  = a.foto ? '<img src="' + esc(a.foto) + '" alt="">' : esc(initials(a.nome));
 
-    out += '<div class="mgx-msg ' + (segue?'segue':'') + '" data-id="' + esc(String(m.id)) + '">'
-      + '<span class="hora-lat">' + chHora(m.created_at) + '</span>'
-      + '<div class="av" style="background:' + (meu ? 'var(--brass)' : '#7C8A97') + '">' + av + '</div>'
+    out += '<div class="mgz-m ' + (segue?'segue ':'') + (m.__pendente?'enviando ':'')
+        + (m.__falhou?'falhou ':'') + '" data-id="' + esc(String(m.id)) + '">'
+      + '<span class="hora-lat">' + horaDe(m.created_at) + '</span>'
+      + MGU.avatar(u, {tam:36, forma:'quadrado', presenca:!segue})
       + '<div class="bd">'
-        + chCitacaoHTML(m)
-        + '<div class="hd"><span class="quem">' + esc(a.nome) + '</span>'
-          + (a.cliente ? '<span class="rl cli">cliente</span>' : '')
-          + '<span class="hora">' + chHora(m.created_at) + '</span></div>'
-        + '<div class="tx">' + esc(m.body||'') + '</div>'
-        + '<div class="mgx-reacoes">' + chReacoesHTML(m) + '</div>'
+        + citacaoHTML(m)
+        + '<div class="hd"><span class="quem">' + esc(u.nome) + '</span>'
+          + (u.ehCliente && u.resolvido ? '<span class="mgu-rl cli">cliente</span>' : '')
+          + '<span class="hora">' + horaDe(m.created_at) + '</span></div>'
+        + '<div class="tx">' + corpoHTML(m.body) + '</div>'
+        + anexosHTML(m)
+        + (m.__falhou
+            ? '<button class="refazer" onclick="MGChat.reenviar(\'' + esc(String(m.id)) + '\')">'
+              + 'não enviou · tentar de novo</button>' : '')
+        + '<div class="mgz-reacoes">' + reacoesHTML(m) + '</div>'
       + '</div>'
-      + chAcoesHTML(m, meu)
+      + (m.__pendente ? '' : acoesHTML(m, meu))
       + '</div>';
   });
   return out;
 }
-function chCitacaoHTML(m){
+function citacaoHTML(m){
   if(!m.reply_to) return '';
   const pai = (CHMSGS[CHAN]||[]).find(x=>String(x.id)===String(m.reply_to));
-  if(!pai) return '<div class="mgx-cit"><b>mensagem removida</b></div>';
-  const a = chAutor(pai);
-  return '<div class="mgx-cit" onclick="chIrPara(\'' + esc(String(pai.id)) + '\')">'
-    + '<b>' + esc(a.nome) + '</b>'
+  if(!pai) return '<div class="mgz-cit"><b>mensagem removida</b></div>';
+  const u = autorDe(pai);
+  return '<div class="mgz-cit" onclick="MGChat.irPara(\'' + esc(String(pai.id)) + '\')">'
+    + '<b>' + esc(u.nome) + '</b>'
     + '<span class="t">' + esc(String(pai.body||'').slice(0,90)) + '</span></div>';
 }
-function chReacoesHTML(m){
-  const r = m.reactions || {};
-  const chaves = Object.keys(r).filter(k => (r[k]||[]).length);
-  if(!chaves.length) return '';
-  return chaves.map(k=>{
-    const gente = r[k] || [];
-    const minha = ME && gente.includes(ME.id);
-    return '<button class="mgx-rea ' + (minha?'minha':'') + '"'
-      + ' title="' + gente.length + ' pessoa(s)"'
-      + ' onclick="chReagir(\'' + esc(String(m.id)) + '\',\'' + k + '\')">'
-      + k + '<span class="n">' + gente.length + '</span></button>';
-  }).join('')
-  + '<button class="mgx-rea add" title="Reagir"'
-  + ' onclick="chAbrirEmojis(\'' + esc(String(m.id)) + '\',event)">＋</button>';
+function anexosHTML(m){
+  const l = m.anexos || [];
+  if(!l.length) return '';
+  const imgs = l.filter(ehImagem), outros = l.filter(a=>!ehImagem(a));
+  return imgs.map(a =>
+      '<img class="mgz-img" loading="lazy" src="' + esc(a.url||'') + '" alt="' + esc(a.nome||'') + '"'
+      + ' onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">').join('')
+    + (outros.length ? '<div class="mgz-anexos">' + outros.map(a =>
+        '<button class="mgz-anexo" onclick="MGChat.abrirAnexo(\'' + esc(a.path) + '\')">'
+        + '<span class="ic">' + iconeArq(a) + '</span>'
+        + '<span class="tx2"><b>' + esc(a.nome||'arquivo') + '</b>'
+        + '<span>' + tamanho(a.tamanho) + '</span></span></button>').join('') + '</div>' : '');
 }
-function chAcoesHTML(m, meu){
+function reacoesHTML(m){
+  const r = m.reactions || {};
+  const ks = Object.keys(r).filter(k=>(r[k]||[]).length);
+  if(!ks.length && m.__pendente) return '';
+  return ks.map(k=>{
+      const g = r[k] || [];
+      const minha = ME && g.includes(ME.id);
+      const quem = g.map(id=>{ const u = MGU.get(id); return u ? u.primeiro : '' }).filter(Boolean).join(', ');
+      return '<button class="mgz-rea ' + (minha?'minha':'') + '" title="' + esc(quem) + '"'
+        + ' onclick="MGChat.reagir(\'' + esc(String(m.id)) + '\',\'' + k + '\')">'
+        + k + '<span class="n">' + g.length + '</span></button>';
+    }).join('')
+    + (m.__pendente ? '' :
+       '<button class="mgz-rea add" title="Reagir"'
+       + ' onclick="MGChat.abrirEmojis(\'' + esc(String(m.id)) + '\',event)">＋</button>');
+}
+function acoesHTML(m, meu){
   const id = esc(String(m.id));
-  return '<div class="mgx-acoes">'
-    + '<button title="Reagir" onclick="chAbrirEmojis(\'' + id + '\',event)">☺</button>'
-    + '<button title="Responder" onclick="chResponder(\'' + id + '\')">↩</button>'
-    + '<button title="Copiar" onclick="chCopiar(\'' + id + '\')">⧉</button>'
+  return '<div class="mgz-acoes">'
+    + '<button title="Reagir" onclick="MGChat.abrirEmojis(\'' + id + '\',event)">☺</button>'
+    + '<button title="Responder" onclick="MGChat.responder(\'' + id + '\')">↩</button>'
+    + '<button title="Copiar" onclick="MGChat.copiar(\'' + id + '\')">⧉</button>'
     + ((meu || isAdmin())
-        ? '<span class="div"></span><button title="Excluir" onclick="chExcluir(\'' + id + '\')">🗑</button>'
+        ? '<span class="div"></span><button title="Excluir" onclick="MGChat.excluir(\'' + id + '\')">🗑</button>'
         : '')
     + '</div>';
 }
-function chIrPara(id){
-  const el = document.querySelector('.mgx-msg[data-id="' + CSS.escape(String(id)) + '"]');
+
+/* ----- caixa de escrita ----- */
+function composerHTML(c){
+  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
+  const podeAnexar = isAdmin() || c.tipo === 'client';
+  return (respondendo
+      ? '<div class="mgz-resp"><span>↩</span><span class="t">Respondendo <b>'
+        + esc(respondendo.autor) + '</b> · ' + esc(respondendo.texto) + '</span>'
+        + '<button class="x" onclick="MGChat.cancelarResposta()">✕</button></div>'
+      : '')
+    + '<div class="mgz-caixa">'
+      + '<div class="mgz-fer">'
+        + '<button title="Negrito" onclick="MGChat.fmt(\'*\')"><b>B</b></button>'
+        + '<button title="Itálico" onclick="MGChat.fmt(\'_\')"><i>I</i></button>'
+        + '<button title="Riscado" onclick="MGChat.fmt(\'~\')"><s>S</s></button>'
+        + '<button title="Código" onclick="MGChat.fmt(\'`\')">&lt;/&gt;</button>'
+        + '<span class="div"></span>'
+        + '<button title="Lista" onclick="MGChat.fmtLinha(\'• \')">☰</button>'
+        + '<button title="Citação" onclick="MGChat.fmtLinha(\'&gt; \')">❝</button>'
+        + '<span class="div"></span>'
+        + '<button title="Emoji" onclick="MGChat.emojiNoTexto(event)">☺</button>'
+        + (podeAnexar ? '<button title="Anexar arquivo" onclick="MGChat.escolherArquivo()">📎</button>' : '')
+      + '</div>'
+      + (fila.length ? '<div class="mgz-fila">' + fila.map((f,i)=>
+          '<span class="it">' + iconeArq(f) + ' ' + esc(f.nome) + ' <span style="color:var(--muted)">'
+          + tamanho(f.tamanho) + '</span>'
+          + '<button onclick="MGChat.tirarDaFila(' + i + ')" title="Remover">✕</button></span>').join('')
+        + '</div>' : '')
+      + '<textarea id="mgz-in" rows="1" placeholder="Mensagem para ' + esc(nomeCanal(c)) + '"'
+        + ' onkeydown="MGChat.tecla(event)" oninput="MGChat.digitou(this)"></textarea>'
+      + '<div class="mgz-baixo"><span class="sp"></span>'
+        + '<button class="env" id="mgz-env" onclick="MGChat.enviar()" title="Enviar">➤</button></div>'
+    + '</div>'
+    + '<div class="mgz-dica" id="mgz-dica">'
+      + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha</span>'
+                    : '<span><b>Ctrl+Enter</b> envia · <b>Enter</b> quebra linha</span>')
+      + '<span class="mgz-cmds">'
+        + '<button onclick="MGChat.exemploDemanda()">#adicionardemanda</button>'
+        + '<button onclick="MGChat.exemploDocumento()">#adicionardocumento</button>'
+      + '</span></div>';
+}
+function pintarDigitando(){
+  const el = document.getElementById('mgz-dica'); if(!el) return;
+  const ids = quemDigita();
+  let marca = el.querySelector('.mgz-digitando');
+  if(!ids.length){ if(marca) marca.remove(); return }
+  const nomes = ids.map(id=>{ const u = MGU.get(id); return u ? u.primeiro : '' }).filter(Boolean);
+  const txt = nomes.length === 1 ? nomes[0] + ' está escrevendo…'
+            : nomes.slice(0,2).join(' e ') + ' estão escrevendo…';
+  if(!marca){
+    marca = document.createElement('span');
+    marca.className = 'mgz-digitando';
+    el.appendChild(marca);
+  }
+  marca.textContent = txt;
+}
+
+/* ---------------------------------------------------------------------
+   7. Ações
+   --------------------------------------------------------------------- */
+function caixa(){ return document.getElementById('mgz-in') }
+function digitou(ta){
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 180) + 'px';
+  const b = document.getElementById('mgz-env');
+  if(b) b.disabled = !ta.value.trim() && !fila.length;
+  avisarDigitando();
+}
+function tecla(e){
+  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
+  if(e.key === 'Enter'){
+    if(enterEnvia && !e.shiftKey){ e.preventDefault(); enviar(); return }
+    if(!enterEnvia && (e.ctrlKey || e.metaKey)){ e.preventDefault(); enviar(); return }
+  }
+  if(e.key === 'Escape' && respondendo){ e.preventDefault(); cancelarResposta() }
+  setTimeout(()=>digitou(e.target), 0);
+}
+function fmt(marca){
+  const ta = caixa(); if(!ta) return;
+  const i = ta.selectionStart, f = ta.selectionEnd, t = ta.value;
+  const sel = t.slice(i,f) || 'texto';
+  ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
+  ta.focus(); ta.setSelectionRange(i+marca.length, i+marca.length+sel.length);
+}
+function fmtLinha(prefixo){
+  const ta = caixa(); if(!ta) return;
+  const i = ta.selectionStart, t = ta.value;
+  const ini = t.lastIndexOf('\n', i-1) + 1;
+  ta.value = t.slice(0,ini) + prefixo + t.slice(ini);
+  ta.focus(); ta.setSelectionRange(i+prefixo.length, i+prefixo.length);
+}
+
+async function enviar(){
+  const ta = caixa(); if(!ta || !CHAN) return;
+  const corpo = ta.value.trim();
+  if(!corpo && !fila.length) return;
+
+  const alvo = respondendo ? respondendo.id : null;
+  const anexosPendentes = fila.slice();
+  ta.value = ''; ta.style.height = 'auto'; respondendo = null; fila = [];
+
+  const provisorio = {
+    id: 'tmp-' + Date.now(), channel_id: CHAN, author_id: ME.id, author_name: ME.name,
+    body: corpo, kind:'user', created_at: new Date().toISOString(),
+    reply_to: alvo, reactions:{}, anexos:[], __pendente:true,
+  };
+  pendentes.push(provisorio);
+  desenhar(); rolarFim(true);
+
+  try{
+    const anexos = anexosPendentes.length ? await subirArquivos(anexosPendentes) : [];
+    const linha = {channel_id: CHAN, author_id: ME.id, author_name: ME.name, body: corpo || ' '};
+    if(alvo) linha.reply_to = alvo;
+    if(anexos.length) linha.anexos = anexos;
+
+    let {data, error} = await sb.from('messages').insert(linha).select().single();
+    /* banco sem as colunas novas: envia sem elas em vez de falhar */
+    if(error && /reply_to|anexos/i.test(error.message||'')){
+      delete linha.reply_to; delete linha.anexos;
+      ({data, error} = await sb.from('messages').insert(linha).select().single());
+    }
+    if(error) throw error;
+
+    pendentes = pendentes.filter(p=>p.id !== provisorio.id);
+    const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
+    if(data && !lista.some(m=>m.id===data.id)) lista.push(data);
+    desenhar(); rolarFim(true);
+  }catch(e){
+    const m = (e && e.message) || '';
+    provisorio.__pendente = false; provisorio.__falhou = true; provisorio.__corpo = corpo;
+    desenhar();
+    if(/row-level security|permission/i.test(m)) toast('O banco recusou: você não tem acesso a este canal');
+    else toast('Não foi possível enviar: ' + m);
+    console.error('[chat] envio', e);
+    return;
+  }
+
+  if(/#adicionardemanda\b/i.test(corpo)   && typeof chCriarDemanda   === 'function') chCriarDemanda(corpo);
+  if(/#adicionardocumento\b/i.test(corpo) && typeof chCriarDocumento === 'function') chCriarDocumento(corpo);
+}
+function reenviar(id){
+  const i = pendentes.findIndex(p=>String(p.id)===String(id));
+  if(i < 0) return;
+  const p = pendentes[i];
+  pendentes.splice(i,1);
+  const ta = caixa();
+  if(ta){ ta.value = p.__corpo || p.body || ''; }
+  desenhar();
+  enviar();
+}
+
+/* ----- anexos ----- */
+function pastaDoCanal(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(c && c.tipo === 'client' && c.client_id) return c.client_id + '/chat';
+  return 'equipe/chat';
+}
+function escolherArquivo(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true;
+  inp.onchange = e=>{
+    [...e.target.files].forEach(f=>{
+      if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
+      fila.push({nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f});
+    });
+    desenhar();
+    const ta = caixa(); if(ta) ta.focus();
+  };
+  inp.click();
+}
+function tirarDaFila(i){ fila.splice(i,1); desenhar() }
+async function subirArquivos(itens){
+  const out = [];
+  for(const f of itens){
+    const ext = (f.nome.split('.').pop()||'bin').toLowerCase();
+    const id = (crypto.randomUUID ? crypto.randomUUID()
+                                  : Date.now()+'-'+Math.random().toString(16).slice(2));
+    const path = pastaDoCanal() + '/' + id + '.' + ext;
+    const up = await sb.storage.from('documents').upload(path, f.arquivo, {upsert:false});
+    if(up.error) throw up.error;
+    let url = null;
+    if(/^image\//.test(f.tipo)){
+      try{
+        const {data} = await sb.storage.from('documents').createSignedUrl(path, 60*60*24*7);
+        url = data ? data.signedUrl : null;
+      }catch(e){}
+    }
+    out.push({nome:f.nome, tipo:f.tipo, tamanho:f.tamanho, path, url});
+  }
+  return out;
+}
+async function abrirAnexo(path){
+  if(!path) return;
+  try{
+    const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if(error) throw error;
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }catch(e){ toast('Não foi possível abrir o arquivo') }
+}
+
+/* ----- mensagem ----- */
+function msg(id){
+  return (CHMSGS[CHAN]||[]).find(m=>String(m.id)===String(id))
+      || pendentes.find(m=>String(m.id)===String(id));
+}
+function responder(id){
+  const m = msg(id); if(!m) return;
+  respondendo = {id:m.id, autor:autorDe(m).nome, texto:String(m.body||'').slice(0,120)};
+  desenhar();
+  const ta = caixa(); if(ta) ta.focus();
+}
+function cancelarResposta(){ respondendo = null; desenhar() }
+function copiar(id){
+  const m = msg(id); if(!m) return;
+  navigator.clipboard.writeText(m.body||'')
+    .then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
+}
+async function excluir(id){
+  if(!confirm('Excluir esta mensagem?')) return;
+  try{
+    const {data, error} = await sb.from('messages').delete().eq('id', id).select('id');
+    if(error) throw error;
+    if(!data || !data.length){ toast('O banco não permitiu excluir esta mensagem'); return }
+    CHMSGS[CHAN] = (CHMSGS[CHAN]||[]).filter(m=>String(m.id)!==String(id));
+    desenhar(); toast('Mensagem excluída');
+  }catch(e){ toast('Não foi possível excluir: ' + ((e&&e.message)||'')) }
+}
+async function reagir(id, emoji){
+  const m = msg(id); if(!m || !ME) return;
+  try{
+    const {data, error} = await sb.rpc('mg_toggle_reaction', {p_message:id, p_emoji:emoji});
+    if(error) throw error;
+    m.reactions = data || {};
+    desenhar();
+  }catch(e){ toast('Não foi possível reagir: ' + ((e&&e.message)||'')) }
+}
+function irPara(id){
+  const el = document.querySelector('.mgz-m[data-id="' + CSS.escape(String(id)) + '"]');
   if(!el) return;
   el.scrollIntoView({behavior:'smooth', block:'center'});
   el.classList.add('alvo');
   setTimeout(()=>el.classList.remove('alvo'), 1200);
 }
-
-/* ----- caixa de escrita ----- */
-function chComposerHTML(c){
-  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
-  return (CH_RESP
-      ? '<div class="mgx-resp"><span>↩</span><span class="t">Respondendo <b>'
-        + esc(CH_RESP.autor) + '</b> · ' + esc(CH_RESP.texto) + '</span>'
-        + '<button class="x" onclick="chCancelarResposta()">✕</button></div>'
-      : '')
-    + '<div class="mgx-caixa">'
-      + '<div class="mgx-fer">'
-        + '<button title="Negrito" onclick="chFmt(\'*\')"><b>B</b></button>'
-        + '<button title="Itálico" onclick="chFmt(\'_\')"><i>I</i></button>'
-        + '<button title="Riscado" onclick="chFmt(\'~\')"><s>S</s></button>'
-        + '<span class="div"></span>'
-        + '<button title="Lista" onclick="chFmtLinha(\'• \')">☰</button>'
-        + '<button title="Citação" onclick="chFmtLinha(\'&gt; \')">❝</button>'
-        + '<button title="Código" onclick="chFmt(\'`\')">&lt;/&gt;</button>'
-      + '</div>'
-      + '<textarea id="mgx-in" rows="1" placeholder="Mensagem para '
-        + esc(mgChanNome(c)) + '…" onkeydown="chKey(event)" oninput="chDigitando(this)"></textarea>'
-      + '<div class="mgx-baixo"><span class="sp"></span>'
-        + '<button class="env" onclick="chSend()" title="Enviar">➤</button></div>'
-    + '</div>'
-    + '<div class="mgx-dica">'
-      + (enterEnvia ? '<b>Enter</b> envia · <b>Shift+Enter</b> quebra linha'
-                    : '<b>Ctrl+Enter</b> envia · <b>Enter</b> quebra linha')
-      + '<span class="mgx-cmds">'
-        + '<button onclick="chExample()">#adicionardemanda</button>'
-        + '<button onclick="chDocExample()">#adicionardocumento</button>'
-      + '</span></div>';
-}
-function chCaixa(){ return document.getElementById('mgx-in') }
-function chDigitando(ta){
-  ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
-  const b = document.querySelector('#v-chat .mgx-baixo .env');
-  if(b) b.classList.toggle('pronto', ta.value.trim().length > 0);
-}
-function chKey(e){
-  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
-  if(e.key === 'Enter'){
-    if(enterEnvia && !e.shiftKey){ e.preventDefault(); chSend(); return }
-    if(!enterEnvia && (e.ctrlKey || e.metaKey)){ e.preventDefault(); chSend(); return }
-  }
-  if(e.key === 'Escape' && CH_RESP){ e.preventDefault(); chCancelarResposta() }
-  setTimeout(()=>chDigitando(e.target), 0);
-}
-function chFmt(marca){
-  const ta = chCaixa(); if(!ta) return;
-  const i = ta.selectionStart, f = ta.selectionEnd, t = ta.value;
-  const sel = t.slice(i,f) || 'texto';
-  ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
-  ta.focus(); ta.setSelectionRange(i + marca.length, i + marca.length + sel.length);
-}
-function chFmtLinha(prefixo){
-  const ta = chCaixa(); if(!ta) return;
-  const i = ta.selectionStart, t = ta.value;
-  const ini = t.lastIndexOf('\n', i-1) + 1;
-  ta.value = t.slice(0,ini) + prefixo + t.slice(ini);
-  ta.focus(); ta.setSelectionRange(i + prefixo.length, i + prefixo.length);
-}
-
-/* ---------------------------------------------------------------------
-   7. Enviar, responder, reagir, excluir
-   --------------------------------------------------------------------- */
-async function chSend(){
-  const ta = chCaixa(); if(!ta || !CHAN) return;
-  const corpo = ta.value.trim(); if(!corpo) return;
-
-  const resposta = CH_RESP ? CH_RESP.id : null;
-  ta.value = ''; ta.style.height = 'auto'; CH_RESP = null;
-
-  const linha = {channel_id: CHAN, author_id: ME.id, author_name: ME.name, body: corpo};
-  if(resposta) linha.reply_to = resposta;
-
-  try{
-    let {data, error} = await sb.from('messages').insert(linha).select().single();
-    /* banco sem a coluna reply_to: envia sem a citação em vez de falhar */
-    if(error && /reply_to/i.test(error.message||'')){
-      delete linha.reply_to;
-      ({data, error} = await sb.from('messages').insert(linha).select().single());
-    }
-    if(error) throw error;
-    const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
-    if(data && !lista.some(m=>m.id===data.id)) lista.push(data);
-    renderChatView();
-    chRolarFim();
-  }catch(e){
-    const m = (e && e.message) || '';
-    if(/row-level security|permission|403/i.test(m))
-      toast('O banco recusou a mensagem · você não tem acesso a este canal');
-    else toast('Não foi possível enviar: ' + m);
-    ta.value = corpo;   /* devolve o texto para não se perder */
-    console.error('[chat] envio', e);
-    return;
-  }
-
-  /* comandos */
-  if(/#adicionardemanda\b/i.test(corpo)   && typeof chCriarDemanda   === 'function') chCriarDemanda(corpo);
-  if(/#adicionardocumento\b/i.test(corpo) && typeof chCriarDocumento === 'function') chCriarDocumento(corpo);
-}
-
-function chMsg(id){ return (CHMSGS[CHAN]||[]).find(m=>String(m.id)===String(id)) }
-function chResponder(id){
-  const m = chMsg(id); if(!m) return;
-  const a = chAutor(m);
-  CH_RESP = {id:m.id, autor:a.nome, texto:String(m.body||'').slice(0,120)};
-  renderChatView();
-  const ta = chCaixa(); if(ta) ta.focus();
-}
-function chCancelarResposta(){ CH_RESP = null; renderChatView() }
-function chCopiar(id){
-  const m = chMsg(id); if(!m) return;
-  navigator.clipboard.writeText(m.body||'')
-    .then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
-}
-async function chExcluir(id){
-  if(!confirm('Excluir esta mensagem?')) return;
-  try{
-    const {data, error} = await sb.from('messages').delete().eq('id', id).select('id');
-    if(error) throw error;
-    /* sem policy de DELETE o banco devolve zero linhas e nenhum erro */
-    if(!data || !data.length){ toast('O banco não permitiu excluir esta mensagem'); return }
-    CHMSGS[CHAN] = (CHMSGS[CHAN]||[]).filter(m=>String(m.id)!==String(id));
-    renderChatView();
-    toast('Mensagem excluída');
-  }catch(e){ toast('Não foi possível excluir: ' + ((e&&e.message)||'')) }
-}
-async function chReagir(id, emoji){
-  const m = chMsg(id); if(!m || !ME) return;
-  try{
-    const {data, error} = await sb.rpc('mg_toggle_reaction', {p_message:id, p_emoji:emoji});
-    if(error) throw error;
-    m.reactions = data || {};
-    renderChatView();
-  }catch(e){ toast('Não foi possível reagir: ' + ((e&&e.message)||'')) }
-}
-function chAbrirEmojis(id, ev){
+function abrirEmojis(id, ev){
   if(ev) ev.stopPropagation();
-  let p = document.getElementById('mgx-emojis');
-  if(!p){ p = document.createElement('div'); p.className='mgx-emojis'; p.id='mgx-emojis'; document.body.appendChild(p) }
-  p.innerHTML = CH_EMOJIS.map(e =>
-    '<button onclick="chReagir(\'' + esc(String(id)) + '\',\'' + e + '\');chFecharEmojis()">' + e + '</button>'
-  ).join('');
+  let p = document.getElementById('mgz-emojis');
+  if(!p){ p = document.createElement('div'); p.className='mgz-emojis'; p.id='mgz-emojis';
+          document.body.appendChild(p) }
+  p.dataset.alvo = id || '';
+  p.innerHTML = EMOJIS.map(e =>
+    '<button onclick="MGChat.escolherEmoji(\'' + e + '\')">' + e + '</button>').join('');
   p.classList.add('on');
-  const r = (ev && ev.currentTarget) ? ev.currentTarget.getBoundingClientRect() : {left:100, top:140};
-  const L = 250, A = 130;
-  p.style.left = Math.max(10, Math.min(window.innerWidth - L - 10, r.left - L/2)) + 'px';
-  p.style.top  = Math.max(10, (r.top || 140) - A - 6) + 'px';
+  const r = (ev && ev.currentTarget) ? ev.currentTarget.getBoundingClientRect() : {left:120, top:180};
+  p.style.left = Math.max(10, Math.min(window.innerWidth-250, (r.left||120) - 110)) + 'px';
+  p.style.top  = Math.max(10, (r.top||180) - 140) + 'px';
 }
-function chFecharEmojis(){ const p = document.getElementById('mgx-emojis'); if(p) p.classList.remove('on') }
-document.addEventListener('click', e => { if(!e.target.closest('#mgx-emojis')) chFecharEmojis() });
+function emojiNoTexto(ev){ abrirEmojis('', ev) }
+function escolherEmoji(e){
+  const p = document.getElementById('mgz-emojis');
+  const alvo = p ? p.dataset.alvo : '';
+  fecharEmojis();
+  if(alvo) return reagir(alvo, e);
+  const ta = caixa();
+  if(ta){ ta.value += (ta.value && !/\s$/.test(ta.value) ? ' ' : '') + e; ta.focus(); digitou(ta) }
+}
+function fecharEmojis(){ const p = document.getElementById('mgz-emojis'); if(p) p.classList.remove('on') }
+document.addEventListener('click', e=>{ if(!e.target.closest('#mgz-emojis')) fecharEmojis() });
 
 /* ---------------------------------------------------------------------
-   8. Criar canais
-   Nada acontece sozinho: era isso que gerava o 403 e os canais repetidos.
+   8. Canais e conversas diretas
    --------------------------------------------------------------------- */
-async function chNovoCanalCliente(cid){
+function slug(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+}
+async function entrar(cid, ids){
+  const l = (ids && ids.length) ? ids : (ME ? [ME.id] : []);
+  if(!l.length) return;
+  try{
+    await sb.from('channel_members').upsert(
+      [...new Set(l)].map(pid=>({channel_id:cid, profile_id:pid})),
+      {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
+  }catch(e){ console.warn('[chat] membros', e) }
+}
+async function criarCanal(tipo, nome, cid){
+  try{
+    const {data, error} = await sb.from('channels')
+      .insert({tipo, nome, client_id:cid, created_by:ME.id}).select().single();
+    if(error) throw error;
+    const equipe = MGU.todos({equipe:true}).map(u=>u.id);
+    const doCli = cid ? MGU.todos().filter(u=>u.clienteId===cid).map(u=>u.id) : [];
+    await entrar(data.id, [...equipe, ...doCli]);
+    await carregarCanais();
+    if(cid) empresasAbertas.add(cid);
+    CHMSGS[data.id] = [];
+    await abrir(data.id);
+    toast('Canal criado');
+  }catch(e){ toast('Não foi possível criar: ' + ((e&&e.message)||'')) }
+}
+async function novoCanalCliente(cid){
   if(!isAdmin()) return;
   const nome = prompt('Nome do canal para ' + clientName(cid) + ':', 'assuntos');
   if(!nome || !nome.trim()) return;
-  await chCriarCanal('client', chSlug(nome), cid);
+  await criarCanal('client', slug(nome), cid);
 }
-async function chNovoCanalEquipe(){
+async function novoCanalEquipe(){
   if(!isAdmin()) return;
   const nome = prompt('Nome do canal interno:');
   if(!nome || !nome.trim()) return;
-  await chCriarCanal('team', chSlug(nome), null);
+  await criarCanal('team', slug(nome), null);
 }
-function chSlug(s){
-  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
-}
-async function chCriarCanal(tipo, nome, cid){
-  try{
-    const {data, error} = await sb.from('channels')
-      .insert({tipo, nome, client_id: cid, created_by: ME.id}).select().single();
-    if(error) throw error;
-    await chEntrar(data.id);
-    await loadChannels();
-    if(cid) CH_EMP_ABERTAS.add(cid);
-    CHMSGS[data.id] = [];
-    await openChan(data.id);
-    toast('Canal criado ✓');
-  }catch(e){ toast('Não foi possível criar: ' + ((e&&e.message)||'')) }
-}
-/* entra no canal sem esbarrar na policy: ignoreDuplicates faz o banco
-   receber um "não faça nada se já existe", que não exige UPDATE */
-async function chEntrar(cid, perfis){
-  const ids = perfis && perfis.length ? perfis : (ME ? [ME.id] : []);
-  if(!ids.length) return;
-  try{
-    await sb.from('channel_members')
-      .upsert(ids.map(pid=>({channel_id:cid, profile_id:pid})),
-              {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
-  }catch(e){ console.warn('[chat] membros', e) }
-}
-
-/* ----- conversas diretas, sob demanda ----- */
-function chChaveDireta(a, b){ return 'dm:' + [a,b].sort().join(':') }
-function chNovaDireta(){
-  const gente = CH_PERFIS.filter(p => p.role === 'admin' && (!ME || p.id !== ME.id))
-                         .sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  if(!gente.length){ toast('Não há outras pessoas da equipe cadastradas'); return }
-  const lista = gente.map((p,i)=>(i+1) + '. ' + (p.nome||'—')).join('\n');
-  const r = prompt('Conversar com quem?\n\n' + lista + '\n\nDigite o número:');
-  const i = parseInt(r,10) - 1;
-  if(isNaN(i) || !gente[i]) return;
-  chAbrirDireta(gente[i].id);
-}
-async function chAbrirDireta(outroId){
-  const chave = chChaveDireta(ME.id, outroId);
-  let c = CHANNELS.find(x => x.tipo==='dm' && x.nome === chave);
-  if(c){ await openChan(c.id); return }
-  try{
-    /* pode existir e não estar na lista (criada pelo outro lado) */
-    const {data: achado} = await sb.from('channels').select('*')
-      .eq('tipo','dm').eq('nome', chave).maybeSingle();
-    if(achado){
-      await chEntrar(achado.id, [ME.id, outroId]);
-      await loadChannels();
-      await openChan(achado.id);
-      return;
-    }
-    const {data, error} = await sb.from('channels')
-      .insert({tipo:'dm', nome: chave, client_id:null, created_by: ME.id}).select().single();
-    if(error) throw error;
-    await chEntrar(data.id, [ME.id, outroId]);
-    await loadChannels();
-    CHMSGS[data.id] = [];
-    await openChan(data.id);
-  }catch(e){ toast('Não foi possível abrir a conversa: ' + ((e&&e.message)||'')) }
-}
-
-async function chRenomear(){
+async function renomear(){
   if(!isAdmin()) return;
-  const c = CHANNELS.find(x=>x.id===CHAN); if(!c) return;
-  if(c.tipo === 'dm'){ toast('Conversa direta não tem nome próprio'); return }
+  const c = CHANNELS.find(x=>x.id===CHAN); if(!c || c.tipo==='dm') return;
   const nome = prompt('Novo nome do canal:', c.nome);
   if(!nome || !nome.trim() || nome === c.nome) return;
   try{
-    const {error} = await sb.from('channels').update({nome: chSlug(nome)}).eq('id', c.id);
+    const {error} = await sb.from('channels').update({nome:slug(nome)}).eq('id', c.id);
     if(error) throw error;
-    await loadChannels(); renderChatView(); toast('Canal renomeado');
+    await carregarCanais(); desenhar(); toast('Canal renomeado');
   }catch(e){ toast('Não foi possível renomear') }
 }
-
-/* ----- provisionamento, agora sob comando do administrador ----- */
-async function chConfigurar(){
+/* a conversa direta nasce com chave canônica dm:<idA>:<idB>, com os ids
+   ordenados. É isso que impede a duplicata que existia antes */
+function chaveDireta(a, b){ return 'dm:' + [a,b].sort().join(':') }
+function escolherPessoa(){
+  const gente = MGU.todos({exceto: ME ? ME.id : null});
+  if(!gente.length){ toast('Ninguém mais cadastrado'); return }
+  const jaTem = new Set(CHANNELS.filter(c=>c.tipo==='dm').map(c=>outroLado(c)).filter(Boolean));
+  const novos = gente.filter(u=>!jaTem.has(u.id));
+  const lista = (novos.length ? novos : gente);
+  const txt = lista.map((u,i)=>(i+1) + '. ' + u.nome + (u.ehEquipe?'':' (cliente)')).join('\n');
+  const r = prompt('Conversar com quem?\n\n' + txt + '\n\nDigite o número:');
+  const i = parseInt(r,10) - 1;
+  if(isNaN(i) || !lista[i]) return;
+  abrirDireta(lista[i].id);
+}
+async function abrirDireta(outroId){
+  if(!ME || !outroId) return;
+  const chave = chaveDireta(ME.id, outroId);
+  const existente = CHANNELS.find(c=>c.tipo==='dm' && (c.nome === chave || outroLado(c) === outroId));
+  if(existente){ CH_FILTER=''; await abrir(existente.id); return }
+  try{
+    const {data: achado} = await sb.from('channels').select('*')
+      .eq('tipo','dm').eq('nome', chave).maybeSingle();
+    let canal = achado;
+    if(!canal){
+      const {data, error} = await sb.from('channels')
+        .insert({tipo:'dm', nome:chave, client_id:null, created_by:ME.id}).select().single();
+      if(error) throw error;
+      canal = data;
+    }
+    await entrar(canal.id, [ME.id, outroId]);
+    await carregarCanais();
+    CHMSGS[canal.id] = CHMSGS[canal.id] || [];
+    CH_FILTER = '';
+    await abrir(canal.id);
+  }catch(e){ toast('Não foi possível abrir a conversa: ' + ((e&&e.message)||'')) }
+}
+/* provisionamento explícito: era automático e disparava 403 em looping */
+async function configurar(){
   if(!isAdmin()) return;
   if(!confirm('Criar os canais que ainda faltam?\n\n'
-    + '· um canal para cada empresa que ainda não tem\n'
+    + '· um canal para cada empresa sem canal\n'
     + '· os canais internos #geral e #entregas\n\n'
     + 'Nada existente é apagado ou alterado.')) return;
   toast('Configurando…');
   const criados = [];
   try{
-    if(!CH_PERFIS.length) await chLoadPerfis();
-    const equipe = CH_PERFIS.filter(p=>p.role==='admin').map(p=>p.id);
-
+    await MGU.carregar(true);
+    const equipe = MGU.todos({equipe:true}).map(u=>u.id);
     for(const c of (CLIENTS||[])){
       if(CHANNELS.some(x=>x.tipo==='client' && x.client_id===c.id)) continue;
       const {data, error} = await sb.from('channels')
-        .insert({tipo:'client', nome: chSlug(c.nome), client_id: c.id, created_by: ME.id})
-        .select().single();
+        .insert({tipo:'client', nome:slug(c.nome), client_id:c.id, created_by:ME.id}).select().single();
       if(error) continue;
-      const doCliente = CH_PERFIS.filter(p=>p.client_id===c.id).map(p=>p.id);
-      await chEntrar(data.id, [...equipe, ...doCliente]);
+      const doCli = MGU.todos().filter(u=>u.clienteId===c.id).map(u=>u.id);
+      await entrar(data.id, [...equipe, ...doCli]);
       criados.push('#' + data.nome);
     }
     for(const nome of ['geral','entregas']){
       if(CHANNELS.some(x=>x.tipo==='team' && x.nome===nome)) continue;
       const {data, error} = await sb.from('channels')
-        .insert({tipo:'team', nome, client_id:null, created_by: ME.id}).select().single();
+        .insert({tipo:'team', nome, client_id:null, created_by:ME.id}).select().single();
       if(error) continue;
-      await chEntrar(data.id, equipe);
+      await entrar(data.id, equipe);
       criados.push('#' + nome);
     }
-    await loadChannels();
-    renderChatView();
+    await carregarCanais(); desenhar();
     toast(criados.length ? 'Criados: ' + criados.slice(0,3).join(', ')
                            + (criados.length>3 ? ' e mais ' + (criados.length-3) : '')
-                         : 'Nada a criar · já estava tudo no lugar');
+                         : 'Nada a criar, já estava tudo no lugar');
   }catch(e){ toast('Não foi possível configurar: ' + ((e&&e.message)||'')) }
 }
 
 /* ---------------------------------------------------------------------
    9. Exemplos dos comandos
    --------------------------------------------------------------------- */
-function chExample(){
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  const ta = chCaixa(); if(!ta) return;
-  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
+function exemploDemanda(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  const ta = caixa(); if(!ta) return;
+  const linhaCli = (c && c.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
   const prazo = new Date(Date.now() + 7*864e5).toISOString().slice(0,10);
   ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento' + linhaCli
-    + '\nresponsavel: ' + ((typeof ASSIGNEE_OPTS !== 'undefined' && ASSIGNEE_OPTS[0]) || '')
-    + '\nprazo: ' + (typeof fmtDate === 'function' ? fmtDate(prazo) : prazo)
+    + '\nresponsavel: ' + ((typeof ASSIGNEE_OPTS!=='undefined' && ASSIGNEE_OPTS[0]) || '')
+    + '\nprazo: ' + (typeof fmtDate==='function' ? fmtDate(prazo) : prazo)
     + '\nprioridade: Alta';
-  chDigitando(ta); ta.focus();
-  toast(cur && cur.tipo==='client' ? 'Canal de cliente: a empresa já entra automático'
-                                   : 'Edite e aperte Enter');
+  digitou(ta); ta.focus();
 }
-function chDocExample(){
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  const ta = chCaixa(); if(!ta) return;
-  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
+function exemploDocumento(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  const ta = caixa(); if(!ta) return;
+  const linhaCli = (c && c.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
   ta.value = '#adicionardocumento\ntitulo: Apresentação de resultados · Julho' + linhaCli
     + '\ntipo: apresentacao\nlink: https://…\ndescricao: Fechamento do mês com destaques.';
-  chDigitando(ta); ta.focus();
-  toast('Tipos: apresentacao · proposta · diagnostico · weekly · concorrencia');
+  digitou(ta); ta.focus();
 }
 
 /* ---------------------------------------------------------------------
-   10. Ligação com o resto da plataforma
+   10. Comandos externos
    --------------------------------------------------------------------- */
-/* tela cheia no chat */
+function filtrar(v){ CH_FILTER = v || ''; desenhar();
+  const i = document.getElementById('mgz-busca-in');
+  if(i && document.activeElement !== i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length) } }
+function focarBusca(){ const i = document.getElementById('mgz-busca-in'); if(i) i.focus() }
+function voltar(){ document.body.classList.remove('mgz-conversa'); desenhar() }
+function alternarInfo(){ painelInfo = !painelInfo; desenhar() }
+function alternarEmpresa(cid){
+  if(empresasAbertas.has(cid)) empresasAbertas.delete(cid); else empresasAbertas.add(cid);
+  desenhar();
+}
+async function recarregar(){ CH_READY = null; CHMSGS = {}; desenhar() }
+async function recarregarMsgs(){ erroMsgs = null; desenhar(); await carregarMsgs(CHAN); desenhar() }
+
+return {
+  iniciar, desenhar, abrir, abrirDireta, escolherPessoa, filtrar, focarBusca, voltar,
+  alternarInfo, alternarEmpresa, enviar, reenviar, tecla, digitou, fmt, fmtLinha,
+  responder, cancelarResposta, copiar, excluir, reagir, irPara,
+  abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
+  novoCanalCliente, novoCanalEquipe, renomear, configurar, recarregar, recarregarMsgs,
+  carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais,
+  exemploDemanda, exemploDocumento,
+  online: estaOnline, nomeCanal, outroLado, totalNaoLidas, membrosDoCanal,
+};
+})();
+window.MGChat = MGChat;
+
+/* ---------------------------------------------------------------------
+   Nomes públicos que o resto da plataforma já usava. Mantidos de
+   propósito: os comandos #adicionardemanda e #adicionardocumento e a
+   tela de Início continuam funcionando sem alteração.
+   --------------------------------------------------------------------- */
+let CHANNELS = [], CHAN = null, CHMSGS = {}, CH_READY = null, CH_FILTER = '';
+let CH_MEMBROS = {}, CH_NAOLIDAS = {};
+function renderChatView(){ return MGChat.desenhar() }
+function openChan(id){ return MGChat.abrir(id) }
+function chSend(){ return MGChat.enviar() }
+function chKey(e){ return MGChat.tecla(e) }
+function chFilter(v){ return MGChat.filtrar(v) }
+function chExample(){ return MGChat.exemploDemanda() }
+function chDocExample(){ return MGChat.exemploDocumento() }
+function mgChatBuscar(){ return MGChat.focarBusca() }
+function mgChanNome(c){ return MGChat.nomeCanal(c) }
+function loadChannels(){ return MGChat.carregarCanais() }
+function loadMsgs(cid){ return MGChat.carregarMsgs(cid) }
+async function checkChatTables(){ if(CH_READY === null) await MGChat.iniciar() }
+
+/* a tela de Início lista as conversas com mensagem nova */
+async function mgCarregarNaoLidas(){
+  MG_NAOLIDAS = [];
+  if(!ME) return;
+  try{
+    if(CH_READY === null) await MGChat.iniciar();
+    if(CH_READY !== true) return;
+    await MGChat.carregarNaoLidas();
+    MG_NAOLIDAS = Object.keys(CH_NAOLIDAS).map(cid=>{
+      const canal = CHANNELS.find(c=>c.id===cid);
+      if(!canal) return null;
+      return {canal, quantas:CH_NAOLIDAS[cid], qtd:CH_NAOLIDAS[cid],
+              ultima:{author_name:'', body:'', created_at:new Date().toISOString()}};
+    }).filter(Boolean);
+  }catch(e){ console.warn('[chat] não lidas', e) }
+}
+
+/* tela cheia ao entrar no chat */
 (function(){
   const _sv = showView;
   showView = function(v){
     const r = _sv(v);
     document.body.classList.toggle('mg-e-chat', VIEW === 'chat');
-    if(VIEW !== 'chat') document.body.classList.remove('mgx-conversa');
+    if(VIEW !== 'chat'){
+      document.body.classList.remove('mgz-conversa','mgz-info-on');
+    }else if(window.innerWidth > 720){
+      document.body.classList.add('mgz-conversa');
+    }
     return r;
   };
 })();
 
-/* o Início mostra as conversas com mensagem nova */
-async function mgCarregarNaoLidas(){
-  MG_NAOLIDAS = [];
-  if(!ME) return;
-  try{
-    if(CH_READY === null) await chIniciar();
-    if(CH_READY !== true) return;
-    await chLoadNaoLidas();
-    MG_NAOLIDAS = Object.keys(CH_NAOLIDAS).map(cid=>{
-      const canal = CHANNELS.find(c=>c.id===cid);
-      if(!canal) return null;
-      return {canal, quantas: CH_NAOLIDAS[cid], qtd: CH_NAOLIDAS[cid],
-              ultima: {author_name:'', body:'', created_at:new Date().toISOString()}};
-    }).filter(Boolean);
-  }catch(e){ console.warn('[chat] não lidas', e) }
-}
-
-/* atalho da barra de baixo */
+/* atalho na barra de baixo */
 (function(){
   if(typeof mgDockItens !== 'function') return;
   const _d = mgDockItens;
   mgDockItens = function(){
     const base = _d();
     if(VIEW !== 'chat') return base;
-    const n = chTotalNaoLidas();
-    const extra = '<button onclick="mgChatBuscar()" title="Buscar conversa">'
-      + '<span class="ic">⌕</span><span class="rot">Conversas</span></button>'
-      + (isAdmin() ? '<button onclick="chConfigurar()" title="Configurar canais">'
+    const n = MGChat.totalNaoLidas();
+    const extra = '<button onclick="MGChat.focarBusca()" title="Buscar conversa ou pessoa">'
+        + '<span class="ic">⌕</span><span class="rot">Buscar</span></button>'
+      + '<button onclick="MGChat.escolherPessoa()" title="Nova conversa direta">'
+        + '<span class="ic">✎</span><span class="rot">Nova conversa</span></button>'
+      + (isAdmin() ? '<button onclick="MGChat.configurar()" title="Configurar canais">'
           + '<span class="ic">⚙</span><span class="rot">Canais</span></button>' : '')
       + (n ? '<span class="conta">' + n + ' não lida' + (n===1?'':'s') + '</span>' : '');
     return base.includes('<span class="sep"></span>')
@@ -18063,6 +18781,41 @@ async function mgCarregarNaoLidas(){
       : base + extra;
   };
 })();
+
+/* o diretório é carregado no boot, antes de qualquer tela desenhar gente */
+(function(){
+  const _bt = boot;
+  boot = async function(){
+    const r = await _bt();
+    try{
+      await MGU.carregar(true);
+      if(typeof render === 'function') render();
+    }catch(e){ console.warn('[identidade] boot', e) }
+    return r;
+  };
+  /* Rede de segurança. Os blocos deste arquivo são interpretados um a um,
+     e o boot original dispara de dentro de uma promessa: dependendo de
+     quando a sessão resolve, ele pode rodar ANTES deste bloco existir, e
+     aí o embrulho acima nunca teria efeito. Este laço curto garante que o
+     diretório carregue assim que houver sessão, por qualquer caminho. */
+  let tentativas = 0;
+  (function aguardarSessao(){
+    if(typeof ME !== 'undefined' && ME && ME.id){
+      if(!MGU.carregado){
+        MGU.carregar(true).then(()=>{ if(typeof render === 'function') render() });
+      }
+      return;
+    }
+    if(++tentativas < 100) setTimeout(aguardarSessao, 120);
+  })();
+  /* redesenha quando o diretório muda (troca de foto, de nome) */
+  MGU.aoMudar(()=>{
+    if(typeof setMeAvatar === 'function'){ try{ setMeAvatar() }catch(e){} }
+    if(typeof mgAtualizarEu === 'function'){ try{ mgAtualizarEu() }catch(e){} }
+    if(VIEW === 'chat'){ try{ MGChat.desenhar() }catch(e){} }
+  });
+})();
 </script>
+
 </body>
 </html>
