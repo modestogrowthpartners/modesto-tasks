@@ -445,6 +445,23 @@ ok('20i painel de Reports', rep && rep.abriu && rep.secoes.length === 2 && rep.n
    JSON.stringify(rep));
 await page.evaluate(()=>MGChat.alternarReports());
 
+/* ---- 20j. mensagem sem reação não mostra bolinha vazia ---- */
+await page.evaluate(()=>MGChat.abrir('ch-2'));
+await page.waitForTimeout(600);
+const rea = await page.evaluate(async ()=>{
+  const ta=document.getElementById('mgz-in'); ta.value='sem reacao'; MGChat.digitou(ta,'');
+  await MGChat.enviar(); await new Promise(x=>setTimeout(x,500));
+  const m=[...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  const antes={bolinha:!!m.querySelector('.mgz-rea.add'), linha:!!m.querySelector('.mgz-reacoes'),
+               naRegua:!!m.querySelector('.mgz-acoes button[title="Reagir"]')};
+  const id=m.dataset.id;
+  await MGChat.reagir(id,'👍'); await new Promise(x=>setTimeout(x,400));
+  const m2=[...document.querySelectorAll('#mgz-msgs .mgz-m')].find(x=>x.dataset.id===id);
+  return {...antes, depois:(m2.querySelector('.mgz-rea')||{}).textContent};
+});
+ok('20j sem bolinha vazia, reagir pela régua', !rea.bolinha && !rea.linha
+   && rea.naRegua && /👍/.test(rea.depois||''), JSON.stringify(rea));
+
 /* ---- 21. responsivo ---- */
 await page.setViewportSize({width:390,height:780}); await page.waitForTimeout(600);
 const cel = await page.evaluate(()=>{
