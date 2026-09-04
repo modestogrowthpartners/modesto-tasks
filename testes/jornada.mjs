@@ -1,4 +1,4 @@
-/* Jornada completa do MGP Chat e do Luquinhas.
+/* Jornada completa do MGP Chat e do Kronos.
    Serve por HTTP porque em file:// o Chromium desliga o localStorage,
    e sem ele o teste de persistência não valeria nada. */
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
@@ -38,14 +38,19 @@ const irChat = async () => { await page.evaluate(()=>showView('chat')); await pa
 const eu = await page.evaluate(()=>{const u=MGU.eu();return u?{id:u.id,nome:u.nome,avatar:!!u.avatar}:null});
 ok('1  autenticação e identidade', eu && eu.id==='u-admin' && eu.nome==='Vinícius Reis' && eu.avatar, JSON.stringify(eu));
 
-/* ---- 2. trilha de espaços ---- */
+/* ---- 2. o chat ocupa a tela toda ---- */
 await irChat();
-const rail = await page.evaluate(()=>{
-  const r=document.querySelector('#v-chat .mgz-rail'); if(!r) return null;
-  return {botoes:r.querySelectorAll('button').length, chatAtivo:!!r.querySelector('button.on'),
-          temAvatar:!!r.querySelector('.mgu-av')};
+const cheio = await page.evaluate(()=>{
+  const v=document.querySelector('#v-chat.on'); if(!v) return null;
+  const r=v.getBoundingClientRect();
+  return {larguraTela:Math.round(r.width), janela:window.innerWidth,
+          alturaTela:Math.round(r.height), janelaAlt:window.innerHeight,
+          semTrilha:!document.querySelector('.mgz-rail'),
+          semRolagemH:document.documentElement.scrollWidth<=window.innerWidth+2};
 });
-ok('2  trilha de espaços', rail && rail.botoes>=6 && rail.chatAtivo && rail.temAvatar, JSON.stringify(rail));
+ok('2  chat ocupa a tela toda', cheio && cheio.semTrilha && cheio.semRolagemH
+   && cheio.larguraTela >= cheio.janela - 2
+   && cheio.alturaTela >= cheio.janelaAlt * 0.8, JSON.stringify(cheio));
 
 /* ---- 3. busca de membro e conversa direta ---- */
 const achou = await page.evaluate(()=>MGU.buscar('elias').map(u=>u.nome));
@@ -144,21 +149,21 @@ ok('11 comando /buscar', buscaRes.n>=1 && /resultado/.test(buscaRes.cab), JSON.s
 await page.evaluate(()=>MGChat.limparBusca());
 await page.waitForTimeout(300);
 
-/* ---- 12. Luquinhas: painel abre e responde ---- */
-await page.evaluate(()=>{window.__LUQ_MODO='texto'; MGLuq.abrir()});
+/* ---- 12. Kronos: painel abre e responde ---- */
+await page.evaluate(()=>{window.__KRONOS_MODO='texto'; MGKronos.abrir()});
 await page.waitForTimeout(400);
-await page.evaluate(()=>MGLuq.perguntar('quais demandas estão em aberto?'));
+await page.evaluate(()=>MGKronos.perguntar('quais demandas estão em aberto?'));
 await page.waitForTimeout(900);
 const luq = await page.evaluate(()=>{
-  const p=document.querySelector('.mgl-painel.on'); if(!p) return null;
-  return {bolhas:[...p.querySelectorAll('.mgl-b')].map(b=>b.textContent.trim()),
-          passos:[...p.querySelectorAll('.mgl-passos span')].map(s=>s.textContent),
-          pensando:!!p.querySelector('.mgl-pensa')}});
-ok('12 Luquinhas responde', luq && luq.bolhas.length===2 && /1 em aberto/.test(luq.bolhas[1])
+  const p=document.querySelector('.mgk-painel.on'); if(!p) return null;
+  return {bolhas:[...p.querySelectorAll('.mgk-b')].map(b=>b.textContent.trim()),
+          passos:[...p.querySelectorAll('.mgk-passos span')].map(s=>s.textContent),
+          pensando:!!p.querySelector('.mgk-pensa')}});
+ok('12 Kronos responde', luq && luq.bolhas.length===2 && /1 em aberto/.test(luq.bolhas[1])
    && luq.passos.length===1 && !luq.pensando, JSON.stringify(luq&&luq.bolhas));
 
 /* ---- 13. comando com IA propõe e pede confirmação ---- */
-await page.evaluate(()=>{window.__LUQ_MODO='confirmar'; MGLuq.fechar()});
+await page.evaluate(()=>{window.__KRONOS_MODO='confirmar'; MGKronos.fechar()});
 await page.evaluate(()=>{const t=document.getElementById('mgz-in');
   t.value='/demanda revisar os criativos da campanha';MGChat.digitou(t,'');return MGChat.enviar()});
 await page.waitForTimeout(900);
@@ -183,49 +188,49 @@ ok('14 confirmação cria no banco', criou.n===nAntes+1 && /executado/i.test(cri
    'tasks '+nAntes+' -> '+criou.n);
 
 /* ---- 15. falha na execução não é anunciada como sucesso ---- */
-await page.evaluate(()=>{window.__LUQ_MODO='confirmar'; window.__LUQ_EXEC_FALHA=1; MGLuq.abrir()});
-await page.evaluate(()=>MGLuq.perguntar('cria uma demanda para o Cliente Um'));
+await page.evaluate(()=>{window.__KRONOS_MODO='confirmar'; window.__KRONOS_EXEC_FALHA=1; MGKronos.abrir()});
+await page.evaluate(()=>MGKronos.perguntar('cria uma demanda para o Cliente Um'));
 await page.waitForTimeout(800);
 const nAntes2 = await page.evaluate(()=>window.__FIX.tasks.length);
-await page.evaluate(()=>{document.querySelector('.mgl-painel .mgl-acao .bts button.ok').click()});
+await page.evaluate(()=>{document.querySelector('.mgk-painel .mgk-acao .bts button.ok').click()});
 await page.waitForTimeout(800);
 const falhou = await page.evaluate(()=>{
-  const a=[...document.querySelectorAll('.mgl-painel .mgl-acao')].pop();
+  const a=[...document.querySelectorAll('.mgk-painel .mgk-acao')].pop();
   return {classe:a?a.className:'', txt:a?a.textContent:'', n:window.__FIX.tasks.length}});
 ok('15 falha não vira sucesso', falhou.classe.includes('falhou') && /não deu/.test(falhou.txt)
    && /Nada foi criado/.test(falhou.txt) && falhou.n===nAntes2, JSON.stringify(falhou).slice(0,140));
 
 /* ---- 16. sem chave de IA: aviso claro, sem invenção ---- */
-await page.evaluate(()=>{window.__LUQ_MODO='sem_chave'; window.__LUQ_EXEC_FALHA=0});
-await page.evaluate(()=>MGLuq.perguntar('resuma minha semana'));
+await page.evaluate(()=>{window.__KRONOS_MODO='sem_chave'; window.__KRONOS_EXEC_FALHA=0});
+await page.evaluate(()=>MGKronos.perguntar('resuma minha semana'));
 await page.waitForTimeout(700);
 const semChave = await page.evaluate(()=>{
-  const b=[...document.querySelectorAll('.mgl-painel .mgl-b')].pop();
+  const b=[...document.querySelectorAll('.mgk-painel .mgk-b')].pop();
   return {txt:b?b.textContent:'', erro:b?b.className.includes('erro'):false,
-          bolhaRuim:document.querySelector('.mgl-bolha').className.includes('ruim')}});
+          bolhaRuim:document.querySelector('.mgk-bolha').className.includes('ruim')}});
 ok('16 sem chave avisa e não inventa', semChave.erro && /ANTHROPIC_API_KEY/.test(semChave.txt)
    && semChave.bolhaRuim, semChave.txt);
 
 /* ---- 17. comando que depende de IA é barrado com explicação ---- */
-await page.evaluate(()=>MGLuq.fechar());
+await page.evaluate(()=>MGKronos.fechar());
 await page.evaluate(()=>{const t=document.getElementById('mgz-in');t.value='/resumo';MGChat.digitou(t,'');return MGChat.enviar()});
 await page.waitForTimeout(600);
 const barrado = await page.evaluate(()=>{
   const m=[...document.querySelectorAll('#mgz-msgs .mgz-m.luq .tx')].pop(); return m?m.textContent:''});
-ok('17 comando de IA barrado com motivo', /depende do Luquinhas/.test(barrado) && /ANTHROPIC_API_KEY/.test(barrado), barrado);
+ok('17 comando de IA barrado com motivo', /depende do Kronos/.test(barrado) && /ANTHROPIC_API_KEY/.test(barrado), barrado);
 
-/* ---- 18. @Luquinhas publica para todo mundo ---- */
-await page.evaluate(()=>{window.__LUQ_MODO='texto'});
+/* ---- 18. @Kronos publica para todo mundo ---- */
+await page.evaluate(()=>{window.__KRONOS_MODO='texto'});
 const nMsgAntes = await page.evaluate(()=>window.__FIX.messages.length);
 await page.evaluate(()=>{const t=document.getElementById('mgz-in');
-  t.value='@Luquinhas resume essa conversa';MGChat.digitou(t,'');return MGChat.enviar()});
+  t.value='@Kronos resume essa conversa';MGChat.digitou(t,'');return MGChat.enviar()});
 await page.waitForTimeout(1400);
 const publicou = await page.evaluate(()=>({
   n:window.__FIX.messages.length,
   ultimas:window.__FIX.messages.slice(-2).map(m=>({kind:m.kind, autor:m.author_name})),
   naTela:[...document.querySelectorAll('#mgz-msgs .mgz-m .quem')].map(x=>x.textContent)}));
-ok('18 @Luquinhas publica na conversa', publicou.n===nMsgAntes+2
-   && publicou.ultimas[1].kind==='luquinhas' && publicou.naTela.includes('Luquinhas'),
+ok('18 @Kronos publica na conversa', publicou.n===nMsgAntes+2
+   && publicou.ultimas[1].kind==='kronos' && publicou.naTela.includes('Kronos'),
    JSON.stringify(publicou.ultimas));
 
 /* ---- 19. consistência da identidade em todos os lugares ---- */
@@ -264,7 +269,7 @@ ok('19b cartão de perfil com dado real', perfil && perfil.nome==='Elias Braga' 
 await page.evaluate(()=>showView('tasks')); await page.waitForTimeout(500);
 const fora = await page.evaluate(()=>({
   chatEscondido:!document.querySelector('#v-chat.on'),
-  luqVisivel:!!document.querySelector('.mgl-bolha'),
+  luqVisivel:!!document.querySelector('.mgk-bolha'),
   corpo:document.body.className.includes('mg-e-chat')}));
 await irChat();
 const voltou = await page.evaluate(()=>({
@@ -291,13 +296,13 @@ await page.setViewportSize({width:390,height:780}); await page.waitForTimeout(60
 const cel = await page.evaluate(()=>{
   const vis = s => { const e=document.querySelector(s); return !!e && getComputedStyle(e).display!=='none' };
   document.body.classList.add('mgz-conversa');
-  const comConversa = {lateral:vis('.mgz-side'), conversa:vis('.mgz-main'), trilha:vis('.mgz-rail')};
+  const comConversa = {lateral:vis('.mgz-side'), conversa:vis('.mgz-main')};
   document.body.classList.remove('mgz-conversa');
   const semConversa = {lateral:vis('.mgz-side'), conversa:vis('.mgz-main')};
   return {comConversa, semConversa, semRolagem:document.documentElement.scrollWidth<=390+2}});
 await page.setViewportSize({width:1440,height:900});
 ok('21 responsivo no celular', cel.comConversa.conversa && !cel.comConversa.lateral
-   && cel.comConversa.trilha && cel.semConversa.lateral && !cel.semConversa.conversa && cel.semRolagem,
+   && cel.semConversa.lateral && !cel.semConversa.conversa && cel.semRolagem,
    JSON.stringify(cel));
 
 /* ---- resultado ---- */

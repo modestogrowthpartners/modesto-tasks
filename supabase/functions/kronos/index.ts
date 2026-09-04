@@ -1,5 +1,5 @@
 /* =====================================================================
-   LUQUINHAS · assistente interno da Modesto Growth Partners
+   KRONOS · assistente interno da Modesto Growth Partners
    ---------------------------------------------------------------------
    Roda no servidor porque a chave da IA nunca pode aparecer no navegador.
 
@@ -7,13 +7,13 @@
 
    1. Toda leitura e toda escrita usam um cliente Supabase criado com a
       chave pública MAIS o Authorization de quem chamou. Ou seja: o
-      Luquinhas herda a RLS da pessoa, ele não tem poder próprio. Não
+      Kronos herda a RLS da pessoa, ele não tem poder próprio. Não
       existe service_role nesta função.
 
    2. Ferramenta de escrita nunca executa dentro da conversa. O modelo só
       consegue PROPOR. A execução acontece numa segunda chamada, no modo
       "executar", depois que a pessoa confirmou na tela. Por isso o
-      Luquinhas não tem como dizer que criou algo que não criou: quem
+      Kronos não tem como dizer que criou algo que não criou: quem
       relata o resultado é o banco, não o modelo.
    ===================================================================== */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -34,7 +34,7 @@ const PRIORIDADES = ["Baixa", "Média", "Alta"];
    módulo, definir o segredo depois só passaria a valer quando o isolate
    fosse reciclado, e daria a impressão de que a chave não funcionou. */
 function chave() { return Deno.env.get("ANTHROPIC_API_KEY") || ""; }
-function modelo() { return Deno.env.get("LUQUINHAS_MODEL") || "claude-sonnet-5"; }
+function modelo() { return Deno.env.get("KRONOS_MODEL") || "claude-sonnet-5"; }
 
 function json(corpo: unknown, status = 200) {
   return new Response(JSON.stringify(corpo), {
@@ -266,7 +266,7 @@ async function lerFerramenta(sb: SupabaseClient, nome: string, a: any): Promise<
     const porId = new Map((pes ?? []).map((p: any) => [p.id, p.nome]));
     return {
       mensagens: linhas.map((m: any) => ({
-        autor: m.kind === "luquinhas" ? "Luquinhas" : (porId.get(m.author_id) || m.author_name || "Desconhecido"),
+        autor: m.kind === "kronos" ? "Kronos" : (porId.get(m.author_id) || m.author_name || "Desconhecido"),
         texto: m.body,
         em: m.created_at,
         id: m.id,
@@ -470,7 +470,7 @@ const TITULOS: Record<string, string> = {
    Instrução do assistente
    --------------------------------------------------------------------- */
 function instrucao(quem: any, ctx: any) {
-  return `Você é o Luquinhas, assistente interno da Modesto Growth Partners (MGP), dentro da plataforma MGP.
+  return `Você é o Kronos, assistente interno da Modesto Growth Partners (MGP), dentro da plataforma MGP.
 
 Quem está falando com você: ${quem.nome} (id ${quem.id}, papel ${quem.papel === "admin" ? "equipe" : "cliente"}).
 Hoje é ${new Date().toISOString().slice(0, 10)}.
@@ -525,7 +525,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return falha("metodo", "Use POST.", 405);
 
   const auth = req.headers.get("Authorization") || "";
-  if (!auth) return falha("sem_sessao", "Faça login para falar com o Luquinhas.", 401);
+  if (!auth) return falha("sem_sessao", "Faça login para falar com o Kronos.", 401);
 
   /* chave pública + Authorization da pessoa: a RLS dela vale aqui dentro */
   const sb = createClient(
@@ -583,7 +583,7 @@ Deno.serve(async (req) => {
   if (!chave()) {
     return falha(
       "sem_chave",
-      "O Luquinhas ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.",
+      "O Kronos ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.",
     );
   }
 
@@ -592,7 +592,7 @@ Deno.serve(async (req) => {
   const msgs: any[] = historico
     .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && String(m.content || "").trim())
     .map((m: any) => ({ role: m.role, content: String(m.content) }));
-  if (!msgs.length) return falha("payload", "Escreva alguma coisa para o Luquinhas.");
+  if (!msgs.length) return falha("payload", "Escreva alguma coisa para o Kronos.");
 
   const ferramentas = [...LEITURA, ...ESCRITA];
   const passos: any[] = [];

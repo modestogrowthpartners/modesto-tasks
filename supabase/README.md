@@ -5,7 +5,7 @@ do Supabase, sem versão e sem revisão. Agora está aqui.
 
 Projeto: `eeqaabwsheaiwyhujcqj`
 
-## `functions/luquinhas`
+## `functions/kronos`
 
 A Edge Function do assistente. É o Claude com as ferramentas da
 plataforma, e o desenho dela sustenta duas garantias que não dependem de
@@ -14,7 +14,7 @@ boa vontade do modelo:
 1. **Ela herda a permissão de quem chamou.** O cliente Supabase é criado
    com a chave pública mais o `Authorization` da pessoa. Não existe
    `service_role` na função. Se alguém não pode criar uma demanda na mão,
-   também não cria pelo Luquinhas: quem recusa é a RLS.
+   também não cria pelo Kronos: quem recusa é a RLS.
 
 2. **Escrita nunca acontece dentro da conversa com o modelo.** O modelo
    só PROPÕE. A execução é uma segunda chamada, no modo `executar`,
@@ -27,7 +27,7 @@ boa vontade do modelo:
 | Segredo | Obrigatório | Para quê |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | sim | sem ela a função responde `sem_chave` e a tela diz isso, em vez de fingir |
-| `LUQUINHAS_MODEL` | não | troca o modelo; o padrão é `claude-sonnet-5` |
+| `KRONOS_MODEL` | não | troca o modelo; o padrão é `claude-sonnet-5` |
 
 `SUPABASE_URL` e `SUPABASE_ANON_KEY` já vêm do ambiente.
 
@@ -36,7 +36,7 @@ Definir em: Project Settings → Edge Functions → Secrets.
 ### Publicar
 
 ```
-supabase functions deploy luquinhas --project-ref eeqaabwsheaiwyhujcqj
+supabase functions deploy kronos --project-ref eeqaabwsheaiwyhujcqj
 ```
 
 ## `migrations/`
@@ -51,7 +51,7 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._diretorio_canonico_de_usuarios` | cliente não conseguia resolver nome nem foto de ninguém |
 | `..._anexo_de_chat_para_cliente` | cliente anexar arquivo, só na pasta da própria empresa |
 | `..._mgp_chat_conversas_e_threads` | threads, conversa direta sem duplicar, busca de mensagem |
-| `..._mgp_luquinhas_memoria_e_auditoria` | memória e auditoria do assistente, e a publicação da resposta no canal |
+| `..._mgp_kronos_memoria_e_auditoria` | memória e auditoria do assistente, e a publicação da resposta no canal |
 | `..._mgp_perfis_sem_escalacao_e_auditoria` | escalada de papel, último admin, auditoria, limite de avatar |
 | `..._mgp_perfis_gatilhos_so_para_sessao_de_usuario` | correção: os gatilhos acima trancavam a administração fora de sessão |
 | `..._mgp_fecha_execute_das_funcoes` | função de gatilho deixou de ser endpoint em `/rest/v1/rpc` |

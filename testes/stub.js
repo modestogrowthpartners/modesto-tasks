@@ -128,28 +128,28 @@
         return Promise.resolve({data:FIX.messages.filter(m=>String(m.body||'').toLowerCase().includes(t))
           .slice(0,40),error:null});
       }
-      if(nome==='mg_luq_publicar'){
-        if(window.__LUQ_PUBLICAR_FALHA) return Promise.resolve({data:null,error:{message:'sem acesso a esta conversa'}});
-        const m={id:'m-luq-'+Date.now(),channel_id:args.p_canal,author_id:null,author_name:'Luquinhas',
-                 body:args.p_texto,kind:'luquinhas',created_at:new Date().toISOString(),
+      if(nome==='mg_kronos_publicar'){
+        if(window.__KRONOS_PUBLICAR_FALHA) return Promise.resolve({data:null,error:{message:'sem acesso a esta conversa'}});
+        const m={id:'m-luq-'+Date.now(),channel_id:args.p_canal,author_id:null,author_name:'Kronos',
+                 body:args.p_texto,kind:'kronos',created_at:new Date().toISOString(),
                  reply_to:args.p_reply_to||null,reactions:{},anexos:[]};
         FIX.messages.push(m); persistir();
         return Promise.resolve({data:m,error:null});
       }
       return Promise.resolve({data:[],error:null});
     },
-    /* Edge Function do Luquinhas. O comportamento é escolhido por
-       window.__LUQ_MODO, para o teste exercitar resposta, proposta,
+    /* Edge Function do Kronos. O comportamento é escolhido por
+       window.__KRONOS_MODO, para o teste exercitar resposta, proposta,
        falta de chave e falha na execução. */
     functions:{ invoke:(nome,opc)=>{
       const corpo=(opc&&opc.body)||{};
-      const modo=window.__LUQ_MODO||'texto';
+      const modo=window.__KRONOS_MODO||'texto';
       if(modo==='sem_chave') return Promise.resolve({data:{ok:false,codigo:'sem_chave',
-        erro:'O Luquinhas ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.'},error:null});
+        erro:'O Kronos ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.'},error:null});
       if(modo==='fora') return Promise.resolve({data:{ok:false,codigo:'ia_indisponivel',
         erro:'O provedor de IA está fora do ar. Tenta de novo em instantes.'},error:null});
       if(corpo.modo==='executar'){
-        if(window.__LUQ_EXEC_FALHA) return Promise.resolve({data:{ok:false,codigo:'sem_permissao',
+        if(window.__KRONOS_EXEC_FALHA) return Promise.resolve({data:{ok:false,codigo:'sem_permissao',
           erro:'O banco recusou: você não tem permissão para isso. Nada foi criado.'},error:null});
         const t={id:'t-luq-'+Date.now(),title:(corpo.acao&&corpo.acao.argumentos&&corpo.acao.argumentos.title)||'Demanda',
                  status:'Não iniciado',priority:'Alta',due:'2026-09-20',assignees:['Vinícius'],client_id:CID};
