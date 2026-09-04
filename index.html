@@ -543,70 +543,6 @@ body.hide-card-av .card-t .avs{display:none}
 .dcard .mt{display:flex;align-items:center;gap:8px;margin-top:11px;font-size:11.5px;color:var(--muted)}
 .dcard .open{margin-left:auto;color:var(--brass2);font-weight:600;font-size:12px}
 
-/* ---------- CHAT ---------- */
-#v-chat.on{display:flex}
-#v-chat{gap:0;height:calc(100vh - 172px);min-height:440px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
-.mgc-side{width:212px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card2)}
-.mgc-search{margin:12px 12px 8px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
-.mgc-search input{border:0;background:none;outline:none;font-size:12.5px;width:100%;font-family:inherit;color:var(--text)}
-.mgc-list{flex:1;overflow:auto;padding:0 8px 12px}
-.mgc-sec{display:flex;align-items:center;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:12px 8px 5px}
-.mgc-sec .add{margin-left:auto;background:none;border:0;color:var(--muted2);width:20px;height:20px;border-radius:6px;font-size:15px;line-height:1}
-.mgc-sec .add:hover{background:var(--card);color:var(--brass2)}
-.mgc-i{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:500;background:none;border:0;text-align:left;width:100%;transition:background .15s,color .15s}
-.mgc-i:hover{background:var(--card);color:var(--text)}
-.mgc-i.on{background:rgba(194,161,91,.16);color:var(--brass2);font-weight:600}
-.mgc-i .h{opacity:.6}
-.mgc-i .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgc-i .b{margin-left:auto;background:var(--st-block);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
-.mgc-main{flex:1;min-width:0;display:flex;flex-direction:column}
-.mgc-top{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);min-height:56px;flex-wrap:wrap}
-.mgc-top .nm{font-family:var(--font-d);font-size:17px;font-weight:500;display:flex;align-items:center;gap:8px}
-.mgc-top .sub{font-size:12px;color:var(--muted)}
-.mgc-top .sp{flex:1}
-.mgc-msgs{flex:1;overflow:auto;padding:16px 20px 6px;display:flex;flex-direction:column}
-.mgc-day{align-self:center;font-size:11px;font-weight:700;color:var(--muted2);background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px 13px;margin:10px 0 8px}
-.mgc-m{display:flex;gap:11px;padding:6px 10px;border-radius:11px;position:relative}
-.mgc-m:hover{background:var(--card2)}
-.mgc-m .av{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:13px;color:#1a1a18}
-.mgc-m .bd{min-width:0;flex:1}
-.mgc-m .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.mgc-m .who{font-weight:700;font-size:13.5px}
-.mgc-m .rl{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--brass2);background:rgba(194,161,91,.16);padding:1px 7px;border-radius:999px}
-.mgc-m .rl.cli{color:#7C8A97;background:rgba(124,138,151,.18)}
-.mgc-m .tm{font-size:11px;color:var(--muted2)}
-.mgc-m .tx{font-size:13.5px;line-height:1.5;margin-top:2px;white-space:pre-wrap;word-break:break-word}
-.mgc-m .acts{position:absolute;top:-10px;right:12px;display:none;background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-.mgc-m:hover .acts{display:flex}
-.mgc-m .acts button{background:none;border:0;font-size:14px;width:28px;height:26px;border-radius:6px;display:grid;place-items:center}
-.mgc-m .acts button:hover{background:var(--card2)}
-.mgc-re{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
-.mgc-re span{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:2px 9px;cursor:pointer;font-weight:600}
-.mgc-re span.mine{background:rgba(194,161,91,.16);border-color:var(--brass);color:var(--brass2)}
-.mgc-sys{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin:5px 10px}
-.mgc-sys .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0}
-.mgc-sys b{color:var(--text)}
-.mgc-sys .from{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--brass2)}
-.mgc-comp{padding:10px 18px 14px}
-.mgc-box{display:flex;align-items:flex-end;gap:8px;background:var(--card);border:1px solid var(--line2);border-radius:13px;padding:9px 12px}
-.mgc-box:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
-.mgc-box textarea{flex:1;border:0;background:none;outline:none;font-family:inherit;font-size:13.5px;resize:none;max-height:120px;color:var(--text);line-height:1.5}
-.mgc-box .tool{background:none;border:0;color:var(--muted);width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px}
-.mgc-box .tool:hover{background:var(--card2);color:var(--brass2)}
-.mgc-box .snd{background:var(--brass);border:0;color:#1a1a18;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:15px}
-.mgc-box .snd:hover{background:var(--brass2);color:#fff}
-.mgc-hint{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:4px}
-.mgc-hint b{color:var(--brass2)}
-.mgc-hint button{background:none;border:0;color:var(--brass2);font-weight:600;text-decoration:underline;cursor:pointer;font-size:11px;font-family:inherit}
-.mgc-setup{margin:auto;max-width:560px;text-align:center;padding:30px}
-.mgc-setup h3{font-family:var(--font-d);font-size:20px;font-weight:500;margin-bottom:8px}
-.mgc-setup p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
-.mgc-sql{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:14px;text-align:left;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.6;color:var(--text);max-height:230px;overflow:auto;white-space:pre;margin-bottom:14px}
-.mgc-stack{display:flex;align-items:center}
-.mgc-stack .sav{width:26px;height:26px;border-radius:50%;border:2px solid var(--card);display:grid;place-items:center;font-size:9.5px;font-weight:700;color:#1a1a18;margin-left:-7px}
-.mgc-stack .sav:first-child{margin-left:0}
-.mgc-stack .more{font-size:11px;color:var(--muted);margin-left:7px;font-weight:600}
-.mgc-typing{padding:0 30px 6px;font-size:12px;color:var(--muted2);min-height:20px}
 </style>
 <style>
 /* =====================================================================
@@ -649,23 +585,7 @@ body.theme-dark .side-nav .nav-i.on{color:#1a1a18!important}
 .mg-lg{display:inline-grid;place-items:center;border-radius:6px;overflow:hidden;flex-shrink:0;
   font-weight:700;color:#fff;font-size:10px;line-height:1}
 .mg-lg img{width:100%;height:100%;object-fit:contain;background:#fff}
-.mgc-i .mg-lg{width:20px;height:20px}
-.mgc-top .mg-lg{width:26px;height:26px;border-radius:7px}
-.mgc-m .av .mg-lg{width:100%;height:100%;border-radius:9px}
 
-/* ---------- chat: ajustes ---------- */
-.mgc-i{gap:9px}
-.mgc-i .h{width:18px;text-align:center;display:inline-block}
-.mgc-prov{margin:auto;max-width:430px;text-align:center;padding:26px}
-.mgc-prov h3{font-family:var(--font-d);font-size:19px;font-weight:500;margin-bottom:8px}
-.mgc-prov p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
-.mgc-badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.4px;
-  text-transform:uppercase;color:var(--brass2);background:rgba(194,161,91,.14);border:1px solid rgba(194,161,91,.3);
-  border-radius:999px;padding:3px 10px}
-.mgc-cmds{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-.mgc-cmds button{background:var(--card2);border:1px solid var(--line2);border-radius:999px;padding:4px 11px;
-  font-size:11px;font-weight:600;color:var(--muted);font-family:inherit}
-.mgc-cmds button:hover{border-color:var(--brass);color:var(--brass2)}
 </style>
 </head>
 <body>
@@ -2262,295 +2182,6 @@ function uploadDoc(){
   };
 }
 
-/* =====================================================================
-   CHAT
-   Detecta sozinho se as tabelas (channels / channel_members / messages)
-   já existem no banco. Se existirem → conversa real, com realtime.
-   Se não → mostra o SQL pronto para criar, com um clique para copiar.
-   ===================================================================== */
-let CH_READY = null;      /* null=checando, true=tabelas ok, false=faltam */
-let CHANNELS = [];
-let CHAN = null;
-let CHMSGS = {};
-let CH_SUB = null;
-let CH_FILTER = '';
-
-const CHAT_SQL = `-- Chat da plataforma Modesto — rode no SQL Editor do Supabase
-create table if not exists public.channels (
-  id uuid primary key default gen_random_uuid(),
-  tipo text not null check (tipo in ('client','team','dm')),
-  nome text not null,
-  client_id uuid references public.clients(id) on delete cascade,
-  created_by uuid references public.profiles(id),
-  created_at timestamptz not null default now()
-);
-create table if not exists public.channel_members (
-  channel_id uuid not null references public.channels(id) on delete cascade,
-  profile_id uuid not null references public.profiles(id) on delete cascade,
-  last_read_at timestamptz not null default now(),
-  primary key (channel_id, profile_id)
-);
-create table if not exists public.messages (
-  id uuid primary key default gen_random_uuid(),
-  channel_id uuid not null references public.channels(id) on delete cascade,
-  author_id uuid references public.profiles(id),
-  author_name text,
-  body text not null,
-  kind text not null default 'user',
-  created_at timestamptz not null default now()
-);
-create index if not exists messages_ch_idx on public.messages(channel_id, created_at desc);
-
--- quem pode ver um canal
-create or replace function public.can_see_channel(cid uuid)
-returns boolean language sql security definer stable as $$
-  select exists (select 1 from public.channel_members m
-                  where m.channel_id = cid and m.profile_id = auth.uid())
-      or public.is_admin()
-      or exists (select 1 from public.channels c
-                  where c.id = cid and c.tipo='client'
-                    and c.client_id = public.current_client_id());
-$$;
-
-alter table public.channels        enable row level security;
-alter table public.channel_members enable row level security;
-alter table public.messages        enable row level security;
-
-create policy ch_sel  on public.channels        for select using (public.can_see_channel(id));
-create policy chm_sel on public.channel_members for select using (public.can_see_channel(channel_id));
-create policy msg_sel on public.messages        for select using (public.can_see_channel(channel_id));
-create policy msg_ins on public.messages        for insert with check (public.can_see_channel(channel_id) and author_id = auth.uid());
-create policy ch_ins  on public.channels        for insert with check (public.is_admin());
-create policy chm_ins on public.channel_members for insert with check (public.is_admin());
-
--- realtime
-alter publication supabase_realtime add table public.messages;`;
-
-async function checkChatTables(){
-  try{
-    const {error} = await sb.from('channels').select('id').limit(1);
-    CH_READY = !error;
-    if(error) window._chErr = error.message;
-  }catch(e){ CH_READY=false; window._chErr = e.message }
-}
-async function loadChannels(){
-  const {data,error} = await sb.from('channels').select('*').order('tipo').order('nome');
-  if(error) throw error;
-  CHANNELS = data||[];
-  if(!CHAN && CHANNELS.length) CHAN = CHANNELS[0].id;
-}
-async function loadMsgs(cid){
-  const {data,error} = await sb.from('messages').select('*').eq('channel_id',cid).order('created_at',{ascending:true}).limit(200);
-  if(error) throw error;
-  CHMSGS[cid] = data||[];
-}
-function chSubscribe(){
-  if(CH_SUB) return;
-  CH_SUB = sb.channel('chat-rt').on('postgres_changes',
-    {event:'INSERT', schema:'public', table:'messages'},
-    p=>{
-      const m = p.new;
-      (CHMSGS[m.channel_id] = CHMSGS[m.channel_id]||[]).push(m);
-      if(m.channel_id===CHAN && VIEW==='chat') renderChatView();
-    }).subscribe();
-}
-function chFilter(v){ CH_FILTER=(v||'').toLowerCase(); renderChatView(); }
-async function openChan(id){
-  CHAN = id;
-  if(!CHMSGS[id]){ try{ await loadMsgs(id) }catch(e){ console.warn(e) } }
-  renderChatView();
-}
-function chTime(ts){ const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0') }
-function chDay(ts){
-  const d=new Date(ts), h=new Date(), o=new Date(Date.now()-864e5);
-  if(d.toDateString()===h.toDateString()) return 'Hoje';
-  if(d.toDateString()===o.toDateString()) return 'Ontem';
-  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
-}
-function renderChatView(){
-  const el = $('v-chat');
-  if(CH_READY===null){
-    el.innerHTML = `<div class="mg-load" style="margin:auto">Verificando o chat…</div>`;
-    checkChatTables().then(async()=>{
-      if(CH_READY){ try{ await loadChannels(); if(CHAN) await loadMsgs(CHAN); chSubscribe(); }catch(e){ console.warn(e) } }
-      renderChatView();
-    });
-    return;
-  }
-  if(CH_READY===false){
-    el.innerHTML = `<div class="mgc-setup">
-      <h3>Chat — falta criar as tabelas</h3>
-      <p>O chat usa três tabelas no mesmo banco (<b>channels</b>, <b>channel_members</b> e <b>messages</b>), com as mesmas regras de acesso que já protegem as demandas e os documentos. Rode o SQL abaixo no <b>SQL Editor do Supabase</b> e recarregue esta página — o chat liga sozinho.</p>
-      <div class="mgc-sql" id="mgc-sql">${esc(CHAT_SQL)}</div>
-      <button class="btn-p" onclick="copyChatSQL()">Copiar SQL</button>
-      <p style="margin-top:14px;font-size:12px">${esc(window._chErr||'')}</p>
-    </div>`;
-    return;
-  }
-  /* --- modo real --- */
-  const f = c => !CH_FILTER || (c.nome||'').toLowerCase().includes(CH_FILTER);
-  const grupo = (tipo,label,addable) => {
-    const cs = CHANNELS.filter(c=>c.tipo===tipo && f(c));
-    if(!cs.length && CH_FILTER) return '';
-    return `<div class="mgc-sec">${label}${addable&&isAdmin()?`<button class="add" title="Novo canal" onclick="newChannel('${tipo}')">+</button>`:''}</div>`
-      + (cs.length ? cs.map(c=>`<button class="mgc-i ${c.id===CHAN?'on':''}" onclick="openChan('${c.id}')">
-            <span class="h">${tipo==='dm'?'◍':'#'}</span><span class="nm">${esc(c.nome)}</span></button>`).join('')
-        : `<div style="font-size:11.5px;color:var(--muted2);padding:4px 10px">nenhum</div>`);
-  };
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  const msgs = (CHMSGS[CHAN]||[]);
-  let lastDay = '';
-  const msgsHTML = msgs.length ? msgs.map(m=>{
-    let sep = '';
-    const dd = chDay(m.created_at);
-    if(dd!==lastDay){ lastDay=dd; sep = `<div class="mgc-day">${dd}</div>` }
-    if(m.kind==='system'){
-      return sep + `<div class="mgc-sys"><span class="sw" style="background:var(--brass)"></span><span>${esc(m.body)}</span><span class="from">sistema</span></div>`;
-    }
-    const eu = ME && m.author_id===ME.id;
-    return sep + `<div class="mgc-m">
-      <div class="av" style="background:${eu?'var(--brass)':'#7C8A97'}">${esc(initials(m.author_name||'?'))}</div>
-      <div class="bd">
-        <div class="hd"><span class="who">${esc(m.author_name||'—')}</span><span class="tm">${chTime(m.created_at)}</span></div>
-        <div class="tx">${esc(m.body)}</div>
-      </div></div>`;
-  }).join('') : `<div class="mg-empty" style="margin:auto">Nenhuma mensagem ainda. Diga oi!</div>`;
-
-  el.innerHTML = `
-    <aside class="mgc-side">
-      <div class="mgc-search"><span style="opacity:.5">⌕</span><input placeholder="Buscar conversa…" value="${esc(CH_FILTER)}" oninput="chFilter(this.value)"></div>
-      <div class="mgc-list">
-        ${grupo('client','Clientes',true)}
-        ${grupo('team','Equipe',true)}
-        ${grupo('dm','Conversas diretas',false)}
-      </div>
-    </aside>
-    <div class="mgc-main">
-      <div class="mgc-top">
-        <div class="nm">${cur?(cur.tipo==='dm'?'':'#')+esc(cur.nome):'—'}</div>
-        <div class="sub">${cur?(cur.tipo==='client'?'equipe ↔ '+esc(clientName(cur.client_id)):cur.tipo==='team'?'canal interno':'conversa direta'):''}</div>
-        <div class="sp"></div>
-      </div>
-      <div class="mgc-msgs" id="mgc-msgs">${msgsHTML}</div>
-      <div class="mgc-comp">
-        <div class="mgc-box">
-          <textarea id="mgc-in" rows="1" placeholder="${cur?('Mensagem para '+(cur.tipo==='dm'?'':'#')+esc(cur.nome)+'…'):'Mensagem…'}" onkeydown="chKey(event)"></textarea>
-          <button class="snd" onclick="chSend()" title="Enviar">➤</button>
-        </div>
-        <div class="mgc-hint">Enter envia · Shift+Enter quebra linha · digite <b>#adicionardemanda</b> para criar uma demanda no Kanban <button onclick="chExample()">ver exemplo</button></div>
-      </div>
-    </div>`;
-  const box = $('mgc-msgs'); if(box) box.scrollTop = box.scrollHeight;
-}
-function copyChatSQL(){
-  navigator.clipboard.writeText(CHAT_SQL).then(()=>toast('SQL copiado — cole no SQL Editor do Supabase'))
-    .catch(()=>toast('Copie manualmente o bloco acima'));
-}
-function chKey(e){
-  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); chSend(); return }
-  const ta=e.target; setTimeout(()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px' },0);
-}
-function chExample(){
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: '+(CLIENTS[0]?CLIENTS[0].nome:'');
-  const ta=$('mgc-in'); if(!ta) return;
-  ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento'+linhaCli+'\nresponsavel: '+(ASSIGNEE_OPTS[0]||'')+'\nprazo: '+fmtDate(new Date(Date.now()+7*864e5).toISOString().slice(0,10))+'\nprioridade: Alta';
-  ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; ta.focus();
-  toast(cur&&cur.tipo==='client' ? 'Canal de cliente: o cliente já entra automático' : 'Edite e aperte Enter');
-}
-async function chSend(){
-  const ta=$('mgc-in'); if(!ta) return;
-  const v=ta.value.trim(); if(!v || !CHAN) return;
-  ta.value=''; ta.style.height='auto';
-  try{
-    const {data,error} = await sb.from('messages').insert({
-      channel_id:CHAN, author_id:ME.id, author_name:ME.name, body:v
-    }).select().single();
-    if(error) throw error;
-    if(!(CHMSGS[CHAN]||[]).some(m=>m.id===data.id)) (CHMSGS[CHAN]=CHMSGS[CHAN]||[]).push(data);
-    renderChatView();
-  }catch(e){ toast('Não foi possível enviar: '+(e.message||'erro')); return }
-  if(/#adicionardemanda\b/i.test(v)) chCriarDemanda(v);
-}
-/* ---- mensagem → demanda no Kanban ---- */
-async function chCriarDemanda(texto){
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  const campos = {}; let inline='';
-  texto.split(/\r?\n/).forEach(l=>{
-    l=l.trim(); if(!l) return;
-    const m = l.match(/^(t[íi]tulo|cliente|respons[áa]ve(?:l|is)|prazo|prioridade|descri[çc][ãa]o)\s*:\s*(.+)$/i);
-    if(m){
-      let k=m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      k = k.startsWith('titulo')?'titulo' : k.startsWith('cliente')?'cliente'
-        : k.startsWith('responsave')?'resp' : k.startsWith('prazo')?'prazo'
-        : k.startsWith('priorid')?'prio' : 'desc';
-      campos[k]=m[2].trim();
-    } else if(/#adicionardemanda/i.test(l)){ inline = l.replace(/#adicionardemanda/i,'').trim(); }
-  });
-  const titulo = campos.titulo || inline;
-  if(!titulo){ toast('Informe ao menos um título na demanda'); return }
-
-  let cid = null;
-  if(campos.cliente){
-    const f = CLIENTS.find(c=>(c.nome||'').toLowerCase().includes(campos.cliente.toLowerCase()));
-    if(f) cid=f.id;
-  }
-  if(!cid && cur && cur.tipo==='client') cid = cur.client_id;
-
-  let who=[];
-  if(campos.resp){
-    campos.resp.split(/[,;\/]+/).map(s=>s.trim()).filter(Boolean).forEach(nm=>{
-      const p = (ASSIGNEE_OPTS||[]).find(x=>x.toLowerCase().split(' ')[0]===nm.toLowerCase().split(' ')[0]);
-      if(p) who.push(p);
-    });
-  }
-  let prazo=null;
-  if(campos.prazo){
-    const iso=campos.prazo.match(/^(\d{4})-(\d{2})-(\d{2})$/), br=campos.prazo.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if(iso) prazo=campos.prazo; else if(br) prazo=`${br[3]}-${br[2]}-${br[1]}`;
-  }
-  let prio='Média';
-  if(campos.prio){ const p=campos.prio.toLowerCase(); prio = p.startsWith('alt')?'Alta' : p.startsWith('baix')?'Baixa' : 'Média' }
-
-  try{
-    const {error} = await sb.from('tasks').insert({
-      client_id: cid, title: titulo, status:'Não iniciado',
-      assignees: who, prazo: prazo, prioridade: prio,
-      description: campos.desc || ('Criada pelo chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
-    });
-    if(error) throw error;
-    const resumo = [cid?('cliente: '+clientName(cid)):'', who.length?('resp.: '+who.join(', ')):'', prazo?('prazo: '+fmtDate(prazo)):'', 'prioridade: '+prio].filter(Boolean).join(' · ');
-    await sb.from('messages').insert({
-      channel_id: CHAN, author_id: ME.id, author_name:'Tasks', kind:'system',
-      body: `Demanda criada no Kanban: “${titulo}” — ${resumo}`
-    });
-    await loadMsgs(CHAN); renderChatView();
-    if(typeof loadTasks==='function') await loadTasks();
-    toast('Demanda criada no Kanban ✓');
-  }catch(e){ toast('Não foi possível criar a demanda: '+(e.message||'erro')) }
-}
-/* ---- novo canal (admin) ---- */
-async function newChannel(tipo){
-  if(!isAdmin()) return;
-  let nome = prompt(tipo==='client' ? 'Nome do canal (será vinculado a um cliente):' : 'Nome do canal interno:');
-  if(!nome) return;
-  nome = nome.trim().toLowerCase().replace(/\s+/g,'-');
-  let client_id = null;
-  if(tipo==='client'){
-    const lista = CLIENTS.map((c,i)=>`${i+1}. ${c.nome}`).join('\n');
-    const esc2 = prompt('Vincular a qual cliente?\n'+lista+'\n\nDigite o número:');
-    const idx = parseInt(esc2,10)-1;
-    if(isNaN(idx) || !CLIENTS[idx]) { toast('Cliente inválido'); return }
-    client_id = CLIENTS[idx].id;
-  }
-  try{
-    const {data,error} = await sb.from('channels').insert({tipo, nome, client_id, created_by: ME.id}).select().single();
-    if(error) throw error;
-    await sb.from('channel_members').insert({channel_id:data.id, profile_id:ME.id}).then(()=>{}, ()=>{});
-    await loadChannels(); CHAN=data.id; CHMSGS[data.id]=[]; renderChatView();
-    toast('Canal #'+nome+' criado');
-  }catch(e){ toast('Não foi possível criar: '+(e.message||'erro')) }
-}
 </script>
 <script>
 /* =====================================================================
@@ -2590,137 +2221,6 @@ function mgClientLogo(cid, px){
   if(c.logo_url) return `<span class="mg-lg" style="width:${s}px;height:${s}px"><img src="${esc(c.logo_url)}" alt=""></span>`;
   return `<span class="mg-lg" style="width:${s}px;height:${s}px;background:${clientColor(cid)}">${esc((c.nome||'?')[0].toUpperCase())}</span>`;
 }
-
-/* ---------- 3. chat já configurado por conta ---------- */
-let MG_PROFILES = [];
-let CH_PROV = false;
-
-async function mgLoadProfiles(){
-  const {data,error} = await sb.from('profiles').select('id,nome,role,client_id');
-  if(error) throw error;
-  MG_PROFILES = data||[];
-}
-const mgSlug = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-  .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
-
-/* cria o que faltar: 1 canal por cliente, canais internos e diretas.
-   Só admin provisiona (a RLS exige). Cliente apenas enxerga o que é dele. */
-async function ensureChannels(){
-  if(CH_PROV || !isAdmin()) return;
-  CH_PROV = true;
-  try{
-    if(!MG_PROFILES.length) await mgLoadProfiles();
-    const admins  = MG_PROFILES.filter(p=>p.role==='admin');
-    const criados = [];
-
-    const addMembers = async (chId, ids)=>{
-      const rows = [...new Set(ids)].filter(Boolean).map(pid=>({channel_id:chId, profile_id:pid}));
-      if(!rows.length) return;
-      try{ await sb.from('channel_members').upsert(rows,{onConflict:'channel_id,profile_id'}) }
-      catch(e){ try{ await sb.from('channel_members').insert(rows) }catch(_){} }
-    };
-
-    /* 3.1 — um canal por cliente (equipe ↔ pessoas daquele cliente) */
-    for(const c of CLIENTS){
-      let ch = CHANNELS.find(x=>x.tipo==='client' && x.client_id===c.id);
-      if(!ch){
-        const {data,error} = await sb.from('channels')
-          .insert({tipo:'client', nome:mgSlug(c.nome), client_id:c.id, created_by:ME.id})
-          .select().single();
-        if(error) continue;
-        ch = data; criados.push('#'+ch.nome);
-      }
-      const doCliente = MG_PROFILES.filter(p=>p.client_id===c.id).map(p=>p.id);
-      await addMembers(ch.id, [...admins.map(a=>a.id), ...doCliente]);
-    }
-
-    /* 3.2 — canais internos da equipe */
-    for(const nome of ['geral','entregas']){
-      let ch = CHANNELS.find(x=>x.tipo==='team' && x.nome===nome);
-      if(!ch){
-        const {data,error} = await sb.from('channels')
-          .insert({tipo:'team', nome, client_id:null, created_by:ME.id}).select().single();
-        if(error) continue;
-        ch = data; criados.push('#'+ch.nome);
-      }
-      await addMembers(ch.id, admins.map(a=>a.id));
-    }
-
-    /* 3.3 — conversas diretas entre as pessoas da equipe */
-    for(const p of admins){
-      if(p.id===ME.id) continue;
-      const par = [ME.name||'Eu', p.nome||'—'].sort((a,b)=>a.localeCompare(b,'pt'));
-      const nome = par.join(' ↔ ');
-      let ch = CHANNELS.find(x=>x.tipo==='dm' && x.nome===nome);
-      if(!ch){
-        const {data,error} = await sb.from('channels')
-          .insert({tipo:'dm', nome, client_id:null, created_by:ME.id}).select().single();
-        if(error) continue;
-        ch = data;
-      }
-      await addMembers(ch.id, [ME.id, p.id]);
-    }
-
-    if(criados.length){
-      await loadChannels();
-      toast('Chat configurado: '+criados.slice(0,3).join(', ')+(criados.length>3?' e mais':''));
-    }
-  }catch(e){ console.warn('[chat provisionamento]', e) }
-}
-
-/* nome de exibição: em conversa direta mostra o outro, não você */
-function mgChanNome(c){
-  if(!c) return '—';
-  if(c.tipo==='dm' && c.nome.includes('↔')){
-    const partes = c.nome.split('↔').map(s=>s.trim());
-    const eu = (ME&&ME.name||'').trim();
-    return partes.find(p=>p!==eu) || partes[0];
-  }
-  return c.nome;
-}
-
-/* ---------- 4. chat: redesenho da lista com logo + provisionamento ---------- */
-const _mg2RenderChat = renderChatView;
-renderChatView = function(){
-  _mg2RenderChat();
-  if(CH_READY!==true) return;
-
-  /* provisiona uma vez, depois redesenha */
-  if(!CH_PROV && isAdmin()){
-    ensureChannels().then(()=>{ CH_PROV=true; renderChatView(); });
-    if(!CHANNELS.length){
-      const el=$('v-chat');
-      if(el) el.innerHTML = `<div class="mgc-prov"><h3>Preparando o chat…</h3>
-        <p>Criando um canal para cada cliente, os canais internos da equipe e as conversas diretas.</p></div>`;
-      return;
-    }
-  }
-  /* aplica logo do cliente e nome correto das diretas */
-  document.querySelectorAll('#v-chat .mgc-i').forEach(btn=>{
-    const m = (btn.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
-    if(!m) return;
-    const c = CHANNELS.find(x=>x.id===m[1]); if(!c) return;
-    const h = btn.querySelector('.h'), nm = btn.querySelector('.nm');
-    if(c.tipo==='client' && h) h.outerHTML = mgClientLogo(c.client_id,20);
-    if(nm) nm.textContent = mgChanNome(c);
-  });
-  const top = document.querySelector('#v-chat .mgc-top .nm');
-  const cur = CHANNELS.find(c=>c.id===CHAN);
-  if(top && cur){
-    top.innerHTML = (cur.tipo==='client' ? mgClientLogo(cur.client_id,26) : '')
-      + `<span>${cur.tipo==='dm'?'':'#'}${esc(mgChanNome(cur))}</span>`;
-  }
-  /* atalhos dos comandos */
-  const hint = document.querySelector('#v-chat .mgc-hint');
-  if(hint && !hint.dataset.mg){
-    hint.dataset.mg = '1';
-    hint.insertAdjacentHTML('beforeend',
-      `<div class="mgc-cmds">
-         <button onclick="chExample()">#adicionardemanda</button>
-         <button onclick="chDocExample()">#adicionardocumento</button>
-       </div>`);
-  }
-};
 
 /* ---------- 5. comando #adicionardocumento ---------- */
 function chDocExample(){
@@ -2791,14 +2291,8 @@ async function chCriarDocumento(texto){
     } else toast('Não foi possível adicionar: '+msg);
   }
 }
-/* liga o comando ao envio, sem alterar o chSend original */
-const _mg2ChSend = chSend;
-chSend = async function(){
-  const ta=$('mgc-in');
-  const txt = ta ? ta.value.trim() : '';
-  await _mg2ChSend();
-  if(/#adicionardocumento\b/i.test(txt)) chCriarDocumento(txt);
-};
+/* O envio e o reconhecimento de #adicionardocumento passaram para a
+   SECAO CHAT, no fim do arquivo. */
 
 /* documentos vindos do chat abrem pelo link guardado */
 const _mg2OpenDoc = openDoc;
@@ -4387,16 +3881,7 @@ async function mgCarregarNaoLidas(){
     }).filter(x=>x.canal);
   }catch(e){ console.warn('[não lidas]', e) }
 }
-/* ao abrir um canal, marca como lido */
-const _mg12OpenChan = openChan;
-openChan = async function(id){
-  const r = await _mg12OpenChan(id);
-  if(ME && CH_READY===true){
-    try{ await sb.from('channel_members').update({last_read_at:new Date().toISOString()})
-            .eq('channel_id',id).eq('profile_id',ME.id) }catch(_){}
-  }
-  return r;
-};
+/* Marcar o canal como lido ao abrir passou para a SECAO CHAT. */
 
 /* ---- desenha o Início ---- */
 function renderHome(){
@@ -6131,206 +5616,6 @@ abrirConfig = function(){
   const _mg21Som = mgAlternarSom;
   mgAlternarSom = function(v){ _mg21Som(v); if($('mg-cfg').classList.contains('on')) mgDesenhaPref(); };
 })();
-</script>
-<style>
-/* =====================================================================
-   ADIÇÃO 22 — chat no espírito do Slack
-   ===================================================================== */
-/* barra lateral de canais */
-.mgc-side{width:236px;background:var(--card2)}
-.mgc-i{padding:6px 10px;border-radius:7px;font-size:13.5px;gap:8px}
-.mgc-i.on{background:var(--brass);color:var(--ink2);font-weight:700}
-.mgc-i.on .h{opacity:1}
-.mgc-i.naolido{font-weight:700;color:var(--text)}
-.mgc-i .h{font-size:14px;font-weight:400}
-.mgc-sec{padding:14px 10px 4px;font-size:11px;letter-spacing:.4px}
-.mgc-sec .add{font-size:16px;width:22px;height:22px}
-
-/* cabeçalho da conversa */
-.mgc-top{padding:11px 20px;gap:8px;border-bottom:1px solid var(--line)}
-.mgc-top .nm{font-size:16px;font-weight:600;font-family:var(--font-b)}
-.mgc-top .sub{font-size:12px;color:var(--muted);padding-left:10px;margin-left:2px;border-left:1px solid var(--line2)}
-
-/* mensagens agrupadas por autor, como no Slack */
-.mgc-m{padding:5px 20px 5px 20px;gap:10px;border-radius:0;max-width:none}
-.mgc-m:hover{background:var(--card2)}
-.mgc-m .av{width:36px;height:36px;border-radius:8px;font-size:13px}
-.mgc-m .av img{width:100%;height:100%;object-fit:cover}
-.mgc-m.seguida{padding-top:1px;padding-bottom:1px}
-.mgc-m.seguida .av{visibility:hidden;height:0;margin:0}
-.mgc-m.seguida .hd{display:none}
-.mgc-m.seguida .hora-lateral{position:absolute;left:20px;top:3px;font-size:10.5px;color:var(--muted2);
-  opacity:0;transition:opacity .12s;width:36px;text-align:center}
-.mgc-m.seguida:hover .hora-lateral{opacity:1}
-.mgc-m .who{font-size:14px;font-weight:700}
-.mgc-m .tx{font-size:14px;line-height:1.52}
-.mgc-m .acts{top:-14px;right:20px;border-radius:8px;padding:2px}
-.mgc-m .acts button{width:30px;height:28px;font-size:15px}
-body.mg-chat-compacto .mgc-m{padding-top:2px;padding-bottom:2px}
-body.mg-chat-compacto .mgc-m .tx{font-size:13.5px;line-height:1.45}
-body.mg-sem-hora .mgc-m .tm{display:none}
-
-/* separador de dia com linha, estilo Slack */
-.mgc-day{align-self:stretch;display:flex;align-items:center;gap:12px;background:none;border:0;
-  border-radius:0;padding:0;margin:16px 20px 8px;color:var(--muted);font-size:12px;font-weight:700}
-.mgc-day::before,.mgc-day::after{content:"";flex:1;height:1px;background:var(--line)}
-.mgc-day span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
-
-/* caixa de escrita com barra de formatação */
-.mgc-comp{padding:8px 20px 18px}
-.mgc-box{flex-direction:column;align-items:stretch;gap:0;padding:0;border-radius:10px;overflow:hidden}
-.mgc-ferramentas{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--line);
-  background:var(--card2)}
-.mgc-ferramentas button{background:none;border:0;width:28px;height:26px;border-radius:5px;color:var(--muted);
-  font-size:13px;font-family:inherit;display:grid;place-items:center;transition:background .15s,color .15s}
-.mgc-ferramentas button:hover{background:var(--card);color:var(--text)}
-.mgc-ferramentas .div{width:1px;height:16px;background:var(--line2);margin:0 5px}
-.mgc-box textarea{padding:11px 13px 4px;font-size:14px}
-.mgc-abaixo{display:flex;align-items:center;gap:6px;padding:4px 8px 8px}
-.mgc-abaixo .esq{display:flex;gap:2px}
-.mgc-abaixo .sp{flex:1}
-.mgc-abaixo .snd{width:32px;height:30px;border-radius:7px;font-size:14px}
-.mgc-abaixo .snd.pronto{background:var(--st-done);color:#fff}
-
-/* respostas em conversa (thread) */
-.mgc-thread{display:inline-flex;align-items:center;gap:7px;margin-top:5px;font-size:12.5px;
-  color:var(--brass2);font-weight:600;cursor:pointer;border-radius:7px;padding:3px 8px 3px 5px;
-  transition:background .15s}
-.mgc-thread:hover{background:var(--card2)}
-.mgc-thread .bolinhas{display:flex}
-.mgc-thread .bolinhas i{width:18px;height:18px;border-radius:5px;background:var(--brass);
-  display:grid;place-items:center;font-size:8px;font-weight:700;color:var(--ink2);
-  border:1.5px solid var(--card);margin-left:-4px;font-style:normal}
-.mgc-thread .bolinhas i:first-child{margin-left:0}
-</style>
-<script>
-/* =====================================================================
-   ADIÇÃO 22 — chat mais parecido com o Slack
-   • mensagens seguidas do mesmo autor se agrupam
-   • canal com mensagem nova fica em negrito
-   • barra de formatação na caixa de escrita
-   • Enter envia (ou quebra linha, conforme a preferência)
-   ===================================================================== */
-
-const _mg22Chat = renderChatView;
-renderChatView = function(){
-  const r = _mg22Chat();
-  if(CH_READY!==true) return r;
-  const el=$('v-chat'); if(!el) return r;
-
-  /* --- agrupa mensagens seguidas do mesmo autor --- */
-  const msgs=[...el.querySelectorAll('.mgc-msgs .mgc-m')];
-  let autorAnterior=null, horaAnterior=0;
-  msgs.forEach(m=>{
-    const quem=m.querySelector('.who'); if(!quem) { autorAnterior=null; return }
-    const nome=quem.textContent.trim();
-    const tm=m.querySelector('.tm');
-    const minutos=(()=>{ const t=(tm&&tm.textContent||'').split(':'); return t.length===2?(+t[0]*60 + +t[1]):0 })();
-    if(nome===autorAnterior && (minutos-horaAnterior)<=5 && !m.previousElementSibling?.classList.contains('mgc-day')){
-      m.classList.add('seguida');
-      m.insertAdjacentHTML('afterbegin', `<span class="hora-lateral">${esc(tm?tm.textContent:'')}</span>`);
-    }
-    autorAnterior=nome; horaAnterior=minutos;
-  });
-
-  /* --- separador de dia com linha --- */
-  el.querySelectorAll('.mgc-day').forEach(d=>{
-    if(!d.querySelector('span')) d.innerHTML = `<span>${esc(d.textContent.trim())}</span>`;
-  });
-
-  /* --- canal com mensagem nova em negrito --- */
-  if(typeof MG_NAOLIDAS!=='undefined' && MG_NAOLIDAS){
-    const comNovas = new Set(MG_NAOLIDAS.map(x=>x.canal && x.canal.id));
-    el.querySelectorAll('.mgc-i').forEach(b=>{
-      const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
-      if(m && comNovas.has(m[1]) && !b.classList.contains('on')) b.classList.add('naolido');
-    });
-  }
-
-  /* --- caixa de escrita com barra de formatação --- */
-  const caixa = el.querySelector('.mgc-box');
-  if(caixa && !caixa.querySelector('.mgc-ferramentas')){
-    const ta = caixa.querySelector('textarea');
-    const antigos = [...caixa.children].filter(c=>c!==ta);
-    antigos.forEach(c=>c.remove());
-    caixa.insertAdjacentHTML('afterbegin', `
-      <div class="mgc-ferramentas">
-        <button title="Negrito" onclick="mgFmt('*')"><b>B</b></button>
-        <button title="Itálico" onclick="mgFmt('_')"><i>I</i></button>
-        <button title="Riscado" onclick="mgFmt('~')"><s>S</s></button>
-        <span class="div"></span>
-        <button title="Lista" onclick="mgFmtLinha('• ')">☰</button>
-        <button title="Citação" onclick="mgFmtLinha('> ')">❝</button>
-        <button title="Código" onclick="mgFmt('\`')">&lt;/&gt;</button>
-      </div>`);
-    caixa.insertAdjacentHTML('beforeend', `
-      <div class="mgc-abaixo">
-        <span class="esq">
-          <button class="tool" title="Anexar" onclick="toast('Anexos entram na próxima fase do chat')">📎</button>
-          <button class="tool" title="Emoji" onclick="mgEmoji()">☺</button>
-          <button class="tool" title="Mencionar alguém" onclick="mgFmtLinha('@')">@</button>
-        </span>
-        <span class="sp"></span>
-        <button class="snd" onclick="chSend()" title="Enviar">➤</button>
-      </div>`);
-    if(ta){
-      ta.addEventListener('input', ()=>{
-        const b=caixa.querySelector('.snd');
-        if(b) b.classList.toggle('pronto', ta.value.trim().length>0);
-      });
-    }
-  }
-  /* respeita a preferência de mostrar horários */
-  document.body.classList.toggle('mg-sem-hora', (typeof mgP==='function') && mgP('horas')==='off');
-  return r;
-};
-
-/* --- ferramentas de escrita --- */
-function mgCaixa(){ return $('mgc-in') }
-function mgFmt(marca){
-  const ta=mgCaixa(); if(!ta) return;
-  const i=ta.selectionStart, f=ta.selectionEnd, t=ta.value;
-  const sel=t.slice(i,f) || 'texto';
-  ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
-  ta.focus();
-  ta.setSelectionRange(i+marca.length, i+marca.length+sel.length);
-}
-function mgFmtLinha(prefixo){
-  const ta=mgCaixa(); if(!ta) return;
-  const i=ta.selectionStart, t=ta.value;
-  const inicio = t.lastIndexOf('\n', i-1)+1;
-  ta.value = t.slice(0,inicio) + prefixo + t.slice(inicio);
-  ta.focus(); ta.setSelectionRange(i+prefixo.length, i+prefixo.length);
-}
-function mgEmoji(){
-  const ta=mgCaixa(); if(!ta) return;
-  const lista=['🙂','👍','🎉','🔥','✅','👀','🙏','💡'];
-  ta.value += ' ' + lista[Math.floor(Math.random()*lista.length)];
-  ta.focus();
-}
-
-/* --- Enter envia ou quebra linha, conforme a preferência --- */
-chKey = function(e){
-  const enterEnvia = (typeof mgP!=='function') || mgP('enterEnvia')!=='off';
-  if(e.key==='Enter'){
-    if(enterEnvia && !e.shiftKey){ e.preventDefault(); chSend(); return }
-    if(!enterEnvia && (e.ctrlKey||e.metaKey)){ e.preventDefault(); chSend(); return }
-  }
-  const ta=e.target;
-  setTimeout(()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,160)+'px' },0);
-};
-
-/* --- ao abrir um canal, respeita a preferência de leitura --- */
-const _mg22Open = openChan;
-openChan = async function(id){
-  const r = await _mg22Open(id);
-  const modo = (typeof mgP==='function') ? mgP('abrirLido') : 'inicio';
-  const cx = $('mgc-msgs');
-  if(cx){
-    if(modo==='fim' || modo==='inicio') cx.scrollTop = cx.scrollHeight;
-  }
-  return r;
-};
 </script>
 <style>
 /* =====================================================================
@@ -9202,14 +8487,6 @@ function mgPMInterruptorHTML(marcado){
 #mg-edcli .mg-pm-liga{order:-1;margin-top:0;margin-bottom:14px}
 #mg-edcli .mg-ed-acoes{display:flex;gap:10px;margin-top:4px}
 
-/* ---------- 2. chat em tela cheia ---------- */
-body #v-chat.on{max-width:none!important;width:100%!important}
-body.mg-e-chat .content{padding:0}
-body.mg-e-chat #v-chat{height:calc(100vh - 92px);min-height:0;border-radius:0;
-  border-left:0;border-right:0;border-top:0}
-body.mg-e-chat.mg-com-dock .content{padding-bottom:0}
-.mgc-msgs{padding-bottom:14px}
-
 /* ---------- 3. barra de baixo única ---------- */
 body.mg-sem-topo .topbar{display:none}
 body.mg-sem-topo .content{padding-top:22px}
@@ -9245,71 +8522,6 @@ body.mg-sem-topo #filter-panel{top:auto;bottom:86px;right:22px}
 @media(max-width:900px){ .mg-dock .conta{display:none} }
 @media(max-width:640px){ .mg-dock .rot{display:none} .mg-dock button{padding:9px 11px} }
 
-/* ---------- 5. canais agrupados por cliente ---------- */
-.mgc-emp{margin-bottom:2px}
-.mgc-emp .cab{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
-  padding:7px 10px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;
-  color:var(--text);text-align:left;transition:background .15s}
-.mgc-emp .cab:hover{background:rgba(26,26,24,.05)}
-.mgc-emp .cab .seta{font-size:9px;color:var(--muted2);transition:transform .2s;width:10px;flex-shrink:0}
-.mgc-emp.aberta .cab .seta{transform:rotate(90deg)}
-.mgc-emp .cab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgc-emp .cab .qt{font-size:10.5px;font-weight:700;color:var(--muted2);
-  background:rgba(26,26,24,.06);border-radius:999px;padding:1px 7px}
-.mgc-emp .cab .mais{opacity:0;font-size:14px;color:var(--muted);padding:0 4px;border-radius:6px}
-.mgc-emp .cab:hover .mais{opacity:1}
-.mgc-emp .canais{display:none;padding-left:10px;margin-left:9px;border-left:1px solid var(--line)}
-.mgc-emp.aberta .canais{display:block;animation:mgSobe .22s cubic-bezier(.22,1,.36,1) both}
-.mgc-emp .canais .mgc-i{font-size:12.5px;padding-left:8px}
-
-/* ---------- 6. mensagens ---------- */
-.mgc-m{position:relative}
-.mgc-acoes{position:absolute;top:-12px;right:10px;display:none;align-items:center;gap:1px;
-  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;
-  box-shadow:0 6px 18px -6px rgba(0,0,0,.28);z-index:4}
-.mgc-m:hover .mgc-acoes,
-.mgc-acoes:focus-within{display:flex}
-.mgc-acoes button{background:none;border:0;font-size:14px;line-height:1;padding:5px 7px;
-  border-radius:7px;color:var(--muted);font-family:inherit}
-.mgc-acoes button:hover{background:var(--card2);color:var(--text)}
-.mgc-acoes .div{width:1px;height:16px;background:var(--line);margin:0 3px}
-
-.mgc-resp-cit{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
-  margin-bottom:3px;padding-left:2px;cursor:pointer;max-width:100%}
-.mgc-resp-cit::before{content:"";width:22px;height:9px;border-left:2px solid var(--line2);
-  border-top:2px solid var(--line2);border-top-left-radius:6px;margin-left:4px;flex-shrink:0;
-  align-self:flex-end;margin-bottom:2px}
-.mgc-resp-cit .av2{width:15px;height:15px;border-radius:50%;display:grid;place-items:center;
-  font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
-.mgc-resp-cit .qn{font-weight:700;color:var(--text);flex-shrink:0}
-.mgc-resp-cit .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
-.mgc-resp-cit:hover .tt{opacity:1;text-decoration:underline}
-
-.mgc-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.mgc-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
-  border:1px solid var(--line2);border-radius:999px;padding:2px 9px;font-size:12px;
-  font-family:inherit;color:var(--text);line-height:1.6}
-.mgc-rea:hover{border-color:var(--line2);background:var(--card)}
-.mgc-rea.minha{background:rgba(194,161,91,.16);border-color:var(--brass)}
-.mgc-rea .n{font-size:11px;font-weight:700;color:var(--muted)}
-.mgc-rea.minha .n{color:var(--brass2)}
-.mgc-rea-add{border-style:dashed;color:var(--muted2);padding:2px 8px}
-
-.mgc-emojis{position:absolute;z-index:80;background:var(--card);border:1px solid var(--line2);
-  border-radius:13px;padding:9px;display:none;grid-template-columns:repeat(6,1fr);gap:3px;
-  box-shadow:0 20px 46px -18px rgba(0,0,0,.4)}
-.mgc-emojis.on{display:grid}
-.mgc-emojis button{background:none;border:0;font-size:19px;padding:6px;border-radius:8px;line-height:1}
-.mgc-emojis button:hover{background:var(--card2)}
-
-.mgc-respondendo{display:flex;align-items:center;gap:10px;background:var(--card2);
-  border:1px solid var(--line2);border-bottom:0;border-radius:11px 11px 0 0;
-  padding:8px 13px;font-size:12.5px;color:var(--muted);
-  animation:mgSobe .22s cubic-bezier(.22,1,.36,1) both}
-.mgc-respondendo b{color:var(--text)}
-.mgc-respondendo .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mgc-respondendo .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 7px;border-radius:6px}
-.mgc-respondendo .x:hover{background:var(--card);color:var(--text)}
 </style>
 <script>
 /* =====================================================================
@@ -9338,18 +8550,6 @@ body.mg-sem-topo #filter-panel{top:auto;bottom:86px;right:22px}
         linha.classList.add('mg-ed-acoes');
       }
     }, 20);
-    return r;
-  };
-})();
-
-/* =====================================================================
-   PARTE 2 — o chat ocupa a tela
-   ===================================================================== */
-(function(){
-  const _sv = showView;
-  showView = function(v){
-    const r = _sv(v);
-    document.body.classList.toggle('mg-e-chat', VIEW==='chat');
     return r;
   };
 })();
@@ -9566,756 +8766,6 @@ function mgAlternarSom(){
   toast(PREFS.som==='on' ? 'Som das demandas ligado' : 'Som das demandas desligado');
 }
 
-/* =====================================================================
-   PARTE 5 — canais agrupados por cliente
-   Cada empresa vira uma pasta que abre e fecha, com os canais dela
-   dentro. Dá para ter mais de um canal por empresa.
-   ===================================================================== */
-let MG_EMP_ABERTAS = new Set();
-
-function mgChatAlternarEmpresa(cid){
-  if(MG_EMP_ABERTAS.has(cid)) MG_EMP_ABERTAS.delete(cid); else MG_EMP_ABERTAS.add(cid);
-  const el = document.querySelector('.mgc-emp[data-emp="'+cid+'"]');
-  if(el) el.classList.toggle('aberta', MG_EMP_ABERTAS.has(cid));
-}
-async function mgChatNovoCanal(cid, ev){
-  if(ev) ev.stopPropagation();
-  const nome = prompt('Nome do novo canal para '+clientName(cid)+':', 'assunto');
-  if(!nome || !nome.trim()) return;
-  try{
-    const {data,error} = await sb.from('channels')
-      .insert({tipo:'client', nome:nome.trim().toLowerCase().replace(/\s+/g,'-'),
-               client_id:cid, created_by: ME?ME.id:null}).select().single();
-    if(error) throw error;
-    MG_EMP_ABERTAS.add(cid);
-    if(typeof loadChannels==='function') await loadChannels();
-    renderChatView();
-    if(data && data.id) openChan(data.id);
-    toast('Canal criado ✓');
-  }catch(e){ toast('Não foi possível criar o canal: '+((e&&e.message)||'')) }
-}
-
-function mgChatAgrupar(){
-  const el = document.getElementById('v-chat'); if(!el) return;
-  const lista = el.querySelector('.mgc-list'); if(!lista) return;
-  if(typeof CHANNELS==='undefined' || !CHANNELS) return;
-
-  /* acha a seção "Clientes" e os botões de canal de cliente */
-  const secs = [...lista.querySelectorAll('.mgc-sec')];
-  const secCli = secs.find(s=>/cliente/i.test(s.textContent||''));
-  if(!secCli || secCli.dataset.mgAgrupado==='1') return;
-
-  const doCliente = CHANNELS.filter(c=>c.tipo==='client');
-  if(!doCliente.length) return;
-
-  /* remove os botões antigos que estão entre esta seção e a próxima */
-  let n = secCli.nextElementSibling;
-  const remover = [];
-  while(n && !n.classList.contains('mgc-sec')){ remover.push(n); n = n.nextElementSibling }
-  remover.forEach(x=>x.remove());
-
-  /* agrupa por empresa */
-  const porEmpresa = new Map();
-  doCliente.forEach(c=>{
-    if(!porEmpresa.has(c.client_id)) porEmpresa.set(c.client_id, []);
-    porEmpresa.get(c.client_id).push(c);
-  });
-
-  const filtro = (typeof CH_FILTER!=='undefined' && CH_FILTER) ? CH_FILTER.toLowerCase() : '';
-  const html = [...porEmpresa.entries()]
-    .map(([cid, canais])=>({cid, canais, nome: clientName(cid)}))
-    .filter(g => !filtro || g.nome.toLowerCase().includes(filtro) ||
-                 g.canais.some(c=>(c.nome||'').toLowerCase().includes(filtro)))
-    .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'))
-    .map(g=>{
-      const temAtual = g.canais.some(c=>c.id===CHAN);
-      const aberta = MG_EMP_ABERTAS.has(g.cid) || temAtual || !!filtro;
-      if(aberta) MG_EMP_ABERTAS.add(g.cid);
-      const marca = (typeof mgClientLogo==='function')
-        ? mgClientLogo(g.cid, 18)
-        : `<span style="width:11px;height:11px;border-radius:3px;background:${clientColor(g.cid)}"></span>`;
-      return `<div class="mgc-emp ${aberta?'aberta':''}" data-emp="${esc(g.cid)}">
-        <button class="cab" onclick="mgChatAlternarEmpresa('${esc(g.cid)}')">
-          <span class="seta">▶</span>${marca}
-          <span class="nm">${esc(g.nome)}</span>
-          <span class="qt">${g.canais.length}</span>
-          ${isAdmin()?`<span class="mais" title="Novo canal desta empresa"
-             onclick="mgChatNovoCanal('${esc(g.cid)}',event)">＋</span>`:''}
-        </button>
-        <div class="canais">
-          ${g.canais.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>
-            `<button class="mgc-i ${c.id===CHAN?'on':''}" onclick="openChan('${esc(c.id)}')">
-               <span class="h">#</span><span class="nm">${esc(c.nome||'')}</span></button>`).join('')}
-        </div>
-      </div>`;
-    }).join('');
-
-  secCli.insertAdjacentHTML('afterend', html || `<div style="font-size:11.5px;color:var(--muted2);padding:4px 10px">nenhum</div>`);
-  secCli.dataset.mgAgrupado = '1';
-}
-
-function mgChatBuscar(){
-  const i = document.querySelector('#v-chat .mgc-search input');
-  if(i) i.focus();
-}
-
-/* =====================================================================
-   PARTE 6 — mensagem: responder, reagir e ações ao passar o mouse
-   ===================================================================== */
-let MG_RESP = null;                /* mensagem sendo respondida */
-const MG_EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡','🚀','😮','👏'];
-
-function mgMsgPorId(id){
-  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
-  return lista.find(m=>String(m.id)===String(id));
-}
-function mgResponder(id){
-  const m = mgMsgPorId(id); if(!m) return;
-  MG_RESP = {id:m.id, autor:m.author_name||'—', texto:(m.body||'').slice(0,120)};
-  mgDesenharResposta();
-  const ta=document.getElementById('mgc-in'); if(ta) ta.focus();
-}
-function mgCancelarResposta(){ MG_RESP=null; mgDesenharResposta() }
-function mgDesenharResposta(){
-  const comp = document.querySelector('#v-chat .mgc-comp'); if(!comp) return;
-  const antiga = comp.querySelector('.mgc-respondendo');
-  if(antiga) antiga.remove();
-  if(!MG_RESP) return;
-  comp.insertAdjacentHTML('afterbegin',
-    `<div class="mgc-respondendo">
-       <span>↩</span><span class="tt">Respondendo <b>${esc(MG_RESP.autor)}</b> · ${esc(MG_RESP.texto)}</span>
-       <button class="x" onclick="mgCancelarResposta()" aria-label="Cancelar resposta">✕</button>
-     </div>`);
-}
-function mgIrParaMensagem(id){
-  const el = document.querySelector(`.mgc-m[data-mid="${CSS.escape(String(id))}"]`);
-  if(!el) return;
-  el.scrollIntoView({behavior:'smooth', block:'center'});
-  el.style.transition='background .25s';
-  el.style.background='rgba(194,161,91,.14)';
-  setTimeout(()=>{ el.style.background='' }, 900);
-}
-function mgCopiarMsg(id){
-  const m = mgMsgPorId(id); if(!m) return;
-  navigator.clipboard.writeText(m.body||'').then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
-}
-async function mgExcluirMsg(id){
-  if(!confirm('Excluir esta mensagem?')) return;
-  try{
-    const {error} = await sb.from('messages').delete().eq('id',id);
-    if(error) throw error;
-    if(typeof loadMsgs==='function') await loadMsgs(CHAN);
-    renderChatView(); toast('Mensagem excluída');
-  }catch(e){ toast('Não foi possível excluir') }
-}
-
-/* ---- reações ---- */
-async function mgReagir(id, emoji){
-  const m = mgMsgPorId(id); if(!m || !ME) return;
-  const r = Object.assign({}, m.reactions||{});
-  const quem = (r[emoji]||[]).slice();
-  const i = quem.indexOf(ME.id);
-  if(i>=0) quem.splice(i,1); else quem.push(ME.id);
-  if(quem.length) r[emoji]=quem; else delete r[emoji];
-  m.reactions = r;
-  mgPintarReacoes(id);
-  try{
-    const {error} = await sb.from('messages').update({reactions:r}).eq('id',id);
-    if(error) throw error;
-  }catch(e){
-    const msg=(e&&e.message)||'';
-    if(/column .*reactions/i.test(msg)) toast('Rode antes o SQL da ADIÇÃO 35');
-    else toast('Não foi possível reagir');
-  }
-}
-function mgPintarReacoes(id){
-  const el = document.querySelector(`.mgc-m[data-mid="${CSS.escape(String(id))}"] .mgc-reacoes`);
-  const m = mgMsgPorId(id);
-  if(!el || !m) return;
-  el.innerHTML = mgReacoesHTML(m);
-}
-function mgReacoesHTML(m){
-  const r = m.reactions||{};
-  const chaves = Object.keys(r).filter(k=>(r[k]||[]).length);
-  if(!chaves.length) return '';
-  return chaves.map(k=>{
-    const gente = r[k]||[];
-    const minha = ME && gente.includes(ME.id);
-    return `<button class="mgc-rea ${minha?'minha':''}" onclick="mgReagir('${esc(String(m.id))}','${k}')"
-       title="${gente.length} pessoa(s)">${k}<span class="n">${gente.length}</span></button>`;
-  }).join('') + `<button class="mgc-rea mgc-rea-add" onclick="mgAbrirEmojis('${esc(String(m.id))}',event)" title="Reagir">＋</button>`;
-}
-function mgAbrirEmojis(id, ev){
-  if(ev) ev.stopPropagation();
-  let p = document.getElementById('mgc-emojis');
-  if(!p){
-    p=document.createElement('div'); p.className='mgc-emojis'; p.id='mgc-emojis';
-    document.body.appendChild(p);
-  }
-  p.innerHTML = MG_EMOJIS.map(e=>`<button onclick="mgReagir('${esc(String(id))}','${e}');mgFecharEmojis()">${e}</button>`).join('');
-  p.classList.add('on');
-  const r = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : {left:100, top:100, bottom:100};
-  const larg = 250, alt = 130;
-  p.style.left = Math.max(10, Math.min(window.innerWidth-larg-10, r.left-larg/2)) + 'px';
-  p.style.top  = Math.max(10, r.top - alt - 6) + 'px';
-}
-function mgFecharEmojis(){ const p=document.getElementById('mgc-emojis'); if(p) p.classList.remove('on') }
-document.addEventListener('click', e=>{ if(!e.target.closest('#mgc-emojis')) mgFecharEmojis() });
-
-/* ---- enfeita as mensagens depois que o chat desenha ---- */
-(function(){
-  const _rc = renderChatView;
-  renderChatView = function(){
-    const r = _rc();
-    try{ mgChatAgrupar() }catch(e){ console.warn('[chat] agrupar', e) }
-    try{ mgEnfeitarMensagens() }catch(e){ console.warn('[chat] mensagens', e) }
-    try{ mgDesenharResposta() }catch(e){}
-    return r;
-  };
-})();
-
-function mgEnfeitarMensagens(){
-  const el = document.getElementById('v-chat'); if(!el) return;
-  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
-  if(!lista.length) return;
-  const nos = [...el.querySelectorAll('.mgc-msgs .mgc-m')];
-  /* as mensagens de sistema não entram em .mgc-m, então a ordem bate */
-  const reais = lista.filter(m=>m.kind!=='system');
-  nos.forEach((no, i)=>{
-    const m = reais[i]; if(!m) return;
-    no.dataset.mid = m.id;
-
-    /* citação de resposta */
-    if(m.reply_to && !no.querySelector('.mgc-resp-cit')){
-      const pai = lista.find(x=>String(x.id)===String(m.reply_to));
-      const bd = no.querySelector('.bd');
-      if(bd){
-        const autor = pai ? (pai.author_name||'—') : 'mensagem removida';
-        const texto = pai ? (pai.body||'').slice(0,90) : '';
-        bd.insertAdjacentHTML('afterbegin',
-          `<div class="mgc-resp-cit" ${pai?`onclick="mgIrParaMensagem('${esc(String(pai.id))}')"`:''}>
-             <span class="av2" style="background:#7C8A97">${esc(initials(autor))}</span>
-             <span class="qn">${esc(autor)}</span>
-             <span class="tt">${esc(texto)}</span>
-           </div>`);
-      }
-    }
-
-    /* reações */
-    if(!no.querySelector('.mgc-reacoes')){
-      const bd = no.querySelector('.bd');
-      if(bd) bd.insertAdjacentHTML('beforeend', `<div class="mgc-reacoes">${mgReacoesHTML(m)}</div>`);
-    }
-
-    /* ações ao passar o mouse */
-    if(!no.querySelector('.mgc-acoes')){
-      const meu = ME && m.author_id===ME.id;
-      no.insertAdjacentHTML('beforeend', `<div class="mgc-acoes">
-        <button title="Reagir" onclick="mgAbrirEmojis('${esc(String(m.id))}',event)">☺</button>
-        <button title="Responder" onclick="mgResponder('${esc(String(m.id))}')">↩</button>
-        <button title="Copiar" onclick="mgCopiarMsg('${esc(String(m.id))}')">⧉</button>
-        ${(meu||isAdmin())?`<span class="div"></span><button title="Excluir" onclick="mgExcluirMsg('${esc(String(m.id))}')">🗑</button>`:''}
-      </div>`);
-    }
-  });
-}
-
-/* ---- enviar respondendo ---- */
-(function(){
-  if(typeof chSend!=='function') return;
-  const _send = chSend;
-  chSend = async function(){
-    if(!MG_RESP) return _send();
-    const ta = document.getElementById('mgc-in');
-    const corpo = ta ? ta.value.trim() : '';
-    if(!corpo) return;
-    const alvo = MG_RESP.id;
-    MG_RESP = null; mgDesenharResposta();
-    if(ta){ ta.value=''; ta.style.height='auto' }
-    try{
-      const {error} = await sb.from('messages').insert({
-        channel_id: CHAN, author_id: ME.id, author_name: ME.name,
-        body: corpo, reply_to: alvo
-      });
-      if(error) throw error;
-      if(typeof loadMsgs==='function') await loadMsgs(CHAN);
-      renderChatView();
-    }catch(e){
-      const msg=(e&&e.message)||'';
-      if(/column .*reply_to/i.test(msg)){
-        toast('Rode o SQL da ADIÇÃO 35 — enviando sem a citação');
-        if(ta) ta.value = corpo;
-        return _send();
-      }
-      toast('Não foi possível enviar: '+msg);
-      if(ta) ta.value = corpo;
-    }
-  };
-})();
-</script>
-<style>
-/* =====================================================================
-   ADIÇÃO 36 — personalização do chat
-   • tema próprio do chat (independente do tema do app)
-   • densidade das mensagens
-   • ordem das conversas
-   • cor por canal
-   • seu apelido e sua foto em cada canal
-   ===================================================================== */
-
-/* ---------- tema próprio do chat ----------
-   O app inteiro usa variáveis de cor, então trocar o tema do chat é
-   redefinir essas variáveis só dentro de #v-chat. */
-body.mg-chat-escuro #v-chat{
-  --card:#211f1c; --card2:#1a1917; --paper:#1a1917;
-  --text:#ece7db; --muted:#a49d8f; --muted2:#8a8271;
-  --line:rgba(236,231,219,.10); --line2:rgba(236,231,219,.18);
-  background:#1a1917; color:#ece7db}
-body.mg-chat-escuro #v-chat .mgc-side{background:#181715}
-body.mg-chat-escuro #v-chat .mgc-i:hover{background:rgba(236,231,219,.06)}
-body.mg-chat-escuro #v-chat .mgc-emp .cab:hover{background:rgba(236,231,219,.06)}
-body.mg-chat-escuro #v-chat textarea,
-body.mg-chat-escuro #v-chat input{background:#14130f;color:#ece7db}
-body.mg-chat-claro #v-chat{
-  --card:#ffffff; --card2:#f3efe6; --paper:#f8f5ef;
-  --text:#23211d; --muted:#8a8271; --muted2:#a49d8f;
-  --line:rgba(26,26,24,.075); --line2:rgba(26,26,24,.13);
-  background:#ffffff; color:#23211d}
-
-/* ---------- densidade ---------- */
-body.mg-chat-compacto #v-chat .mgc-m{padding-top:2px;padding-bottom:2px;gap:9px}
-body.mg-chat-compacto #v-chat .mgc-m .av{width:26px;height:26px;font-size:10px}
-body.mg-chat-compacto #v-chat .mgc-m .tx{line-height:1.42;font-size:13px}
-body.mg-chat-compacto #v-chat .mgc-m .hd{margin-bottom:0}
-body.mg-chat-compacto #v-chat .mgc-msgs{padding-top:10px}
-body.mg-chat-folgado #v-chat .mgc-m{padding-top:9px;padding-bottom:9px}
-body.mg-chat-folgado #v-chat .mgc-m .tx{line-height:1.72}
-
-/* ---------- cor do canal ---------- */
-#v-chat .mgc-i.on{box-shadow:inset 3px 0 0 var(--cor-canal,var(--brass))}
-.mgc-emp .cab .pt-cor{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-#v-chat .mgc-top{border-left:3px solid var(--cor-canal,transparent)}
-.mgc-cor-ponto{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
-
-/* ---------- painel de personalização ---------- */
-.mgc-pers-ov{position:fixed;inset:0;background:rgba(12,11,9,.46);z-index:118;
-  opacity:0;pointer-events:none;transition:opacity .24s}
-.mgc-pers-ov.on{opacity:1;pointer-events:auto}
-.mgc-pers{position:fixed;top:0;right:0;height:100vh;width:min(380px,94vw);z-index:119;
-  background:var(--card);border-left:1px solid var(--line);display:flex;flex-direction:column;
-  transform:translateX(103%);transition:transform .34s cubic-bezier(.22,1,.36,1);
-  box-shadow:-26px 0 64px -32px rgba(0,0,0,.5)}
-.mgc-pers.on{transform:none}
-.mgc-pers .cab{display:flex;align-items:center;gap:10px;padding:19px 18px 15px;border-bottom:1px solid var(--line)}
-.mgc-pers .cab .t{font-family:var(--font-d);font-size:17.5px;font-weight:500;flex:1}
-.mgc-pers .cab .x{background:none;border:0;font-size:15px;color:var(--muted);border-radius:8px;padding:5px 9px}
-.mgc-pers .cab .x:hover{background:var(--card2);color:var(--text)}
-.mgc-pers .corpo{flex:1;overflow:auto;padding:6px 16px 30px}
-.mgc-pers .grupo{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;font-weight:700;
-  color:var(--muted2);padding:18px 0 9px}
-.mgc-pers .rot{font-size:12.5px;font-weight:600;margin-bottom:7px;display:block}
-.mgc-pers .dica{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:6px}
-.mgc-op{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px}
-.mgc-op button{flex:1;min-width:88px;background:var(--card2);border:1px solid var(--line2);
-  border-radius:10px;padding:9px 11px;font-family:inherit;font-size:12.5px;font-weight:600;
-  color:var(--text);transition:border-color .16s,background .16s}
-.mgc-op button:hover{border-color:var(--brass)}
-.mgc-op button.on{background:rgba(194,161,91,.16);border-color:var(--brass);color:var(--brass2)}
-.mgc-cores{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}
-.mgc-cores button{aspect-ratio:1;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer}
-.mgc-cores button.on{border-color:var(--text);box-shadow:0 0 0 3px rgba(194,161,91,.24)}
-.mgc-cores button.limpar{background:var(--card2);border:1px dashed var(--line2);font-size:12px;color:var(--muted)}
-.mgc-campo{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:9px;
-  padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--text)}
-.mgc-campo:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
-.mgc-eu-canal{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.mgc-eu-canal .foto{width:52px;height:52px;border-radius:50%;overflow:hidden;flex-shrink:0;
-  display:grid;place-items:center;background:var(--brass);color:var(--ink2);
-  font-weight:700;font-size:17px;cursor:pointer;border:1px solid var(--line2)}
-.mgc-eu-canal .foto img{width:100%;height:100%;object-fit:cover}
-.mgc-eu-canal .txt{flex:1;min-width:0}
-.mgc-eu-canal .txt b{font-size:13.5px}
-.mgc-eu-canal .txt span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
-.mgc-pers-salvar{width:100%;background:var(--brass);color:var(--ink2);border:0;border-radius:11px;
-  padding:12px;font-family:inherit;font-weight:700;font-size:13.5px;margin-top:14px}
-.mgc-pers-salvar:hover{background:var(--brass2);color:#fff}
-.mgc-pers-salvar:disabled{opacity:.5}
-.mgc-aviso-sql{font-size:11.5px;line-height:1.55;color:var(--muted);background:var(--card2);
-  border:1px dashed var(--line2);border-radius:10px;padding:11px 13px;margin-top:12px}
-
-/* botão de personalizar no topo do chat */
-.mgc-pers-btn{background:none;border:1px solid var(--line2);border-radius:9px;padding:6px 12px;
-  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);margin-left:auto}
-.mgc-pers-btn:hover{border-color:var(--brass);color:var(--brass2)}
-</style>
-<script>
-/* =====================================================================
-   ADIÇÃO 36 — personalização do chat
-   ===================================================================== */
-
-/* ---------- preferências de tela (ficam no navegador) ---------- */
-const MG_CP_PADRAO = {tema:'auto', densidade:'confortavel', ordem:'padrao'};
-function mgCP(){
-  if(!PREFS.chat) PREFS.chat = Object.assign({}, MG_CP_PADRAO);
-  return PREFS.chat;
-}
-function mgCPSet(chave, valor){
-  mgCP()[chave] = valor;
-  if(typeof savePrefs==='function') savePrefs();
-  mgCPAplicar();
-  mgPersDesenhar();
-  if(chave==='ordem' && VIEW==='chat') renderChatView();
-}
-function mgCPAplicar(){
-  const c = mgCP();
-  document.body.classList.toggle('mg-chat-escuro', c.tema==='escuro');
-  document.body.classList.toggle('mg-chat-claro',  c.tema==='claro');
-  document.body.classList.toggle('mg-chat-compacto', c.densidade==='compacta');
-  document.body.classList.toggle('mg-chat-folgado',  c.densidade==='folgada');
-}
-mgCPAplicar();
-
-/* =====================================================================
-   COR DO CANAL
-   ===================================================================== */
-const MG_CORES_CANAL = ['#C7871E','#D9531E','#2E9E6B','#2D6FCF','#8E3FBE','#12A38F','#D01F45','#7C8A97'];
-
-function mgCorDoCanal(c){
-  if(!c) return null;
-  if(c.cor) return c.cor;
-  if(c.tipo==='client' && c.client_id && typeof clientColor==='function') return clientColor(c.client_id);
-  return null;
-}
-async function mgPintarCanal(cor){
-  const c = (CHANNELS||[]).find(x=>x.id===CHAN); if(!c) return;
-  c.cor = cor || null;
-  mgAplicarCorCanal();
-  mgPersDesenhar();
-  try{
-    const {error} = await sb.from('channels').update({cor: cor||null}).eq('id', c.id);
-    if(error) throw error;
-  }catch(e){
-    const m=(e&&e.message)||'';
-    if(/column .*cor/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 36');
-    else if(/row-level security|permission/i.test(m)) toast('Só a equipe pode mudar a cor do canal');
-    else toast('Não foi possível salvar a cor');
-  }
-}
-function mgAplicarCorCanal(){
-  const el = document.getElementById('v-chat'); if(!el) return;
-  const c = (CHANNELS||[]).find(x=>x.id===CHAN);
-  const cor = mgCorDoCanal(c);
-  el.style.setProperty('--cor-canal', cor || 'var(--brass)');
-  const topo = el.querySelector('.mgc-top');
-  if(topo) topo.style.borderLeftColor = cor || 'transparent';
-  /* ponto colorido em cada canal da lista */
-  el.querySelectorAll('.mgc-i').forEach(b=>{
-    const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/); if(!m) return;
-    const ch=(CHANNELS||[]).find(x=>x.id===m[1]); if(!ch) return;
-    const cc = mgCorDoCanal(ch);
-    if(cc) b.style.setProperty('--cor-canal', cc);
-  });
-}
-
-/* =====================================================================
-   APELIDO E FOTO POR CANAL
-   ===================================================================== */
-let MG_MEMBROS = {};      /* {canalId: {perfilId:{apelido, avatar_url}}} */
-let MG_MEU_APELIDO = '';  /* rascunho do painel */
-let MG_MINHA_FOTO   = null;
-
-async function mgCarregarMembros(canalId){
-  if(!canalId) return;
-  try{
-    const {data,error} = await sb.from('channel_members').select('*').eq('channel_id', canalId);
-    if(error) throw error;
-    const m = {};
-    (data||[]).forEach(x=>{ m[x.profile_id] = {apelido:x.apelido||null, avatar_url:x.avatar_url||null} });
-    MG_MEMBROS[canalId] = m;
-  }catch(e){
-    MG_MEMBROS[canalId] = MG_MEMBROS[canalId] || {};
-    if(!/column .*(apelido|avatar_url)/i.test((e&&e.message)||'')) console.warn('[chat] membros', e);
-  }
-}
-function mgIdentidade(canalId, perfilId){
-  const m = MG_MEMBROS[canalId];
-  return (m && m[perfilId]) ? m[perfilId] : null;
-}
-async function mgSalvarIdentidade(){
-  if(!CHAN || !ME) return;
-  const btn = document.getElementById('mgc-pers-salvar');
-  if(btn) btn.disabled = true;
-  const apelido = (MG_MEU_APELIDO||'').trim() || null;
-  const foto    = MG_MINHA_FOTO || null;
-  try{
-    const {error} = await sb.from('channel_members').upsert({
-      channel_id: CHAN, profile_id: ME.id, apelido, avatar_url: foto
-    }, {onConflict:'channel_id,profile_id'});
-    if(error) throw error;
-    MG_MEMBROS[CHAN] = MG_MEMBROS[CHAN] || {};
-    MG_MEMBROS[CHAN][ME.id] = {apelido, avatar_url:foto};
-    toast('Salvo neste canal ✓');
-    renderChatView();
-    mgPersDesenhar();
-  }catch(e){
-    const m=(e&&e.message)||'';
-    if(/column .*(apelido|avatar_url)/i.test(m)) toast('Rode antes o SQL da ADIÇÃO 36');
-    else if(/row-level security|permission/i.test(m)) toast('O banco recusou — confira a Parte 3 do SQL da ADIÇÃO 36');
-    else toast('Não foi possível salvar: '+m);
-  }finally{ if(btn) btn.disabled=false }
-}
-function mgEscolherFotoCanal(){
-  const inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*';
-  inp.onchange = e => {
-    const f=e.target.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload = ev => {
-      const img=new Image();
-      img.onload = ()=>{
-        const lado=Math.min(img.width,img.height), cv=document.createElement('canvas');
-        cv.width=cv.height=128;
-        const cx=cv.getContext('2d');
-        cx.drawImage(img,(img.width-lado)/2,(img.height-lado)/2,lado,lado,0,0,128,128);
-        MG_MINHA_FOTO = cv.toDataURL('image/jpeg',0.82);
-        mgPersDesenhar();
-      };
-      img.src=ev.target.result;
-    };
-    r.readAsDataURL(f);
-  };
-  inp.click();
-}
-
-/* aplica apelido e foto nas mensagens já desenhadas */
-function mgAplicarIdentidades(){
-  const el=document.getElementById('v-chat'); if(!el) return;
-  const lista = (typeof CHMSGS!=='undefined' && CHMSGS && CHMSGS[CHAN]) ? CHMSGS[CHAN] : [];
-  const reais = lista.filter(m=>m.kind!=='system');
-  const nos = [...el.querySelectorAll('.mgc-msgs .mgc-m')];
-  nos.forEach((no,i)=>{
-    const m = reais[i]; if(!m || !m.author_id) return;
-    const id = mgIdentidade(CHAN, m.author_id); if(!id) return;
-    if(id.apelido){
-      const quem = no.querySelector('.who');
-      if(quem) quem.textContent = id.apelido;
-    }
-    if(id.avatar_url){
-      const av = no.querySelector('.av');
-      if(av && !av.querySelector('img')){
-        av.innerHTML = `<img src="${esc(id.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
-        av.style.padding='0'; av.style.overflow='hidden';
-      }
-    }
-  });
-}
-
-/* =====================================================================
-   ORDEM DAS CONVERSAS
-   ===================================================================== */
-let MG_ULTIMA_MSG = {};   /* {canalId: timestamp} */
-async function mgCarregarRecencia(){
-  try{
-    const {data,error} = await sb.from('messages')
-      .select('channel_id,created_at').order('created_at',{ascending:false}).limit(400);
-    if(error) throw error;
-    const m={};
-    (data||[]).forEach(x=>{ if(!m[x.channel_id]) m[x.channel_id]=x.created_at });
-    MG_ULTIMA_MSG = m;
-  }catch(e){ /* sem recência: a ordem cai no padrão */ }
-}
-function mgNaoLidoNoCanal(id){
-  if(typeof MG_NAOLIDAS==='undefined' || !MG_NAOLIDAS) return 0;
-  const x = MG_NAOLIDAS.find(n=>n.canal && n.canal.id===id);
-  return x ? (x.qtd || 1) : 0;
-}
-function mgOrdenarCanais(lista){
-  const ordem = mgCP().ordem;
-  const arr = [...lista];
-  if(ordem==='alfabetica')
-    return arr.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  if(ordem==='recentes')
-    return arr.sort((a,b)=> new Date(MG_ULTIMA_MSG[b.id]||0) - new Date(MG_ULTIMA_MSG[a.id]||0));
-  if(ordem==='naolidas')
-    return arr.sort((a,b)=>{
-      const d = mgNaoLidoNoCanal(b.id) - mgNaoLidoNoCanal(a.id);
-      return d !== 0 ? d : (a.nome||'').localeCompare(b.nome||'','pt');
-    });
-  return arr;
-}
-/* reordena as listas de Equipe e Conversas diretas já desenhadas */
-function mgReordenarListas(){
-  const el=document.getElementById('v-chat'); if(!el) return;
-  const lista = el.querySelector('.mgc-list'); if(!lista) return;
-  const secs=[...lista.querySelectorAll('.mgc-sec')];
-  secs.forEach(sec=>{
-    if(/cliente/i.test(sec.textContent||'')) return;   /* clientes têm agrupamento próprio */
-    const botoes=[]; let n=sec.nextElementSibling;
-    while(n && !n.classList.contains('mgc-sec')){
-      if(n.classList.contains('mgc-i')) botoes.push(n);
-      n=n.nextElementSibling;
-    }
-    if(botoes.length<2) return;
-    const comCanal = botoes.map(b=>{
-      const m=(b.getAttribute('onclick')||'').match(/openChan\('([^']+)'\)/);
-      return {el:b, canal:(CHANNELS||[]).find(x=>x.id===(m&&m[1])) || {id:'',nome:b.textContent}};
-    });
-    /* recoloca os botões logo depois do cabeçalho, na ordem calculada */
-    const ordenados = mgOrdenarCanais(comCanal.map(x=>x.canal));
-    let ancora = sec;
-    ordenados.forEach(c=>{
-      const achou = comCanal.find(x=>x.canal.id===c.id);
-      if(achou){ ancora.insertAdjacentElement('afterend', achou.el); ancora = achou.el }
-    });
-  });
-}
-
-/* =====================================================================
-   PAINEL "PERSONALIZAR"
-   ===================================================================== */
-(function(){
-  if(document.getElementById('mgc-pers')) return;
-  const ov=document.createElement('div'); ov.className='mgc-pers-ov'; ov.id='mgc-pers-ov';
-  ov.onclick=()=>mgPersFechar();
-  const el=document.createElement('aside'); el.className='mgc-pers'; el.id='mgc-pers';
-  el.innerHTML=`<div class="cab">
-      <span class="t">Personalizar o chat</span>
-      <button class="x" onclick="mgPersFechar()" aria-label="Fechar">✕</button>
-    </div><div class="corpo" id="mgc-pers-corpo"></div>`;
-  document.body.appendChild(ov); document.body.appendChild(el);
-})();
-function mgPersAbrir(){
-  const c=(CHANNELS||[]).find(x=>x.id===CHAN);
-  const id = ME ? mgIdentidade(CHAN, ME.id) : null;
-  MG_MEU_APELIDO = id && id.apelido ? id.apelido : '';
-  MG_MINHA_FOTO  = id && id.avatar_url ? id.avatar_url : null;
-  mgPersDesenhar();
-  document.getElementById('mgc-pers-ov').classList.add('on');
-  document.getElementById('mgc-pers').classList.add('on');
-}
-function mgPersFechar(){
-  document.getElementById('mgc-pers-ov').classList.remove('on');
-  document.getElementById('mgc-pers').classList.remove('on');
-}
-document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ const p=document.getElementById('mgc-pers'); if(p && p.classList.contains('on')) mgPersFechar() }
-});
-
-function mgPersDesenhar(){
-  const cx=document.getElementById('mgc-pers-corpo'); if(!cx) return;
-  const c = mgCP();
-  const canal = (CHANNELS||[]).find(x=>x.id===CHAN);
-  const cor = canal ? mgCorDoCanal(canal) : null;
-  const opc = (chave, valor, rotulo) =>
-    `<button class="${c[chave]===valor?'on':''}" onclick="mgCPSet('${chave}','${valor}')">${rotulo}</button>`;
-
-  const ini = (typeof initials==='function' && ME) ? initials(MG_MEU_APELIDO || ME.name) : '?';
-
-  cx.innerHTML = `
-    <div class="grupo">Aparência</div>
-    <span class="rot">Tema do chat</span>
-    <div class="mgc-op">
-      ${opc('tema','auto','Como o app')}${opc('tema','claro','Claro')}${opc('tema','escuro','Escuro')}
-    </div>
-    <div class="dica">Vale só para a área de conversa — o resto da plataforma segue o tema que você escolheu em Configurações.</div>
-
-    <span class="rot" style="margin-top:18px">Espaçamento das mensagens</span>
-    <div class="mgc-op">
-      ${opc('densidade','compacta','Compacta')}${opc('densidade','confortavel','Confortável')}${opc('densidade','folgada','Folgada')}
-    </div>
-
-    <div class="grupo">Conversas</div>
-    <span class="rot">Ordem da lista</span>
-    <div class="mgc-op">
-      ${opc('ordem','padrao','Padrão')}${opc('ordem','recentes','Recentes')}
-      ${opc('ordem','alfabetica','A–Z')}${opc('ordem','naolidas','Não lidas')}
-    </div>
-
-    ${canal ? `
-      <div class="grupo">Canal ${esc(canal.nome||'')}</div>
-
-      ${isAdmin() ? `
-        <span class="rot">Cor do canal</span>
-        <div class="mgc-cores">
-          ${MG_CORES_CANAL.map(x=>`<button style="background:${x}" class="${cor===x?'on':''}"
-             title="${x}" onclick="mgPintarCanal('${x}')"></button>`).join('')}
-          <button class="limpar" title="Sem cor própria" onclick="mgPintarCanal(null)">✕</button>
-        </div>
-        <div class="dica">A cor é a mesma para todo mundo. Canais de cliente já nascem com a cor da empresa.</div>
-      ` : (cor ? `<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)">
-            <span class="mgc-cor-ponto" style="background:${cor}"></span> Cor definida pela equipe</div>` : '')}
-
-      <span class="rot" style="margin-top:18px">Como você aparece aqui</span>
-      <div class="mgc-eu-canal">
-        <span class="foto" onclick="mgEscolherFotoCanal()" title="Trocar foto neste canal">
-          ${MG_MINHA_FOTO ? `<img src="${esc(MG_MINHA_FOTO)}" alt="">` : esc(ini)}
-        </span>
-        <span class="txt">
-          <b>${esc(MG_MEU_APELIDO || (ME?ME.name:'—'))}</b>
-          <span>Clique na foto para trocar só neste canal</span>
-        </span>
-      </div>
-      <input class="mgc-campo" id="mgc-apelido" placeholder="${esc(ME?ME.name:'Seu nome')}"
-             value="${esc(MG_MEU_APELIDO)}" oninput="MG_MEU_APELIDO=this.value">
-      <div class="dica">Deixe vazio para usar o seu nome de sempre. Vale só neste canal.</div>
-      <button class="mgc-pers-salvar" id="mgc-pers-salvar" onclick="mgSalvarIdentidade()">Salvar neste canal</button>
-    ` : `<div class="dica" style="margin-top:18px">Abra um canal para personalizar a sua identidade nele.</div>`}
-  `;
-}
-
-/* ---------- entradas: botão no topo do chat e na barra de baixo ---------- */
-(function(){
-  const _rc = renderChatView;
-  renderChatView = function(){
-    const r = _rc();
-    try{
-      const topo = document.querySelector('#v-chat .mgc-top');
-      if(topo && !topo.querySelector('.mgc-pers-btn')){
-        topo.insertAdjacentHTML('beforeend',
-          `<button class="mgc-pers-btn" onclick="mgPersAbrir()" title="Personalizar o chat">⚙ Personalizar</button>`);
-      }
-      mgAplicarCorCanal();
-      mgReordenarListas();
-      mgAplicarIdentidades();
-    }catch(e){ console.warn('[chat] personalização', e) }
-    return r;
-  };
-})();
-(function(){
-  if(typeof mgDockItens!=='function') return;
-  const _d = mgDockItens;
-  mgDockItens = function(){
-    const base = _d();
-    if(VIEW!=='chat') return base;
-    return base.replace('<span class="sep"></span>',
-      `<button onclick="mgPersAbrir()" title="Personalizar"><span class="ic">⚙</span><span class="rot">Personalizar</span></button><span class="sep"></span>`);
-  };
-})();
-
-/* ---------- carrega o que o painel precisa ao abrir um canal ---------- */
-(function(){
-  if(typeof openChan!=='function') return;
-  const _open = openChan;
-  openChan = async function(id){
-    const r = await _open(id);
-    await mgCarregarMembros(id);
-    try{ mgAplicarIdentidades(); mgAplicarCorCanal() }catch(e){}
-    if(document.getElementById('mgc-pers').classList.contains('on')) mgPersAbrir();
-    return r;
-  };
-})();
-(function(){
-  const _sv = showView;
-  showView = function(v){
-    const r = _sv(v);
-    if(VIEW==='chat'){
-      mgCPAplicar();
-      if(!Object.keys(MG_ULTIMA_MSG).length) mgCarregarRecencia().then(()=>{ if(VIEW==='chat') renderChatView() });
-      if(CHAN && !MG_MEMBROS[CHAN]) mgCarregarMembros(CHAN).then(()=>{ try{ mgAplicarIdentidades() }catch(e){} });
-    }
-    return r;
-  };
-})();
 </script>
 <style>
 /* =====================================================================
@@ -18386,6 +16836,1026 @@ async function mgEqRemover(id, nome){
       }, 300);
     }
     return r;
+  };
+})();
+</script>
+<style>
+/* =====================================================================
+   SEÇÃO · CHAT — estilo
+   Prefixo próprio (mgx-) para não herdar nada do chat antigo.
+   ===================================================================== */
+#v-chat.on{display:flex}
+#v-chat{gap:0;height:calc(100vh - 96px);min-height:420px;border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;background:var(--card)}
+body.mg-e-chat .content{padding:0}
+body.mg-e-chat #v-chat{height:calc(100vh - 92px);border-radius:0;border-left:0;border-right:0;border-top:0}
+
+/* ---------- coluna dos canais ---------- */
+.mgx-lado{width:246px;flex-shrink:0;border-right:1px solid var(--line);display:flex;
+  flex-direction:column;background:var(--card2);min-width:0}
+.mgx-busca{margin:12px 12px 6px;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.mgx-busca input{border:0;background:none;outline:none;font-size:12.5px;width:100%;
+  font-family:inherit;color:var(--text);min-width:0}
+.mgx-lista{flex:1;overflow:auto;padding:0 8px 14px}
+.mgx-sec{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--muted2);font-weight:700;padding:14px 8px 5px}
+.mgx-sec .add{margin-left:auto;background:none;border:0;color:var(--muted2);width:20px;height:20px;
+  border-radius:6px;font-size:15px;line-height:1;font-family:inherit}
+.mgx-sec .add:hover{background:var(--card);color:var(--brass2)}
+.mgx-i{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:var(--muted);
+  font-size:13px;font-weight:500;background:none;border:0;text-align:left;width:100%;
+  font-family:inherit;transition:background .15s,color .15s}
+.mgx-i:hover{background:var(--card);color:var(--text)}
+.mgx-i.on{background:var(--brass);color:var(--ink2);font-weight:700}
+.mgx-i.novo{font-weight:700;color:var(--text)}
+.mgx-i .h{width:16px;text-align:center;flex-shrink:0;opacity:.7}
+.mgx-i .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgx-i .n{background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:18px;
+  height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.mgx-i.on .n{background:var(--ink2);color:var(--brass)}
+.mgx-emp{margin-bottom:2px}
+.mgx-emp .cab{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
+  padding:7px 10px;border-radius:8px;font-family:inherit;font-size:12.5px;font-weight:700;
+  color:var(--text);text-align:left}
+.mgx-emp .cab:hover{background:var(--card)}
+.mgx-emp .cab .seta{font-size:9px;color:var(--muted2);width:10px;flex-shrink:0;transition:transform .2s}
+.mgx-emp.aberta .cab .seta{transform:rotate(90deg)}
+.mgx-emp .cab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgx-emp .cab .n{background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:17px;
+  height:17px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
+.mgx-emp .dentro{display:none;padding-left:8px;margin-left:9px;border-left:1px solid var(--line)}
+.mgx-emp.aberta .dentro{display:block}
+.mgx-lg{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;
+  overflow:hidden;flex-shrink:0;font-weight:700;color:#fff;font-size:9px;line-height:1}
+.mgx-lg img{width:100%;height:100%;object-fit:contain;background:#fff}
+.mgx-nada{font-size:11.5px;color:var(--muted2);padding:5px 10px}
+
+/* ---------- conversa ---------- */
+.mgx-conv{flex:1;min-width:0;display:flex;flex-direction:column}
+.mgx-topo{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line);
+  min-height:56px;flex-wrap:wrap;border-left:3px solid var(--cor-canal,transparent)}
+.mgx-topo .nm{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
+.mgx-topo .sub{font-size:12px;color:var(--muted);padding-left:10px;border-left:1px solid var(--line2)}
+.mgx-topo .sp{flex:1}
+.mgx-topo .bt{background:none;border:1px solid var(--line2);border-radius:9px;padding:6px 12px;
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted)}
+.mgx-topo .bt:hover{border-color:var(--brass);color:var(--brass2)}
+
+.mgx-msgs{flex:1;overflow:auto;padding:14px 0 10px;display:flex;flex-direction:column}
+.mgx-dia{align-self:stretch;display:flex;align-items:center;gap:12px;margin:16px 20px 8px;
+  color:var(--muted);font-size:12px;font-weight:700}
+.mgx-dia::before,.mgx-dia::after{content:"";flex:1;height:1px;background:var(--line)}
+.mgx-dia span{background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
+
+.mgx-msg{display:flex;gap:11px;padding:5px 20px;position:relative}
+.mgx-msg:hover{background:var(--card2)}
+.mgx-msg .av{width:36px;height:36px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
+  font-weight:700;font-size:13px;color:#1a1a18;overflow:hidden}
+.mgx-msg .av img{width:100%;height:100%;object-fit:cover}
+.mgx-msg .bd{min-width:0;flex:1}
+.mgx-msg .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mgx-msg .quem{font-weight:700;font-size:13.5px}
+.mgx-msg .rl{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--brass2);background:rgba(194,161,91,.16);padding:1px 7px;border-radius:999px}
+.mgx-msg .rl.cli{color:#7C8A97;background:rgba(124,138,151,.18)}
+.mgx-msg .hora{font-size:11px;color:var(--muted2)}
+.mgx-msg .tx{font-size:14px;line-height:1.52;margin-top:2px;white-space:pre-wrap;word-break:break-word}
+.mgx-msg.segue{padding-top:1px;padding-bottom:1px}
+.mgx-msg.segue .av,.mgx-msg.segue .hd{display:none}
+.mgx-msg.segue .bd{margin-left:47px}
+.mgx-msg.segue .hora-lat{position:absolute;left:20px;top:3px;width:36px;text-align:center;
+  font-size:10.5px;color:var(--muted2);opacity:0;transition:opacity .12s}
+.mgx-msg.segue:hover .hora-lat{opacity:1}
+.mgx-msg.alvo{background:rgba(194,161,91,.14)}
+body.mg-chat-compacto .mgx-msg{padding-top:2px;padding-bottom:2px}
+body.mg-chat-compacto .mgx-msg .tx{font-size:13px;line-height:1.45}
+body.mg-sem-hora .mgx-msg .hora{display:none}
+
+.mgx-sis{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
+  background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;margin:5px 20px}
+.mgx-sis .pt{width:9px;height:9px;border-radius:3px;background:var(--brass);flex-shrink:0}
+.mgx-sis .de{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--brass2)}
+
+.mgx-cit{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
+  margin-bottom:3px;cursor:pointer;max-width:100%}
+.mgx-cit::before{content:"";width:22px;height:9px;border-left:2px solid var(--line2);
+  border-top:2px solid var(--line2);border-top-left-radius:6px;margin-left:4px;flex-shrink:0;
+  align-self:flex-end;margin-bottom:2px}
+.mgx-cit b{color:var(--text);flex-shrink:0}
+.mgx-cit .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
+.mgx-cit:hover .t{text-decoration:underline}
+
+.mgx-acoes{position:absolute;top:-12px;right:14px;display:none;align-items:center;gap:1px;
+  background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.28);z-index:4}
+.mgx-msg:hover .mgx-acoes,.mgx-acoes:focus-within{display:flex}
+.mgx-acoes button{background:none;border:0;font-size:14px;line-height:1;padding:5px 7px;
+  border-radius:7px;color:var(--muted);font-family:inherit}
+.mgx-acoes button:hover{background:var(--card2);color:var(--text)}
+.mgx-acoes .div{width:1px;height:16px;background:var(--line);margin:0 3px}
+
+.mgx-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.mgx-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
+  border:1px solid var(--line2);border-radius:999px;padding:2px 9px;font-size:12px;
+  font-family:inherit;color:var(--text);line-height:1.6}
+.mgx-rea.minha{background:rgba(194,161,91,.16);border-color:var(--brass)}
+.mgx-rea .n{font-size:11px;font-weight:700;color:var(--muted)}
+.mgx-rea.minha .n{color:var(--brass2)}
+.mgx-rea.add{border-style:dashed;color:var(--muted2)}
+.mgx-emojis{position:fixed;z-index:140;background:var(--card);border:1px solid var(--line2);
+  border-radius:13px;padding:9px;display:none;grid-template-columns:repeat(6,1fr);gap:3px;
+  box-shadow:0 20px 46px -18px rgba(0,0,0,.4)}
+.mgx-emojis.on{display:grid}
+.mgx-emojis button{background:none;border:0;font-size:19px;padding:6px;border-radius:8px;line-height:1}
+.mgx-emojis button:hover{background:var(--card2)}
+
+/* ---------- caixa de escrita ---------- */
+.mgx-comp{padding:8px 20px 16px}
+.mgx-resp{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line2);
+  border-bottom:0;border-radius:11px 11px 0 0;padding:8px 13px;font-size:12.5px;color:var(--muted)}
+.mgx-resp b{color:var(--text)}
+.mgx-resp .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgx-resp .x{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 7px;
+  border-radius:6px;font-family:inherit}
+.mgx-caixa{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line2);
+  border-radius:11px;overflow:hidden}
+.mgx-caixa:focus-within{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mgx-fer{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--line);
+  background:var(--card2)}
+.mgx-fer button{background:none;border:0;width:28px;height:26px;border-radius:5px;color:var(--muted);
+  font-size:13px;font-family:inherit;display:grid;place-items:center}
+.mgx-fer button:hover{background:var(--card);color:var(--text)}
+.mgx-fer .div{width:1px;height:16px;background:var(--line2);margin:0 5px}
+.mgx-caixa textarea{border:0;background:none;outline:none;font-family:inherit;font-size:14px;
+  resize:none;max-height:160px;color:var(--text);line-height:1.5;padding:11px 13px 4px}
+.mgx-baixo{display:flex;align-items:center;gap:6px;padding:4px 8px 8px}
+.mgx-baixo .sp{flex:1}
+.mgx-baixo .env{background:var(--brass);border:0;color:#1a1a18;width:32px;height:30px;border-radius:7px;
+  display:grid;place-items:center;font-size:14px;font-family:inherit}
+.mgx-baixo .env.pronto{background:var(--st-done);color:#fff}
+.mgx-dica{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:4px}
+.mgx-dica b{color:var(--brass2)}
+.mgx-cmds{display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:6px}
+.mgx-cmds button{background:var(--card2);border:1px solid var(--line2);border-radius:999px;
+  padding:3px 10px;font-size:11px;font-weight:600;color:var(--muted);font-family:inherit}
+.mgx-cmds button:hover{border-color:var(--brass);color:var(--brass2)}
+
+.mgx-aviso{margin:auto;max-width:520px;text-align:center;padding:30px}
+.mgx-aviso h3{font-family:var(--font-d);font-size:20px;font-weight:500;margin-bottom:8px}
+.mgx-aviso p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.mgx-vazio{margin:auto;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7;padding:30px}
+
+@media(max-width:760px){
+  .mgx-lado{width:100%;position:absolute;inset:0;z-index:5;background:var(--card2)}
+  body.mgx-conversa .mgx-lado{display:none}
+  #v-chat{position:relative}
+  .mgx-voltar{display:inline-flex!important}
+}
+.mgx-voltar{display:none;background:none;border:0;font-size:16px;color:var(--muted);
+  padding:4px 8px;border-radius:7px;font-family:inherit}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · CHAT
+   ---------------------------------------------------------------------
+   Substitui o chat antigo, que estava espalhado em seis blocos (adições
+   1, 2, 22, 35 e 36) e se sobrescrevia. Aqui está tudo num lugar só.
+
+   O que estava quebrado, e por quê:
+
+   1) 403 ao usar o chat. A cada abertura da tela, o app tentava
+      "provisionar" os canais: um upsert em channel_members para TODAS as
+      pessoas. Upsert exige policy de UPDATE, e só existia a da própria
+      linha — o banco recusava 103 vezes por sessão. O provisionamento
+      automático saiu; virou um botão do administrador. A policy de admin
+      também foi criada, para o upsert deixar de ser proibido.
+
+   2) Canais duplicados e conversas chamadas "— ↔ Fulano". O
+      provisionamento rodava com a lista de canais desatualizada e com o
+      nome do usuário ainda vazio. Agora a conversa direta é criada sob
+      demanda, com chave canônica (os dois ids ordenados), então não
+      duplica e o nome é resolvido na hora de exibir.
+
+   3) Excluir mensagem não fazia nada: não havia policy de DELETE. Criada.
+
+   4) Reagir gravava direto na tabela por uma policy `using (true)` —
+      qualquer pessoa podia reescrever o texto de qualquer mensagem.
+      Agora passa pela função mg_toggle_reaction, que confere o acesso.
+
+   5) Contar não lidas baixava 400 mensagens a cada abertura. Virou uma
+      chamada só (mg_unread).
+
+   6) O som de mensagem nova nunca tocava: o handler era registrado
+      depois do subscribe, e o supabase-js ignora isso. Agora é antes.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Estado
+   Os nomes públicos (CHANNELS, CHAN, CHMSGS, CH_READY, loadMsgs...) são
+   os mesmos de antes de propósito: outras telas e os comandos
+   #adicionardemanda / #adicionardocumento continuam funcionando.
+   --------------------------------------------------------------------- */
+let CHANNELS   = [];      /* canais visíveis para quem está logado      */
+let CHAN       = null;    /* id do canal aberto                          */
+let CHMSGS     = {};      /* { canalId: [mensagens] }                    */
+let CH_READY   = null;    /* null = não verificado, true/false           */
+let CH_FILTER  = '';      /* texto da busca de conversas                 */
+let CH_ERRO    = null;
+let CH_MEMBROS = {};      /* { canalId: { perfilId: {apelido,avatar_url} } } */
+let CH_NAOLIDAS= {};      /* { canalId: quantidade }                     */
+let CH_PERFIS  = [];      /* perfis, para nome/foto e para abrir diretas */
+let CH_RESP    = null;    /* mensagem sendo respondida                   */
+let CH_RT      = null;    /* assinatura de tempo real                    */
+let CH_EMP_ABERTAS = new Set();
+
+const CH_EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡','🚀','😮','👏'];
+
+/* ---------------------------------------------------------------------
+   2. Leitura do banco
+   --------------------------------------------------------------------- */
+async function loadChannels(){
+  const {data,error} = await sb.from('channels').select('*').order('tipo').order('nome');
+  if(error) throw error;
+  CHANNELS = (data||[]).filter(chVisivel);
+  if(CHAN && !CHANNELS.some(c=>c.id===CHAN)) CHAN = null;
+  if(!CHAN && CHANNELS.length) CHAN = chPrimeiro();
+}
+/* esconde o lixo herdado: diretas sem os dois lados, criadas pelo
+   provisionamento antigo. Não apaga nada — só não mostra. */
+function chVisivel(c){
+  if(c.tipo !== 'dm') return true;
+  const n = String(c.nome||'');
+  if(n.startsWith('dm:')) return true;
+  return !n.startsWith('— ') && !n.includes('↔ —') && n.includes('↔');
+}
+function chPrimeiro(){
+  const c = CHANNELS.find(x=>x.tipo==='team') || CHANNELS[0];
+  return c ? c.id : null;
+}
+async function loadMsgs(cid){
+  if(!cid) return;
+  const {data,error} = await sb.from('messages').select('*')
+    .eq('channel_id', cid).order('created_at',{ascending:true}).limit(300);
+  if(error) throw error;
+  CHMSGS[cid] = data || [];
+}
+async function chLoadPerfis(){
+  const {data} = await sb.from('profiles').select('id,nome,role,client_id,avatar_url');
+  CH_PERFIS = data || [];
+}
+async function chLoadMembros(cid){
+  if(!cid) return;
+  const {data} = await sb.from('channel_members').select('*').eq('channel_id', cid);
+  const m = {};
+  (data||[]).forEach(x=>{ m[x.profile_id] = {apelido:x.apelido||null, avatar_url:x.avatar_url||null} });
+  CH_MEMBROS[cid] = m;
+}
+/* uma chamada só, em vez das 400 mensagens que o app baixava antes */
+async function chLoadNaoLidas(){
+  try{
+    const {data,error} = await sb.rpc('mg_unread');
+    if(error) throw error;
+    const m = {};
+    (data||[]).forEach(r=>{ if(r.nao_lidas > 0) m[r.channel_id] = Number(r.nao_lidas) });
+    CH_NAOLIDAS = m;
+  }catch(e){ /* banco antigo, sem a função: segue sem contador */ }
+}
+function chTotalNaoLidas(){
+  return Object.values(CH_NAOLIDAS).reduce((a,n)=>a+n, 0);
+}
+
+async function chIniciar(){
+  try{
+    const {error} = await sb.from('channels').select('id').limit(1);
+    if(error) throw error;
+    CH_READY = true;
+    await Promise.all([loadChannels(), chLoadPerfis(), chLoadNaoLidas()]);
+    if(CHAN) await Promise.all([loadMsgs(CHAN), chLoadMembros(CHAN)]);
+    chSubscribe();
+  }catch(e){
+    CH_READY = false;
+    CH_ERRO = (e && e.message) || 'erro';
+  }
+}
+/* compatibilidade: a tela de Início ainda chama este nome */
+async function checkChatTables(){ if(CH_READY===null) await chIniciar(); }
+
+/* ---------------------------------------------------------------------
+   3. Nomes e aparência dos canais
+   --------------------------------------------------------------------- */
+function chPerfil(id){ return CH_PERFIS.find(p=>p.id===id) || null }
+
+function mgChanNome(c){
+  if(!c) return '—';
+  if(c.tipo === 'client') return clientName(c.client_id);
+  if(c.tipo !== 'dm') return c.nome;
+  /* chave canônica nova: dm:<idA>:<idB> — mostra o outro lado */
+  if(String(c.nome||'').startsWith('dm:')){
+    const ids = c.nome.slice(3).split(':');
+    const outro = ids.find(x => !ME || x !== ME.id) || ids[0];
+    const p = chPerfil(outro);
+    return p ? p.nome : 'Conversa direta';
+  }
+  /* formato antigo "Fulano ↔ Beltrano" */
+  const partes = String(c.nome||'').split('↔').map(s=>s.trim());
+  const eu = (ME && ME.name || '').trim();
+  return partes.find(p=>p && p!==eu) || partes[0] || 'Conversa direta';
+}
+function chCor(c){
+  if(!c) return null;
+  if(c.cor) return c.cor;
+  if(c.tipo === 'client' && c.client_id) return clientColor(c.client_id);
+  return null;
+}
+function chMarca(c, px){
+  const s = px || 20;
+  if(c && c.tipo === 'client' && typeof mgClientLogo === 'function') return mgClientLogo(c.client_id, s);
+  if(c && c.tipo === 'dm'){
+    const nm = mgChanNome(c);
+    return '<span class="mgx-lg" style="width:'+s+'px;height:'+s+'px;background:#7C8A97">'
+         + esc(initials(nm)) + '</span>';
+  }
+  return '<span class="h">#</span>';
+}
+/* nome e foto de quem escreveu, respeitando o apelido do canal */
+function chAutor(m){
+  const id  = m.author_id;
+  const mem = (CH_MEMBROS[m.channel_id] || {})[id] || {};
+  const p   = chPerfil(id);
+  const nome = mem.apelido || (p && p.nome) || m.author_name || '—';
+  let foto = mem.avatar_url || (p && p.avatar_url) || null;
+  if(ME && id === ME.id && ME.avatar_url && !mem.avatar_url) foto = ME.avatar_url;
+  return {nome, foto, cliente: !!(p && p.role !== 'admin')};
+}
+
+/* ---------------------------------------------------------------------
+   4. Abrir canal
+   --------------------------------------------------------------------- */
+async function openChan(id){
+  if(!id) return;
+  CHAN = id;
+  CH_RESP = null;
+  document.body.classList.add('mgx-conversa');
+  if(!CHMSGS[id] || !CH_MEMBROS[id]){
+    renderChatView();
+    try{ await Promise.all([loadMsgs(id), chLoadMembros(id)]) }catch(e){ console.warn('[chat]', e) }
+  }
+  await chMarcarLido(id);
+  renderChatView();
+  chRolarFim();
+}
+/* garante a linha do membro (é ela que guarda o "li até aqui") */
+async function chMarcarLido(id){
+  if(!ME || !id) return;
+  delete CH_NAOLIDAS[id];
+  const agora = new Date().toISOString();
+  try{
+    const {data} = await sb.from('channel_members').update({last_read_at: agora})
+      .eq('channel_id', id).eq('profile_id', ME.id).select('profile_id');
+    if(!data || !data.length){
+      await sb.from('channel_members')
+        .upsert([{channel_id:id, profile_id:ME.id, last_read_at:agora}],
+                {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
+    }
+  }catch(e){ /* não impede o uso do chat */ }
+  if(typeof updateNotifBadge === 'function'){ try{ updateNotifBadge() }catch(e){} }
+}
+function chRolarFim(){
+  const cx = document.getElementById('mgx-msgs');
+  if(cx) cx.scrollTop = cx.scrollHeight;
+}
+function chFilter(v){ CH_FILTER = (v||'').toLowerCase(); renderChatView() }
+function mgChatBuscar(){ const i = document.getElementById('mgx-busca-in'); if(i) i.focus() }
+function chVoltarLista(){ document.body.classList.remove('mgx-conversa'); renderChatView() }
+
+/* ---------------------------------------------------------------------
+   5. Tempo real
+   O bug antigo: a adição 18 registrava o handler do som DEPOIS do
+   subscribe, e o supabase-js só considera os handlers registrados antes.
+   --------------------------------------------------------------------- */
+function chSubscribe(){
+  if(CH_RT) return;
+  try{
+    CH_RT = sb.channel('mgx-chat')
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, p => chChegou(p.new))
+      .on('postgres_changes', {event:'DELETE', schema:'public', table:'messages'}, p => chSumiu(p.old))
+      .on('postgres_changes', {event:'UPDATE', schema:'public', table:'messages'}, p => chMudou(p.new))
+      .subscribe();
+  }catch(e){ /* tempo real é opcional */ }
+}
+function chChegou(m){
+  if(!m || !m.channel_id) return;
+  const lista = CHMSGS[m.channel_id];
+  if(lista){
+    if(lista.some(x=>x.id===m.id)) return;
+    lista.push(m);
+  }
+  const meu = ME && m.author_id === ME.id;
+  if(!meu){
+    if(m.channel_id === CHAN && VIEW === 'chat'){
+      chMarcarLido(m.channel_id);
+    }else{
+      CH_NAOLIDAS[m.channel_id] = (CH_NAOLIDAS[m.channel_id] || 0) + 1;
+      if(typeof mgSom === 'function'){ try{ mgSom('nova') }catch(e){} }
+    }
+  }
+  if(VIEW === 'chat') renderChatView();
+}
+function chSumiu(m){
+  if(!m || !CHMSGS[m.channel_id]) return;
+  CHMSGS[m.channel_id] = CHMSGS[m.channel_id].filter(x=>x.id!==m.id);
+  if(VIEW === 'chat') renderChatView();
+}
+function chMudou(m){
+  if(!m || !CHMSGS[m.channel_id]) return;
+  const i = CHMSGS[m.channel_id].findIndex(x=>x.id===m.id);
+  if(i >= 0) CHMSGS[m.channel_id][i] = m;
+  if(VIEW === 'chat') renderChatView();
+}
+
+/* ---------------------------------------------------------------------
+   6. Desenho da tela
+   --------------------------------------------------------------------- */
+function chData(ts){
+  const d = new Date(ts), h = new Date(), o = new Date(Date.now() - 864e5);
+  if(d.toDateString() === h.toDateString()) return 'Hoje';
+  if(d.toDateString() === o.toDateString()) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+}
+function chHora(ts){
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function chCombina(c){
+  if(!CH_FILTER) return true;
+  return mgChanNome(c).toLowerCase().includes(CH_FILTER)
+      || String(c.nome||'').toLowerCase().includes(CH_FILTER);
+}
+
+function renderChatView(){
+  const el = document.getElementById('v-chat'); if(!el) return;
+
+  if(CH_READY === null){
+    el.innerHTML = '<div class="mgx-vazio">Abrindo o chat…</div>';
+    chIniciar().then(renderChatView);
+    return;
+  }
+  if(CH_READY === false){
+    el.innerHTML = '<div class="mgx-aviso"><h3>O chat não pôde ser aberto</h3>'
+      + '<p>O banco recusou a leitura dos canais.</p>'
+      + '<p style="font-size:12px">' + esc(CH_ERRO || '') + '</p></div>';
+    return;
+  }
+
+  el.innerHTML = '<aside class="mgx-lado">' + chLadoHTML() + '</aside>'
+               + '<div class="mgx-conv">' + chConversaHTML() + '</div>';
+
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  el.style.setProperty('--cor-canal', chCor(cur) || 'transparent');
+  document.body.classList.toggle('mg-sem-hora',
+    typeof mgP === 'function' && mgP('horas') === 'off');
+  chRolarFim();
+  if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+}
+
+/* ----- coluna da esquerda ----- */
+function chLadoHTML(){
+  const doCliente = CHANNELS.filter(c=>c.tipo==='client');
+  const daEquipe  = CHANNELS.filter(c=>c.tipo==='team'  && chCombina(c));
+  const diretas   = CHANNELS.filter(c=>c.tipo==='dm'    && chCombina(c));
+
+  /* clientes agrupados por empresa: uma empresa pode ter vários canais */
+  const porEmpresa = new Map();
+  doCliente.forEach(c=>{
+    if(!porEmpresa.has(c.client_id)) porEmpresa.set(c.client_id, []);
+    porEmpresa.get(c.client_id).push(c);
+  });
+  const grupos = [...porEmpresa.entries()]
+    .map(([cid, cs])=>({cid, cs, nome: clientName(cid),
+                        naoLidas: cs.reduce((a,c)=>a+(CH_NAOLIDAS[c.id]||0), 0)}))
+    .filter(g => !CH_FILTER || g.nome.toLowerCase().includes(CH_FILTER) || g.cs.some(chCombina))
+    .sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
+
+  const item = c => {
+    const n = CH_NAOLIDAS[c.id] || 0;
+    return '<button class="mgx-i ' + (c.id===CHAN?'on':'') + ' ' + (n?'novo':'') + '"'
+         + ' onclick="openChan(\'' + esc(c.id) + '\')">'
+         + chMarca(c, 18)
+         + '<span class="nm">' + esc(mgChanNome(c)) + '</span>'
+         + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+         + '</button>';
+  };
+
+  let html = '<div class="mgx-busca"><span style="opacity:.5">⌕</span>'
+    + '<input id="mgx-busca-in" placeholder="Buscar conversa…" value="' + esc(CH_FILTER) + '"'
+    + ' oninput="chFilter(this.value)"></div><div class="mgx-lista">';
+
+  /* clientes */
+  html += '<div class="mgx-sec">Clientes'
+       + (isAdmin() ? '<button class="add" title="Configurar canais" onclick="chConfigurar()">⚙</button>' : '')
+       + '</div>';
+  html += grupos.length ? grupos.map(g=>{
+      const aberta = CH_EMP_ABERTAS.has(g.cid) || g.cs.some(c=>c.id===CHAN) || !!CH_FILTER;
+      if(aberta) CH_EMP_ABERTAS.add(g.cid);
+      const marca = (typeof mgClientLogo === 'function') ? mgClientLogo(g.cid, 18)
+        : '<span class="mgx-lg" style="background:' + clientColor(g.cid) + '"></span>';
+      return '<div class="mgx-emp ' + (aberta?'aberta':'') + '">'
+        + '<button class="cab" onclick="chAlternarEmpresa(\'' + esc(g.cid) + '\')">'
+        + '<span class="seta">▶</span>' + marca
+        + '<span class="nm">' + esc(g.nome) + '</span>'
+        + (g.naoLidas ? '<span class="n">' + g.naoLidas + '</span>' : '')
+        + (isAdmin() ? '<span class="add" title="Novo canal desta empresa"'
+            + ' onclick="event.stopPropagation();chNovoCanalCliente(\'' + esc(g.cid) + '\')">＋</span>' : '')
+        + '</button><div class="dentro">' + g.cs.map(item).join('') + '</div></div>';
+    }).join('')
+    : '<div class="mgx-nada">nenhum</div>';
+
+  /* equipe */
+  html += '<div class="mgx-sec">Equipe'
+       + (isAdmin() ? '<button class="add" title="Novo canal interno" onclick="chNovoCanalEquipe()">＋</button>' : '')
+       + '</div>';
+  html += daEquipe.length ? daEquipe.map(item).join('') : '<div class="mgx-nada">nenhum</div>';
+
+  /* conversas diretas */
+  html += '<div class="mgx-sec">Conversas diretas'
+       + '<button class="add" title="Nova conversa" onclick="chNovaDireta()">＋</button></div>';
+  html += diretas.length ? diretas.map(item).join('') : '<div class="mgx-nada">nenhuma</div>';
+
+  return html + '</div>';
+}
+function chAlternarEmpresa(cid){
+  if(CH_EMP_ABERTAS.has(cid)) CH_EMP_ABERTAS.delete(cid); else CH_EMP_ABERTAS.add(cid);
+  renderChatView();
+}
+
+/* ----- conversa ----- */
+function chConversaHTML(){
+  const c = CHANNELS.find(x=>x.id===CHAN);
+  if(!c){
+    return '<div class="mgx-vazio">Escolha uma conversa à esquerda.'
+      + (isAdmin() && !CHANNELS.length
+         ? '<br><br><button class="btn-p" onclick="chConfigurar()">Configurar os canais</button>' : '')
+      + '</div>';
+  }
+  const sub = c.tipo === 'client' ? 'equipe ↔ ' + esc(clientName(c.client_id))
+            : c.tipo === 'team'   ? 'canal interno' : 'conversa direta';
+
+  return '<div class="mgx-topo">'
+    + '<button class="mgx-voltar" onclick="chVoltarLista()" title="Voltar">←</button>'
+    + '<span class="nm">' + chMarca(c, 24) + '<span>' + esc(mgChanNome(c)) + '</span></span>'
+    + '<span class="sub">' + sub + '</span><span class="sp"></span>'
+    + (isAdmin() ? '<button class="bt" onclick="chRenomear()">Renomear</button>' : '')
+    + '</div>'
+    + '<div class="mgx-msgs" id="mgx-msgs">' + chMensagensHTML(c) + '</div>'
+    + '<div class="mgx-comp">' + chComposerHTML(c) + '</div>';
+}
+
+function chMensagensHTML(c){
+  const lista = CHMSGS[CHAN];
+  if(!lista) return '<div class="mgx-vazio">Carregando…</div>';
+  if(!lista.length) return '<div class="mgx-vazio">Nenhuma mensagem ainda. Diga oi!</div>';
+
+  let dia = '', autorAnt = null, tsAnt = 0, out = '';
+  lista.forEach(m => {
+    const d = chData(m.created_at);
+    if(d !== dia){ dia = d; autorAnt = null; out += '<div class="mgx-dia"><span>' + esc(d) + '</span></div>' }
+
+    if(m.kind === 'system'){
+      autorAnt = null;
+      out += '<div class="mgx-sis"><span class="pt"></span><span>' + esc(m.body||'') + '</span>'
+           + '<span class="de">sistema</span></div>';
+      return;
+    }
+
+    const a = chAutor(m);
+    const t = new Date(m.created_at).getTime();
+    /* agrupa mensagens seguidas da mesma pessoa em até 5 minutos */
+    const segue = (autorAnt === m.author_id) && (t - tsAnt <= 5*60000) && !m.reply_to;
+    autorAnt = m.author_id; tsAnt = t;
+
+    const meu = ME && m.author_id === ME.id;
+    const av  = a.foto ? '<img src="' + esc(a.foto) + '" alt="">' : esc(initials(a.nome));
+
+    out += '<div class="mgx-msg ' + (segue?'segue':'') + '" data-id="' + esc(String(m.id)) + '">'
+      + '<span class="hora-lat">' + chHora(m.created_at) + '</span>'
+      + '<div class="av" style="background:' + (meu ? 'var(--brass)' : '#7C8A97') + '">' + av + '</div>'
+      + '<div class="bd">'
+        + chCitacaoHTML(m)
+        + '<div class="hd"><span class="quem">' + esc(a.nome) + '</span>'
+          + (a.cliente ? '<span class="rl cli">cliente</span>' : '')
+          + '<span class="hora">' + chHora(m.created_at) + '</span></div>'
+        + '<div class="tx">' + esc(m.body||'') + '</div>'
+        + '<div class="mgx-reacoes">' + chReacoesHTML(m) + '</div>'
+      + '</div>'
+      + chAcoesHTML(m, meu)
+      + '</div>';
+  });
+  return out;
+}
+function chCitacaoHTML(m){
+  if(!m.reply_to) return '';
+  const pai = (CHMSGS[CHAN]||[]).find(x=>String(x.id)===String(m.reply_to));
+  if(!pai) return '<div class="mgx-cit"><b>mensagem removida</b></div>';
+  const a = chAutor(pai);
+  return '<div class="mgx-cit" onclick="chIrPara(\'' + esc(String(pai.id)) + '\')">'
+    + '<b>' + esc(a.nome) + '</b>'
+    + '<span class="t">' + esc(String(pai.body||'').slice(0,90)) + '</span></div>';
+}
+function chReacoesHTML(m){
+  const r = m.reactions || {};
+  const chaves = Object.keys(r).filter(k => (r[k]||[]).length);
+  if(!chaves.length) return '';
+  return chaves.map(k=>{
+    const gente = r[k] || [];
+    const minha = ME && gente.includes(ME.id);
+    return '<button class="mgx-rea ' + (minha?'minha':'') + '"'
+      + ' title="' + gente.length + ' pessoa(s)"'
+      + ' onclick="chReagir(\'' + esc(String(m.id)) + '\',\'' + k + '\')">'
+      + k + '<span class="n">' + gente.length + '</span></button>';
+  }).join('')
+  + '<button class="mgx-rea add" title="Reagir"'
+  + ' onclick="chAbrirEmojis(\'' + esc(String(m.id)) + '\',event)">＋</button>';
+}
+function chAcoesHTML(m, meu){
+  const id = esc(String(m.id));
+  return '<div class="mgx-acoes">'
+    + '<button title="Reagir" onclick="chAbrirEmojis(\'' + id + '\',event)">☺</button>'
+    + '<button title="Responder" onclick="chResponder(\'' + id + '\')">↩</button>'
+    + '<button title="Copiar" onclick="chCopiar(\'' + id + '\')">⧉</button>'
+    + ((meu || isAdmin())
+        ? '<span class="div"></span><button title="Excluir" onclick="chExcluir(\'' + id + '\')">🗑</button>'
+        : '')
+    + '</div>';
+}
+function chIrPara(id){
+  const el = document.querySelector('.mgx-msg[data-id="' + CSS.escape(String(id)) + '"]');
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.classList.add('alvo');
+  setTimeout(()=>el.classList.remove('alvo'), 1200);
+}
+
+/* ----- caixa de escrita ----- */
+function chComposerHTML(c){
+  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
+  return (CH_RESP
+      ? '<div class="mgx-resp"><span>↩</span><span class="t">Respondendo <b>'
+        + esc(CH_RESP.autor) + '</b> · ' + esc(CH_RESP.texto) + '</span>'
+        + '<button class="x" onclick="chCancelarResposta()">✕</button></div>'
+      : '')
+    + '<div class="mgx-caixa">'
+      + '<div class="mgx-fer">'
+        + '<button title="Negrito" onclick="chFmt(\'*\')"><b>B</b></button>'
+        + '<button title="Itálico" onclick="chFmt(\'_\')"><i>I</i></button>'
+        + '<button title="Riscado" onclick="chFmt(\'~\')"><s>S</s></button>'
+        + '<span class="div"></span>'
+        + '<button title="Lista" onclick="chFmtLinha(\'• \')">☰</button>'
+        + '<button title="Citação" onclick="chFmtLinha(\'&gt; \')">❝</button>'
+        + '<button title="Código" onclick="chFmt(\'`\')">&lt;/&gt;</button>'
+      + '</div>'
+      + '<textarea id="mgx-in" rows="1" placeholder="Mensagem para '
+        + esc(mgChanNome(c)) + '…" onkeydown="chKey(event)" oninput="chDigitando(this)"></textarea>'
+      + '<div class="mgx-baixo"><span class="sp"></span>'
+        + '<button class="env" onclick="chSend()" title="Enviar">➤</button></div>'
+    + '</div>'
+    + '<div class="mgx-dica">'
+      + (enterEnvia ? '<b>Enter</b> envia · <b>Shift+Enter</b> quebra linha'
+                    : '<b>Ctrl+Enter</b> envia · <b>Enter</b> quebra linha')
+      + '<span class="mgx-cmds">'
+        + '<button onclick="chExample()">#adicionardemanda</button>'
+        + '<button onclick="chDocExample()">#adicionardocumento</button>'
+      + '</span></div>';
+}
+function chCaixa(){ return document.getElementById('mgx-in') }
+function chDigitando(ta){
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+  const b = document.querySelector('#v-chat .mgx-baixo .env');
+  if(b) b.classList.toggle('pronto', ta.value.trim().length > 0);
+}
+function chKey(e){
+  const enterEnvia = (typeof mgP !== 'function') || mgP('enterEnvia') !== 'off';
+  if(e.key === 'Enter'){
+    if(enterEnvia && !e.shiftKey){ e.preventDefault(); chSend(); return }
+    if(!enterEnvia && (e.ctrlKey || e.metaKey)){ e.preventDefault(); chSend(); return }
+  }
+  if(e.key === 'Escape' && CH_RESP){ e.preventDefault(); chCancelarResposta() }
+  setTimeout(()=>chDigitando(e.target), 0);
+}
+function chFmt(marca){
+  const ta = chCaixa(); if(!ta) return;
+  const i = ta.selectionStart, f = ta.selectionEnd, t = ta.value;
+  const sel = t.slice(i,f) || 'texto';
+  ta.value = t.slice(0,i) + marca + sel + marca + t.slice(f);
+  ta.focus(); ta.setSelectionRange(i + marca.length, i + marca.length + sel.length);
+}
+function chFmtLinha(prefixo){
+  const ta = chCaixa(); if(!ta) return;
+  const i = ta.selectionStart, t = ta.value;
+  const ini = t.lastIndexOf('\n', i-1) + 1;
+  ta.value = t.slice(0,ini) + prefixo + t.slice(ini);
+  ta.focus(); ta.setSelectionRange(i + prefixo.length, i + prefixo.length);
+}
+
+/* ---------------------------------------------------------------------
+   7. Enviar, responder, reagir, excluir
+   --------------------------------------------------------------------- */
+async function chSend(){
+  const ta = chCaixa(); if(!ta || !CHAN) return;
+  const corpo = ta.value.trim(); if(!corpo) return;
+
+  const resposta = CH_RESP ? CH_RESP.id : null;
+  ta.value = ''; ta.style.height = 'auto'; CH_RESP = null;
+
+  const linha = {channel_id: CHAN, author_id: ME.id, author_name: ME.name, body: corpo};
+  if(resposta) linha.reply_to = resposta;
+
+  try{
+    let {data, error} = await sb.from('messages').insert(linha).select().single();
+    /* banco sem a coluna reply_to: envia sem a citação em vez de falhar */
+    if(error && /reply_to/i.test(error.message||'')){
+      delete linha.reply_to;
+      ({data, error} = await sb.from('messages').insert(linha).select().single());
+    }
+    if(error) throw error;
+    const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
+    if(data && !lista.some(m=>m.id===data.id)) lista.push(data);
+    renderChatView();
+    chRolarFim();
+  }catch(e){
+    const m = (e && e.message) || '';
+    if(/row-level security|permission|403/i.test(m))
+      toast('O banco recusou a mensagem — você não tem acesso a este canal');
+    else toast('Não foi possível enviar: ' + m);
+    ta.value = corpo;   /* devolve o texto para não se perder */
+    console.error('[chat] envio', e);
+    return;
+  }
+
+  /* comandos */
+  if(/#adicionardemanda\b/i.test(corpo)   && typeof chCriarDemanda   === 'function') chCriarDemanda(corpo);
+  if(/#adicionardocumento\b/i.test(corpo) && typeof chCriarDocumento === 'function') chCriarDocumento(corpo);
+}
+
+function chMsg(id){ return (CHMSGS[CHAN]||[]).find(m=>String(m.id)===String(id)) }
+function chResponder(id){
+  const m = chMsg(id); if(!m) return;
+  const a = chAutor(m);
+  CH_RESP = {id:m.id, autor:a.nome, texto:String(m.body||'').slice(0,120)};
+  renderChatView();
+  const ta = chCaixa(); if(ta) ta.focus();
+}
+function chCancelarResposta(){ CH_RESP = null; renderChatView() }
+function chCopiar(id){
+  const m = chMsg(id); if(!m) return;
+  navigator.clipboard.writeText(m.body||'')
+    .then(()=>toast('Mensagem copiada')).catch(()=>toast('Copie manualmente'));
+}
+async function chExcluir(id){
+  if(!confirm('Excluir esta mensagem?')) return;
+  try{
+    const {data, error} = await sb.from('messages').delete().eq('id', id).select('id');
+    if(error) throw error;
+    /* sem policy de DELETE o banco devolve zero linhas e nenhum erro */
+    if(!data || !data.length){ toast('O banco não permitiu excluir esta mensagem'); return }
+    CHMSGS[CHAN] = (CHMSGS[CHAN]||[]).filter(m=>String(m.id)!==String(id));
+    renderChatView();
+    toast('Mensagem excluída');
+  }catch(e){ toast('Não foi possível excluir: ' + ((e&&e.message)||'')) }
+}
+async function chReagir(id, emoji){
+  const m = chMsg(id); if(!m || !ME) return;
+  try{
+    const {data, error} = await sb.rpc('mg_toggle_reaction', {p_message:id, p_emoji:emoji});
+    if(error) throw error;
+    m.reactions = data || {};
+    renderChatView();
+  }catch(e){ toast('Não foi possível reagir: ' + ((e&&e.message)||'')) }
+}
+function chAbrirEmojis(id, ev){
+  if(ev) ev.stopPropagation();
+  let p = document.getElementById('mgx-emojis');
+  if(!p){ p = document.createElement('div'); p.className='mgx-emojis'; p.id='mgx-emojis'; document.body.appendChild(p) }
+  p.innerHTML = CH_EMOJIS.map(e =>
+    '<button onclick="chReagir(\'' + esc(String(id)) + '\',\'' + e + '\');chFecharEmojis()">' + e + '</button>'
+  ).join('');
+  p.classList.add('on');
+  const r = (ev && ev.currentTarget) ? ev.currentTarget.getBoundingClientRect() : {left:100, top:140};
+  const L = 250, A = 130;
+  p.style.left = Math.max(10, Math.min(window.innerWidth - L - 10, r.left - L/2)) + 'px';
+  p.style.top  = Math.max(10, (r.top || 140) - A - 6) + 'px';
+}
+function chFecharEmojis(){ const p = document.getElementById('mgx-emojis'); if(p) p.classList.remove('on') }
+document.addEventListener('click', e => { if(!e.target.closest('#mgx-emojis')) chFecharEmojis() });
+
+/* ---------------------------------------------------------------------
+   8. Criar canais
+   Nada acontece sozinho: era isso que gerava o 403 e os canais repetidos.
+   --------------------------------------------------------------------- */
+async function chNovoCanalCliente(cid){
+  if(!isAdmin()) return;
+  const nome = prompt('Nome do canal para ' + clientName(cid) + ':', 'assuntos');
+  if(!nome || !nome.trim()) return;
+  await chCriarCanal('client', chSlug(nome), cid);
+}
+async function chNovoCanalEquipe(){
+  if(!isAdmin()) return;
+  const nome = prompt('Nome do canal interno:');
+  if(!nome || !nome.trim()) return;
+  await chCriarCanal('team', chSlug(nome), null);
+}
+function chSlug(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+}
+async function chCriarCanal(tipo, nome, cid){
+  try{
+    const {data, error} = await sb.from('channels')
+      .insert({tipo, nome, client_id: cid, created_by: ME.id}).select().single();
+    if(error) throw error;
+    await chEntrar(data.id);
+    await loadChannels();
+    if(cid) CH_EMP_ABERTAS.add(cid);
+    CHMSGS[data.id] = [];
+    await openChan(data.id);
+    toast('Canal criado ✓');
+  }catch(e){ toast('Não foi possível criar: ' + ((e&&e.message)||'')) }
+}
+/* entra no canal sem esbarrar na policy: ignoreDuplicates faz o banco
+   receber um "não faça nada se já existe", que não exige UPDATE */
+async function chEntrar(cid, perfis){
+  const ids = perfis && perfis.length ? perfis : (ME ? [ME.id] : []);
+  if(!ids.length) return;
+  try{
+    await sb.from('channel_members')
+      .upsert(ids.map(pid=>({channel_id:cid, profile_id:pid})),
+              {onConflict:'channel_id,profile_id', ignoreDuplicates:true});
+  }catch(e){ console.warn('[chat] membros', e) }
+}
+
+/* ----- conversas diretas, sob demanda ----- */
+function chChaveDireta(a, b){ return 'dm:' + [a,b].sort().join(':') }
+function chNovaDireta(){
+  const gente = CH_PERFIS.filter(p => p.role === 'admin' && (!ME || p.id !== ME.id))
+                         .sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  if(!gente.length){ toast('Não há outras pessoas da equipe cadastradas'); return }
+  const lista = gente.map((p,i)=>(i+1) + '. ' + (p.nome||'—')).join('\n');
+  const r = prompt('Conversar com quem?\n\n' + lista + '\n\nDigite o número:');
+  const i = parseInt(r,10) - 1;
+  if(isNaN(i) || !gente[i]) return;
+  chAbrirDireta(gente[i].id);
+}
+async function chAbrirDireta(outroId){
+  const chave = chChaveDireta(ME.id, outroId);
+  let c = CHANNELS.find(x => x.tipo==='dm' && x.nome === chave);
+  if(c){ await openChan(c.id); return }
+  try{
+    /* pode existir e não estar na lista (criada pelo outro lado) */
+    const {data: achado} = await sb.from('channels').select('*')
+      .eq('tipo','dm').eq('nome', chave).maybeSingle();
+    if(achado){
+      await chEntrar(achado.id, [ME.id, outroId]);
+      await loadChannels();
+      await openChan(achado.id);
+      return;
+    }
+    const {data, error} = await sb.from('channels')
+      .insert({tipo:'dm', nome: chave, client_id:null, created_by: ME.id}).select().single();
+    if(error) throw error;
+    await chEntrar(data.id, [ME.id, outroId]);
+    await loadChannels();
+    CHMSGS[data.id] = [];
+    await openChan(data.id);
+  }catch(e){ toast('Não foi possível abrir a conversa: ' + ((e&&e.message)||'')) }
+}
+
+async function chRenomear(){
+  if(!isAdmin()) return;
+  const c = CHANNELS.find(x=>x.id===CHAN); if(!c) return;
+  if(c.tipo === 'dm'){ toast('Conversa direta não tem nome próprio'); return }
+  const nome = prompt('Novo nome do canal:', c.nome);
+  if(!nome || !nome.trim() || nome === c.nome) return;
+  try{
+    const {error} = await sb.from('channels').update({nome: chSlug(nome)}).eq('id', c.id);
+    if(error) throw error;
+    await loadChannels(); renderChatView(); toast('Canal renomeado');
+  }catch(e){ toast('Não foi possível renomear') }
+}
+
+/* ----- provisionamento, agora sob comando do administrador ----- */
+async function chConfigurar(){
+  if(!isAdmin()) return;
+  if(!confirm('Criar os canais que ainda faltam?\n\n'
+    + '· um canal para cada empresa que ainda não tem\n'
+    + '· os canais internos #geral e #entregas\n\n'
+    + 'Nada existente é apagado ou alterado.')) return;
+  toast('Configurando…');
+  const criados = [];
+  try{
+    if(!CH_PERFIS.length) await chLoadPerfis();
+    const equipe = CH_PERFIS.filter(p=>p.role==='admin').map(p=>p.id);
+
+    for(const c of (CLIENTS||[])){
+      if(CHANNELS.some(x=>x.tipo==='client' && x.client_id===c.id)) continue;
+      const {data, error} = await sb.from('channels')
+        .insert({tipo:'client', nome: chSlug(c.nome), client_id: c.id, created_by: ME.id})
+        .select().single();
+      if(error) continue;
+      const doCliente = CH_PERFIS.filter(p=>p.client_id===c.id).map(p=>p.id);
+      await chEntrar(data.id, [...equipe, ...doCliente]);
+      criados.push('#' + data.nome);
+    }
+    for(const nome of ['geral','entregas']){
+      if(CHANNELS.some(x=>x.tipo==='team' && x.nome===nome)) continue;
+      const {data, error} = await sb.from('channels')
+        .insert({tipo:'team', nome, client_id:null, created_by: ME.id}).select().single();
+      if(error) continue;
+      await chEntrar(data.id, equipe);
+      criados.push('#' + nome);
+    }
+    await loadChannels();
+    renderChatView();
+    toast(criados.length ? 'Criados: ' + criados.slice(0,3).join(', ')
+                           + (criados.length>3 ? ' e mais ' + (criados.length-3) : '')
+                         : 'Nada a criar — já estava tudo no lugar');
+  }catch(e){ toast('Não foi possível configurar: ' + ((e&&e.message)||'')) }
+}
+
+/* ---------------------------------------------------------------------
+   9. Exemplos dos comandos
+   --------------------------------------------------------------------- */
+function chExample(){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const ta = chCaixa(); if(!ta) return;
+  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
+  const prazo = new Date(Date.now() + 7*864e5).toISOString().slice(0,10);
+  ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento' + linhaCli
+    + '\nresponsavel: ' + ((typeof ASSIGNEE_OPTS !== 'undefined' && ASSIGNEE_OPTS[0]) || '')
+    + '\nprazo: ' + (typeof fmtDate === 'function' ? fmtDate(prazo) : prazo)
+    + '\nprioridade: Alta';
+  chDigitando(ta); ta.focus();
+  toast(cur && cur.tipo==='client' ? 'Canal de cliente: a empresa já entra automático'
+                                   : 'Edite e aperte Enter');
+}
+function chDocExample(){
+  const cur = CHANNELS.find(c=>c.id===CHAN);
+  const ta = chCaixa(); if(!ta) return;
+  const linhaCli = (cur && cur.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
+  ta.value = '#adicionardocumento\ntitulo: Apresentação de resultados · Julho' + linhaCli
+    + '\ntipo: apresentacao\nlink: https://…\ndescricao: Fechamento do mês com destaques.';
+  chDigitando(ta); ta.focus();
+  toast('Tipos: apresentacao · proposta · diagnostico · weekly · concorrencia');
+}
+
+/* ---------------------------------------------------------------------
+   10. Ligação com o resto da plataforma
+   --------------------------------------------------------------------- */
+/* tela cheia no chat */
+(function(){
+  const _sv = showView;
+  showView = function(v){
+    const r = _sv(v);
+    document.body.classList.toggle('mg-e-chat', VIEW === 'chat');
+    if(VIEW !== 'chat') document.body.classList.remove('mgx-conversa');
+    return r;
+  };
+})();
+
+/* o Início mostra as conversas com mensagem nova */
+async function mgCarregarNaoLidas(){
+  MG_NAOLIDAS = [];
+  if(!ME) return;
+  try{
+    if(CH_READY === null) await chIniciar();
+    if(CH_READY !== true) return;
+    await chLoadNaoLidas();
+    MG_NAOLIDAS = Object.keys(CH_NAOLIDAS).map(cid=>{
+      const canal = CHANNELS.find(c=>c.id===cid);
+      if(!canal) return null;
+      return {canal, quantas: CH_NAOLIDAS[cid], qtd: CH_NAOLIDAS[cid],
+              ultima: {author_name:'', body:'', created_at:new Date().toISOString()}};
+    }).filter(Boolean);
+  }catch(e){ console.warn('[chat] não lidas', e) }
+}
+
+/* atalho da barra de baixo */
+(function(){
+  if(typeof mgDockItens !== 'function') return;
+  const _d = mgDockItens;
+  mgDockItens = function(){
+    const base = _d();
+    if(VIEW !== 'chat') return base;
+    const n = chTotalNaoLidas();
+    const extra = '<button onclick="mgChatBuscar()" title="Buscar conversa">'
+      + '<span class="ic">⌕</span><span class="rot">Conversas</span></button>'
+      + (isAdmin() ? '<button onclick="chConfigurar()" title="Configurar canais">'
+          + '<span class="ic">⚙</span><span class="rot">Canais</span></button>' : '')
+      + (n ? '<span class="conta">' + n + ' não lida' + (n===1?'':'s') + '</span>' : '');
+    return base.includes('<span class="sep"></span>')
+      ? base.replace('<span class="sep"></span>', extra + '<span class="sep"></span>')
+      : base + extra;
   };
 })();
 </script>
