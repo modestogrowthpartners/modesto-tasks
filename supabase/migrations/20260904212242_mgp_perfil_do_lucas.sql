@@ -10,10 +10,12 @@
 -- O papel é admin porque é o único que funciona para quem é da equipe:
 -- 'client' sem client_id faria current_client_id() devolver nulo e ele
 -- não enxergaria demanda nenhuma.
+-- Repositório é público, então a identificação sai do próprio Auth em
+-- vez de ficar escrita aqui.
 insert into public.profiles (id, nome, email, role, client_id)
 select u.id, 'Lucas Modesto', u.email, 'admin'::user_role, null
   from auth.users u
- where u.id = 'e3190072-5142-4aea-82db-9f1a92d639ab'
+ where u.email = 'lucas.modesto@' || 'modestogrowth.com.br'
 on conflict (id) do nothing;
 
 -- Religa as demandas que já citavam "Lucas" no texto. O gatilho de
@@ -35,4 +37,4 @@ update public.tasks t
 -- mostraria "membro desde" errado. A data verdadeira é a do Auth.
 update public.profiles p set created_at = u.created_at
   from auth.users u
- where p.id = u.id and p.id = 'e3190072-5142-4aea-82db-9f1a92d639ab';
+ where p.id = u.id and p.nome = 'Lucas Modesto';

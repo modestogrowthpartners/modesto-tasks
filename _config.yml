@@ -1,0 +1,9 @@
+# O GitHub Pages publica, por padrão, TODO arquivo do repositório. Sem
+# esta exclusão, o backend e os testes ficariam servidos em
+# modestopartners.com.br/supabase/... e /testes/..., o que não tem
+# nenhuma utilidade para quem acessa e só amplia a superfície exposta.
+# O site é um arquivo só: index.html.
+exclude:
+  - supabase/
+  - testes/
+  - README.md

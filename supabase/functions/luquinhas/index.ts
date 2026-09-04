@@ -30,8 +30,11 @@ const STATUS = ["Não iniciado", "Entregas do dia", "Em Andamento",
   "Impeditivo/Aprovação", "Próximas entregas", "Feito", "Concluído Atendimento"];
 const PRIORIDADES = ["Baixa", "Média", "Alta"];
 
-const MODELO = Deno.env.get("LUQUINHAS_MODEL") || "claude-sonnet-5";
-const CHAVE = Deno.env.get("ANTHROPIC_API_KEY") || "";
+/* Lido a cada chamada, de propósito. Se fosse lido uma vez na carga do
+   módulo, definir o segredo depois só passaria a valer quando o isolate
+   fosse reciclado, e daria a impressão de que a chave não funcionou. */
+function chave() { return Deno.env.get("ANTHROPIC_API_KEY") || ""; }
+function modelo() { return Deno.env.get("LUQUINHAS_MODEL") || "claude-sonnet-5"; }
 
 function json(corpo: unknown, status = 200) {
   return new Response(JSON.stringify(corpo), {
@@ -497,7 +500,7 @@ async function chamarModelo(corpo: any) {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "x-api-key": CHAVE,
+      "x-api-key": chave(),
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
     },
@@ -577,7 +580,7 @@ Deno.serve(async (req) => {
   }
 
   /* ---- modo conversar ---- */
-  if (!CHAVE) {
+  if (!chave()) {
     return falha(
       "sem_chave",
       "O Luquinhas ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.",
@@ -597,7 +600,7 @@ Deno.serve(async (req) => {
   try {
     for (let volta = 0; volta < 6; volta++) {
       const resp = await chamarModelo({
-        model: MODELO,
+        model: modelo(),
         max_tokens: 2000,
         system: instrucao(quem, ctx),
         tools: ferramentas,

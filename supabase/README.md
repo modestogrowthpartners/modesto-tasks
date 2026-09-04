@@ -59,16 +59,13 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._mgp_responsaveis_por_id` | vínculo de responsável por id, e o rename que não órfã mais as demandas |
 | `..._mgp_perfil_do_lucas` | o Lucas tinha login desde julho e nunca teve perfil |
 
-## Pendências conhecidas
+## Pendências
 
-- **Confirmação de senha vazada está desligada** no Auth. Ligar em
-  Authentication → Password security.
-- **"Allow new users to sign up"** precisa ser conferido. Se estiver
-  ligado, qualquer pessoa cria conta com a chave anon, que está no HTML.
-- **Bucket `documents` sem limite de tamanho** de arquivo.
-- **Remover acesso não remove o login.** Hoje apaga a linha em `profiles`,
-  mas o usuário continua no Auth e o perfil é recriado no próximo login.
-  A saída correta é uma Edge Function com `service_role`.
-- **Duas contas órfãs no Auth**, sem perfil: `patricia@modestogrowth.com.br`
-  (nunca logou) e `vanessa.modesto@modestogrowth.com.br` (a Vanessa tem
-  duas contas; o perfil está na `.com`, sem o `.br`).
+A lista de pendências de configuração saiu daqui. Este repositório é
+público, e um inventário de configurações fracas num repositório público
+é um roteiro pronto para quem quiser tentar alguma coisa.
+
+Elas estão descritas na conversa com o time e devem ser tratadas no
+painel do Supabase. Em resumo, sem detalhar o que está aberto: revisar as
+opções de Authentication, o limite do bucket de Storage e o fluxo de
+remoção de acesso, que hoje apaga o perfil mas não o login.
