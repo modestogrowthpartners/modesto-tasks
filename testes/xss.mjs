@@ -2,6 +2,7 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'fs';
 const ATAQUE = "Maria D'Ávila\");window.__hack=1;(\"";
 const AVATAR = "x\" onerror=\"window.__hack2=1\" data-=\"";
+const SP = process.env.SP || new URL('.', import.meta.url).pathname;
 let stub = fs.readFileSync(SP + '/stub.js','utf8');
 stub = stub.replace("nome:'Elias Braga'", "nome:"+JSON.stringify(ATAQUE))
            .replace("{id:UCLI, nome:'Flavia Marcos', role:'client', client_id:CID, avatar_url:null",
