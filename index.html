@@ -208,6 +208,13 @@
 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Política de conteúdo. O ganho principal está em connect-src: mesmo que
+     alguma injeção passe, o dado não tem para onde ser mandado, porque só o
+     próprio Supabase do portal é destino permitido. O 'unsafe-inline' em
+     script-src ainda é obrigatório porque o arquivo usa handlers onclick em
+     toda parte; sair disso exige delegação de evento e é trabalho à parte.
+     Não há 'unsafe-eval': o único eval do arquivo foi removido. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://eeqaabwsheaiwyhujcqj.supabase.co wss://eeqaabwsheaiwyhujcqj.supabase.co; frame-src 'self' data: blob:; worker-src 'self' blob:">
 <title>Modesto Tasks — Gestão de Demandas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1002,7 +1009,62 @@ const colColor = k => (COLS.find(c=>c.key===k)||{}).color || 'var(--muted)';
 
 /* ===== helpers ===== */
 const $ = id => document.getElementById(id);
-const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* Escape de HTML. Cobre o conjunto do OWASP, e não só os quatro caracteres
+   de sempre: a aspa simples e a crase fecham atributo, e o "=" e a "/"
+   importam em atributo sem aspas. */
+const esc = s => (s==null?'':String(s)).replace(/[&<>"'`=\/]/g, c => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',
+  "'":'&#39;','`':'&#96;','=':'&#61;','/':'&#47;'
+}[c]));
+
+/* Valor que vai virar STRING DE JAVASCRIPT dentro de um handler inline
+   (onclick="f('AQUI')").
+
+   Cuidado importante: o navegador decodifica as entidades do atributo
+   ANTES de compilar o handler. Então escapar a aspa como &#39; NÃO
+   protege: ela volta a ser aspa e fecha a string. Verificado no
+   navegador. Quem sobrevive à decodificação é a barra invertida, por
+   isso a ordem aqui é escapar para JavaScript primeiro e para HTML
+   depois. Use escJS em todo valor interpolado dentro de handler. */
+/* Endereço de imagem vindo do banco. Um único ponto decide o que pode
+   virar src, em vez de cada componente decidir por conta. Só passa
+   https, blob da própria sessão e imagem embutida em base64. Qualquer
+   outra coisa (javascript:, data:text/html, endereço torto) vira vazio,
+   e quem chama cai no desenho de reserva em vez de exibir imagem quebrada. */
+function mgUrlImagem(u){
+  const t = String(u==null?'':u).trim();
+  if(!t) return '';
+  const ok = /^https:\/\/[^\s"'<>]+$/i.test(t)
+          || /^blob:https?:\/\/[^\s"'<>]+$/i.test(t)
+          || /^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+\/=\s]+$/i.test(t);
+  return ok ? esc(t) : '';
+}
+
+/* Abre um documento HTML do acervo numa aba nova SEM dar a ele a origem
+   do portal. O conteúdo vai para dentro de um iframe com sandbox e sem
+   allow-same-origin, então ele ganha origem própria e não alcança o
+   localStorage, os cookies nem a sessão de quem abriu.
+
+   A aba precisa ser aberta sem "noopener": com noopener o window.open
+   devolve null e não haveria como escrever nela. Quem fica isolado é o
+   conteúdo, dentro do iframe, que é onde está o risco. */
+function mgAbrirHTMLIsolado(txt, titulo){
+  const aba = window.open('', '_blank');
+  if(!aba){ if(typeof toast==='function') toast('O navegador bloqueou a nova aba, libere os pop-ups'); return false }
+  const dentro = String(txt==null?'':txt).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  aba.document.open();
+  aba.document.write(
+    '<!doctype html><meta charset="utf-8"><title>' + esc(titulo || 'Documento') + '</title>'
+    + '<style>html,body{margin:0;height:100%;background:#fff}iframe{border:0;width:100%;height:100%}</style>'
+    + '<iframe sandbox="allow-scripts allow-popups allow-forms allow-modals"'
+    + ' referrerpolicy="no-referrer" srcdoc="' + dentro + '"></iframe>');
+  aba.document.close();
+  return true;
+}
+
+const escJS = s => esc(String(s==null?'':s)
+  .replace(/\\/g,'\\\\').replace(/'/g,"\\'")
+  .replace(/\r/g,'\\r').replace(/\n/g,'\\n'));
 function initials(n){return (n||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase()}
 function isAdmin(){return ME && ME.role==='admin'}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200)}
@@ -1039,13 +1101,13 @@ function clientColor(id){return CLIENT_COLOR[id]||'#8a8271';}
 function hexA(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
 function clientLogo(id){const c=CLIENTS.find(x=>x.id===id);return c&&c.logo_url?c.logo_url:null;}
 function clientChipHTML(id,big){const lg=clientLogo(id),col=clientColor(id),nm=clientName(id);
-  const badge=lg?`<img src="${lg}" style="width:${big?26:16}px;height:${big?26:16}px;border-radius:5px;object-fit:contain;background:#fff;border:1px solid var(--line)">`
+  const badge=lg?`<img src="${mgUrlImagem(lg)}" style="width:${big?26:16}px;height:${big?26:16}px;border-radius:5px;object-fit:contain;background:#fff;border:1px solid var(--line)">`
                 :`<span style="width:${big?14:11}px;height:${big?14:11}px;border-radius:3px;background:${col};display:inline-block"></span>`;
   return `<span style="display:inline-flex;align-items:center;gap:8px">${badge}<span>${esc(nm)}</span></span>`;}
 /* seletor de responsáveis (múltiplos) */
 function assigneePickerHTML(){
   const chips=ASSIGNEE_OPTS.map(n=>{const on=_selAssignees.some(x=>x.toLowerCase()===n.toLowerCase());
-    return `<span class="asg-chip ${on?'on':''}" onclick="toggleAssignee('${n.replace(/'/g,"\\'")}')">${on?'✓ ':''}${esc(n)}</span>`;}).join('');
+    return `<span class="asg-chip ${on?'on':''}" onclick="toggleAssignee('${escJS(n)}')">${on?'✓ ':''}${esc(n)}</span>`;}).join('');
   return `<div class="asg-wrap">${chips}<span class="asg-chip add" onclick="addCustomAssignee()">+ outro</span></div>`;
 }
 function toggleAssignee(n){const i=_selAssignees.findIndex(x=>x.toLowerCase()===n.toLowerCase());
@@ -1230,7 +1292,7 @@ function renderNotifs(){
   if(PREFS.notifUnread==='on')items=items.filter(i=>i.unread);
   const el=$('notif-list');if(!el)return;
   if(!items.length){el.innerHTML='<div class="n-empty">🐾 Nenhuma notificação'+(PREFS.notifUnread==='on'?' não lida':'')+'.</div>';return;}
-  el.innerHTML=items.map(i=>`<div class="nitem ${i.unread?'unread':''}" onclick="${i.taskId?`openNotif('${i.taskId}')`:'closeNotifs()'}">
+  el.innerHTML=items.map(i=>`<div class="nitem ${i.unread?'unread':''}" onclick="${i.taskId?`openNotif('${escJS(i.taskId)}')`:'closeNotifs()'}">
     <div class="nic">${i.icon}</div>
     <div class="ntx">${i.text}${i.welcome?'':`<div class="ntm">${timeAgo(i.ts)}</div>`}</div>
     ${i.unread?'<div class="udot"></div>':''}
@@ -1269,7 +1331,7 @@ const NAV = [
 ];
 function buildNav(){
   $('nav').innerHTML=NAV.filter(n=>!n.admin||isAdmin()).map(n=>
-    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${n.v}')"><span class="ic">${n.ic}</span>${n.label}</button>`
+    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${escJS(n.v)}')"><span class="ic">${n.ic}</span>${n.label}</button>`
   ).join('');
 }
 function buildClientFilter(){
@@ -1399,19 +1461,19 @@ function taskCard(t,accent){
   const running=!!t.timer_start;
   const as=(t.assignees||[]).slice(0,3);
   return `<div class="card-t" style="border-left-color:${accent}" data-id="${t.id}"
-      ${isAdmin()?`draggable="true" ondragstart="dragStart(event,'${t.id}')" ondragend="this.classList.remove('dragging')"`:''}
-      onclick="openDetail('${t.id}')">
+      ${isAdmin()?`draggable="true" ondragstart="dragStart(event,'${escJS(t.id)}')" ondragend="this.classList.remove('dragging')"`:''}
+      onclick="openDetail('${escJS(t.id)}')">
     <div class="card-strip" style="background:${clientColor(t.client_id)}"></div>
     <div class="tt">${esc(t.title)}</div>
     ${t.description?`<div class="card-desc">${esc(t.description)}</div>`:''}
     ${(()=>{const e=estimateFor(t);return e?`<div class="card-est">📊 ~${fmtDur(e.sec)} estimado</div>`:''})()}
     <div class="card-meta">
-      <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${clientLogo(t.client_id)}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
+      <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${mgUrlImagem(clientLogo(t.client_id))}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
       ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${t.recurrence==='daily'?'Diária':'Semanal'}</span>`:''}
       ${(t.subtasks&&t.subtasks.length)?(()=>{const d=t.subtasks.filter(x=>x.done).length,tt=t.subtasks.length;return `<span class="sub-prog ${d===tt?'full':''}">☑ ${d}/${tt}</span>`;})():''}
     </div>
     <div class="card-foot">
-      <span class="tchip ${running?'run':''}" onclick="toggleTimer(event,'${t.id}')" title="${running?'Pausar':'Iniciar'} tempo">
+      <span class="tchip ${running?'run':''}" onclick="toggleTimer(event,'${escJS(t.id)}')" title="${running?'Pausar':'Iniciar'} tempo">
         <span class="p">${running?'⏸':'▶'}</span>
         <span class="js-timer" data-base="${t.time_spent||0}" data-start="${running?new Date(t.timer_start).getTime():''}">${fmtDur(taskElapsed(t))}</span>
       </span>
@@ -1435,10 +1497,10 @@ function renderBoard(){
   $('v-board').innerHTML=`<div class="board">${cols.map(col=>{
     const list=grouped[col.key]||[];
     return `<div class="col" data-status="${esc(col.key)}"
-        ${isAdmin()?`ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="dropCol(event,'${esc(col.key)}')"`:''}>
+        ${isAdmin()?`ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="dropCol(event,'${escJS(col.key)}')"`:''}>
       <div class="col-h" style="border-top-color:${col.color}"><span class="t" style="color:${col.color}">${col.label}</span><span class="c">${list.length}</span></div>
       <div class="cards">${list.map(t=>taskCard(t,col.color)).join('')||'<div class="ph-empty" style="padding:12px;text-align:center;color:var(--muted);font-size:12px">—</div>'}</div>
-      ${isAdmin()?`<button class="addcard" onclick="openTaskModal(null,'${esc(col.key)}')">+ Adicionar</button>`:''}
+      ${isAdmin()?`<button class="addcard" onclick="openTaskModal(null,'${escJS(col.key)}')">+ Adicionar</button>`:''}
     </div>`;
   }).join('')}</div>`;
   document.querySelectorAll('#v-board .col').forEach(c=>{const cc=c.querySelector('.cards');if(cc&&_sc[c.dataset.status]!=null)cc.scrollTop=_sc[c.dataset.status];});
@@ -1492,7 +1554,7 @@ function renderList(){
       const over=isOverdue(t.due,t.status);
       const stLabel=isAdmin()?t.status:clientStatus(t.status);
       const stCol=isAdmin()?colColor(t.status):(CLIENT_COLS.find(c=>c.key===clientStatus(t.status))||{}).color;
-      return `<tr onclick="openDetail('${t.id}')">
+      return `<tr onclick="openDetail('${escJS(t.id)}')">
         <td style="font-weight:600;max-width:340px">${esc(t.title)}</td>
         <td><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:2px;background:${clientColor(t.client_id)}"></span>${esc(clientName(t.client_id))}</span></td>
         <td><span class="badge" style="background:rgba(194,161,91,.10);color:${stCol}"><span class="d" style="background:${stCol}"></span>${esc(stLabel)}</span></td>
@@ -1522,7 +1584,7 @@ function renderCalendar(){
     const evs=ts.filter(t=>t.due===iso);
     cells+=`<div class="cal-d ${out?'out':''} ${today?'today':''}">
       <div class="dn">${d.getDate()}</div>
-      ${evs.slice(0,3).map(t=>{const cc=clientColor(t.client_id);return `<div class="cal-ev" style="background:${hexA(cc,0.16)};color:${cc};border-left:3px solid ${cc}" onclick="openDetail('${t.id}')" title="${esc(clientName(t.client_id))} · ${esc(t.title)}">${esc(t.title)}</div>`}).join('')}
+      ${evs.slice(0,3).map(t=>{const cc=clientColor(t.client_id);return `<div class="cal-ev" style="background:${hexA(cc,0.16)};color:${cc};border-left:3px solid ${cc}" onclick="openDetail('${escJS(t.id)}')" title="${esc(clientName(t.client_id))} · ${esc(t.title)}">${esc(t.title)}</div>`}).join('')}
       ${evs.length>3?`<div style="font-size:10px;color:var(--muted);margin-top:2px">+${evs.length-3}</div>`:''}
     </div>`;
   }
@@ -1592,7 +1654,7 @@ function renderDetailBody(){
       <div class="timebox">
         <div><div class="tl">Tempo registrado</div>
         <div class="tv js-timer" data-base="${t.time_spent||0}" data-start="${running?new Date(t.timer_start).getTime():''}">${fmtDur(taskElapsed(t))}</div></div>
-        <button class="timer-btn ${running?'run':''}" onclick="toggleTimer(event,'${t.id}')"><span class="d"></span>${running?'Pausar':'Iniciar tarefa'}</button>
+        <button class="timer-btn ${running?'run':''}" onclick="toggleTimer(event,'${escJS(t.id)}')"><span class="d"></span>${running?'Pausar':'Iniciar tarefa'}</button>
       </div>
 
       <div class="sect-t">💬 Anotações <span style="font-size:12px;color:var(--muted);font-weight:400">(${_notes.length})</span></div>
@@ -1607,7 +1669,7 @@ function renderDetailBody(){
     </div>
     ${admin?`<div class="slide-foot">
       <button class="btn-save" onclick="saveDetail()">Salvar alterações</button>
-      <button class="btn-del" onclick="deleteTask('${t.id}')">Excluir</button>
+      <button class="btn-del" onclick="deleteTask('${escJS(t.id)}')">Excluir</button>
     </div>`:''}
   `;
 }
@@ -1617,7 +1679,7 @@ function renderNotes(){
     <div class="nh"><div class="nav">${initials(n.author_name)}</div><span class="nn">${esc(n.author_name||'Usuário')}</span>
       <span class="note-badge ${pub?'pub':'priv'}">${pub?'🌐 Pública':'🔒 Pessoal'}</span>
       <span class="nt">${new Date(n.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
-      ${(n.author_id===ME.id||isAdmin())?`<button class="del" onclick="deleteNote('${n.id}')">excluir</button>`:''}
+      ${(n.author_id===ME.id||isAdmin())?`<button class="del" onclick="deleteNote('${escJS(n.id)}')">excluir</button>`:''}
     </div>
     <div class="nb">${esc(n.body)}</div>
   </div>`;}).join('');
@@ -1732,7 +1794,7 @@ function openTaskModal(id=null,status=null){
     <label>Responsáveis</label><div id="asg-pick">${assigneePickerHTML()}</div>
     <label>Descrição</label><textarea class="fld" id="m-desc" placeholder="Detalhes…">${t?esc(t.description):''}</textarea>
     <div class="modal-actions">
-      <button class="btn-save" onclick="saveTask(${t?`'${t.id}'`:'null'})">${t?'Salvar':'Criar demanda'}</button>
+      <button class="btn-save" onclick="saveTask(${t?`'${escJS(t.id)}'`:'null'})">${t?'Salvar':'Criar demanda'}</button>
       <button class="btn-x" onclick="$('tmodal').classList.remove('on')">Cancelar</button>
     </div>`;
   $('tmodal').classList.add('on');
@@ -1841,7 +1903,7 @@ loadPrefs();applyPrefs();
 /* =====================================================================
    AVATAR / PERFIL
    ===================================================================== */
-function avatarInner(name,url){return url?`<img src="${url}" alt="">`:initials(name);}
+function avatarInner(name,url){const u=mgUrlImagem(url);return u?`<img src="${u}" alt="">`:initials(name);}
 function setMeAvatar(){const el=$('me-av');if(el)el.innerHTML=avatarInner(ME.name,ME.avatar_url);}
 async function pickAvatar(){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
@@ -1918,7 +1980,7 @@ async function saveChk(){const {error}=await sb.rpc('save_my_checklist',{p:MYCHK
    CONFIGURAÇÕES
    ===================================================================== */
 function segBtns(key,opts){
-  return `<div class="seg">${opts.map(([v,l])=>`<button class="${PREFS[key]===v?'on':''}" onclick="setPref('${key}','${v}')">${l}</button>`).join('')}</div>`;
+  return `<div class="seg">${opts.map(([v,l])=>`<button class="${PREFS[key]===v?'on':''}" onclick="setPref('${escJS(key)}','${escJS(v)}')">${l}</button>`).join('')}</div>`;
 }
 function renderSettings(){
   if(VIEW!=='settings')return;
@@ -1927,7 +1989,7 @@ function renderSettings(){
       <h3>Aparência</h3>
       <div class="desc">Ajuste o visual do jeito que você prefere. Vale só pra você, salvo neste navegador.</div>
       <div class="set-row"><div class="k">Tema</div>${segBtns('theme',[['light','Claro'],['dark','Escuro']])}</div>
-      <div class="set-row"><div class="k">Cor de destaque</div><div class="acc-row">${[['gold','#c2a15b'],['green','#2e9e6b'],['blue','#2d6fcf'],['terra','#d95d39'],['purple','#8e3fbe']].map(([v,c])=>`<span class="acc ${PREFS.accent===v?'on':''}" style="background:${c}" onclick="setPref('accent','${v}')"></span>`).join('')}</div></div>
+      <div class="set-row"><div class="k">Cor de destaque</div><div class="acc-row">${[['gold','#c2a15b'],['green','#2e9e6b'],['blue','#2d6fcf'],['terra','#d95d39'],['purple','#8e3fbe']].map(([v,c])=>`<span class="acc ${PREFS.accent===v?'on':''}" style="background:${c}" onclick="setPref('accent','${escJS(v)}')"></span>`).join('')}</div></div>
       <div class="set-row"><div class="k">Tamanho do texto</div>${segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']])}</div>
       <div class="set-row"><div class="k">Cantos dos cards</div>${segBtns('round',[['sharp','Retos'],['md','Suaves'],['round','Arredondados']])}</div>
       <div class="set-row"><div class="k">Densidade</div>${segBtns('density',[['comfy','Confortável'],['compact','Compacto']])}</div>
@@ -1976,12 +2038,12 @@ async function renderClientes(){
     </div>
     <div class="clist">
       ${CLIENTS.map(c=>`<div class="crow">
-        <span class="clogo" onclick="pickClientLogo('${c.id}')" title="Enviar/trocar logo">${c.logo_url?`<img src="${c.logo_url}">`:`<span class="sw" style="background:${clientColor(c.id)};width:100%;height:100%;border-radius:6px"></span>`}</span>
+        <span class="clogo" onclick="pickClientLogo('${escJS(c.id)}')" title="Enviar/trocar logo">${c.logo_url?`<img src="${mgUrlImagem(c.logo_url)}">`:`<span class="sw" style="background:${clientColor(c.id)};width:100%;height:100%;border-radius:6px"></span>`}</span>
         <span class="nm">${esc(c.nome)}</span>
         <span class="rl">${counts[c.id]||0} demanda(s)</span>
-        <button class="mini-btn ghost" onclick="pickClientLogo('${c.id}')">Logo</button>
-        <button class="mini-btn ghost" onclick="renameClient('${c.id}','${esc(c.nome).replace(/'/g,"\\'")}')">Renomear</button>
-        <button class="mini-btn ghost" style="color:var(--danger)" onclick="deleteClient('${c.id}','${esc(c.nome).replace(/'/g,"\\'")}')">Excluir</button>
+        <button class="mini-btn ghost" onclick="pickClientLogo('${escJS(c.id)}')">Logo</button>
+        <button class="mini-btn ghost" onclick="renameClient('${escJS(c.id)}','${escJS(c.nome)}')">Renomear</button>
+        <button class="mini-btn ghost" style="color:var(--danger)" onclick="deleteClient('${escJS(c.id)}','${escJS(c.nome)}')">Excluir</button>
       </div>`).join('')}
     </div>`;
 }
@@ -2021,7 +2083,7 @@ async function renderEquipe(){
       ${list.map(u=>`<div class="crow">
         <span class="avatar-pick" style="width:34px;height:34px;font-size:13px;cursor:default">${avatarInner(u.nome||'?',u.avatar_url)}</span>
         <span class="nm">${esc(u.nome||'—')}</span>
-        <select class="fld" style="width:130px" onchange="setRole('${u.id}',this.value)">
+        <select class="fld" style="width:130px" onchange="setRole('${escJS(u.id)}',this.value)">
           <option value="admin" ${u.role==='admin'?'selected':''}>Equipe (admin)</option>
           <option value="client" ${u.role==='client'?'selected':''}>Cliente</option>
         </select>
@@ -2267,7 +2329,7 @@ async function openDoc(id){
 }
 function docCardHTML(d){
   const t = docTipo(d.tipo);
-  return `<button class="dcard" onclick="openDoc('${esc(d.id)}')">
+  return `<button class="dcard" onclick="openDoc('${escJS(d.id)}')">
     <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
     <div class="ti">${esc(d.titulo||'(sem título)')}</div>
     <div class="mt">${esc(docDate(d.created_at))}<span class="open">Abrir →</span></div>
@@ -2306,7 +2368,7 @@ function renderDocsView(){
     el.innerHTML = topo
       + `<div class="dcat-row">` + tipos.map(t=>{
           const n = DOCS.filter(d=>d.tipo===t.k).length;
-          return `<button class="dcat" onclick="dGo({kind:'cat',id:'${esc(t.k)}'})">
+          return `<button class="dcat" onclick="dGo({kind:'cat',id:'${escJS(t.k)}'})">
             <span class="ic" style="background:${hexA(t.hex,.14)};color:${t.hex}">${t.ic}</span>
             <div class="nm">${esc(t.label)}</div><div class="c">${n} documento${n===1?'':'s'}</div></button>`;
         }).join('') + `</div>`
@@ -2314,7 +2376,7 @@ function renderDocsView(){
       + CLIENTS.map(c=>{
           const ds = DOCS.filter(d=>d.client_id===c.id);
           if(!ds.length && !isAdmin()) return '';
-          return `<button class="dfolder" onclick="dGo({kind:'client',id:'${esc(c.id)}'})">
+          return `<button class="dfolder" onclick="dGo({kind:'client',id:'${escJS(c.id)}'})">
             <div class="cl">${clientChipHTML(c.id)}</div>
             <div class="mt">${ds.length} documento${ds.length===1?'':'s'}<span class="open">Abrir pasta →</span></div>
           </button>`;
@@ -2408,7 +2470,7 @@ function uploadDoc(){
 /* trilho: ícone em cima, rótulo embaixo */
 buildNav = function(){
   $('nav').innerHTML = NAV.filter(n=>!n.admin||isAdmin()).map(n=>
-    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${n.v}')" title="${esc(n.label)}" style="position:relative">
+    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${escJS(n.v)}')" title="${esc(n.label)}" style="position:relative">
        <span class="ic">${n.ic}</span><span class="lb">${esc(n.label)}</span></button>`
   ).join('');
 };
@@ -2423,7 +2485,7 @@ function mgClientLogo(cid, px){
   const c = CLIENTS.find(x=>x.id===cid);
   const s = px||20;
   if(!c) return `<span class="mg-lg" style="width:${s}px;height:${s}px;background:#8a8271">?</span>`;
-  if(c.logo_url) return `<span class="mg-lg" style="width:${s}px;height:${s}px"><img src="${esc(c.logo_url)}" alt=""></span>`;
+  if(c.logo_url) return `<span class="mg-lg" style="width:${s}px;height:${s}px"><img src="${mgUrlImagem(c.logo_url)}" alt=""></span>`;
   return `<span class="mg-lg" style="width:${s}px;height:${s}px;background:${clientColor(cid)}">${esc((c.nome||'?')[0].toUpperCase())}</span>`;
 }
 
@@ -2606,7 +2668,7 @@ const _mg4BuildNav = buildNav;
 buildNav = function(){
   if(isAdmin()) return _mg4BuildNav();
   $('nav').innerHTML = NAV.filter(n=>ABAS_DO_CLIENTE.includes(n.v)).map(n=>
-    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${n.v}')" title="${esc(n.label)}" style="position:relative">
+    `<button class="nav-i ${n.v===VIEW?'on':''}" data-v="${n.v}" onclick="showView('${escJS(n.v)}')" title="${esc(n.label)}" style="position:relative">
        <span class="ic">${n.ic}</span><span class="lb">${esc(n.label)}</span></button>`
   ).join('');
   document.body.classList.add('mg-cliente');
@@ -2631,15 +2693,23 @@ function mgSb2(){
   });
   return MG_SB2;
 }
+/* Senha de acesso de cliente. Math.random não é gerador criptográfico e
+   o sort(()=>Math.random()-0.5) não embaralha de forma uniforme, o que
+   deixava a senha bem mais previsível do que o tamanho sugere. Aqui a
+   entropia vem de crypto.getRandomValues e o embaralhamento é
+   Fisher-Yates. */
 function mgSenhaForte(){
-  const abc='abcdefghijkmnopqrstuvwxyz', ABC='ABCDEFGHJKLMNPQRSTUVWXYZ', num='23456789', sim='!@#$%&*';
-  const todos=abc+ABC+num+sim; let s='';
-  s+=ABC[Math.floor(Math.random()*ABC.length)];
-  s+=abc[Math.floor(Math.random()*abc.length)];
-  s+=num[Math.floor(Math.random()*num.length)];
-  s+=sim[Math.floor(Math.random()*sim.length)];
-  for(let i=0;i<8;i++) s+=todos[Math.floor(Math.random()*todos.length)];
-  return s.split('').sort(()=>Math.random()-0.5).join('');
+  const abc='abcdefghijkmnopqrstuvwxyz', ABC='ABCDEFGHJKLMNPQRSTUVWXYZ',
+        num='23456789', sim='!@#$%&*', todos=abc+ABC+num+sim;
+  const sorteio = n => { const a = new Uint32Array(n); crypto.getRandomValues(a); return a };
+  const pega = (alfabeto, q) => Array.from(sorteio(q), x => alfabeto[x % alfabeto.length]);
+  const chars = [...pega(ABC,1), ...pega(abc,1), ...pega(num,1), ...pega(sim,1), ...pega(todos,12)];
+  const idx = sorteio(chars.length);
+  for(let i=chars.length-1;i>0;i--){
+    const j = idx[i] % (i+1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
 }
 function gerarSenha(){ const el=$('ac-senha'); if(el){ el.value=mgSenhaForte(); el.type='text'; } }
 
@@ -3354,7 +3424,7 @@ function abrirEditarCliente(id){
   $('ec-resumo').value = c.resumo||'';
   $('ec-res').innerHTML = '';
   $('ec-logo').innerHTML = c.logo_url
-    ? `<img src="${esc(c.logo_url)}" alt="">`
+    ? `<img src="${mgUrlImagem(c.logo_url)}" alt="">`
     : `<span style="width:100%;height:100%;border-radius:11px;background:${clientColor(id)}"></span>`;
   $('mg-edcli').classList.add('on');
   setTimeout(()=>{ const n=$('ec-nome'); if(n) n.focus() },340);
@@ -3411,7 +3481,7 @@ renderClientes = async function(){
     if(!id) return;
     linha.querySelectorAll('.mini-btn').forEach(b=>b.remove());
     linha.insertAdjacentHTML('beforeend',
-      `<button class="mini-btn ghost" onclick="abrirEditarCliente('${id}')">Editar</button>`);
+      `<button class="mini-btn ghost" onclick="abrirEditarCliente('${escJS(id)}')">Editar</button>`);
   });
 };
 
@@ -3444,10 +3514,8 @@ async function abrirArquivoEmAba(id){
       try{
         const resp = await fetch(data.signedUrl);
         const txt  = await resp.text();
-        const url  = URL.createObjectURL(new Blob([txt], {type:'text/html;charset=utf-8'}));
-        window.open(url,'_blank','noopener');
-        setTimeout(()=>URL.revokeObjectURL(url), 60000);
-        return;
+        /* blob: herda a origem de quem criou, então não servia de isolamento */
+        if(mgAbrirHTMLIsolado(txt, d.titulo)) return;
       }catch(_){ /* se não der, cai no link direto */ }
     }
     window.open(data.signedUrl,'_blank','noopener');
@@ -3472,7 +3540,7 @@ async function carregarVisor(id){
   if(!d.storage_path){
     if(d.metadata && d.metadata.link){
       falha('Este documento foi cadastrado por link.',
-        `<button class="btn-p" onclick="window.open('${esc(d.metadata.link)}','_blank','noopener')">Abrir o link</button>`);
+        `<button class="btn-p" onclick="window.open('${escJS(d.metadata.link)}','_blank','noopener')">Abrir o link</button>`);
     } else falha('Este documento não tem arquivo anexado.');
     return;
   }
@@ -3495,7 +3563,7 @@ async function carregarVisor(id){
     }
   }catch(e){
     falha('O arquivo não pôde ser lido aqui ('+((e&&e.message)||'erro')+').',
-      `<button class="btn-p" onclick="abrirArquivoEmAba('${esc(String(id))}')">Abrir em nova aba</button>`);
+      `<button class="btn-p" onclick="abrirArquivoEmAba('${escJS(String(id))}')">Abrir em nova aba</button>`);
   }
 }
 /* a tela de documentos ganha o modo "página do documento" */
@@ -3523,8 +3591,8 @@ renderDocsView = function(){
         </div>
       </div>
       <div class="mg-doc-acoes">
-        <button class="btn-p" onclick="abrirArquivoEmAba('${esc(String(d.id))}')">Abrir arquivo</button>
-        ${d.storage_path?`<button class="mini-btn ghost" onclick="baixarArquivo('${esc(String(d.id))}')">Baixar</button>`:''}
+        <button class="btn-p" onclick="abrirArquivoEmAba('${escJS(String(d.id))}')">Abrir arquivo</button>
+        ${d.storage_path?`<button class="mini-btn ghost" onclick="baixarArquivo('${escJS(String(d.id))}')">Baixar</button>`:''}
         <button class="mini-btn ghost" onclick="voltarDocs()">Voltar</button>
       </div>
     </div>
@@ -3719,11 +3787,21 @@ criarClienteCompleto = async function(){
   await _mg9Criar();
   if(email){
     try{
-      const {data} = await sb.from('profiles').select('id,client_id,role').order('id');
-      /* grava o e-mail no perfil recém-criado, quando a coluna existir */
-      const alvo = (data||[]).filter(p=>p.role==='client');
-      const ultimo = alvo[alvo.length-1];
-      if(ultimo) await sb.from('profiles').update({email}).eq('id',ultimo.id);
+      /* Antes isto ordenava por id. Como o id é uuid, a ordem não tem
+         nenhuma relação com a criação, e o e-mail acabava gravado no
+         perfil de OUTRA pessoa. Agora vai pelo mais recente de verdade,
+         e só se ele tiver acabado de nascer e ainda estiver sem e-mail,
+         para nunca sobrescrever o endereço de quem já tem um. */
+      const {data} = await sb.from('profiles')
+        .select('id,client_id,role,email,created_at')
+        .eq('role','client').order('created_at',{ascending:false}).limit(1);
+      const novo = (data||[])[0];
+      const recente = novo && (Date.now() - new Date(novo.created_at).getTime() < 5*60000);
+      if(recente && !novo.email){
+        await sb.from('profiles').update({email}).eq('id', novo.id).is('email', null);
+      }else if(typeof toast === 'function'){
+        toast('Empresa criada. Confira o e-mail do acesso na aba Equipe.');
+      }
     }catch(_){}
   }
 };
@@ -3798,8 +3876,8 @@ signIn = async function(){
       O Supabase está exigindo confirmação, e o envio padrão dele costuma não chegar para quem é de fora do projeto.
       Peça a quem administra para liberar — leva 10 segundos.
       <div class="mg-liberar">
-        <button onclick="mgCopiar(sqlLiberar('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase e rode')">Copiar SQL que libera este acesso</button>
-        <button onclick="mgVerSQL('${esc(email)}')">Ver o SQL</button>
+        <button onclick="mgCopiar(sqlLiberar('${escJS(email)}'),'SQL copiado — cole no SQL Editor do Supabase e rode')">Copiar SQL que libera este acesso</button>
+        <button onclick="mgVerSQL('${escJS(email)}')">Ver o SQL</button>
       </div>`;
     return;
   }
@@ -3828,7 +3906,7 @@ function mgVerSQL(email){
 /* ---------- ao criar acesso, já oferece a liberação ---------- */
 function mgBlocoLiberacao(email){
   return `<div style="margin-top:8px">
-      <button class="mini-btn" onclick="mgCopiar(sqlLiberar('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar SQL que libera este acesso</button>
+      <button class="mini-btn" onclick="mgCopiar(sqlLiberar('${escJS(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar SQL que libera este acesso</button>
     </div>
     <div class="mg-sqlbox">${esc(sqlLiberar(email))}</div>
     <div style="font-size:11.5px;color:var(--muted);margin-top:6px">
@@ -4107,7 +4185,7 @@ function renderHome(){
       const badge = (a.v==='chat' && MG_NAOLIDAS.length)
         ? `<span class="sino">${MG_NAOLIDAS.reduce((s,x)=>s+x.quantas,0)}</span>`
         : (a.v==='board' && minhas.length) ? `<span class="sino">${minhas.length}</span>` : '';
-      return `<button class="mg-atalho" onclick="showView('${a.v}')">
+      return `<button class="mg-atalho" onclick="showView('${escJS(a.v)}')">
           ${badge}<span class="ic">${a.ic}</span>
           <div class="nm">${esc(a.label)}</div>
           <div class="ds">${esc(a.ds)}</div>
@@ -4120,7 +4198,7 @@ function renderHome(){
         <div class="mg-linhas">${
           minhas.length ? minhas.slice(0,6).map(t=>{
             const atrasada = !!(t.due && t.due < hoje);
-            return `<button class="mg-linha" onclick="mgIrParaDemanda('${esc(String(t.id))}')">
+            return `<button class="mg-linha" onclick="mgIrParaDemanda('${escJS(String(t.id))}')">
                 <span class="pt" style="background:${clientColor(t.client_id)}"></span>
                 <span class="meio">
                   <span class="ti">${esc(t.title||'(sem título)')}</span>
@@ -4138,7 +4216,7 @@ function renderHome(){
             const c=x.canal;
             const nome = (typeof mgChanNome==='function') ? mgChanNome(c) : c.nome;
             const previa = (x.ultima.author_name||'')+': '+String(x.ultima.body||'').replace(/\s+/g,' ').slice(0,44);
-            return `<button class="mg-linha" onclick="showView('chat');openChan('${c.id}')">
+            return `<button class="mg-linha" onclick="showView('chat');openChan('${escJS(c.id)}')">
                 <span class="pt" style="background:${c.tipo==='client'?clientColor(c.client_id):'var(--brass)'}"></span>
                 <span class="meio">
                   <span class="ti">${c.tipo==='dm'?'':'#'}${esc(nome)}</span>
@@ -4556,7 +4634,7 @@ let MG_TASKS_SUB = 'board';
 function mgDesenhaSubnav(){
   const el=$('mg-subnav'); if(!el) return;
   el.innerHTML = `<div class="mg-seg">${
-    MG_TASKS_VIEWS.map(v=>`<button class="${v===MG_TASKS_SUB?'on':''}" onclick="mgVerTasks('${v}')">
+    MG_TASKS_VIEWS.map(v=>`<button class="${v===MG_TASKS_SUB?'on':''}" onclick="mgVerTasks('${escJS(v)}')">
         <span class="ic">${MG_TASKS_ICONE[v]}</span>${MG_TASKS_ROTULO[v]}</button>`).join('')
   }</div>
   <span class="conta">${(TASKS||[]).length} demanda(s)</span>`;
@@ -4685,7 +4763,7 @@ renderDocsView = function(){
   meus.forEach(d=>{ if(d.tipo && !tipos.some(t=>t.k===d.tipo)) tipos.push(docTipo(d.tipo)) });
 
   const marca = (c && c.logo_url)
-    ? `<img src="${esc(c.logo_url)}" alt="">`
+    ? `<img src="${mgUrlImagem(c.logo_url)}" alt="">`
     : `<span class="ini" style="background:${c?clientColor(c.id):'var(--brass)'}">${esc((nome||'?')[0].toUpperCase())}</span>`;
 
   el.innerHTML = `
@@ -4829,7 +4907,7 @@ function mgAtualizarEu(){
   const nome = ME.name || '—';
   const ini  = (typeof initials==='function') ? initials(nome) : nome.slice(0,2).toUpperCase();
   const av = $('mg-eu-av');
-  if(av) av.innerHTML = ME.avatar_url ? `<img src="${esc(ME.avatar_url)}" alt="">` : esc(ini);
+  if(av) av.innerHTML = ME.avatar_url ? `<img src="${mgUrlImagem(ME.avatar_url)}" alt="">` : esc(ini);
   const nm = $('mg-eu-nm');       if(nm) nm.textContent = nome;
   const n2 = $('mg-eu-nome');     if(n2) n2.textContent = nome;
   const em = $('mg-eu-email');    if(em) em.textContent = ME.email || '';
@@ -4932,12 +5010,7 @@ abrirArquivoEmAba = async function(id){
          sem passar por download nenhum */
       const resp = await fetch(data.signedUrl);
       const txt  = await resp.text();
-      const aba  = window.open('', '_blank');
-      if(!aba){ toast('O navegador bloqueou a nova aba — libere os pop-ups'); return }
-      aba.document.open();
-      aba.document.write(txt);
-      aba.document.close();
-      try{ aba.document.title = d.titulo || 'Documento' }catch(_){}
+      mgAbrirHTMLIsolado(txt, d.titulo);
       return;
     }
     /* PDF, imagem e afins: o próprio navegador exibe */
@@ -4974,7 +5047,7 @@ renderDocsView = function(){
     if(acoes && !acoes.querySelector('.mg-excluir')){
       acoes.insertAdjacentHTML('beforeend',
         `<button class="mini-btn ghost mg-excluir" style="color:var(--danger);border-color:rgba(184,74,62,.35)"
-           onclick="excluirDocumento('${esc(String(DVIEW.id))}')">Excluir</button>`);
+           onclick="excluirDocumento('${escJS(String(DVIEW.id))}')">Excluir</button>`);
     }
   }
   /* voltar nas pastas de cliente e nas categorias */
@@ -5179,7 +5252,7 @@ abrirConfig = function(){
         <div class="k" style="flex:1">Tamanho dos cards<div style="font-size:11.5px;color:var(--muted)">Vale para documentos e pastas</div></div>
         <div class="seg-l" style="display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px">
           ${[['p','Pequeno'],['m','Médio'],['g','Grande']].map(([v,l])=>
-            `<button data-cards-op="${v}" class="${v===atual?'on':''}" onclick="mgDefinirCards('${v}')"
+            `<button data-cards-op="${v}" class="${v===atual?'on':''}" onclick="mgDefinirCards('${escJS(v)}')"
                style="background:${v===atual?'var(--card)':'none'};border:0;border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:600;font-family:inherit;color:${v===atual?'var(--brass2)':'var(--muted)'}">${l}</button>`
           ).join('')}
         </div>
@@ -5188,7 +5261,7 @@ abrirConfig = function(){
         <div style="flex:1">Som ao receber aviso<div class="ds">Um toque curto quando chega demanda ou mensagem</div></div>
         <div style="display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px">
           ${[['on','Ligado'],['off','Desligado']].map(([v,l])=>
-            `<button data-som-op="${v}" class="${v===som?'on':''}" onclick="mgAlternarSom('${v}')"
+            `<button data-som-op="${v}" class="${v===som?'on':''}" onclick="mgAlternarSom('${escJS(v)}')"
                style="background:${v===som?'var(--card)':'none'};border:0;border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:600;font-family:inherit;color:${v===som?'var(--brass2)':'var(--muted)'}">${l}</button>`
           ).join('')}
         </div>
@@ -5329,7 +5402,7 @@ function mgMontarLogos(card){
   caixa.className='mg-logos';
   caixa.innerHTML = lista.map((c,i)=>{
     const dentro = c.logo_url
-      ? `<img src="${esc(c.logo_url)}" alt="${esc(c.nome)}">`
+      ? `<img src="${mgUrlImagem(c.logo_url)}" alt="${esc(c.nome)}">`
       : `<span class="ini" style="background:${clientColor(c.id)}">${esc((c.nome||'?')[0].toUpperCase())}</span>`;
     return `<span class="lg ${i===0?'on':''}" title="${esc(c.nome)}">${dentro}</span>`;
   }).join('');
@@ -5426,7 +5499,7 @@ function mgAvatarResp(nome, tamanho){
   const f = mgFotoDe(nome);
   const eu = (typeof mgSouEu==='function') && mgSouEu(nome);
   const dentro = (f && f.url)
-    ? `<img src="${esc(f.url)}" alt="">`
+    ? `<img src="${mgUrlImagem(f.url)}" alt="">`
     : esc(initials(nome));
   return `<span class="av ${eu?'eu':''}" title="${esc(nome)}${eu?' (você)':''}">${dentro}</span>`;
 }
@@ -5472,12 +5545,18 @@ function mgAplicarRespNosCards(raiz){
 }
 /* aplica depois de cada desenho do quadro */
 (function(){
+  /* Aqui havia eval() para ler e reescrever a função pelo nome. Como
+     render e renderBoard são declaradas com `function` no escopo global,
+     elas são propriedades de window, e window[nome] faz o mesmo sem
+     eval. Sem eval a CSP pode ficar sem 'unsafe-eval'. */
   ['renderBoard','render'].forEach(nome=>{
-    if(typeof window[nome]!=='function' && typeof eval(nome)!=='function') return;
-    try{
-      const anterior = eval(nome);
-      eval(nome+' = function(){ const r = anterior.apply(this, arguments); try{ mgAplicarRespNosCards() }catch(e){} return r }');
-    }catch(_){}
+    const anterior = window[nome];
+    if(typeof anterior !== 'function') return;
+    window[nome] = function(){
+      const r = anterior.apply(this, arguments);
+      try{ mgAplicarRespNosCards() }catch(e){}
+      return r;
+    };
   });
 })();
 
@@ -5497,7 +5576,7 @@ function mgAplicarRespNosCards(raiz){
       td.dataset.mgResp='1';
       td.innerHTML = nomes.map(n=>{
         const f=mgFotoDe(n), eu=(typeof mgSouEu==='function')&&mgSouEu(n);
-        const dentro=(f&&f.url)?`<img src="${esc(f.url)}" alt="">`:esc(initials(n));
+        const dentro=(f&&f.url)?`<img src="${mgUrlImagem(f.url)}" alt="">`:esc(initials(n));
         return `<span class="mg-resp-linha"><span class="av ${eu?'eu':''}">${dentro}</span>${esc(n)}</span>`;
       }).join(' ');
     });
@@ -5621,7 +5700,7 @@ mgAplicarP();
 
 function mgSeg(valor, opcoes, aoClicar){
   return `<div class="mg-mini-seg">${opcoes.map(([v,l])=>
-    `<button class="${valor===v?'on':''}" onclick="${aoClicar}('${v}')">${l}</button>`).join('')}</div>`;
+    `<button class="${valor===v?'on':''}" onclick="${aoClicar}('${escJS(v)}')">${l}</button>`).join('')}</div>`;
 }
 function mgLinha(titulo, desc, controle){
   return `<div class="mg-linha-pref"><div class="txt"><b>${titulo}</b>${desc?`<span>${desc}</span>`:''}</div>${controle}</div>`;
@@ -5689,7 +5768,7 @@ function mgPrefConteudo(aba){
     <div class="grupo-tt">Cor de destaque</div>
     <div class="grupo-ds">Usada nos botões, seleções e realces.</div>
     <div class="mg-tema-cores">${[['gold','#c2a15b','Brass'],['green','#2e9e6b','Verde'],['blue','#2d6fcf','Azul'],['terra','#d95d39','Terra'],['purple','#8e3fbe','Roxo']]
-      .map(([v,c,n])=>`<span class="c ${PREFS.accent===v?'on':''}" style="background:${c}" title="${n}" onclick="setPref('accent','${v}')"></span>`).join('')}</div>
+      .map(([v,c,n])=>`<span class="c ${PREFS.accent===v?'on':''}" style="background:${c}" title="${n}" onclick="setPref('accent','${escJS(v)}')"></span>`).join('')}</div>
     <hr>
     <div class="grupo-tt">Texto e espaçamento</div>
     ${mgLinha('Tamanho do texto','', segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']]))}
@@ -5789,7 +5868,7 @@ function mgDesenhaPref(){
   let menu='', grupoAtual='';
   abas.forEach(a=>{
     if(a.grupo!==grupoAtual){ grupoAtual=a.grupo; menu+=`<div class="grupo">${a.grupo}</div>` }
-    menu+=`<button class="${a.id===MG_PREF_ABA?'on':''}" onclick="mgIrPref('${a.id}')"><span class="ic">${a.ic}</span>${esc(a.nome)}</button>`;
+    menu+=`<button class="${a.id===MG_PREF_ABA?'on':''}" onclick="mgIrPref('${escJS(a.id)}')"><span class="ic">${a.ic}</span>${esc(a.nome)}</button>`;
   });
   corpo.innerHTML = `<div class="mg-pref-lados">
       <nav class="mg-pref-menu">${menu}</nav>
@@ -5883,7 +5962,7 @@ async function excluirAcessoCliente(pid, nome, email){
           O <b>login</b> continua existindo no Supabase (a plataforma não pode apagá-lo por segurança).
           Se quiser eliminá-lo de vez:
           <div class="cod">${esc(sqlApagarLogin(email))}</div>
-          <button class="mini-btn" style="margin-top:8px" onclick="mgCopiar(sqlApagarLogin('${esc(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar comando</button>
+          <button class="mini-btn" style="margin-top:8px" onclick="mgCopiar(sqlApagarLogin('${escJS(email)}'),'SQL copiado — cole no SQL Editor do Supabase')">Copiar comando</button>
         </div>`);
     }
     toast('Acesso removido');
@@ -5920,7 +5999,7 @@ carregarAcessosCliente = async function(id){
             <span class="nm">${esc(nome)}</span>
             <span class="em">${esc(email)}</span>
             <button class="apagar" title="Remover o acesso de ${esc(nome)}"
-              onclick="excluirAcessoCliente('${esc(p.id)}','${esc(nome).replace(/'/g,'&#39;')}','${esc(email)}')">✕</button>
+              onclick="excluirAcessoCliente('${escJS(p.id)}','${escJS(nome)}','${escJS(email)}')">✕</button>
           </div>`;
         }).join('')
       : `<div class="vazio">Ninguém tem acesso a esta empresa ainda.</div>`;
@@ -6062,16 +6141,16 @@ async function renderEquipeMG(){
           <span class="n">${esc(nome)}${eu?' <span style="font-size:11px;color:var(--brass2);font-weight:700">· você</span>':''}</span>
           <span class="e">${esc(p.email||'')}</span>
         </span>
-        <select onchange="mgTrocarPapel('${esc(p.id)}',this.value)" ${eu?'disabled title="Você não pode mudar o próprio papel"':''}>
+        <select onchange="mgTrocarPapel('${escJS(p.id)}',this.value)" ${eu?'disabled title="Você não pode mudar o próprio papel"':''}>
           <option value="admin" ${p.role==='admin'?'selected':''}>Equipe</option>
           <option value="client" ${p.role!=='admin'?'selected':''}>Cliente</option>
         </select>
         ${p.role!=='admin'
-          ? `<select onchange="mgTrocarEmpresa('${esc(p.id)}',this.value)">
+          ? `<select onchange="mgTrocarEmpresa('${escJS(p.id)}',this.value)">
                <option value="">— sem empresa —</option>${opcoes}
              </select>`
           : `<span class="emp equipe">acesso total</span>`}
-        ${eu?'':`<button class="apagar" title="Remover ${esc(nome)}" onclick="mgRemoverPessoa('${esc(p.id)}','${esc(nome).replace(/'/g,'&#39;')}')">✕</button>`}
+        ${eu?'':`<button class="apagar" title="Remover ${esc(nome)}" onclick="mgRemoverPessoa('${escJS(p.id)}','${escJS(nome)}')">✕</button>`}
       </div>`;
     };
 
@@ -6164,7 +6243,7 @@ renderChecklist = function(){
       <div class="mg-chk-filtros" style="margin-bottom:14px">
         ${[['todos','Todos',itens.length],['pend','Pendentes',itens.length-feitos-andando],
            ['and','Em andamento',andando],['feitos','Feitos',feitos]]
-          .map(([v,l,n])=>`<button class="${MG_CHK_FILTRO===v?'on':''}" onclick="mgChkFiltro('${v}')">${l}${n?` (${n})`:''}</button>`).join('')}
+          .map(([v,l,n])=>`<button class="${MG_CHK_FILTRO===v?'on':''}" onclick="mgChkFiltro('${escJS(v)}')">${l}${n?` (${n})`:''}</button>`).join('')}
       </div>
 
       <div class="mg-chk-lista">${
@@ -6285,10 +6364,10 @@ function mgAplicarMarca(){
   if(!MG_LOGO_URL) return;
   /* marca na entrada */
   const marca = document.querySelector('#login .mark');
-  if(marca && !marca.querySelector('img')) marca.innerHTML = `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
+  if(marca && !marca.querySelector('img')) marca.innerHTML = `<img src="${mgUrlImagem(MG_LOGO_URL)}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
   /* marca na barra lateral */
   const lado = document.querySelector('.side-brand .logo');
-  if(lado && !lado.querySelector('img')) lado.innerHTML = `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
+  if(lado && !lado.querySelector('img')) lado.innerHTML = `<img src="${mgUrlImagem(MG_LOGO_URL)}" alt="Modesto" onerror="this.parentNode.textContent='M'">`;
 }
 mgAplicarMarca();
 document.addEventListener('DOMContentLoaded', mgAplicarMarca);
@@ -6354,7 +6433,7 @@ mgDefinirIcone();
   el.title = 'Portal Modesto — ir para o Início';
   el.onclick = ()=>showView('home');
   el.innerHTML = MG_LOGO_URL
-    ? `<img src="${MG_LOGO_URL}" alt="Modesto" onerror="this.parentNode.textContent='M'">`
+    ? `<img src="${mgUrlImagem(MG_LOGO_URL)}" alt="Modesto" onerror="this.parentNode.textContent='M'">`
     : 'M';
   topo.insertBefore(el, topo.firstChild);
 })();
@@ -6517,7 +6596,7 @@ mgMontarLogos = function(card){
   const c = lista[0];
   const caixa = document.createElement('div');
   caixa.className = 'mg-logos';
-  caixa.innerHTML = `<span class="lg on" title="${esc(c.nome)}"><img src="${esc(c.logo_url)}" alt=""></span>`;
+  caixa.innerHTML = `<span class="lg on" title="${esc(c.nome)}"><img src="${mgUrlImagem(c.logo_url)}" alt=""></span>`;
   ic.replaceWith(caixa);
 };
 </script>
@@ -6548,7 +6627,7 @@ mgAvatarResp = function(nome){
     const f = mgFotoDe(nome);
     if(f && f.url) url = f.url;
   }
-  const dentro = url ? `<img src="${esc(url)}" alt="">` : esc(initials(nome));
+  const dentro = url ? `<img src="${mgUrlImagem(url)}" alt="">` : esc(initials(nome));
   return `<span class="av ${eu?'eu':''}" title="${esc(nome)}${eu?' (você)':''}">${dentro}</span>`;
 };
 
@@ -6788,7 +6867,7 @@ renderEquipeMG = async function(){
     }
     if(id && !nEl.querySelector('.lapis')){
       nEl.insertAdjacentHTML('beforeend',
-        `<button class="lapis" title="Editar o nome" onclick="mgEditarNome(this,'${esc(id)}')">✎</button>`);
+        `<button class="lapis" title="Editar o nome" onclick="mgEditarNome(this,'${escJS(id)}')">✎</button>`);
     }
   });
 };
@@ -7054,7 +7133,7 @@ function mgAvatarPessoa(nome){
   let url = null;
   if(eu && ME && ME.avatar_url) url = ME.avatar_url;
   else { const f = (typeof mgFotoDe==='function') ? mgFotoDe(nome) : null; if(f && f.url) url = f.url }
-  return `<span class="av">${url?`<img src="${esc(url)}" alt="">`:esc(initials(nome))}</span>`;
+  return `<span class="av">${url?`<img src="${mgUrlImagem(url)}" alt="">`:esc(initials(nome))}</span>`;
 }
 
 function mgTrocarPeriodo(p){ MG_DASH_PERIODO=p; mgDesenhaDash(); }
@@ -7085,7 +7164,7 @@ function mgDesenhaDash(){
     <div class="mg-dash-tt">Como estão as demandas
       <span class="mg-abas-dash">
         ${[['7','7 dias'],['30','30 dias'],['tudo','Tudo']].map(([v,l])=>
-          `<button class="${MG_DASH_PERIODO===v?'on':''}" onclick="mgTrocarPeriodo('${v}')">${l}</button>`).join('')}
+          `<button class="${MG_DASH_PERIODO===v?'on':''}" onclick="mgTrocarPeriodo('${escJS(v)}')">${l}</button>`).join('')}
       </span>
     </div>
     <div class="mg-dash-sub">Panorama de toda a agência · entregas contadas ${rotuloPeriodo}.</div>
@@ -7385,7 +7464,7 @@ function mgDockItens(){
   if(document.body.classList.contains('mg-tasks')){
     const abas = MG_TASKS_VIEWS.map(v=>
       `<button role="tab" class="${v===MG_TASKS_SUB?'on':''}" aria-selected="${v===MG_TASKS_SUB}"
-         onclick="mgVerTasks('${v}')"><span class="ic">${MG_TASKS_ICONE[v]}</span>${MG_TASKS_ROTULO[v]}</button>`
+         onclick="mgVerTasks('${escJS(v)}')"><span class="ic">${MG_TASKS_ICONE[v]}</span>${MG_TASKS_ROTULO[v]}</button>`
     ).join('');
     const n = (typeof visibleTasks==='function') ? visibleTasks().length : (TASKS||[]).length;
     return abas
@@ -7398,7 +7477,7 @@ function mgDockItens(){
     const n = mgDocsDoEscopo().length;
     return ['pastas','historico'].map(a=>
       `<button role="tab" class="${a===MG_DOCS_ABA?'on':''}" aria-selected="${a===MG_DOCS_ABA}"
-         onclick="mgVerDocs('${a}')"><span class="ic">${a==='pastas'?'▤':'◷'}</span>${a==='pastas'?'Pastas':'Histórico'}</button>`
+         onclick="mgVerDocs('${escJS(a)}')"><span class="ic">${a==='pastas'?'▤':'◷'}</span>${a==='pastas'?'Pastas':'Histórico'}</button>`
     ).join('') + `<span class="conta">${n} documento${n===1?'':'s'}</span>`;
   }
   return '';
@@ -7513,7 +7592,7 @@ function mgDesenharQMenu(){
       <span class="est">${esc(ordem)}</span><span class="seta">›</span>
     </button>
     <div class="mg-qm-sub" id="mg-qm-ordem">
-      ${MG_ORDENS.map(([v,l])=>`<button class="mg-qm-op" onclick="mgClassificar('${v}')">
+      ${MG_ORDENS.map(([v,l])=>`<button class="mg-qm-op" onclick="mgClassificar('${escJS(v)}')">
         <span class="marca">${v===MG_ORDEM?'✓':''}</span>${esc(l)}</button>`).join('')}
     </div>
 
@@ -7534,7 +7613,7 @@ function mgDesenharQMenu(){
       ${arq.length
         ? arq.map(t=>`<div class="mg-arq-i">
             <span class="ti" title="${esc(t.title)}">${esc(t.title)}</span>
-            <button class="rest" onclick="mgArquivar('${t.id}',false)">Restaurar</button>
+            <button class="rest" onclick="mgArquivar('${escJS(t.id)}',false)">Restaurar</button>
           </div>`).join('')
         : `<div class="mg-qm-nada">Nada arquivado por aqui.</div>`}
     </div>
@@ -7559,7 +7638,7 @@ function mgDesenharQMenu(){
     <div class="mg-qm-sub" id="mg-qm-fundo">
       <div class="mg-fundos">
         ${MG_FUNDOS.map(([v,l,bg])=>`<button class="mg-fundo-op ${v===fundo?'on':''}" title="${esc(l)}"
-          onclick="mgTrocarFundo('${v}')"><span style="background-image:${bg};background-size:${v==='linhas'?'9px 9px':'auto'}"></span></button>`).join('')}
+          onclick="mgTrocarFundo('${escJS(v)}')"><span style="background-image:${bg};background-size:${v==='linhas'?'9px 9px':'auto'}"></span></button>`).join('')}
       </div>
     </div>
 
@@ -7654,7 +7733,7 @@ async function mgArquivarConcluidas(){
     if(pe && t && !pe.querySelector('.mg-arquivar')){
       pe.insertAdjacentHTML('afterbegin',
         `<button class="mini-btn ghost mg-arquivar" style="margin-right:auto"
-           onclick="mgArquivar('${t.id}',${t.archived?'false':'true'})">${t.archived?'Restaurar':'Arquivar'}</button>`);
+           onclick="mgArquivar('${escJS(t.id)}',${t.archived?'false':'true'})">${t.archived?'Restaurar':'Arquivar'}</button>`);
     }
     return r;
   };
@@ -7773,7 +7852,7 @@ function mgDesenharHistorico(){
           const por=(d.metadata&&d.metadata.por)?d.metadata.por:null;
           const semArquivo = !d.storage_path && d.metadata && d.metadata.link;
           return `<button class="mg-hist-i" style="--pt:${t.hex};animation-delay:${(Math.min(i,8)*0.04).toFixed(2)}s"
-                     onclick="openDoc('${esc(String(d.id))}')">
+                     onclick="openDoc('${escJS(String(d.id))}')">
             <span class="tp" style="background:${hexA(t.hex,.14)};color:${t.hex}">${esc(t.label.replace(/s$/,''))}</span>
             <span class="meio">
               <span class="ti">${esc(d.titulo||'(sem título)')}</span>
@@ -7905,10 +7984,10 @@ function mgDesenharListaEspelho(){
   (DOCS||[]).forEach(d=>{ docsPorCliente[d.client_id]=(docsPorCliente[d.client_id]||0)+1 });
   cx.innerHTML = (CLIENTS||[]).map(c=>{
     const lg=clientLogo(c.id);
-    const marca = lg ? `<img src="${esc(lg)}" alt="">`
+    const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
                      : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
     const n=docsPorCliente[c.id]||0;
-    return `<button class="mg-eu-cli" onclick="mgEntrarEspelho('${esc(c.id)}')">
+    return `<button class="mg-eu-cli" onclick="mgEntrarEspelho('${escJS(c.id)}')">
       ${marca}<span class="nm2">${esc(c.nome)}</span>
       <span class="qt">${n} doc${n===1?'':'s'}</span>
     </button>`;
@@ -9591,10 +9670,10 @@ function mgFDesenhar(){
       ${(CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>{
         const on = todos || MG_F_CLIENTES.has(c.id);
         const lg = (typeof clientLogo==='function') ? clientLogo(c.id) : null;
-        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+        const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
                          : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
         return `<label class="mg-f-cli">
-          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${esc(c.id)}',this.checked)">
+          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${escJS(c.id)}',this.checked)">
           ${marca}<span class="nm">${esc(c.nome)}</span>
           <span class="qt">${contagem[c.id]||0}</span>
         </label>`;
@@ -9602,7 +9681,7 @@ function mgFDesenhar(){
     </div>
     <div class="dp-sec">Quando foi criada</div>
     ${MG_CRIADA_OPS.map(([v,l])=>`<label class="chk">
-      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${v}')"> ${l}
+      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${escJS(v)}')"> ${l}
     </label>`).join('')}
   `;
 }
@@ -10482,7 +10561,7 @@ function mgPMCabecalho(){
       <div class="mg-pm-total"><b>${mgPMDinheiro(total,moeda)}</b><span>Investimento do mês</span></div>
     </div>
     <div class="mg-pm-abas">
-      ${abas.map(([v,l])=>`<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">${l}</button>`).join('')}
+      ${abas.map(([v,l])=>`<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${escJS(v)}')">${l}</button>`).join('')}
     </div>`;
 }
 
@@ -10499,7 +10578,7 @@ function mgPMCabecalho(){
         const abas = [['tatico','Tático'],['visual','Resumo visual'],['cronograma','Cronograma']];
         cab.insertAdjacentHTML('afterend',
           `<div class="mg-pm-abas">${abas.map(([v,l])=>
-            `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">${l}</button>`).join('')}</div>`);
+            `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${escJS(v)}')">${l}</button>`).join('')}</div>`);
       }
       return r;
     }
@@ -10518,7 +10597,7 @@ function mgPMCabecalho(){
     if(VIEW!=='plano' || !MG_PM) return base;
     const abas = [['tatico','▤','Tático'],['visual','▦','Resumo'],['cronograma','◷','Cronograma']];
     const btns = abas.map(([v,ic,l])=>
-      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">
+      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${escJS(v)}')">
          <span class="ic">${ic}</span><span class="rot">${l}</span></button>`).join('');
     return base.replace(/<button class="on"><span class="ic">◎<\/span>Plano de mídia<\/button>/, btns);
   };
@@ -10549,7 +10628,7 @@ const MG_PM_ABAS = [
 function mgPMAbasHTML(){
   return MG_PM_ABAS.map(([v,l,,principal])=>
     `<button class="${principal?'principal ':''}${MG_PM_ABA===v?'on':''}"
-       onclick="mgPMVerAba('${v}')">${l}</button>`).join('');
+       onclick="mgPMVerAba('${escJS(v)}')">${l}</button>`).join('');
 }
 
 /* usa a ordem nova em todas as três telas, inclusive na tabela tática,
@@ -10609,7 +10688,7 @@ function mgPMAbasHTML(){
     const base = _d();
     if(VIEW!=='plano' || !MG_PM) return base;
     const novos = MG_PM_ABAS.map(([v,l,ic])=>
-      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${v}')">
+      `<button class="${MG_PM_ABA===v?'on':''}" onclick="mgPMVerAba('${escJS(v)}')">
          <span class="ic">${ic}</span><span class="rot">${l}</span></button>`).join('');
     /* troca o conjunto de abas que a adição anterior tinha montado */
     return base.replace(/<button class="(?:on)?"><span class="ic">▤<\/span><span class="rot">Tático<\/span><\/button>[\s\S]*?<span class="rot">Cronograma<\/span><\/button>/, novos);
@@ -11224,10 +11303,10 @@ mgFDesenhar = function(){
       ${(CLIENTS||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).map(c=>{
         const on = MG_F_CLI_TODOS || MG_F_CLIENTES.has(c.id);
         const lg = (typeof clientLogo==='function') ? clientLogo(c.id) : null;
-        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+        const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
                          : `<span class="pt" style="background:${clientColor(c.id)}"></span>`;
         return `<label class="mg-f-cli">
-          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${esc(c.id)}',this.checked)">
+          <input type="checkbox" ${on?'checked':''} onchange="mgFCliente('${escJS(c.id)}',this.checked)">
           ${marca}<span class="nm">${esc(c.nome)}</span>
           <span class="qt">${contagem[c.id]||0}</span>
         </label>`;
@@ -11236,7 +11315,7 @@ mgFDesenhar = function(){
 
     <div class="dp-sec">Data de entrega</div>
     ${MG_ENTREGA_OPS.map(([v,l])=>`<label class="chk">
-      <input type="checkbox" ${MG_F_ENTREGA===v?'checked':''} onchange="mgFEntrega('${v}')"> ${l}
+      <input type="checkbox" ${MG_F_ENTREGA===v?'checked':''} onchange="mgFEntrega('${escJS(v)}')"> ${l}
     </label>`).join('')}
     <div class="mg-f-periodo">
       <input type="date" value="${esc(MG_F_ENT_DE)}"  title="Entrega a partir de"
@@ -11248,7 +11327,7 @@ mgFDesenhar = function(){
 
     <div class="dp-sec">Quando foi criada</div>
     ${MG_CRIADA_OPS.map(([v,l])=>`<label class="chk">
-      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${v}')"> ${l}
+      <input type="checkbox" ${MG_F_CRIADA===v?'checked':''} onchange="mgFCriada('${escJS(v)}')"> ${l}
     </label>`).join('')}
   `;
 };
@@ -11484,7 +11563,7 @@ function mgAnexosHTML(t){
             <span class="nm" title="${esc(a.nome||'')}">${esc(a.nome||'')}</span>
             <span class="sb">${mgTamanho(a.tamanho)}${a.por?' · '+esc(a.por):''}${a.em?' · '+new Date(a.em).toLocaleDateString('pt-BR'):''}</span>
           </span>
-          <button onclick="mgAbrirAnexo('${esc(a.path)}')">Abrir</button>
+          <button onclick="mgAbrirAnexo('${escJS(a.path)}')">Abrir</button>
           ${isAdmin()?`<button class="x" title="Remover" onclick="mgTirarAnexo(${i})">✕</button>`:''}
         </div>`).join('')
         : `<div style="color:var(--muted);font-size:13px">Nenhum arquivo ainda.</div>`}
@@ -11551,20 +11630,20 @@ function mgProjetosDesenhar(){
       return `<div class="mg-pj-card ${aberto?'aberto':''}" data-id="${esc(p.id)}"
            ondragover="event.preventDefault();this.classList.add('mg-alvo')"
            ondragleave="this.classList.remove('mg-alvo')"
-           ondrop="mgPJSoltar(event,'${esc(p.id)}')">
-        <div class="mg-pj-h" onclick="mgPJAlternar('${esc(p.id)}')">
+           ondrop="mgPJSoltar(event,'${escJS(p.id)}')">
+        <div class="mg-pj-h" onclick="mgPJAlternar('${escJS(p.id)}')">
           <span class="seta">▶</span>
           <span class="nm">${p.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(p.title||'')}</span>
           <span class="mg-pj-barra"><span style="width:${pct}%"></span></span>
           <span class="qt">${prontos}/${filhos.length}</span>
         </div>
         <div class="mg-pj-filhos">
-          ${filhos.map(f=>`<div class="mg-pj-f" onclick="openDetail('${esc(f.id)}')">
+          ${filhos.map(f=>`<div class="mg-pj-f" onclick="openDetail('${escJS(f.id)}')">
             <span class="pt" style="background:${colColor(f.status)}"></span>
             <span class="nm">${f.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(f.title||'')}</span>
             <span class="st">${esc(f.status||'')}</span>
             ${admin?`<button class="x" title="Tirar do projeto"
-               onclick="event.stopPropagation();mgVincular('${esc(f.id)}',null)">✕</button>`:''}
+               onclick="event.stopPropagation();mgVincular('${escJS(f.id)}',null)">✕</button>`:''}
           </div>`).join('')}
         </div>
       </div>`;
@@ -11577,9 +11656,9 @@ function mgProjetosDesenhar(){
     ${admin && soltas.length ? `<div class="mg-pj-soltas">
       <div class="mg-fx-faixa" style="padding-top:0">Demandas fora de projeto — arraste para dentro de um</div>
       ${soltas.slice(0,40).map(t=>`<div class="mg-pj-solta" draggable="true"
-          ondragstart="mgPJArrastar(event,'${esc(t.id)}')"
+          ondragstart="mgPJArrastar(event,'${escJS(t.id)}')"
           ondragend="this.classList.remove('dragging')"
-          onclick="openDetail('${esc(t.id)}')">
+          onclick="openDetail('${escJS(t.id)}')">
         <span class="pt" style="width:9px;height:9px;border-radius:50%;background:${colColor(t.status)}"></span>
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${t.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(t.title||'')}</span>
@@ -11610,7 +11689,7 @@ function mgProjetoHTML(t){
   const candidatos = (TASKS||[]).filter(x=>
     x.id!==t.id && x.client_id===t.client_id && x.parent_id!==t.id);
   return `<div class="sect-t">🗂 Projeto</div>
-    ${admin ? `<select class="mg-pj-sel" onchange="mgVincular('${esc(t.id)}',this.value)">
+    ${admin ? `<select class="mg-pj-sel" onchange="mgVincular('${escJS(t.id)}',this.value)">
         <option value="">— não faz parte de nenhum projeto —</option>
         ${candidatos.map(c=>`<option value="${esc(c.id)}" ${t.parent_id===c.id?'selected':''}>${esc(c.title||'')}</option>`).join('')}
       </select>`
@@ -11618,7 +11697,7 @@ function mgProjetoHTML(t){
                      : `<div style="font-size:13px;color:var(--muted)">Demanda avulsa.</div>`)}
     ${filhos.length ? `<div style="margin-top:10px">
       <div class="fl" style="margin-bottom:6px">Contém ${filhos.length} demanda(s)</div>
-      ${filhos.map(f=>`<div class="mg-pj-f" style="padding:8px 10px" onclick="openDetail('${esc(f.id)}')">
+      ${filhos.map(f=>`<div class="mg-pj-f" style="padding:8px 10px" onclick="openDetail('${escJS(f.id)}')">
         <span class="pt" style="background:${colColor(f.status)}"></span>
         <span class="nm">${esc(f.title||'')}</span>
         <span class="st">${esc(f.status||'')}</span>
@@ -11663,7 +11742,7 @@ function mgUrgFaixa(){
   }
   faixa.innerHTML = `<span class="sino">🚨</span>
     <span class="tt">${urg.length} demanda${urg.length===1?'':'s'} urgente${urg.length===1?'':'s'}</span>
-    <span class="lst">${urg.slice(0,6).map(t=>`<button onclick="openDetail('${esc(t.id)}')"
+    <span class="lst">${urg.slice(0,6).map(t=>`<button onclick="openDetail('${escJS(t.id)}')"
       title="${esc(t.title||'')}">${esc(clientName(t.client_id))} · ${esc(t.title||'')}</button>`).join('')}
       ${urg.length>6?`<span style="font-size:11.5px;color:var(--muted);align-self:center">e mais ${urg.length-6}</span>`:''}</span>
     <button class="x" title="Ocultar até a próxima" onclick="mgUrgOcultar()">✕</button>`;
@@ -11743,7 +11822,7 @@ function mgUrgConferir(){
         const grade = corpo.querySelector('.mg-det-grade');
         const html = `<label class="mg-urg-chave">
           <input type="checkbox" ${t.urgente?'checked':''}
-                 onchange="mgMarcarUrgente('${esc(t.id)}',this.checked)">
+                 onchange="mgMarcarUrgente('${escJS(t.id)}',this.checked)">
           <span><b>Marcar como urgente</b>
             <span class="d">A demanda aparece em vermelho para todo mundo, com um aviso no topo
             de qualquer tela até ser concluída.</span></span></label>`;
@@ -12571,7 +12650,7 @@ function mgBFForm(){
       <div class="mg-bf-chks">
         ${MG_BF_ANEXOS.map(a=>`<label class="mg-bf-chk">
           <input type="checkbox" ${(MG_BF.anexos||[]).includes(a)?'checked':''}
-                 onchange="mgBFAnexo('${esc(a)}',this.checked)"> ${esc(a)}
+                 onchange="mgBFAnexo('${escJS(a)}',this.checked)"> ${esc(a)}
         </label>`).join('')}
       </div>
       <div class="mg-bf-lin um" style="margin-top:10px">
@@ -12783,7 +12862,7 @@ function mgBFLista(){
 
     ${MG_BF_LISTA.length ? `<div style="margin-top:18px">
       ${MG_BF_LISTA.map((b,i)=>`<button class="mg-bf-card" style="animation-delay:${(i*0.04).toFixed(2)}s"
-          onclick="mgBFAbrir('${esc(b.id)}')">
+          onclick="mgBFAbrir('${escJS(b.id)}')">
         <span class="ic">${b.status==='enviado'?'📋':'✏️'}</span>
         <span class="txt">
           <b>${esc(b.titulo || 'Briefing')}</b>
@@ -12940,7 +13019,7 @@ mgBFLista = function(){
 
     ${MG_BF_LISTA.length ? `<div style="margin-top:18px">
       ${MG_BF_LISTA.map((b,i)=>`<button class="mg-bf-card" style="animation-delay:${(i*0.04).toFixed(2)}s"
-          onclick="mgBFAbrir('${esc(b.id)}')">
+          onclick="mgBFAbrir('${escJS(b.id)}')">
         <span class="ic">${b.status==='enviado'?'📋':'✏️'}</span>
         <span class="txt">
           <b>${esc(b.titulo || 'Briefing')}</b>
@@ -13121,7 +13200,7 @@ function mgBFArquivosHTML(){
           <span class="nm" title="${esc(a.nome)}">${esc(a.nome)}</span>
           <span class="sb">${typeof mgTamanho==='function' ? mgTamanho(a.tamanho) : ''}</span>
         </span>
-        <button onclick="mgBFAbrirArquivo('${esc(a.path)}')">Abrir</button>
+        <button onclick="mgBFAbrirArquivo('${escJS(a.path)}')">Abrir</button>
         <button class="x" title="Remover" onclick="mgBFTirarArquivo(${i})">✕</button>
       </div>`).join('')}
     </div>
@@ -13904,7 +13983,7 @@ function mgNavClienteHTML(){
   if(abas.length < 2) return '';
   return `<span class="mg-nav-cli">` + abas.map(v=>{
     const [ic, rot] = MG_NAV_CLI[v];
-    return `<button class="${VIEW===v?'on':''}" onclick="mgIrPara('${v}')" title="${esc(rot)}">
+    return `<button class="${VIEW===v?'on':''}" onclick="mgIrPara('${escJS(v)}')" title="${esc(rot)}">
       <span class="ic">${ic}</span><span class="rot">${esc(rot)}</span></button>`;
   }).join('') + `</span><span class="sep"></span>`;
 }
@@ -14035,7 +14114,7 @@ function mgNavAbrir(e){
   p.innerHTML = `<div class="tt">Ir para</div>` + itens.map(n=>{
     const atual = (n.v === VIEW) ||
       (n.v === 'tasks' && document.body.classList.contains('mg-tasks'));
-    return `<button class="${atual?'on':''}" onclick="mgIrPara('${n.v}');mgNavFechar()">
+    return `<button class="${atual?'on':''}" onclick="mgIrPara('${escJS(n.v)}');mgNavFechar()">
       <span class="ic">${n.ic}</span>${esc(n.label)}</button>`;
   }).join('');
 
@@ -14487,10 +14566,10 @@ function mgProgressoHTML(){
     <div class="mg-prog-lista">
       ${linhas.map((x,i)=>{
         const lg = (typeof clientLogo==='function') ? clientLogo(x.id) : null;
-        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+        const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
                          : `<span class="pt" style="background:${clientColor(x.id)}"></span>`;
         return `<div class="mg-prog-l" style="animation-delay:${(i*0.035).toFixed(2)}s"
-             onclick="mgVerCliente('${esc(x.id)}')" title="Ver as demandas de ${esc(x.nome)}">
+             onclick="mgVerCliente('${escJS(x.id)}')" title="Ver as demandas de ${esc(x.nome)}">
           <span class="nm">${marca}<span>${esc(x.nome)}</span></span>
           <span class="mg-bar"><span class="f" style="width:${x.pct}%;background:${mgCorPct(x.pct)}"></span></span>
           <span class="qt">
@@ -14690,8 +14769,8 @@ function mgPjDesenhar(){
       return `<div class="mg-pj2-c ${aberto?'aberto':''}" data-id="${esc(p.id)}"
            style="animation-delay:${(i*0.04).toFixed(2)}s"
            ondragover="mgPjSobre(event)" ondragleave="mgPjSai(event)"
-           ondrop="mgPjSolta(event,'${esc(p.id)}')">
-        <div class="mg-pj2-h" onclick="mgPjAlternar('${esc(p.id)}')">
+           ondrop="mgPjSolta(event,'${escJS(p.id)}')">
+        <div class="mg-pj2-h" onclick="mgPjAlternar('${escJS(p.id)}')">
           <span class="seta">▶</span>
           <span class="cor" style="background:${cor}"></span>
           <span class="nm">${esc(p.nome)}</span>
@@ -14701,17 +14780,17 @@ function mgPjDesenhar(){
           <span class="pct">${pr.pct}%</span>
           <span class="emp">${pr.feitas}/${pr.total}</span>
           ${isAdmin()?`<span class="acoes">
-            <button title="Renomear" onclick="event.stopPropagation();mgPjRenomear('${esc(p.id)}')">✎</button>
-            <button class="x" title="Excluir" onclick="event.stopPropagation();mgPjExcluir('${esc(p.id)}')">✕</button>
+            <button title="Renomear" onclick="event.stopPropagation();mgPjRenomear('${escJS(p.id)}')">✎</button>
+            <button class="x" title="Excluir" onclick="event.stopPropagation();mgPjExcluir('${escJS(p.id)}')">✕</button>
           </span>`:''}
         </div>
         <div class="mg-pj2-corpo">
-          ${ts.length ? ts.map(t=>`<div class="mg-pj2-t" onclick="openDetail('${esc(t.id)}')">
+          ${ts.length ? ts.map(t=>`<div class="mg-pj2-t" onclick="openDetail('${escJS(t.id)}')">
             <span class="pt" style="background:${colColor(t.status)}"></span>
             <span class="nm">${t.urgente?'<span class="mg-urg-selo"><span class="p"></span>Urgente</span>':''}${esc(t.title||'')}</span>
             <span class="st">${esc(t.status||'')}</span>
             ${isAdmin()?`<button class="x" title="Tirar do projeto"
-               onclick="event.stopPropagation();mgPjVincular('${esc(t.id)}',null)">✕</button>`:''}
+               onclick="event.stopPropagation();mgPjVincular('${escJS(t.id)}',null)">✕</button>`:''}
           </div>`).join('')
           : `<div class="mg-pj2-vazio">Nenhuma demanda ainda.<br>
                Arraste uma para cá ou escolha este projeto no detalhe dela.</div>`}
@@ -14727,9 +14806,9 @@ function mgPjDesenhar(){
       <div class="mg-prog-cab"><span class="t" style="font-size:14px">Fora de projeto</span>
         <span class="s">${semProjeto.length} demanda(s) — arraste para dentro de um projeto</span></div>
       ${semProjeto.slice(0,30).map(t=>`<div class="mg-pj2-t" draggable="true"
-          ondragstart="_drag='${esc(t.id)}';this.style.opacity=.4"
+          ondragstart="_drag='${escJS(t.id)}';this.style.opacity=.4"
           ondragend="this.style.opacity=1"
-          onclick="openDetail('${esc(t.id)}')" style="cursor:grab">
+          onclick="openDetail('${escJS(t.id)}')" style="cursor:grab">
         <span class="pt" style="background:${colColor(t.status)}"></span>
         <span class="nm">${esc(t.title||'')}</span>
         <span class="st">${esc(clientName(t.client_id))}</span>
@@ -14794,7 +14873,7 @@ function mgPjDesenhar(){
       const esq = corpo.querySelector('.mg-det-col') || corpo;
       const html = `<div class="mg-pj2-sel-wrap">
         <div class="sect-t">🗂 Projeto</div>
-        ${isAdmin() ? `<select class="mg-pj2-sel" onchange="mgPjVincular('${esc(t.id)}',this.value)">
+        ${isAdmin() ? `<select class="mg-pj2-sel" onchange="mgPjVincular('${escJS(t.id)}',this.value)">
             <option value="">— sem projeto —</option>
             ${doCliente.map(p=>`<option value="${esc(p.id)}" ${t.project_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}
           </select>
@@ -14939,11 +15018,11 @@ async function mgPjCriarAqui(taskId){
       antigo.innerHTML = `
         <div class="sect-t">🗂 Projeto</div>
         <div class="mg-pj3">
-          <select class="mg-pj2-sel" onchange="mgPjVincular('${esc(t.id)}',this.value)">
+          <select class="mg-pj2-sel" onchange="mgPjVincular('${escJS(t.id)}',this.value)">
             <option value="">— sem projeto —</option>
             ${doCliente.map(p=>`<option value="${esc(p.id)}" ${t.project_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}
           </select>
-          <button class="novo" onclick="mgPjCriarAqui('${esc(t.id)}')">＋ Novo</button>
+          <button class="novo" onclick="mgPjCriarAqui('${escJS(t.id)}')">＋ Novo</button>
         </div>
         <div class="mg-pj3-dica">${doCliente.length
           ? 'Agrupe demandas de um mesmo trabalho — CRM, lançamento, campanha.'
@@ -15651,7 +15730,7 @@ function mgEditarDemanda(id){
       const pe = document.querySelector('#slide .slide-foot');
       if(pe && !pe.querySelector('.btn-edit')){
         const salvar = pe.querySelector('.btn-save');
-        const html = `<button class="btn-edit" onclick="mgEditarDemanda('${esc(t.id)}')"
+        const html = `<button class="btn-edit" onclick="mgEditarDemanda('${escJS(t.id)}')"
             title="Abrir a janela completa — inclusive para trocar o cliente">✎ Editar</button>`;
         if(salvar) salvar.insertAdjacentHTML('afterend', html);
         else pe.insertAdjacentHTML('beforeend', html);
@@ -15661,10 +15740,10 @@ function mgEditarDemanda(id){
       const cab = document.querySelector('#slide .slide-h');
       if(cab && !cab.querySelector('.mg-det-cli')){
         const lg = (typeof clientLogo === 'function') ? clientLogo(t.client_id) : null;
-        const marca = lg ? `<img src="${esc(lg)}" alt="">`
+        const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
                          : `<span class="pt" style="background:${clientColor(t.client_id)}"></span>`;
         cab.insertAdjacentHTML('beforeend',
-          `<button class="mg-det-cli" onclick="mgEditarDemanda('${esc(t.id)}')"
+          `<button class="mg-det-cli" onclick="mgEditarDemanda('${escJS(t.id)}')"
              title="Trocar o cliente desta demanda">
             ${marca}${esc(clientName(t.client_id))}<span class="lapis">✎</span>
           </button>`);
@@ -16005,7 +16084,7 @@ function mgCdDesenhar(){
             <span class="n">${lista.length}</span></h4>
           ${lista.length ? lista.map(t=>{
             const atrasada = t.due && t.due < hoje && clientStatus(t.status) !== 'Concluído';
-            return `<button class="mg-cd-card" onclick="mgCdAbrir('${esc(t.id)}')">
+            return `<button class="mg-cd-card" onclick="mgCdAbrir('${escJS(t.id)}')">
               <div class="ti">${esc(t.title||'')}</div>
               <div class="me">
                 ${t.due ? `<span class="pz ${atrasada?'atrasada':''}">📅
@@ -16377,7 +16456,7 @@ mgCdDesenhar = function(){
             ${esc(c.label)}<span class="n">${lista.length}</span></h4>
           <div class="lista">
             ${lista.length ? lista.map(t=>`
-              <button class="mg-cd-card ${MG_CD_ID===t.id?'sel':''}" onclick="mgCdAbrir('${esc(t.id)}')">
+              <button class="mg-cd-card ${MG_CD_ID===t.id?'sel':''}" onclick="mgCdAbrir('${escJS(t.id)}')">
                 <span class="ic" style="background:${hexA(c.cor,.13)};color:${c.cor}">${c.ic}</span>
                 <span class="ti">${esc(t.title||'')}</span>
               </button>`).join('')
@@ -16697,7 +16776,7 @@ function mgPgSecoesHTML(){
       ${docs.length ? `<div class="mg-pg-docs">
         ${docs.slice(0, 8).map(d=>{
           const t = docTipo(d.tipo);
-          return `<button class="mg-pg-doc" onclick="openDoc('${esc(String(d.id))}')">
+          return `<button class="mg-pg-doc" onclick="openDoc('${escJS(String(d.id))}')">
             <span class="ic" style="background:${hexA(t.hex,.13)};color:${t.hex}">${t.ic}</span>
             <span class="tx">
               <b>${esc(d.titulo || '(sem título)')}</b>
@@ -16952,7 +17031,7 @@ renderEquipe = async function(){
   const linha = (u)=>{
     const eu = ME && ME.id === u.id;
     return `<div class="crow" ${eu?'style="background:var(--card2);border-color:var(--brass)"':''}>
-      <span class="mg-eq-foto" data-id="${esc(u.id)}" onclick="mgEqFoto('${esc(u.id)}','${esc(u.nome||'')}')"
+      <span class="mg-eq-foto" data-id="${esc(u.id)}" onclick="mgEqFoto('${escJS(u.id)}','${escJS(u.nome||'')}')"
             title="Trocar a foto">
         ${avatarInner(u.nome||'?', u.avatar_url)}
         <span class="capa">✎</span>
@@ -16960,7 +17039,7 @@ renderEquipe = async function(){
 
       <span class="nm" style="flex:1;min-width:0">
         <span class="mg-eq-nome" data-id="${esc(u.id)}"
-              onclick="mgEqEditarNome('${esc(u.id)}','${esc(u.nome||'')}')" title="Clique para renomear">
+              onclick="mgEqEditarNome('${escJS(u.id)}','${escJS(u.nome||'')}')" title="Clique para renomear">
           <b>${esc(u.nome||'—')}</b>
           ${eu?'<span style="font-size:11px;color:var(--brass2);font-weight:700">· você</span>':''}
           <span class="lapis">✎</span>
@@ -16968,13 +17047,13 @@ renderEquipe = async function(){
         ${u.email ? `<span class="mg-eq-email">${esc(u.email)}</span>` : ''}
       </span>
 
-      <select class="fld" style="width:140px" onchange="setRole('${esc(u.id)}',this.value)">
+      <select class="fld" style="width:140px" onchange="setRole('${escJS(u.id)}',this.value)">
         <option value="admin"  ${u.role==='admin' ?'selected':''}>Equipe</option>
         <option value="client" ${u.role==='client'?'selected':''}>Cliente</option>
       </select>
 
       ${u.role === 'client'
-        ? `<select class="fld mg-eq-emp" onchange="mgEqEmpresa('${esc(u.id)}',this.value)">
+        ? `<select class="fld mg-eq-emp" onchange="mgEqEmpresa('${escJS(u.id)}',this.value)">
              <option value="">— sem empresa —</option>
              ${(CLIENTS||[]).map(c=>`<option value="${esc(c.id)}" ${u.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
            </select>`
@@ -16984,9 +17063,9 @@ renderEquipe = async function(){
 
       <span class="mg-eq-acoes">
         ${u.avatar_url ? `<button title="Remover a foto"
-          onclick="mgEqTirarFoto('${esc(u.id)}','${esc(u.nome||'')}')">⊘</button>` : ''}
+          onclick="mgEqTirarFoto('${escJS(u.id)}','${escJS(u.nome||'')}')">⊘</button>` : ''}
         ${!eu ? `<button class="rm" title="Remover o acesso"
-          onclick="mgEqRemover('${esc(u.id)}','${esc(u.nome||'')}')">✕</button>` : ''}
+          onclick="mgEqRemover('${escJS(u.id)}','${escJS(u.nome||'')}')">✕</button>` : ''}
       </span>
     </div>`;
   };
@@ -17227,9 +17306,12 @@ const MGU = (function(){
     const online = (o.presenca && window.MGChat && window.MGChat.online)
                  ? window.MGChat.online(u.id) : null;
     const fonte = Math.max(9, Math.round(t*0.38));
-    const dentro = u.avatar
-      ? '<img src="' + esc2(u.avatar) + '" alt="" loading="lazy" '
-        + 'onerror="this.replaceWith(document.createTextNode(\'' + esc2(u.iniciais) + '\'))">'
+    /* endereço recusado pelo validador vira iniciais na hora, e o onerror
+       cobre o caso de o endereço ser válido mas a imagem não carregar */
+    const src = (typeof mgUrlImagem === 'function') ? mgUrlImagem(u.avatar) : '';
+    const dentro = src
+      ? '<img src="' + src + '" alt="" loading="lazy" '
+        + 'onerror="this.replaceWith(document.createTextNode(\'' + escJS(u.iniciais) + '\'))">'
       : esc2(u.iniciais);
     return '<span class="mgu-av' + (o.classe ? ' '+o.classe : '') + '"'
       + ' data-uid="' + esc2(u.id) + '"'
@@ -17299,9 +17381,9 @@ const MGU = (function(){
    igual no card da demanda, na lista da equipe, no chat e no menu.
    --------------------------------------------------------------------- */
 function avatarInner(nome, url){
-  if(url) return '<img src="' + esc(url) + '" alt="">';
   const u = MGU.get(nome);
-  if(u && u.avatar) return '<img src="' + esc(u.avatar) + '" alt="">';
+  const src = mgUrlImagem(url || (u && u.avatar));
+  if(src) return '<img src="' + src + '" alt="">';
   return esc(u ? u.iniciais : initials(nome));
 }
 function mgFotoDe(nome){
@@ -17605,24 +17687,135 @@ body.mg-sem-hora .mgz-m .hora{display:none}
   border-radius:8px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--danger);
   font-family:inherit;flex-shrink:0}
 
+/* ---------- 7. trilha de espaços (referência Discord) ----------
+   Barra estreita à esquerda de tudo. Não substitui a navegação da
+   plataforma: cada botão chama o mesmo showView de sempre. */
+.mgz-rail{width:64px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;
+  gap:6px;padding:12px 0 10px;background:var(--card2);border-right:1px solid var(--line)}
+.mgz-rail .lg{width:38px;height:38px;border-radius:12px;flex-shrink:0;margin-bottom:4px;
+  background:var(--mg-logo) center/contain no-repeat}
+.mgz-rail .sep{width:26px;height:1px;background:var(--line);margin:4px 0}
+.mgz-rail .esp{flex:1}
+.mgz-rail button{position:relative;width:42px;height:42px;border-radius:13px;border:0;
+  background:var(--card);color:var(--muted);font-size:17px;font-family:inherit;
+  display:grid;place-items:center;transition:border-radius .16s,background .16s,color .16s}
+.mgz-rail button:hover{border-radius:12px;background:var(--brass-soft);color:var(--brass2)}
+.mgz-rail button.on{background:var(--brass);color:var(--ink2)}
+.mgz-rail button.on::before{content:"";position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+  width:4px;height:22px;border-radius:0 3px 3px 0;background:var(--brass)}
+.mgz-rail button .n{position:absolute;top:-3px;right:-3px;background:var(--danger);color:#fff;
+  font-size:9.5px;font-weight:700;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  display:grid;place-items:center;border:2px solid var(--card2)}
+.mgz-rail .mgu-av{cursor:pointer}
+
+/* ---------- 8. painel direito: membros OU thread ---------- */
+.mgz-th{width:340px;flex-shrink:0;display:flex;flex-direction:column;min-width:0;
+  background:var(--card);border-left:1px solid var(--line);
+  animation:mgzEntraDir .2s cubic-bezier(.2,.7,.3,1)}
+@keyframes mgzEntraDir{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.mgz-th-topo{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:60px;
+  border-bottom:1px solid var(--line);flex-shrink:0}
+.mgz-th-topo .tx{min-width:0;flex:1}
+.mgz-th-topo .tx b{display:block;font-size:14px;font-weight:700;line-height:1.25}
+.mgz-th-topo .tx small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-th-topo .x{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
+  color:var(--muted);font-size:13px;flex-shrink:0;font-family:inherit}
+.mgz-th-topo .x:hover{border-color:var(--danger);color:var(--danger)}
+.mgz-th-corpo{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 0 8px;display:flex;flex-direction:column}
+.mgz-th-corpo .mgz-m{padding-left:14px;padding-right:14px}
+.mgz-th-raiz{margin:0 14px 4px;padding:11px 13px;border-radius:12px;background:var(--card2);
+  border:1px solid var(--line)}
+.mgz-th-raiz .lin{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.mgz-th-raiz .lin b{font-size:13px;font-weight:700}
+.mgz-th-raiz .lin span{font-size:11px;color:var(--muted2)}
+.mgz-th-raiz .tx{font-size:13.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.mgz-th-conta{display:flex;align-items:center;gap:10px;margin:10px 14px 2px;font-size:11px;
+  font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.6px}
+.mgz-th-conta::after{content:"";flex:1;height:1px;background:var(--line)}
+.mgz-th .mgz-comp{padding:8px 14px 14px}
+
+/* aviso de thread embaixo da mensagem-raiz, no lugar da resposta solta */
+.mgz-fio{display:flex;align-items:center;gap:8px;margin-top:6px;padding:5px 10px 5px 6px;
+  border:1px solid var(--line);border-radius:10px;background:var(--card2);font-family:inherit;
+  font-size:12px;font-weight:700;color:var(--brass2);max-width:max-content}
+.mgz-fio:hover{border-color:var(--brass);background:var(--brass-soft)}
+.mgz-fio .avs{display:flex}
+.mgz-fio .avs .mgu-av{margin-right:-6px;border:2px solid var(--card2)}
+.mgz-fio .qd{color:var(--muted);font-weight:500}
+
+/* ---------- 9. menu de comandos com barra ---------- */
+.mgz-cmdmenu{position:absolute;left:18px;right:18px;bottom:100%;margin-bottom:8px;z-index:14;
+  background:var(--card);border:1px solid var(--line2);border-radius:13px;overflow:hidden;
+  box-shadow:0 20px 46px -22px rgba(0,0,0,.5);max-height:290px;overflow-y:auto}
+.mgz-cmdmenu .cab{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted2);
+  font-weight:700;padding:10px 14px 6px}
+.mgz-cmdmenu button{display:flex;align-items:center;gap:11px;width:100%;padding:9px 14px;border:0;
+  background:none;text-align:left;font-family:inherit;color:var(--text)}
+.mgz-cmdmenu button:hover,.mgz-cmdmenu button.sel{background:var(--brass-soft)}
+.mgz-cmdmenu button .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  background:var(--card2);border:1px solid var(--line);font-size:13px;flex-shrink:0}
+.mgz-cmdmenu button .tx{min-width:0;flex:1}
+.mgz-cmdmenu button .tx b{display:block;font-size:13px;font-weight:700}
+.mgz-cmdmenu button .tx span{display:block;font-size:11.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-cmdmenu button .at{font-size:10.5px;color:var(--muted2);font-weight:700;flex-shrink:0}
+.mgz-comp{position:relative}
+
+/* ---------- 10. mensagem do Luquinhas dentro da conversa ---------- */
+.mgz-m.luq{background:linear-gradient(90deg,var(--brass-soft),transparent 62%)}
+.mgz-m.luq .quem{color:var(--brass2)}
+.mgz-luqav{width:36px;height:36px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+  font-size:19px;background:var(--brass-soft);border:1px solid var(--brass)}
+.mgz-m .selo{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--brass2);border:1px solid var(--brass);border-radius:5px;padding:1px 5px}
+.mgz-m.pensando .tx{color:var(--muted);font-style:italic}
+
+/* ---------- 11. resultado de busca de mensagens ---------- */
+.mgz-busca-res{padding:8px 0}
+.mgz-busca-res .r{display:block;width:100%;text-align:left;border:0;background:none;
+  padding:9px 20px;font-family:inherit;border-bottom:1px solid var(--line)}
+.mgz-busca-res .r:hover{background:var(--card2)}
+.mgz-busca-res .r .top{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.mgz-busca-res .r .top b{font-size:12.5px}
+.mgz-busca-res .r .top span{font-size:11px;color:var(--muted2)}
+.mgz-busca-res .r .cp{font-size:13px;color:var(--muted);line-height:1.5}
+.mgz-busca-res .r .cp mark{background:var(--brass-soft);color:var(--brass2);border-radius:3px}
+
 /* ---------- 6. responsivo ---------- */
-@media(max-width:1180px){ .mgz-info{display:none} body.mgz-info-on .mgz-info{display:flex} }
+@media(max-width:1320px){ .mgz-th{width:310px} }
+@media(max-width:1180px){
+  .mgz-info{display:none}
+  body.mgz-info-on .mgz-info{display:flex}
+  /* com pouca largura a thread ganha a frente e a lista de conversas sai */
+  body.mgz-thread-on .mgz-side{display:none}
+}
 @media(max-width:900px){
   .mgz-side{width:232px}
+  .mgz-rail{width:54px}
+  .mgz-rail button{width:38px;height:38px;font-size:15px}
+  .mgz-rail .lg{width:32px;height:32px}
   body.mgz-info-on .mgz-info{position:absolute;right:0;top:0;bottom:0;z-index:8;width:250px;
+    box-shadow:-18px 0 40px -22px rgba(0,0,0,.4)}
+  .mgz-th{position:absolute;right:0;top:0;bottom:0;z-index:9;width:330px;
     box-shadow:-18px 0 40px -22px rgba(0,0,0,.4)}
 }
 @media(max-width:720px){
   #v-chat{height:calc(100vh - 78px)}
   body.mg-e-chat #v-chat{height:calc(100vh - 76px)}
-  .mgz-side{position:absolute;inset:0;width:100%;z-index:9;border-right:0}
+  .mgz-rail{position:absolute;left:0;top:0;bottom:0;z-index:11;width:54px}
+  .mgz-side{position:absolute;left:54px;right:0;top:0;bottom:0;width:auto;z-index:9;border-right:0}
   body.mgz-conversa .mgz-side{display:none}
   body:not(.mgz-conversa) .mgz-main{display:none}
+  body.mgz-conversa .mgz-main{margin-left:54px}
   .mgz-voltar{display:block}
   .mgz-m{padding-left:14px;padding-right:14px}
   .mgz-comp{padding:6px 12px 12px}
   .mgz-topo{padding:10px 12px}
   body.mgz-info-on .mgz-info{width:100%;position:absolute;inset:0;z-index:10}
+  /* no celular a thread vira painel inteiro, não uma coluna espremida */
+  .mgz-th{position:absolute;inset:0;width:100%;z-index:12;border-left:0;animation:none}
+  .mgz-cmdmenu{left:12px;right:12px}
 }
 @media (prefers-reduced-motion: reduce){
   .mgz-msgs{scroll-behavior:auto}
@@ -17651,8 +17844,15 @@ let carregandoMsgs = false;
 let erroMsgs = null;
 let erroCanais = null;
 let empresasAbertas = new Set();
-let respondendo = null;
+let respondendo = null;     /* citação de mensagem órfã, caso legado     */
+let painelDir = null;       /* painel da direita: null | 'info' | 'thread'*/
+let thread = null;          /* id da mensagem-raiz aberta na thread       */
+let threadCarregando = false;
+let THREADS = {};           /* canal -> raiz -> {respostas,ultima,autores}*/
+let achados = null;         /* resultado da busca por mensagem            */
+let cmdSel = 0;             /* item destacado no menu de comandos         */
 let fila = [];              /* anexos escolhidos, ainda não enviados     */
+let filaTh = [];            /* o mesmo, dentro da thread                  */
 let pendentes = [];         /* mensagens em voo, para render otimista    */
 let online = new Set();     /* ids presentes agora                        */
 let digitando = new Map();  /* canalId -> Map(uid, expiraEm)             */
@@ -17701,6 +17901,20 @@ async function carregarMsgs(cid){
     erroMsgs = (e && e.message) || 'erro';
   }finally{ carregandoMsgs = false }
 }
+/* Contagem de respostas por mensagem-raiz. Vem do banco e não da janela
+   de 400 mensagens carregada, senão uma thread antiga apareceria com
+   menos respostas do que realmente tem. */
+async function carregarThreads(cid){
+  if(!cid) return;
+  try{
+    const {data, error} = await sb.rpc('mg_threads', {p_canal: cid});
+    if(error) throw error;
+    const m = {};
+    (data||[]).forEach(r=>{ m[String(r.raiz)] = {
+      respostas: Number(r.respostas)||0, ultima: r.ultima, autores: r.autores||[] } });
+    THREADS[cid] = m;
+  }catch(e){ THREADS[cid] = THREADS[cid] || {} }
+}
 async function carregarMembros(cid){
   if(!cid) return;
   try{
@@ -17727,7 +17941,7 @@ async function iniciar(){
     await carregarCanais();
     CH_READY = true;
     await carregarNaoLidas();
-    if(CHAN) await Promise.all([carregarMsgs(CHAN), carregarMembros(CHAN)]);
+    if(CHAN) await Promise.all([carregarMsgs(CHAN), carregarMembros(CHAN), carregarThreads(CHAN)]);
     assinar();
     ligarPresenca();
   }catch(e){
@@ -17808,6 +18022,13 @@ function chegou(m){
   if(lista){
     if(lista.some(x=>x.id===m.id)) return;
     lista.push(m);
+  }
+  if(m.reply_to){
+    const t = (THREADS[m.channel_id] = THREADS[m.channel_id] || {});
+    const r = String(m.reply_to);
+    t[r] = t[r] || {respostas:0, ultima:null, autores:[]};
+    t[r].respostas++; t[r].ultima = m.created_at;
+    if(m.author_id && !t[r].autores.includes(m.author_id)) t[r].autores.push(m.author_id);
   }
   const meu = ME && m.author_id === ME.id;
   if(!meu){
