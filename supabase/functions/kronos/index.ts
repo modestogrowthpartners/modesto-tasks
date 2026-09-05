@@ -29,6 +29,12 @@ const CORS = {
 const STATUS = ["Não iniciado", "Entregas do dia", "Em Andamento",
   "Impeditivo/Aprovação", "Próximas entregas", "Feito", "Concluído Atendimento"];
 const PRIORIDADES = ["Baixa", "Média", "Alta"];
+/* as mesmas categorias que a tela de Documentos conhece */
+const DOC_TIPOS = ["apresentacao", "proposta", "diagnostico", "weekly", "concorrencia"];
+const DOC_ROTULO: Record<string, string> = {
+  apresentacao: "Apresentação", proposta: "Proposta", diagnostico: "Diagnóstico",
+  weekly: "Weekly", concorrencia: "Concorrência",
+};
 
 /* Lido a cada chamada, de propósito. Se fosse lido uma vez na carga do
    módulo, definir o segredo depois só passaria a valer quando o isolate
@@ -133,6 +139,12 @@ const ESCRITA = [
         responsaveis: { type: "array", items: { type: "string" }, description: "nomes de pessoas da plataforma" },
         due: { type: "string", description: "data de entrega no formato AAAA-MM-DD" },
         urgente: { type: "boolean" },
+        passos: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "passo a passo do que precisa ser feito, uma frase por passo, na ordem de execução. Vira a lista de subtarefas da demanda.",
+        },
       },
       required: ["title"],
     },
@@ -162,6 +174,26 @@ const ESCRITA = [
       type: "object",
       properties: { task_id: { type: "string" }, body: { type: "string" } },
       required: ["task_id", "body"],
+    },
+  },
+  {
+    name: "criar_documento",
+    description:
+      "Propõe criar um documento no acervo de um cliente: apresentação, proposta, diagnóstico, weekly ou análise de concorrência. NÃO cria nada sozinho. Escreva a descrição do documento e, quando fizer sentido, o conteúdo dele em texto.",
+    input_schema: {
+      type: "object",
+      properties: {
+        titulo: { type: "string", description: "título do documento" },
+        cliente: { type: "string", description: "nome da empresa dona do documento" },
+        tipo: { type: "string", enum: DOC_TIPOS, description: "categoria do documento" },
+        descricao: { type: "string", description: "do que trata este documento, em uma ou duas frases" },
+        conteudo: {
+          type: "string",
+          description:
+            "o texto do documento, quando você tiver o que escrever. Use linhas em branco entre parágrafos. Deixe vazio se o documento vai ser preenchido depois.",
+        },
+      },
+      required: ["titulo", "cliente", "descricao"],
     },
   },
   {
@@ -363,6 +395,16 @@ async function resolverEscrita(sb: SupabaseClient, nome: string, a: any): Promis
       }
       campos.assignees = r.achados;
     }
+    if (Array.isArray(a?.passos) && a.passos.length) {
+      /* o passo a passo vira subtarefa de verdade, no mesmo formato que a
+         tela usa: assim ele aparece com caixa de marcar, e não como texto
+         solto dentro da descrição */
+      const passos = a.passos
+        .map((p: any) => String(p || "").trim())
+        .filter(Boolean)
+        .slice(0, 30);
+      if (passos.length) campos.subtasks = passos.map((text: string) => ({ text, done: false }));
+    }
     if (nome === "criar_demanda") {
       if (!campos.title) return { ok: false, erro: "Falta o título da demanda." };
       campos.status = campos.status || "Não iniciado";
@@ -370,6 +412,27 @@ async function resolverEscrita(sb: SupabaseClient, nome: string, a: any): Promis
       campos.description = campos.description || "";
     }
     return { ok: true, argumentos: campos };
+  }
+
+  if (nome === "criar_documento") {
+    if (!String(a?.titulo || "").trim()) return { ok: false, erro: "Falta o título do documento." };
+    if (!String(a?.descricao || "").trim()) {
+      return { ok: false, erro: "Falta a descrição do documento. Diga em uma ou duas frases do que ele trata." };
+    }
+    const c = await acharCliente(sb, a.cliente);
+    if (!c.ok) return c;
+    const tipo = DOC_TIPOS.includes(a?.tipo) ? a.tipo : "apresentacao";
+    return {
+      ok: true,
+      argumentos: {
+        titulo: String(a.titulo).trim(),
+        tipo,
+        descricao: String(a.descricao).trim(),
+        conteudo: String(a?.conteudo || ""),
+        client_id: c.cliente.id,
+        __cliente: c.cliente.nome,
+      },
+    };
   }
 
   if (nome === "comentar_demanda") {
@@ -429,7 +492,72 @@ async function executarEscrita(sb: SupabaseClient, nome: string, arg: any, quem:
     if (error) throw error;
     return { criou: "projeto", projeto: data };
   }
+  if (nome === "criar_documento") {
+    /* O documento nasce como HTML autocontido no bucket, do mesmo jeito
+       que os enviados à mão, e a linha em `documents` aponta para ele.
+       Quando não há conteúdo escrito, gravamos só a ficha: o arquivo
+       entra depois, pela tela de Documentos. */
+    let storage_path: string | null = null;
+    const texto = String(limpo.conteudo || "").trim();
+    if (texto) {
+      const html = documentoHTML(limpo.titulo, DOC_ROTULO[limpo.tipo] || limpo.tipo,
+                                 arg.__cliente || "", limpo.descricao, texto, quem.nome);
+      const id = crypto.randomUUID();
+      const caminho = `${limpo.client_id}/documentos/${id}.html`;
+      const up = await sb.storage.from("documents")
+        .upload(caminho, new Blob([html], { type: "text/html;charset=utf-8" }),
+                { upsert: false, contentType: "text/html;charset=utf-8" });
+      if (up.error) throw up.error;
+      storage_path = caminho;
+    }
+    const { data, error } = await sb.from("documents").insert({
+      client_id: limpo.client_id,
+      titulo: limpo.titulo,
+      tipo: limpo.tipo,
+      storage_path,
+      metadata: { descricao: limpo.descricao, por: quem.nome, origem: "kronos" },
+    }).select("id,titulo,tipo,client_id,storage_path").single();
+    if (error) throw error;
+    return { criou: "documento", documento: data };
+  }
   throw new Error(`Ação desconhecida: ${nome}`);
+}
+
+/* O documento que o Kronos escreve. HTML autocontido, com estilo de
+   impressão: abre na plataforma e salva em PDF pelo próprio navegador. */
+function documentoHTML(titulo: string, tipo: string, cliente: string,
+                       descricao: string, texto: string, por: string): string {
+  const esc = (v: string) =>
+    String(v ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+  const paragrafos = texto.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(titulo)}</title><style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f1ea;color:#23211d;font:15px/1.7 'Hanken Grotesk',system-ui,sans-serif}
+.folha{max-width:820px;margin:0 auto;background:#fff;padding:52px 56px 64px;
+  box-shadow:0 20px 60px -30px rgba(0,0,0,.3)}
+header{border-bottom:2px solid #c2a15b;padding-bottom:18px;margin-bottom:26px}
+h1{font:500 27px/1.2 Georgia,serif;margin:0}
+.meta{font-size:12.5px;color:#8a8271;margin-top:7px}
+.resumo{background:#faf7f0;border:1px solid #e6ded0;border-radius:12px;padding:16px 18px;
+  margin-bottom:26px;font-size:14px}
+p{margin:0 0 14px;white-space:pre-wrap}
+.rodape{margin-top:40px;padding-top:16px;border-top:1px solid #eee7da;font-size:11.5px;color:#8a8271}
+.imprimir{position:fixed;right:20px;top:20px;background:#c2a15b;color:#131311;border:0;border-radius:10px;
+  padding:11px 18px;font:600 13px/1 system-ui,sans-serif;cursor:pointer}
+@media print{body{background:#fff}.folha{box-shadow:none;padding:0;max-width:none}.imprimir{display:none}}
+</style></head><body>
+<button class="imprimir" onclick="window.print()">Salvar em PDF</button>
+<div class="folha">
+<header><h1>${esc(titulo)}</h1>
+<div class="meta">${esc(tipo)}${cliente ? " · " + esc(cliente) : ""} · escrito pelo Kronos a pedido de ${esc(por)}</div></header>
+<div class="resumo">${esc(descricao)}</div>
+${paragrafos}
+<div class="rodape">Documento gerado na plataforma MGP. Confira antes de enviar ao cliente.</div>
+</div></body></html>`;
 }
 
 /* Resumo legível montado do lado do servidor, a partir do que foi
@@ -455,6 +583,12 @@ function resumirAcao(nome: string, a: any) {
     put("Projeto", a.nome);
     put("Cliente", a.__cliente);
     put("Descrição", a.descricao);
+  } else if (nome === "criar_documento") {
+    put("Documento", a.titulo);
+    put("Tipo", DOC_ROTULO[a.tipo] || a.tipo);
+    put("Cliente", a.__cliente);
+    put("Descrição", a.descricao);
+    if (a.conteudo) put("Conteúdo", `${String(a.conteudo).trim().split(/\s+/).length} palavras escritas`);
   }
   return l.map(([r, v]) => ({ rotulo: r, valor: v }));
 }
@@ -464,6 +598,7 @@ const TITULOS: Record<string, string> = {
   atualizar_demanda: "Alterar demanda",
   comentar_demanda: "Comentar na demanda",
   criar_projeto: "Criar projeto",
+  criar_documento: "Criar documento",
 };
 
 /* ---------------------------------------------------------------------
@@ -485,7 +620,9 @@ Como você trabalha:
 - Ao resumir conversa ou thread, leia primeiro com ler_conversa.
 
 Sobre criar e alterar dados:
-- As ferramentas criar_demanda, atualizar_demanda, comentar_demanda e criar_projeto NÃO executam nada. Elas apenas montam uma proposta que aparece na tela para a pessoa confirmar.
+- As ferramentas criar_demanda, atualizar_demanda, comentar_demanda, criar_projeto e criar_documento NÃO executam nada. Elas apenas montam uma proposta que aparece na tela para a pessoa confirmar.
+- Quando pedirem uma demanda, entregue ela pronta para trabalhar: título curto no imperativo, uma descrição com o contexto (o porquê e o que já se sabe) e o passo a passo em "passos", uma frase por passo, na ordem de execução. Não deixe a demanda como uma linha solta.
+- Quando pedirem um documento, escreva o conteúdo dele em "conteudo" se você tiver o que escrever, e sempre preencha "descricao" dizendo do que ele trata. Se faltar informação para escrever o conteúdo, crie só a ficha com a descrição e diga o que falta.
 - Por isso você NUNCA deve dizer que criou, alterou ou salvou alguma coisa. Diga que preparou a proposta e que ela está aguardando confirmação.
 - Se uma ferramenta devolver erro, relate o erro como ele é. Não tente contornar inventando dados.
 - Você não tem poder próprio no banco: você opera com as mesmas permissões de ${quem.nome}. Se ela não pode fazer algo manualmente, você também não pode.

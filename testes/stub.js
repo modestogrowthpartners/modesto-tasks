@@ -30,7 +30,15 @@
                      {channel_id:'ch-3',profile_id:UID2,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null}],
     messages:[{id:'m-1',channel_id:'ch-1',author_id:UID2,author_name:'Elias Braga',body:'bom dia',
                kind:'user',created_at:new Date(Date.now()-3600e3).toISOString(),reply_to:null,reactions:{},anexos:[]}],
-    task_notes:[], briefings:[], media_plans:[], pacing:[],
+    task_notes:[], briefings:[],
+    media_plans:[{id:'mp-1', client_id:CID, plano:{verba_total:50000}, atualizado_em:'2026-09-01T10:00:00Z'}],
+    pacing:[
+      {id:'pc-1', conta:'Cliente Um Ads', client_id:CID, dia:'2026-09-04', mes:'2026-09', moeda:'BRL',
+       dias_fechados:4, dias_no_mes:30, receita:82000, pedidos:41, conversoes:52, roas:4.1, roas_piso:3.5,
+       canais:[{canal:'Meta Ads', investido:12000},{canal:'Google Ads', investido:8000}]},
+      {id:'pc-2', conta:'Cliente Um Ads', client_id:CID, dia:'2026-09-03', mes:'2026-09', moeda:'BRL',
+       dias_fechados:3, dias_no_mes:30, receita:60000, pedidos:30, conversoes:38, roas:4.0, roas_piso:3.5,
+       canais:[{canal:'Meta Ads', investido:9000},{canal:'Google Ads', investido:6000}]}],
     assistant_messages:[], assistant_actions:[]
   };
   /* persiste entre recargas, para dar sentido ao teste de persistência:
@@ -73,7 +81,12 @@
     api.then=(res,rej)=>Promise.resolve({data:alvo(),error:null,count:alvo().length}).then(res,rej);
     return api;
   }
-  const sess={user:{id:UID,email:'vinicius@x.com',confirmed_at:'2026-01-01'},access_token:'x'};
+  /* Quem está logado no dublê. Por padrão a Vinícius (admin); pondo
+     __COMO='cliente' em localStorage antes de carregar, entra a Flavia,
+     que é cliente da Cliente Um. É assim que a jornada testa o portal. */
+  let __eu = perfis[0];
+  try{ if(localStorage.getItem('__COMO') === 'cliente') __eu = perfis[2] }catch(e){}
+  const sess={user:{id:__eu.id, email:__eu.email, confirmed_at:'2026-01-01'}, access_token:'x'};
   function canal(){
     const c={_h:[],on(ev,f,g){c._h.push([ev,f,g]);return c},
       subscribe(cb){ if(cb) setTimeout(()=>cb('SUBSCRIBED'),0); return c },
@@ -210,13 +223,51 @@
       if(corpo.modo==='executar'){
         if(window.__KRONOS_EXEC_FALHA) return Promise.resolve({data:{ok:false,codigo:'sem_permissao',
           erro:'O banco recusou: você não tem permissão para isso. Nada foi criado.'},error:null});
-        const t={id:'t-luq-'+Date.now(),title:(corpo.acao&&corpo.acao.argumentos&&corpo.acao.argumentos.title)||'Demanda',
+        const arg=(corpo.acao&&corpo.acao.argumentos)||{};
+        if(corpo.acao&&corpo.acao.ferramenta==='criar_documento'){
+          const d={id:'d-k-'+Date.now(), client_id:arg.client_id||CID, titulo:arg.titulo||'Documento',
+                   tipo:arg.tipo||'apresentacao',
+                   storage_path:arg.conteudo?(arg.client_id||CID)+'/documentos/x.html':null,
+                   metadata:{descricao:arg.descricao||'', origem:'kronos'},
+                   created_at:new Date().toISOString()};
+          FIX.documents.push(d);
+          return Promise.resolve({data:{ok:true,tipo:'resultado',
+            resultado:{criou:'documento',documento:d}},error:null});
+        }
+        const t={id:'t-luq-'+Date.now(),title:arg.title||'Demanda',
                  status:'Não iniciado',priority:'Alta',due:'2026-09-20',assignees:['Vinícius'],client_id:CID};
-        FIX.tasks.push({...t,description:'',recurrence:'none',subtasks:[],time_spent:0,timer_start:null,
+        FIX.tasks.push({...t,description:arg.description||'',recurrence:'none',subtasks:arg.subtasks||[],time_spent:0,timer_start:null,
                         position:99,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),
                         completed_at:null,archived:false,urgente:false,anexos:[],project_id:null});
         return Promise.resolve({data:{ok:true,tipo:'resultado',resultado:{criou:'demanda',demanda:t}},error:null});
       }
+      /* proposta de documento, com descrição e conteúdo escritos */
+      if(modo==='documento') return Promise.resolve({data:{ok:true,tipo:'confirmar',
+        texto:'Escrevi o documento. Confere antes de eu publicar:',
+        titulo:'Criar documento',
+        acao:{ferramenta:'criar_documento',argumentos:{titulo:'Diagnóstico de mídia',tipo:'diagnostico',
+              descricao:'Leitura dos últimos 30 dias de mídia paga da Cliente Um.',
+              conteudo:'O investimento cresceu 18% no período.\n\nO ROAS ficou acima do piso em 22 dos 30 dias.',
+              client_id:CID}},
+        campos:[{rotulo:'Documento',valor:'Diagnóstico de mídia'},{rotulo:'Tipo',valor:'Diagnóstico'},
+                {rotulo:'Cliente',valor:'Cliente Um'},
+                {rotulo:'Descrição',valor:'Leitura dos últimos 30 dias de mídia paga da Cliente Um.'},
+                {rotulo:'Conteúdo',valor:'21 palavras escritas'}],
+        passos:[{ferramenta:'buscar_clientes'}]},error:null});
+      /* proposta de demanda com passo a passo */
+      if(modo==='passos') return Promise.resolve({data:{ok:true,tipo:'confirmar',
+        texto:'Preparei a demanda com o passo a passo:',
+        titulo:'Criar demanda',
+        acao:{ferramenta:'criar_demanda',argumentos:{title:'Revisar criativos',
+              description:'Contexto: a campanha de setembro sobe na sexta.',
+              client_id:CID,priority:'Alta',status:'Não iniciado',
+              subtasks:[{text:'Baixar os arquivos do Drive',done:false},
+                        {text:'Conferir formatos e pesos',done:false},
+                        {text:'Subir no gerenciador',done:false}]}},
+        campos:[{rotulo:'Título',valor:'Revisar criativos'},
+                {rotulo:'Descrição',valor:'Contexto: a campanha de setembro sobe na sexta.'},
+                {rotulo:'Cliente',valor:'Cliente Um'}],
+        passos:[{ferramenta:'buscar_clientes'}]},error:null});
       if(modo==='confirmar') return Promise.resolve({data:{ok:true,tipo:'confirmar',
         texto:'Preparei isto. Confere antes de eu executar:',
         titulo:'Criar demanda',
