@@ -15,10 +15,15 @@ const BASE = 'http://127.0.0.1:' + srv.address().port + '/';
 const browser = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
 const ctx = await browser.newContext();
 const erros = [];
+/* alguns casos provocam erro DE PROPÓSITO, para provar que o app avisa em
+   vez de travar. Esses ficam num balde separado e não contam como falha. */
+const previstos = [];
+let esperandoErro = false;
+const comErroPrevisto = async fn => { esperandoErro = true; try{ return await fn() } finally { esperandoErro = false } };
 async function novaPagina(){
   const page = await ctx.newPage();
   page.on('pageerror', e=>erros.push('PAGEERROR: '+e.message));
-  page.on('console', m=>{ if(m.type()==='error') erros.push('CONSOLE: '+m.text()) });
+  page.on('console', m=>{ if(m.type()==='error') (esperandoErro ? previstos : erros).push('CONSOLE: '+m.text()) });
   await page.route('**/*', async r=>{
     const u=r.request().url();
     if(u.includes('supabase-js')) return r.fulfill({contentType:'application/javascript', body:stub});
@@ -453,7 +458,9 @@ const rea = await page.evaluate(async ()=>{
   await MGChat.enviar(); await new Promise(x=>setTimeout(x,500));
   const m=[...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
   const antes={bolinha:!!m.querySelector('.mgz-rea.add'), linha:!!m.querySelector('.mgz-reacoes'),
-               naRegua:!!m.querySelector('.mgz-acoes button[title="Reagir"]')};
+               naRegua:!!m.querySelector('.mgz-acoes button[data-rotulo="Reagir"]'),
+               reguaComRotulo:[...m.querySelectorAll('.mgz-acoes .mgz-ac')].every(b=>b.dataset.rotulo),
+               reguaSemEmoji:!/[☺↩⧉🗑]/.test(m.querySelector('.mgz-acoes')?.textContent||'')};
   const id=m.dataset.id;
   await MGChat.reagir(id,'👍'); await new Promise(x=>setTimeout(x,400));
   const m2=[...document.querySelectorAll('#mgz-msgs .mgz-m')].find(x=>x.dataset.id===id);
@@ -461,6 +468,9 @@ const rea = await page.evaluate(async ()=>{
 });
 ok('20j sem bolinha vazia, reagir pela régua', !rea.bolinha && !rea.linha
    && rea.naRegua && /👍/.test(rea.depois||''), JSON.stringify(rea));
+
+/* ---- 20k. régua de ações desenhada e com rótulo escrito ---- */
+ok('20k régua com ícone desenhado e rótulo', rea.reguaComRotulo && rea.reguaSemEmoji, JSON.stringify(rea));
 
 /* ---- 21. responsivo ---- */
 await page.setViewportSize({width:390,height:780}); await page.waitForTimeout(600);
@@ -476,6 +486,158 @@ ok('21 responsivo no celular', cel.comConversa.conversa && !cel.comConversa.late
    && cel.semConversa.lateral && !cel.semConversa.conversa && cel.semRolagem,
    JSON.stringify(cel));
 
+/* ---- 22. envio de arquivo: não trava, aparece e confirma ---- */
+await page.evaluate(()=>MGChat.abrir('ch-1'));
+await page.waitForTimeout(600);
+/* captura o input que escolherArquivo cria */
+await page.evaluate(()=>{ window.__inputs=[]; const _c=document.createElement.bind(document);
+  document.createElement = function(t){ const el=_c(t); if(t==='input') window.__inputs.push(el); return el } });
+
+async function anexar(nome, mime, buffer){
+  await page.evaluate(()=>MGChat.escolherArquivo(''));
+  const h = await page.evaluateHandle(()=>window.__inputs[window.__inputs.length-1]);
+  await h.asElement().setInputFiles({name:nome, mimeType:mime, buffer});
+  await page.waitForTimeout(350);
+}
+
+/* 22a. HTML grande, o caso que travava a página inteira */
+await anexar('relatorio.html','text/html', Buffer.from('<h1>x</h1>'+'a'.repeat(955000)));
+const naFila = await page.evaluate(()=>{
+  const f=document.querySelector('.mgz-fila');
+  return {existe:!!f, aviso:/pronto para enviar/.test(f?.textContent||''), itens:f?.querySelectorAll('.it').length};
+});
+const envio = await page.evaluate(async ()=>{
+  await MGChat.enviar(''); await new Promise(x=>setTimeout(x,900));
+  const m=[...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  return {anexo:!!m.querySelector('.mgz-anexo'),
+          rotulo:m.querySelector('.mgz-anexo .tx2 span')?.textContent||'',
+          filaLimpa:!document.querySelector('.mgz-fila')};
+});
+/* a página continua respondendo depois do envio */
+const respondeu = await page.evaluate(()=>{ const a=performance.now(); MGChat.desenhar(); return performance.now()-a < 3000 });
+ok('22 arquivo grande não trava e aparece na conversa',
+   naFila.existe && naFila.aviso && naFila.itens===1
+   && envio.anexo && /Apresentação HTML/.test(envio.rotulo) && envio.filaLimpa && respondeu,
+   JSON.stringify({naFila, envio, respondeu}));
+
+/* 22b. imagem: miniatura na fila e link assinado buscado na hora */
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
+await anexar('foto.png','image/png', png);
+const mini = await page.evaluate(()=>{
+  const it=document.querySelector('.mgz-fila .it');
+  return {comFoto:!!it && it.classList.contains('comfoto'),
+          img:(it?.querySelector('img')?.getAttribute('src')||'').startsWith('blob:')};
+});
+const img = await page.evaluate(async ()=>{
+  await MGChat.enviar(''); await new Promise(x=>setTimeout(x,900));
+  const m=[...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  const i=m.querySelector('img.mgz-img');
+  return {temImg:!!i, src:i?.getAttribute('src')||null, assinado:/exemplo\.invalid\/assinado/.test(i?.getAttribute('src')||'')};
+});
+ok('22b imagem com miniatura na fila e link assinado na hora',
+   mini.comFoto && mini.img && img.temImg && img.assinado, JSON.stringify({mini, img}));
+
+/* 22c. sem link assinado, nunca sai img src vazio: src="" faz o navegador
+   baixar a própria página de novo, e esta página passa de 1 MB */
+const semLink = await page.evaluate(async ()=>{
+  window.__semLink = true;
+  MGChat.limparCacheAnexos();
+  MGChat.desenhar(); await new Promise(x=>setTimeout(x,600));
+  const vazias=[...document.querySelectorAll('#mgz-msgs img')].filter(i=>i.getAttribute('src')==='').length;
+  const semSrc=[...document.querySelectorAll('#mgz-msgs img.mgz-img')].filter(i=>!i.hasAttribute('src')).length;
+  window.__semLink = false;
+  return {vazias, semSrc};
+});
+ok('22c nunca emite img src vazio', semLink.vazias === 0, JSON.stringify(semLink));
+
+/* 22d. uma mensagem quebrada não derruba o chat inteiro */
+const blindagem = await comErroPrevisto(()=>page.evaluate(async ()=>{
+  const antes = document.querySelectorAll('#mgz-msgs .mgz-m').length;
+  /* injeta um anexo impossível de montar */
+  const lista = window.__FIX.messages.filter(m=>m.channel_id==='ch-1');
+  const alvo = lista[lista.length-1];
+  const guardado = alvo.anexos;
+  alvo.anexos = [{get path(){ throw new Error('anexo torto') }, nome:'x'}];
+  MGChat.desenhar(); await new Promise(x=>setTimeout(x,300));
+  const vivo = !!document.getElementById('mgz-msgs') || !!document.querySelector('.mgz-centro');
+  const outras = document.querySelectorAll('#mgz-msgs .mgz-m').length;
+  alvo.anexos = guardado;
+  MGChat.desenhar(); await new Promise(x=>setTimeout(x,300));
+  return {antes, vivo, outras, voltou:document.querySelectorAll('#mgz-msgs .mgz-m').length};
+}));
+ok('22d anexo quebrado não derruba a conversa',
+   blindagem.vivo && blindagem.voltou === blindagem.antes, JSON.stringify(blindagem));
+
+/* 22e. upload recusado avisa e devolve o arquivo para tentar de novo */
+await anexar('negado.pdf','application/pdf', Buffer.from('%PDF-1.4 teste'));
+const recusa = await comErroPrevisto(()=>page.evaluate(async ()=>{
+  window.__uploadFalha = true;
+  await MGChat.enviar(''); await new Promise(x=>setTimeout(x,900));
+  window.__uploadFalha = false;
+  const m=[...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  return {falhou:m.classList.contains('falhou'), refazer:!!m.querySelector('.refazer'),
+          semSubindo:!m.querySelector('.mgz-prog')};
+}));
+ok('22e upload recusado avisa e oferece tentar de novo',
+   recusa.falhou && recusa.refazer && recusa.semSubindo, JSON.stringify(recusa));
+
+/* ---- 23. desempenho: a conversa longa não pode travar a tela ---- */
+const perf = await page.evaluate(async ()=>{
+  MGChat.abrir('ch-2'); await new Promise(x=>setTimeout(x,600));
+  /* 600 mensagens, tamanho de conversa de empresa de verdade */
+  const agora = Date.now(); const l = [];
+  for(let i=0;i<600;i++) l.push({id:'perf'+i, channel_id:'ch-2', author_id:i%2?'u-admin':'u-colega',
+    author_name:i%2?'Vinícius Reis':'Elias Braga',
+    body:'mensagem '+i+' com um texto do tamanho que a equipe escreve no dia a dia',
+    kind:'user', created_at:new Date(agora-(600-i)*60000).toISOString(),
+    reply_to:null, reactions:{}, anexos:[]});
+  await MGChat.carregarMsgs('ch-2');
+  /* injeta direto no cache pelo caminho de tempo real */
+  l.forEach(m=>{ if(!window.__FIX.messages.some(x=>x.id===m.id)) window.__FIX.messages.push(m) });
+  MGChat.limparCacheAnexos();
+  await MGChat.recarregarMsgs(); await new Promise(x=>setTimeout(x,700));
+  const med = k => { const a=performance.now(); for(let i=0;i<k;i++) MGChat.desenhar(); return (performance.now()-a)/k };
+  med(2);
+  return {naTela: document.querySelectorAll('#mgz-msgs .mgz-m').length,
+          botaoAntigas: !!document.querySelector('.mgz-antigas'),
+          custo: +med(8).toFixed(1),
+          nos: document.querySelectorAll('#mgz-msgs *').length};
+});
+ok('23 conversa longa desenha rápido e em janela',
+   perf.naTela <= 70 && perf.botaoAntigas && perf.custo < 80, JSON.stringify(perf));
+
+/* ---- 23b. o botão carrega o pedaço anterior sem perder o ponto ---- */
+const antigas = await page.evaluate(async ()=>{
+  const antes = document.querySelectorAll('#mgz-msgs .mgz-m').length;
+  MGChat.verAnteriores(); await new Promise(x=>setTimeout(x,400));
+  return {antes, depois: document.querySelectorAll('#mgz-msgs .mgz-m').length};
+});
+ok('23b ver anteriores carrega mais um pedaço',
+   antigas.depois > antigas.antes && antigas.depois <= antigas.antes + 70, JSON.stringify(antigas));
+
+/* ---- 23d. ir para uma mensagem antiga abre a janela até ela ---- */
+const pulo = await page.evaluate(async ()=>{
+  const alvo = 'perf5';   /* das primeiras das 600 injetadas, bem fora da janela */
+  await MGChat.irParaMensagem('ch-2', alvo);
+  await new Promise(x=>setTimeout(x,500));
+  return {naTela: !!document.querySelector('[data-id="'+alvo+'"]'),
+          total: document.querySelectorAll('#mgz-msgs .mgz-m').length};
+});
+ok('23d ir para mensagem antiga abre a janela até ela', pulo.naTela, JSON.stringify(pulo));
+
+/* ---- 23c. o chat se chama MGP Chat na plataforma ---- */
+const nome = await page.evaluate(()=>{
+  showView('chat');
+  const t = document.getElementById('view-title');
+  const nav = [...document.querySelectorAll('.mg-dock a, .mg-dock button, nav a, nav button')]
+    .map(b=>b.textContent.trim()).filter(x=>/chat/i.test(x));
+  return {titulo: t ? t.textContent.trim() : null, nav,
+          marca: (document.querySelector('.mgz-side b, .mgz-marca b')||{}).textContent};
+});
+ok('23c a plataforma chama de MGP Chat',
+   /MGP Chat/.test(nome.titulo||'') && nome.nav.every(x=>/MGP Chat/.test(x)),
+   JSON.stringify(nome));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
@@ -487,4 +649,5 @@ const nOk = res.filter(r=>r.r==='PASSOU').length;
 const limpos = [...new Set(erros)].filter(e=>!/favicon|ERR_|net::/.test(e));
 console.log('\n ' + nOk + '/' + res.length + ' passaram | erros de JS: ' + limpos.length);
 limpos.slice(0,6).forEach(e=>console.log('   ! '+e));
+if(previstos.length) console.log(' (' + previstos.length + ' erro(s) provocados de propósito pelos casos 22d e 22e)');
 await browser.close(); srv.close();

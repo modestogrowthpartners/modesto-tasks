@@ -217,8 +217,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://eeqaabwsheaiwyhujcqj.supabase.co wss://eeqaabwsheaiwyhujcqj.supabase.co; frame-src 'self' data: blob:; worker-src 'self' blob:">
 <title>Modesto Tasks — Gestão de Demandas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ========= CONFIG DE CORES — padrão Modesto ========= */
@@ -1031,13 +1032,22 @@ const esc = s => (s==null?'':String(s)).replace(/[&<>"'`=\/]/g, c => ({
    https, blob da própria sessão e imagem embutida em base64. Qualquer
    outra coisa (javascript:, data:text/html, endereço torto) vira vazio,
    e quem chama cai no desenho de reserva em vez de exibir imagem quebrada. */
-function mgUrlImagem(u){
+/* Valida a URL de imagem e devolve ela CRUA. Serve para setAttribute,
+   onde o valor não passa pelo parser de HTML. */
+function mgUrlImagemCrua(u){
   const t = String(u==null?'':u).trim();
   if(!t) return '';
   const ok = /^https:\/\/[^\s"'<>]+$/i.test(t)
           || /^blob:https?:\/\/[^\s"'<>]+$/i.test(t)
           || /^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+\/=\s]+$/i.test(t);
-  return ok ? esc(t) : '';
+  return ok ? t : '';
+}
+/* Mesma validação, já escapada para entrar numa string de HTML.
+   Cuidado: o resultado daqui NÃO serve para setAttribute, porque as
+   barras viram &#47; e o navegador não desfaz isso fora do parser. */
+function mgUrlImagem(u){
+  const t = mgUrlImagemCrua(u);
+  return t ? esc(t) : '';
 }
 
 /* Abre um documento HTML do acervo numa aba nova SEM dar a ele a origem
@@ -2253,7 +2263,7 @@ function fixPlaceholders(){
   const iSet = NAV.findIndex(n=>n.v==='settings');
   const novos = [
     {v:'docs', ic:'▣', label:'Documentos'},
-    {v:'chat', ic:'✉', label:'Chat'},
+    {v:'chat', ic:'✉', label:'MGP Chat'},
   ];
   NAV.splice(iSet<0?NAV.length:iSet, 0, ...novos);
   if($('nav') && $('nav').children.length) buildNav();   /* se já montou, remonta */
@@ -2267,7 +2277,7 @@ showView = function(v){
     document.querySelectorAll('.nav-i').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
     document.querySelectorAll('.view').forEach(el=>el.classList.remove('on'));
     $('v-'+v).classList.add('on');
-    $('view-title').textContent = (v==='docs' ? 'Documentos' : 'Chat');
+    $('view-title').textContent = (v==='docs' ? 'Documentos' : 'MGP Chat');
     if(typeof buildFilters==='function') buildFilters();
     render();
     return;
@@ -2546,7 +2556,7 @@ async function chCriarDocumento(texto){
   }catch(e){
     const msg = (e.message||'');
     if(/invalid input value for enum|storage_path/i.test(msg)){
-      toast('O banco ainda não aceita esse campo — veja o aviso no chat');
+      toast('O banco ainda não aceita esse campo, veja o aviso no MGP Chat');
       await sb.from('messages').insert({
         channel_id: CHAN, author_id: ME.id, author_name:'Documentos', kind:'system',
         body:'Para aceitar este documento, rode no Supabase: '
@@ -4553,7 +4563,7 @@ chCriarDemanda = async function(texto){
       due: due,
       recurrence: 'Nenhuma',
       assignees: who,
-      description: campos.desc || ('Criada pelo chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
+      description: campos.desc || ('Criada pelo MGP Chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
     });
     if(error) throw error;
 
@@ -5755,7 +5765,7 @@ function mgPrefConteudo(aba){
     <label class="mg-check"><input type="checkbox" ${mgP('avisoDemanda')==='on'?'checked':''} onchange="mgP('avisoDemanda',this.checked?'on':'off')">
       <span>Demandas atribuídas a você<span class="d">Novas demandas, mudanças de prazo e atrasos</span></span></label>
     <label class="mg-check"><input type="checkbox" ${mgP('avisoChat')==='on'?'checked':''} onchange="mgP('avisoChat',this.checked?'on':'off')">
-      <span>Mensagens no chat<span class="d">Canais que você participa e conversas diretas</span></span></label>
+      <span>Mensagens no MGP Chat<span class="d">Canais que você participa e conversas diretas</span></span></label>
     <label class="mg-check"><input type="checkbox" ${mgP('avisoDoc')==='on'?'checked':''} onchange="mgP('avisoDoc',this.checked?'on':'off')">
       <span>Novos documentos<span class="d">Quando uma entrega é publicada para um cliente</span></span></label>
     <hr>
@@ -5803,7 +5813,7 @@ function mgPrefConteudo(aba){
 
   case 'msgs': return `
     <h3>Mensagens</h3>
-    <div class="sub">Como o chat se comporta enquanto você escreve e lê.</div>
+    <div class="sub">Como o MGP Chat se comporta enquanto você escreve e lê.</div>
     <div class="grupo-tt">Ao escrever</div>
     ${mgLinha('Enter envia a mensagem','Desligado, Enter quebra linha e Ctrl+Enter envia',
       mgSeg(mgP('enterEnvia'), [['on','Enviar'],['off','Quebrar linha']], "v=>mgP('enterEnvia',v)".length?'mgSetEnter':'mgSetEnter'))}
@@ -5825,7 +5835,7 @@ function mgPrefConteudo(aba){
     <div class="grupo-tt">Atalhos de teclado</div>
     <div class="grupo-ds">
       <b>Esc</b> — fecha janelas e volta da leitura de um documento<br>
-      <b>Enter</b> — envia a mensagem no chat<br>
+      <b>Enter</b> envia a mensagem no MGP Chat<br>
       <b>Shift + Enter</b> — quebra linha
     </div>`;
 
@@ -10100,7 +10110,7 @@ function mgProjetoRef(){
 
 const MG_DIAG_TABELAS = [
   ['clients','empresas'], ['profiles','pessoas'], ['tasks','demandas'],
-  ['documents','documentos'], ['channels','canais do chat'], ['messages','mensagens'],
+  ['documents','documentos'], ['channels','canais do MGP Chat'], ['messages','mensagens'],
   ['media_plans','plano de mídia'], ['pacing','pacing'],
 ];
 
@@ -17637,6 +17647,13 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-img{max-width:min(340px,72%);border-radius:11px;border:1px solid var(--line);display:block;
   margin-top:7px;cursor:pointer}
 
+.mgz-antigas{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;
+  background:var(--card2);border:1px dashed var(--line2);border-radius:11px;padding:11px 14px;
+  margin:2px 0 14px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);
+  transition:border-color .15s,color .15s}
+.mgz-antigas:hover{border-color:var(--brass);color:var(--brass2)}
+.mgz-antigas span{font-size:11px;font-weight:400;color:var(--muted2)}
+
 .mgz-acoes{position:absolute;top:-13px;right:16px;display:none;align-items:center;gap:1px;
   background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:2px;z-index:4;
   box-shadow:0 6px 18px -6px rgba(0,0,0,.28)}
@@ -17645,6 +17662,17 @@ body.mg-sem-hora .mgz-m .hora{display:none}
   border-radius:7px;color:var(--muted);font-family:inherit}
 .mgz-acoes button:hover{background:var(--card2);color:var(--text)}
 .mgz-acoes .div{width:1px;height:15px;background:var(--line);margin:0 2px}
+.mgz-ac{position:relative;display:grid;place-items:center;width:29px;height:27px;padding:0!important}
+.mgz-ac svg{width:17px;height:17px;display:block}
+.mgz-ac:hover{color:var(--brass2)}
+.mgz-acoes .mgz-ac:last-child:hover{color:#e06c6c}
+/* o rótulo escrito sai da própria régua, na hora: o balão do navegador
+   leva quase um segundo e é ele que fazia o ícone parecer sem sentido */
+.mgz-ac::after{content:attr(data-rotulo);position:absolute;bottom:calc(100% + 7px);left:50%;
+  transform:translateX(-50%);background:var(--ink,#141414);color:#fff;font-size:10.5px;font-weight:600;
+  letter-spacing:.2px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;
+  opacity:0;transition:opacity .12s;box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
+.mgz-ac:hover::after{opacity:1}
 
 .mgz-reacoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .mgz-rea{display:inline-flex;align-items:center;gap:5px;background:var(--card2);
@@ -17687,10 +17715,23 @@ body.mg-sem-hora .mgz-m .hora{display:none}
   border-radius:8px;display:grid;place-items:center;font-size:14px;font-family:inherit;padding:0 10px}
 .mgz-baixo .env:hover{background:var(--brass2);color:#fff}
 .mgz-baixo .env:disabled{opacity:.4}
-.mgz-fila{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 6px}
+.mgz-baixo .env svg{width:17px;height:17px;display:block}
+/* a caixa corta o que sai dela, então na régua de cima o rótulo desce */
+.mgz-fer .mgz-ac::after{bottom:auto;top:calc(100% + 6px)}
+.mgz-fer .mgz-ac{width:28px;height:26px}
+.mgz-fer .mgz-ac svg{width:16px;height:16px}
+.mgz-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 10px 7px}
 .mgz-fila .it{display:inline-flex;align-items:center;gap:7px;background:var(--card2);
-  border:1px solid var(--line2);border-radius:8px;padding:5px 9px;font-size:11.5px}
-.mgz-fila .it button{background:none;border:0;color:var(--muted2);font-size:12px;font-family:inherit}
+  border:1px solid var(--line2);border-radius:9px;padding:5px 9px;font-size:11.5px;max-width:250px}
+.mgz-fila .it.comfoto{padding:4px 9px 4px 4px}
+.mgz-fila .it img{width:32px;height:32px;object-fit:cover;border-radius:6px;display:block;flex-shrink:0}
+.mgz-fila .it .ic{font-size:14px;flex-shrink:0}
+.mgz-fila .it .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.mgz-fila .it .tm{color:var(--muted);flex-shrink:0}
+.mgz-fila .it button{background:none;border:0;color:var(--muted2);font-size:12px;font-family:inherit;
+  flex-shrink:0;padding:0 2px}
+.mgz-fila .it button:hover{color:var(--text)}
+.mgz-fila .aviso{font-size:11px;color:var(--muted2)}
 .mgz-dica{font-size:11px;color:var(--muted2);margin-top:6px;padding-left:3px;
   display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:16px}
 .mgz-dica b{color:var(--brass2)}
@@ -17882,6 +17923,26 @@ body.mg-sem-hora .mgz-m .hora{display:none}
   padding:14px 16px}
 .mgz-anexo .ab{margin-left:auto;font-size:11px;font-weight:700;color:var(--brass2);
   border:1px solid var(--brass);border-radius:7px;padding:2px 8px;flex-shrink:0}
+
+/* enquanto o link assinado da imagem não chega, o lugar dela já existe:
+   sem isso a conversa dava um pulo quando cada imagem aparecia */
+.mgz-imgbt.carregando::before{content:"";display:block;width:260px;height:150px;border-radius:11px;
+  border:1px solid var(--line);background:linear-gradient(100deg,var(--card2) 30%,var(--line) 50%,var(--card2) 70%);
+  background-size:260% 100%;animation:mgzBrilho 1.1s linear infinite}
+.mgz-imgbt.carregando img{display:none}
+.mgz-imgbt.quebrou.carregando::before{display:none}
+@keyframes mgzBrilho{from{background-position:160% 0}to{background-position:-60% 0}}
+
+/* anexo ainda subindo: some o "abrir" e mostra o quanto já foi */
+.mgz-anexo.subindo{opacity:.75}
+.mgz-anexo.subindo .ab{display:none}
+.mgz-prog{position:relative;height:3px;border-radius:2px;background:var(--line);margin-top:5px;overflow:hidden}
+.mgz-prog i{position:absolute;inset:0 auto 0 0;background:var(--brass);border-radius:2px;
+  transition:width .18s linear}
+.mgz-subindo-tx{font-size:11px;color:var(--muted2);margin-top:4px}
+.mgz-imgbt.subindo{display:block;margin:7px 0 0;max-width:min(420px,100%);opacity:.7}
+.mgz-imgbt.subindo img{max-width:min(340px,72%);border-radius:11px;border:1px solid var(--line);display:block}
+.mgz-imgbt.subindo .cap{display:none}
 
 /* ---------- 12b. abas e lista de conversas diretas ---------- */
 .mgz-abas{display:flex;gap:4px;padding:10px 12px 0}
@@ -18316,6 +18377,21 @@ window.MGJanela = MGJanela;
 /* O gato do Kronos. Desenhado, e não emoji: o emoji de gato preto é
    uma sequência com juntor e em vários sistemas aparece como um gato
    comum seguido de um quadrado preto. */
+/* O gato cheio é preto de propósito, e é assim que ele aparece como cara
+   do Kronos. Só que a 14px, sobre um fundo escuro, sobrava um par de
+   olhos amarelos flutuando: era o "ícone que não estava claro". Para
+   ficar dentro de uma régua de ícones, existe a versão em traço, que
+   herda a cor do botão e casa com os outros desenhos. */
+function mgGatoLinha(tam){
+  const t = tam || 17;
+  return '<svg class="mg-gato-l" viewBox="0 0 32 32" width="' + t + '" height="' + t + '"'
+    + ' fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"'
+    + ' stroke-linecap="round" aria-hidden="true" focusable="false">'
+    + '<path d="M6 5.2l4.2 4.3A11.6 11.6 0 0116 8.4c2.2 0 4.2.4 5.8 1.1L26 5.2v9.1a10 10 0 01-20 0V5.2z"/>'
+    + '<path d="M12.4 15.4v1.2M19.6 15.4v1.2"/>'
+    + '<path d="M14.6 20.4h2.8"/>'
+    + '</svg>';
+}
 function mgGato(tam){
   const t = tam || 20;
   return '<svg class="mg-gato" viewBox="0 0 32 32" width="' + t + '" height="' + t + '"'
@@ -18366,7 +18442,33 @@ let ultimoScroll = 0;
 /* ---------------------------------------------------------------------
    2. Dados
    --------------------------------------------------------------------- */
-async function carregarCanais(){
+/* Uma consulta por vez para a mesma coisa.
+
+   O chat sobe por dois caminhos ao mesmo tempo: iniciar(), que prepara a
+   sessão, e abrir(), que abre o canal escolhido. Quando um começa o
+   outro ainda não terminou, então os dois olham o cache, veem vazio e
+   pedem tudo de novo. Medido no laboratório: 13 consultas ao abrir o
+   chat, sendo 8 pares idênticos disparados no mesmo milissegundo.
+
+   A casca abaixo devolve a MESMA promessa enquanto a consulta está no
+   ar, e limpa a marca quando ela volta. Chamada depois continua sendo
+   consulta nova: quem manda recarregar recarrega mesmo. */
+const MGZ_EM_VOO = new Map();
+function umaVezSo(chave, fn){
+  const jaVai = MGZ_EM_VOO.get(chave);
+  if(jaVai) return jaVai;
+  const p = Promise.resolve().then(fn).finally(()=>MGZ_EM_VOO.delete(chave));
+  MGZ_EM_VOO.set(chave, p);
+  return p;
+}
+function carregarCanais(){    return umaVezSo('canais',        ()=>_carregarCanais()) }
+function carregarMsgs(cid){    return umaVezSo('msgs:'+cid,    ()=>_carregarMsgs(cid)) }
+function carregarThreads(cid){ return umaVezSo('threads:'+cid, ()=>_carregarThreads(cid)) }
+function carregarMembros(cid){ return umaVezSo('membros:'+cid, ()=>_carregarMembros(cid)) }
+function carregarUltimas(){    return umaVezSo('ultimas',      ()=>_carregarUltimas()) }
+function carregarNaoLidas(){   return umaVezSo('naolidas',     ()=>_carregarNaoLidas()) }
+
+async function _carregarCanais(){
   try{
     const {data, error} = await sb.from('channels').select('*').order('tipo').order('nome');
     if(error) throw error;
@@ -18397,7 +18499,7 @@ function primeiroCanal(){
   const c = CHANNELS.find(x=>x.tipo==='team') || CHANNELS[0];
   return c ? c.id : null;
 }
-async function carregarMsgs(cid){
+async function _carregarMsgs(cid){
   if(!cid) return;
   carregandoMsgs = true; erroMsgs = null;
   try{
@@ -18412,7 +18514,7 @@ async function carregarMsgs(cid){
 /* Contagem de respostas por mensagem-raiz. Vem do banco e não da janela
    de 400 mensagens carregada, senão uma thread antiga apareceria com
    menos respostas do que realmente tem. */
-async function carregarThreads(cid){
+async function _carregarThreads(cid){
   if(!cid) return;
   try{
     const {data, error} = await sb.rpc('mg_threads', {p_canal: cid});
@@ -18423,7 +18525,7 @@ async function carregarThreads(cid){
     THREADS[cid] = m;
   }catch(e){ THREADS[cid] = THREADS[cid] || {} }
 }
-async function carregarMembros(cid){
+async function _carregarMembros(cid){
   if(!cid) return;
   try{
     const {data} = await sb.from('channel_members').select('*').eq('channel_id', cid);
@@ -18434,7 +18536,7 @@ async function carregarMembros(cid){
 }
 /* Prévia da última mensagem de cada conversa. Vem de uma consulta só,
    em vez de baixar o histórico de cada canal para mostrar uma linha. */
-async function carregarUltimas(){
+async function _carregarUltimas(){
   try{
     const {data, error} = await sb.rpc('mg_ultimas');
     if(error) throw error;
@@ -18443,7 +18545,7 @@ async function carregarUltimas(){
     ULTIMAS = m;
   }catch(e){ /* sem prévia a lista ainda funciona */ }
 }
-async function carregarNaoLidas(){
+async function _carregarNaoLidas(){
   try{
     const {data, error} = await sb.rpc('mg_unread');
     if(error) throw error;
@@ -18454,7 +18556,18 @@ async function carregarNaoLidas(){
 }
 function totalNaoLidas(){ return Object.values(CH_NAOLIDAS).reduce((a,n)=>a+n,0) }
 
-async function iniciar(){
+/* iniciar() rodava três vezes, medido.
+
+   desenhar() dispara iniciar() sempre que CH_READY ainda é null, e
+   desenhar() é chamado de vários lugares antes do primeiro iniciar()
+   terminar. Resultado: três sessões subindo juntas e cada consulta do
+   chat saindo em triplicata. A casca junta as chamadas simultâneas e o
+   guarda no topo impede a repetição depois de pronto. */
+function iniciar(){
+  if(CH_READY === true) return Promise.resolve();
+  return umaVezSo('iniciar', _iniciar);
+}
+async function _iniciar(){
   try{
     await MGU.carregar();
     await carregarCanais();
@@ -18494,7 +18607,7 @@ function ligarPresenca(){
       try{
         const est = canalPresenca.presenceState() || {};
         online = new Set(Object.keys(est));
-        if(VIEW === 'chat') desenhar();
+        if(VIEW === 'chat') desenharLogo();
       }catch(e){}
     });
     canalPresenca.subscribe(st=>{
@@ -18561,18 +18674,18 @@ function chegou(m){
       if(typeof updateNotifBadge === 'function'){ try{ updateNotifBadge() }catch(e){} }
     }
   }
-  if(VIEW === 'chat') desenhar();
+  if(VIEW === 'chat') desenharLogo();
 }
 function mudou(m){
   if(!m || !CHMSGS[m.channel_id]) return;
   const i = CHMSGS[m.channel_id].findIndex(x=>x.id===m.id);
   if(i >= 0) CHMSGS[m.channel_id][i] = m;
-  if(VIEW === 'chat') desenhar();
+  if(VIEW === 'chat') desenharLogo();
 }
 function sumiu(m){
   if(!m || !CHMSGS[m.channel_id]) return;
   CHMSGS[m.channel_id] = CHMSGS[m.channel_id].filter(x=>x.id!==m.id);
-  if(VIEW === 'chat') desenhar();
+  if(VIEW === 'chat') desenharLogo();
 }
 
 /* ---------------------------------------------------------------------
@@ -18678,6 +18791,7 @@ function autorDe(m){
 async function abrir(id){
   if(!id) return;
   CHAN = id; respondendo = null; fila = []; filaTh = []; erroMsgs = null;
+  mostrando = MGZ_JANELA;
   thread = null; achados = null; cmdLista = []; perfilAberto = null; perfilExtra = null;
   if(painelDir === 'thread') painelDir = null;
   document.body.classList.add('mgz-conversa');
@@ -18767,7 +18881,22 @@ function combina(c){
       || MGU.norm(c.nome||'').includes(MGU.norm(CH_FILTER));
 }
 
+/* Redesenho agrupado.
+
+   Vários eventos podem chegar no mesmo instante: a mensagem pelo tempo
+   real, a presença de quem entrou, a contagem de não lidas, o aviso de
+   quem está digitando. Antes cada um pagava um desenhar() inteiro. Aqui
+   eles se juntam num só, no próximo quadro da tela.
+
+   Quem precisa do DOM pronto na linha seguinte continua chamando
+   desenhar() direto: só os caminhos disparados por evento usam este. */
+let quadroPedido = null;
+function desenharLogo(){
+  if(quadroPedido) return;
+  quadroPedido = requestAnimationFrame(()=>{ quadroPedido = null; desenhar() });
+}
 function desenhar(){
+  if(quadroPedido){ cancelAnimationFrame(quadroPedido); quadroPedido = null }
   const el = document.getElementById('v-chat'); if(!el) return;
 
   if(CH_READY === null){
@@ -18778,7 +18907,7 @@ function desenhar(){
   }
   if(CH_READY === false){
     el.innerHTML = '<div class="mgz-centro"><div class="ic">⚠</div>'
-      + '<h3>Não foi possível abrir o chat</h3>'
+      + '<h3>Não foi possível abrir o MGP Chat</h3>'
       + '<p>O banco recusou a leitura das conversas.</p>'
       + '<p style="font-size:12px">' + esc(erroCanais||'') + '</p>'
       + '<button class="btn-p" onclick="MGChat.recarregar()">Tentar de novo</button></div>';
@@ -18788,10 +18917,32 @@ function desenhar(){
   const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
   const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
 
-  el.innerHTML = ladoHTML() + mainHTML()
-    + (painelDir === 'thread'  ? threadHTML()
-     : painelDir === 'reports' ? reportsHTML()
-     : painelDir === 'info'    ? infoHTML() : '');
+  /* A montagem inteira vai num try. Antes, um erro no meio de qualquer
+     parte deixava o innerHTML no estado velho: a tela congelava e todo
+     render seguinte quebrava no mesmo ponto, inclusive depois de
+     recarregar a página, porque a mensagem problemática estava no
+     banco. Agora o chat cai numa tela de erro com saída, e o resto da
+     plataforma continua de pé. */
+  let html;
+  try{
+    html = ladoHTML() + mainHTML()
+      + (painelDir === 'thread'  ? threadHTML()
+       : painelDir === 'reports' ? reportsHTML()
+       : painelDir === 'info'    ? infoHTML() : '');
+  }catch(err){
+    console.error('[chat] falha ao montar a tela', err);
+    el.innerHTML = '<div class="mgz-centro"><div class="ic">⚠</div>'
+      + '<h3>Alguma coisa nesta conversa não abriu</h3>'
+      + '<p>O resto da plataforma segue funcionando. Você pode tentar de novo '
+      + 'ou voltar para a lista de conversas.</p>'
+      + '<p style="font-size:12px;opacity:.7">' + esc(String((err && err.message) || err)) + '</p>'
+      + '<div style="display:flex;gap:9px;justify-content:center;margin-top:14px">'
+      + '<button class="btn-p" onclick="MGChat.recarregar()">Tentar de novo</button>'
+      + '<button class="mgz-fio" onclick="MGChat.sairDoCanal()">Voltar para a lista</button>'
+      + '</div></div>';
+    return;
+  }
+  el.innerHTML = html;
 
   const c = CHANNELS.find(x=>x.id===CHAN);
   el.style.setProperty('--cor-canal', corCanal(c) || 'transparent');
@@ -19094,7 +19245,7 @@ function mainHTML(){
       + (c.tipo === 'client'
           ? '<button class="bt ic ' + (painelDir==='reports'?'on':'') + '"'
             + ' onclick="MGChat.alternarReports()" title="Reports deste cliente">📊</button>' : '')
-      + '<button class="bt ic" onclick="MGKronos.abrir()" title="Falar com o Kronos">' + mgGato(16) + '</button>'
+      + '<button class="bt ic" onclick="MGKronos.abrir()" title="Falar com o Kronos">' + mgGatoLinha(17) + '</button>'
       + '<button class="bt ic" onclick="MGChat.abrirBusca()" title="Buscar mensagem">⌕</button>'
       + '<button class="bt ic ' + (painelDir==='info'?'on':'') + '" onclick="MGChat.alternarInfo()"'
         + ' title="' + (c.tipo==='dm' ? 'Perfil' : 'Membros e arquivos') + '">'
@@ -19129,7 +19280,35 @@ function mensagensHTML(){
       + 'ou digite <b>/</b> para ver os comandos.</p></div>';
   }
   const {raizes, filhos} = organizar(lista);
-  return blocoHTML(raizes, filhos, false);
+
+  /* Janela de mensagens.
+
+     Medido: com 600 mensagens na conversa, desenhar() custava 265 ms e
+     montava 22 mil nós. Como desenhar() roda a cada evento de tempo
+     real, a cada reação e a cada envio, a tela travava de segundo em
+     segundo numa conversa de empresa de verdade. Aqui a conversa mostra
+     as últimas MGZ_JANELA e o resto entra por um botão, do mesmo jeito
+     que Slack e Discord fazem. */
+  const total = raizes.length;
+  if(total <= mostrando) return blocoHTML(raizes, filhos, false);
+  const corte = Math.max(0, total - mostrando);
+  const faltam = corte;
+  return '<button class="mgz-antigas" onclick="MGChat.verAnteriores()">'
+    + '↑ ver ' + Math.min(faltam, MGZ_JANELA) + ' mensagens anteriores'
+    + '<span>' + faltam + ' antes desta parte da conversa</span></button>'
+    + blocoHTML(raizes.slice(corte), filhos, false);
+}
+const MGZ_JANELA = 60;      /* quantas aparecem de uma vez            */
+let mostrando = MGZ_JANELA; /* cresce quando a pessoa pede as antigas */
+function verAnteriores(){
+  mostrando += MGZ_JANELA;
+  const cx = document.getElementById('mgz-msgs');
+  const antes = cx ? cx.scrollHeight - cx.scrollTop : null;
+  desenhar();
+  /* mantém a leitura no mesmo ponto: sem isso a conversa pulava para o
+     fim toda vez que carregasse um pedaço mais antigo */
+  const cx2 = document.getElementById('mgz-msgs');
+  if(cx2 && antes !== null) cx2.scrollTop = cx2.scrollHeight - antes;
 }
 
 /* Separa a conversa em mensagens-raiz e respostas de thread. Resposta de
@@ -19197,6 +19376,7 @@ function blocoHTML(lista, filhos, naThread){
           + (ehLocal ? '<span class="hora">· só você vê</span>' : '')
         + '</div>'
         + '<div class="tx">' + (m.__html || corpoHTML(m.body)) + '</div>'
+        + subindoHTML(m)
         + anexosHTML(m)
         + (m.__acao ? acaoHTML(m) : '')
         + (m.__falhou
@@ -19398,33 +19578,143 @@ function citacaoHTML(m){
     + '<b>' + esc(u.nome) + '</b>'
     + '<span class="t">' + esc(String(pai.body||'').slice(0,90)) + '</span></div>';
 }
-function anexosHTML(m){
-  const l = m.anexos || [];
+/* ----------------------------------------------------------------
+   Anexos na conversa.
+
+   Duas correções de fundo moram aqui.
+
+   1. tipoLegivel chamava ehPDF e ehHTMLAnexo, que nunca existiram no
+      arquivo. Qualquer anexo que não fosse imagem estourava aqui, o
+      erro subia por blocoHTML até desenhar(), e como desenhar() monta
+      a string toda ANTES de escrever no innerHTML, a tela ficava
+      parada no estado velho e todo render seguinte quebrava igual.
+      Era o chat travado do relato, e travava de novo a cada recarga,
+      porque a mensagem ruim já estava no banco.
+
+   2. O link assinado da imagem era gerado no envio e gravado na linha
+      da mensagem, com validade de 7 dias. Passado o prazo, toda imagem
+      antiga da conversa quebrava para sempre. Agora o link nasce na
+      hora de mostrar, vale 1 hora e fica em cache na memória. E quando
+      ele ainda não chegou, a tag nasce sem src: img src="" faz o
+      navegador baixar a própria página de novo, e esta página tem
+      mais de 1 MB.
+   ---------------------------------------------------------------- */
+function ehPDF(a){
+  return /^application\/pdf$/i.test(a && a.tipo || '') || /\.pdf$/i.test(a && a.nome || '');
+}
+function ehHTMLAnexo(a){
+  return /^text\/html/i.test(a && a.tipo || '') || /\.html?$/i.test(a && a.nome || '');
+}
+
+const MGZ_URLS = new Map();          /* path -> {url, ate}  */
+const MGZ_PEDINDO = new Set();
+function urlDeAnexo(path){
+  const c = MGZ_URLS.get(path);
+  return (c && c.ate > Date.now()) ? c.url : null;
+}
+/* Resolve o link e pinta só a imagem que chegou. Não chama desenhar():
+   redesenhar a conversa inteira para cada imagem é justamente o que
+   deixava a tela pesada. */
+async function pedirURL(path){
+  if(!path || MGZ_PEDINDO.has(path) || urlDeAnexo(path)) return;
+  MGZ_PEDINDO.add(path);
+  try{
+    const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 3600);
+    if(error || !data || !data.signedUrl) throw (error || new Error('sem link'));
+    MGZ_URLS.set(path, {url: data.signedUrl, ate: Date.now() + 55*60*1000});
+    document.querySelectorAll('img[data-anexo="' + CSS.escape(path) + '"]').forEach(img=>{
+      const bom = mgUrlImagemCrua(data.signedUrl);
+      if(bom) img.setAttribute('src', bom);
+    });
+  }catch(e){
+    document.querySelectorAll('img[data-anexo="' + CSS.escape(path) + '"]').forEach(img=>{
+      const bt = img.closest('button'); if(bt) bt.classList.add('quebrou');
+    });
+  }finally{
+    MGZ_PEDINDO.delete(path);
+  }
+}
+
+function imagemHTML(a){
+  /* url gravada na linha antiga ainda serve enquanto não expira; o
+     cache tem prioridade porque é sempre mais novo */
+  const pronto = urlDeAnexo(a.path) || a.url || '';
+  const src = mgUrlImagem(pronto);
+  if(!src) setTimeout(()=>pedirURL(a.path), 0);
+  return '<button class="mgz-imgbt' + (src ? '' : ' carregando') + '"'
+    + ' onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')"'
+    + ' title="' + esc(a.nome||'imagem') + '">'
+    + '<img class="mgz-img" loading="lazy" data-anexo="' + esc(a.path) + '"'
+    + (src ? ' src="' + src + '"' : '')
+    + ' alt="' + esc(a.nome||'') + '"'
+    + ' onerror="this.closest(&quot;button&quot;).classList.add(&quot;quebrou&quot;)">'
+    + '<span class="cap">' + esc(a.nome||'imagem') + '</span></button>';
+}
+
+function anexoHTML(a){
+  return '<button class="mgz-anexo" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')">'
+    + '<span class="ic">' + iconeArq(a) + '</span>'
+    + '<span class="tx2"><b>' + esc(a.nome||'arquivo') + '</b>'
+    + '<span>' + esc(tipoLegivel(a)) + (a.tamanho ? ' · ' + tamanho(a.tamanho) : '') + '</span></span>'
+    + '<span class="ab">abrir</span></button>';
+}
+
+/* Anexos de uma mensagem que ainda está subindo. A miniatura vem do
+   próprio arquivo escolhido, então a confirmação visual é imediata: o
+   que a pessoa vê é exatamente o que ela mandou, antes de qualquer
+   resposta do servidor. */
+function subindoHTML(m){
+  const l = Array.isArray(m && m.__subindo) ? m.__subindo : [];
   if(!l.length) return '';
-  const imgs = l.filter(ehImagem), outros = l.filter(a=>!ehImagem(a));
-  return imgs.map(a =>
-      '<button class="mgz-imgbt" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')"'
-      + ' title="' + esc(a.nome||'imagem') + '">'
-      + '<img class="mgz-img" loading="lazy" src="' + mgUrlImagem(a.url) + '"'
-      + ' alt="' + esc(a.nome||'') + '"'
-      + ' onerror="this.closest(&quot;button&quot;).classList.add(&quot;quebrou&quot;)">'
-      + '<span class="cap">' + esc(a.nome||'imagem') + '</span></button>').join('')
-    + (outros.length ? '<div class="mgz-anexos">' + outros.map(a =>
-        '<button class="mgz-anexo" onclick="MGChat.abrirAnexo(\'' + escJS(a.path) + '\')">'
+  const feitos = m.__subiu || 0;
+  const imgs = [], outros = [];
+  l.forEach(a=>{ (a.previa ? imgs : outros).push(a) });
+  return imgs.map(a=>{
+      const src = mgUrlImagem(a.previa || '');
+      return '<div class="mgz-imgbt subindo">'
+        + (src ? '<img class="mgz-img" src="' + src + '" alt="' + esc(a.nome||'') + '">' : '')
+        + '<span class="cap">' + esc(a.nome||'imagem') + '</span></div>';
+    }).join('')
+    + (outros.length ? '<div class="mgz-anexos">' + outros.map(a=>
+        '<span class="mgz-anexo subindo">'
         + '<span class="ic">' + iconeArq(a) + '</span>'
         + '<span class="tx2"><b>' + esc(a.nome||'arquivo') + '</b>'
         + '<span>' + esc(tipoLegivel(a)) + (a.tamanho ? ' · ' + tamanho(a.tamanho) : '') + '</span></span>'
-        + '<span class="ab">abrir</span></button>').join('') + '</div>' : '');
+        + '</span>').join('') + '</div>' : '')
+    + '<div class="mgz-prog"><i style="width:' + Math.round(100 * feitos / l.length) + '%"></i></div>'
+    + '<div class="mgz-subindo-tx">'
+      + (l.length > 1 ? 'enviando arquivo ' + Math.min(feitos + 1, l.length) + ' de ' + l.length
+                      : 'enviando ' + esc(l[0].nome || 'arquivo'))
+    + '…</div>';
 }
+
+function anexosHTML(m){
+  const l = Array.isArray(m && m.anexos) ? m.anexos : [];
+  if(!l.length) return '';
+  const imgs = [], outros = [];
+  l.forEach(a=>{ if(a && a.path){ (ehImagem(a) ? imgs : outros).push(a) } });
+  /* um anexo torto degrada para uma linha simples e não derruba a conversa */
+  const seguro = (f, a) => { try{ return f(a) }catch(e){
+    console.error('[chat] anexo', e);
+    return '<div class="mgz-anexos"><span class="mgz-anexo">'
+      + '<span class="ic">📎</span><span class="tx2"><b>' + esc((a&&a.nome)||'arquivo')
+      + '</b><span>não foi possível montar este anexo</span></span></span></div>';
+  } };
+  return imgs.map(a=>seguro(imagemHTML, a)).join('')
+    + (outros.length ? '<div class="mgz-anexos">'
+        + outros.map(a=>seguro(anexoHTML, a)).join('') + '</div>' : '');
+}
+
 function tipoLegivel(a){
   if(ehPDF(a)) return 'PDF';
   if(ehHTMLAnexo(a)) return 'Apresentação HTML';
-  const e = String(a.nome||'').split('.').pop().toLowerCase();
+  const e = String(a && a.nome || '').split('.').pop().toLowerCase();
   if(/^(xlsx?|csv)$/.test(e))  return 'Planilha';
   if(/^(docx?)$/.test(e))      return 'Documento';
   if(/^(pptx?|key)$/.test(e))  return 'Apresentação';
   if(/^(zip|rar|7z)$/.test(e)) return 'Compactado';
-  return e ? e.toUpperCase() : 'Arquivo';
+  if(/^(png|jpe?g|gif|webp|avif)$/.test(e)) return 'Imagem';
+  return e && e.length <= 5 ? e.toUpperCase() : 'Arquivo';
 }
 function reacoesHTML(m){
   const r = m.reactions || {};
@@ -19442,16 +19732,45 @@ function reacoesHTML(m){
      enchia a conversa de bolinhas vazias. Reagir continua a um clique,
      pelo ☺ da régua que aparece ao passar o mouse. */
 }
+/* Régua de ações da mensagem.
+
+   Antes eram emojis soltos (☺ ↩ ⧉ 🗑) que dependiam da fonte do sistema
+   para significar alguma coisa, e no Windows o gato de 14px virava dois
+   olhos. Agora são traços desenhados aqui, todos do mesmo peso, e cada
+   botão diz o que faz por escrito ao passar o mouse, em vez de esperar
+   o balão do navegador, que demora quase um segundo para aparecer. */
+function mgzIcone(nome){
+  const abre = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
+             + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  const d = {
+    reagir:   '<circle cx="12" cy="12" r="8.6"/><path d="M8.6 14.2c.9 1.2 2 1.8 3.4 1.8s2.5-.6 3.4-1.8"/>'
+            + '<path d="M9.3 9.6h.01"/><path d="M14.7 9.6h.01"/>',
+    responder:'<path d="M9 7 4.5 11.5 9 16"/><path d="M4.5 11.5H14a5.5 5.5 0 0 1 5.5 5.5v.8"/>',
+    copiar:   '<rect x="9" y="9" width="10.5" height="10.5" rx="2.2"/>'
+            + '<path d="M15 6.2A2.2 2.2 0 0 0 12.8 4H6.7A2.7 2.7 0 0 0 4 6.7v6.1A2.2 2.2 0 0 0 6.2 15"/>',
+    anexar:   '<path d="M20 11.4 12 19.4a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4"/>',
+    enviar:   '<path d="M4.6 11.9 19.8 4.6 13.4 20l-2.6-6.2z"/><path d="M10.8 13.8 19.8 4.6"/>',
+    emoji:    '<circle cx="12" cy="12" r="8.6"/><path d="M8.6 14.2c.9 1.2 2 1.8 3.4 1.8s2.5-.6 3.4-1.8"/>'
+            + '<path d="M9.3 9.6h.01"/><path d="M14.7 9.6h.01"/>',
+    excluir:  '<path d="M4.8 6.8h14.4"/><path d="M9.4 6.8V5.2a1.4 1.4 0 0 1 1.4-1.4h2.4a1.4 1.4 0 0 1 1.4 1.4v1.6"/>'
+            + '<path d="M6.6 6.8 7.5 19a1.6 1.6 0 0 0 1.6 1.5h5.8a1.6 1.6 0 0 0 1.6-1.5l.9-12.2"/>'
+            + '<path d="M10.4 10.4v6.2"/><path d="M13.6 10.4v6.2"/>',
+  }[nome] || '';
+  return abre + d + '</svg>';
+}
 function acoesHTML(m, meu, naThread){
   const id = escJS(String(m.id));
+  const bt = (rotulo, icone, acao) =>
+    '<button class="mgz-ac" data-rotulo="' + esc(rotulo) + '" aria-label="' + esc(rotulo) + '"'
+    + ' onclick="' + acao + '">' + icone + '</button>';
   return '<div class="mgz-acoes">'
-    + '<button title="Reagir" onclick="MGChat.abrirEmojis(\'' + id + '\',event)">☺</button>'
-    + (naThread ? '' : '<button title="Responder na thread" onclick="MGChat.abrirThread(\'' + id + '\')">↩</button>')
-    + '<button title="Copiar" onclick="MGChat.copiar(\'' + id + '\')">⧉</button>'
-    + '<button title="Perguntar ao Kronos sobre isto"'
-      + ' onclick="MGKronos.sobreMensagem(\'' + id + '\')">' + mgGato(14) + '</button>'
+    + bt('Reagir', mgzIcone('reagir'), 'MGChat.abrirEmojis(\'' + id + '\',event)')
+    + (naThread ? '' : bt('Responder', mgzIcone('responder'), 'MGChat.abrirThread(\'' + id + '\')'))
+    + bt('Copiar', mgzIcone('copiar'), 'MGChat.copiar(\'' + id + '\')')
+    + bt('Perguntar ao Kronos', mgGatoLinha(17), 'MGKronos.sobreMensagem(\'' + id + '\')')
     + ((meu || isAdmin())
-        ? '<span class="div"></span><button title="Excluir" onclick="MGChat.excluir(\'' + id + '\')">🗑</button>'
+        ? '<span class="div"></span>'
+          + bt('Excluir', mgzIcone('excluir'), 'MGChat.excluir(\'' + id + '\')')
         : '')
     + '</div>';
 }
@@ -19475,16 +19794,25 @@ function composerHTML(c, onde){
         + '<button title="Riscado" onclick="MGChat.fmt(\'~\',\'' + onde + '\')"><s>S</s></button>'
         + '<button title="Código" onclick="MGChat.fmt(\'`\',\'' + onde + '\')">&lt;/&gt;</button>'
         + '<span class="div"></span>'
-        + '<button title="Emoji" onclick="MGChat.emojiNoTexto(event)">☺</button>'
-        + (podeAnexar ? '<button title="Anexar arquivo" onclick="MGChat.escolherArquivo(\'' + onde + '\')">📎</button>' : '')
-        + '<button title="Chamar o Kronos" onclick="MGChat.chamarKronos(\'' + onde + '\')">' + mgGato(15) + '</button>'
-        + (th ? '' : '<button title="Comandos" onclick="MGChat.abrirComandos()">/</button>')
+        + '<button class="mgz-ac" data-rotulo="Emoji" aria-label="Emoji"'
+          + ' onclick="MGChat.emojiNoTexto(event)">' + mgzIcone('emoji') + '</button>'
+        + (podeAnexar ? '<button class="mgz-ac" data-rotulo="Anexar arquivo" aria-label="Anexar arquivo"'
+          + ' onclick="MGChat.escolherArquivo(\'' + onde + '\')">' + mgzIcone('anexar') + '</button>' : '')
+        + '<button class="mgz-ac" data-rotulo="Chamar o Kronos" aria-label="Chamar o Kronos"'
+          + ' onclick="MGChat.chamarKronos(\'' + onde + '\')">' + mgGatoLinha(17) + '</button>'
+        + (th ? '' : '<button class="mgz-ac" data-rotulo="Comandos" aria-label="Comandos"'
+          + ' onclick="MGChat.abrirComandos()"><b style="font-size:15px">/</b></button>')
       + '</div>'
-      + (f.length ? '<div class="mgz-fila">' + f.map((x,i)=>
-          '<span class="it">' + iconeArq(x) + ' ' + esc(x.nome) + ' <span style="color:var(--muted)">'
-          + tamanho(x.tamanho) + '</span>'
-          + '<button onclick="MGChat.tirarDaFila(' + i + ',\'' + onde + '\')" title="Remover">✕</button></span>').join('')
-        + '</div>' : '')
+      + (f.length ? '<div class="mgz-fila">' + f.map((x,i)=>{
+          const mini = x.previa ? mgUrlImagem(x.previa) : '';
+          return '<span class="it' + (mini ? ' comfoto' : '') + '">'
+            + (mini ? '<img src="' + mini + '" alt="">' : '<span class="ic">' + iconeArq(x) + '</span>')
+            + '<span class="nm">' + esc(x.nome) + '</span>'
+            + '<span class="tm">' + tamanho(x.tamanho) + '</span>'
+            + '<button onclick="MGChat.tirarDaFila(' + i + ',\'' + onde + '\')" title="Tirar da lista">✕</button></span>';
+        }).join('')
+        + '<span class="aviso">' + f.length + (f.length > 1 ? ' arquivos prontos' : ' arquivo pronto')
+        + ' para enviar</span></div>' : '')
       + (podeAnexar ? '<button class="mais" onclick="MGChat.escolherArquivo(\'' + onde + '\')"'
           + ' title="Anexar arquivo">＋</button>' : '')
       + '<textarea id="mgz-in' + sufixo + '" rows="1" placeholder="'
@@ -19492,7 +19820,8 @@ function composerHTML(c, onde){
         + '" onkeydown="MGChat.tecla(event,\'' + onde + '\')"'
         + ' oninput="MGChat.digitou(this,\'' + onde + '\')"></textarea>'
       + '<div class="mgz-baixo"><span class="sp"></span>'
-        + '<button class="env" id="mgz-env' + sufixo + '" onclick="' + alvo + '" title="Enviar">➤</button></div>'
+        + '<button class="env" id="mgz-env' + sufixo + '" onclick="' + alvo + '"'
+          + ' aria-label="Enviar mensagem" title="Enviar">' + mgzIcone('enviar') + '</button></div>'
     + '</div>'
     + (th ? '' : '<div class="mgz-dica" id="mgz-dica">'
       + (enterEnvia ? '<span><b>Enter</b> envia · <b>Shift+Enter</b> quebra linha · <b>/</b> comandos · <b>@Kronos</b> chama a IA</span>'
@@ -19674,13 +20003,18 @@ async function enviar(onde){
     channel_id: CHAN, author_id: ME.id, author_name: ME.name,
     body: corpo, kind:'user', created_at: new Date().toISOString(),
     reply_to: alvo, reactions:{}, anexos:[], __pendente:true,
+    /* o que está subindo aparece na bolha na hora, com miniatura local */
+    __subindo: anexosPendentes.map(f=>({nome:f.nome, tipo:f.tipo, tamanho:f.tamanho, previa:f.previa})),
+    __subiu: 0,
   };
   pendentes.push(provisorio);
   desenhar(); if(!th) rolarFim(true);
 
   let salva = null;
   try{
-    const anexos = anexosPendentes.length ? await subirArquivos(anexosPendentes) : [];
+    const anexos = anexosPendentes.length
+      ? await subirArquivos(anexosPendentes, feitos=>{ provisorio.__subiu = feitos; desenhar() })
+      : [];
     const linha = {channel_id: CHAN, author_id: ME.id, author_name: ME.name, body: corpo || ' '};
     if(alvo) linha.reply_to = alvo;
     if(anexos.length) linha.anexos = anexos;
@@ -19694,8 +20028,10 @@ async function enviar(onde){
     salva = data;
 
     pendentes = pendentes.filter(p=>p.id !== provisorio.id);
+    anexosPendentes.forEach(f=>{ if(f.previa){ try{ URL.revokeObjectURL(f.previa) }catch(_){} } });
     const lista = (CHMSGS[CHAN] = CHMSGS[CHAN] || []);
     if(data && !lista.some(m=>m.id===data.id)) lista.push(data);
+    if(anexos.length) toast(anexos.length > 1 ? anexos.length + ' arquivos enviados' : 'Arquivo enviado');
     if(alvo){
       const t = (THREADS[CHAN] = THREADS[CHAN] || {});
       t[alvo] = t[alvo] || {respostas:0, ultima:null, autores:[]};
@@ -19706,6 +20042,7 @@ async function enviar(onde){
   }catch(e){
     const m = (e && e.message) || '';
     provisorio.__pendente = false; provisorio.__falhou = true; provisorio.__corpo = corpo;
+    provisorio.__subindo = []; provisorio.__arquivos = anexosPendentes;
     desenhar();
     if(/row-level security|permission/i.test(m)) toast('O banco recusou: você não tem acesso a esta conversa');
     else toast('Não foi possível enviar: ' + m);
@@ -19728,6 +20065,12 @@ function reenviar(id){
   pendentes.splice(i,1);
   const ta = caixa(th ? 'th' : '');
   if(ta){ ta.value = p.__corpo || p.body || ''; }
+  /* os arquivos voltam para a fila: sem isso o "tentar de novo" mandava
+     só o texto e o anexo sumia sem aviso */
+  if(Array.isArray(p.__arquivos) && p.__arquivos.length){
+    const f = filaDe(th ? 'th' : '');
+    p.__arquivos.forEach(x=>{ if(!f.includes(x)) f.push(x) });
+  }
   desenhar();
   enviar(th ? 'th' : '');
 }
@@ -19778,8 +20121,19 @@ function limparBusca(){ achados = null; desenhar(); rolarFim(true) }
 async function irParaMensagem(cid, mid){
   achados = null;
   if(cid !== CHAN) await abrir(cid);
-  else desenhar();
+  /* a conversa mostra só as últimas MGZ_JANELA. Se a mensagem procurada
+     é mais antiga que isso, a janela cresce até alcançar ela: sem esta
+     linha o "ir para" da busca caía num id que não estava na tela. */
+  garantirNaJanela(mid);
+  desenhar();
   setTimeout(()=>irPara(mid), 120);
+}
+function garantirNaJanela(mid){
+  const lista = CHMSGS[CHAN] || [];
+  const i = lista.findIndex(m => String(m.id) === String(mid));
+  if(i < 0) return;
+  const daquiAteOFim = lista.length - i;
+  if(daquiAteOFim > mostrando) mostrando = daquiAteOFim + 10;
 }
 
 function meuPerfil(){ return verPerfil(ME ? ME.id : null) }
@@ -19823,18 +20177,32 @@ function escolherArquivo(onde){
   inp.onchange = e=>{
     [...e.target.files].forEach(f=>{
       if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
-      filaDe(onde).push({nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f});
+      const item = {nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f, previa:null};
+      /* miniatura local, feita do próprio arquivo: aparece na hora, antes
+         de qualquer viagem até o servidor */
+      if(ehImagem(item)){ try{ item.previa = URL.createObjectURL(f) }catch(_){} }
+      filaDe(onde).push(item);
     });
     desenhar();
     const ta = caixa(onde); if(ta) ta.focus();
   };
   inp.click();
 }
-function tirarDaFila(i, onde){ filaDe(onde).splice(i,1); desenhar() }
-async function subirArquivos(itens){
+function tirarDaFila(i, onde){
+  const f = filaDe(onde)[i];
+  if(f && f.previa){ try{ URL.revokeObjectURL(f.previa) }catch(_){} }
+  filaDe(onde).splice(i,1);
+  desenhar();
+}
+/* Sobe os arquivos e avisa o andamento a cada um.
+   O SDK do Supabase não entrega progresso em bytes no upload, então o
+   aviso é por arquivo, que é o que dá para afirmar de verdade. */
+async function subirArquivos(itens, aviso){
   const out = [];
-  for(const f of itens){
-    const ext = (f.nome.split('.').pop()||'bin').toLowerCase();
+  for(let i = 0; i < itens.length; i++){
+    const f = itens[i];
+    if(typeof aviso === 'function') aviso(i, itens.length, f);
+    const ext = (String(f.nome||'').split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'') || 'bin';
     const id = (crypto.randomUUID ? crypto.randomUUID()
                                   : Date.now()+'-'+Math.random().toString(16).slice(2));
     const path = pastaDoCanal() + '/' + id + '.' + ext;
@@ -19845,15 +20213,12 @@ async function subirArquivos(itens){
         ? 'o banco não deixou enviar arquivo nesta conversa'
         : 'falha ao enviar "' + f.nome + '": ' + m);
     }
-    let url = null;
-    if(ehImagem(f)){
-      try{
-        const {data} = await sb.storage.from('documents').createSignedUrl(path, 60*60*24*7);
-        url = data ? data.signedUrl : null;
-      }catch(e){}
-    }
-    out.push({nome:f.nome, tipo:f.tipo, tamanho:f.tamanho, path, url});
+    /* o link assinado NÃO vai mais para o banco: ele expira e deixava a
+       imagem antiga quebrada para sempre. Quem resolve é pedirURL(), na
+       hora de mostrar. */
+    out.push({nome:f.nome, tipo:f.tipo, tamanho:f.tamanho, path});
   }
+  if(typeof aviso === 'function') aviso(itens.length, itens.length, null);
   return out;
 }
 async function abrirAnexo(path){
@@ -20269,6 +20634,14 @@ function alternarEmpresa(cid){
   desenhar();
 }
 async function recarregar(){ CH_READY = null; CHMSGS = {}; desenhar() }
+/* zera os links assinados em cache; usado quando a sessão troca e pelos testes */
+function limparCacheAnexos(){ MGZ_URLS.clear(); MGZ_PEDINDO.clear() }
+/* saída de emergência da tela de erro: solta o canal e volta para a lista */
+function sairDoCanal(){
+  CHAN = null; thread = null; painelDir = null; perfilAberto = null;
+  fila = []; filaTh = []; erroMsgs = null;
+  desenhar();
+}
 async function recarregarMsgs(){ erroMsgs = null; desenhar(); await carregarMsgs(CHAN); desenhar() }
 
 return {
@@ -20277,7 +20650,7 @@ return {
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
-  configurar, recarregar, recarregarMsgs,
+  configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
   /* thread, comandos, busca e apoio ao Kronos */
@@ -20649,7 +21022,7 @@ registrar({
     const canal = (CHANNELS||[]).find(x=>x.tipo==='client' && x.client_id===c.id);
     MGChat.local('*' + c.nome + '*\n' + (c.resumo || 'Sem resumo cadastrado.')
       + '\nPlano de mídia: ' + (c.plano_midia ? 'sim' : 'não')
-      + (canal ? '\n\nAbrindo o canal desta empresa.' : '\n\nEsta empresa ainda não tem canal no chat.'));
+      + (canal ? '\n\nAbrindo o canal desta empresa.' : '\n\nEsta empresa ainda não tem canal no MGP Chat.'));
     if(canal) setTimeout(()=>MGChat.abrir(canal.id), 500);
   }
 });
