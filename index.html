@@ -8951,7 +8951,15 @@ function mgTocarFiltros(e){
         <span class="ic">🔔</span>${n?`<span style="position:absolute;top:3px;right:6px;min-width:15px;height:15px;
           border-radius:8px;background:var(--danger);color:#fff;font-size:9.5px;font-weight:700;
           display:grid;place-items:center;padding:0 4px">${n}</span>`:''}</button>`;
-    return `<span class="sep"></span>${sino}`;
+    /* O Kronos deixou de ser bolha flutuante e mora aqui, ao lado do
+       sino. Só aparece para a equipe: o cliente não fala com a IA. */
+    const kronos = (window.MGKronos && isAdmin())
+      ? `<button id="mg-kronos-b" class="mg-kronos-b" onclick="MGKronos.alternar()"
+           title="Kronos, o Claude dentro do MGP" aria-label="Kronos">
+           ${typeof mgGatoLinha==='function' ? mgGatoLinha(18) : '<span class="ic">◕</span>'}
+         </button>`
+      : '';
+    return `<span class="sep"></span>${kronos}${sino}`;
   }
 
   mgDockItens = function(){
@@ -8983,6 +8991,8 @@ mgDock = function(){
   document.body.classList.add('mg-com-dock');
   if(html !== MG_DOCK_HTML){ alvo.innerHTML = html; MG_DOCK_HTML = html }
   mgMudarEuParaDock();
+  /* o botão do Kronos é reescrito junto com a barra: devolve o estado */
+  try{ if(window.MGKronos && MGKronos.pintarBotao) MGKronos.pintarBotao() }catch(e){}
 };
 [120, 400, 900, 2000].forEach(ms=>setTimeout(mgDock, ms));
 
@@ -18917,6 +18927,25 @@ function desenhar(){
   const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
   const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
 
+  /* Guarda o que a pessoa está escrevendo.
+
+     desenhar() troca o innerHTML do chat inteiro, e isso destrói o
+     campo de texto junto. Dois efeitos: depois de enviar era preciso
+     clicar na caixa de novo para continuar escrevendo, e pior, qualquer
+     mensagem que chegasse enquanto você digitava apagava o rascunho,
+     porque a caixa nasce vazia no HTML. Aqui o texto, o cursor e o foco
+     são anotados antes e devolvidos depois. */
+  const escrevendo = (function(){
+    const guarda = [];
+    ['mgz-in','mgz-in-th'].forEach(id=>{
+      const ta = document.getElementById(id);
+      if(!ta) return;
+      guarda.push({id, valor: ta.value, ini: ta.selectionStart, fim: ta.selectionEnd,
+                   alto: ta.style.height, focado: document.activeElement === ta});
+    });
+    return guarda;
+  })();
+
   /* A montagem inteira vai num try. Antes, um erro no meio de qualquer
      parte deixava o innerHTML no estado velho: a tela congelava e todo
      render seguinte quebrava no mesmo ponto, inclusive depois de
@@ -18954,6 +18983,19 @@ function desenhar(){
   if(cx){ cx.scrollTop = (guardado !== null && guardado > 0) ? guardado : cx.scrollHeight }
   const cth = document.getElementById('mgz-th-corpo');
   if(cth){ cth.scrollTop = (guardadoTh !== null && guardadoTh > 0) ? guardadoTh : cth.scrollHeight }
+
+  /* devolve o rascunho, a altura da caixa, o cursor e o foco */
+  escrevendo.forEach(g=>{
+    const ta = document.getElementById(g.id);
+    if(!ta) return;
+    if(g.valor){ ta.value = g.valor; if(g.alto) ta.style.height = g.alto }
+    if(g.focado){
+      ta.focus({preventScroll:true});
+      try{ ta.setSelectionRange(g.ini, g.fim) }catch(_){}
+    }
+    const bt = document.getElementById('mgz-env' + (g.id === 'mgz-in-th' ? '-th' : ''));
+    if(bt) bt.disabled = !ta.value.trim() && !filaDe(g.id === 'mgz-in-th' ? 'th' : '').length;
+  });
   if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
   reservarDock();
 }
@@ -20009,6 +20051,9 @@ async function enviar(onde){
   };
   pendentes.push(provisorio);
   desenhar(); if(!th) rolarFim(true);
+  /* volta o cursor para a caixa mesmo quem enviou pelo botão: sem isso
+     era preciso clicar de novo para escrever a mensagem seguinte */
+  const dedo = caixa(onde); if(dedo) dedo.focus({preventScroll:true});
 
   let salva = null;
   try{
@@ -20781,17 +20826,14 @@ async function mgCarregarNaoLidas(){
    inteira, não só o chat. As cores saem das variáveis de sempre, então
    o tema claro e o escuro acompanham sem regra extra.
    ===================================================================== */
-.mgk-bolha{position:fixed;right:20px;bottom:84px;z-index:70;width:56px;height:56px;border-radius:50%;
-  border:1px solid var(--brass);background:#E9DCBB;line-height:1;
-  display:grid;place-items:center;font-family:inherit;cursor:pointer;
-  box-shadow:0 14px 34px -14px rgba(0,0,0,.45);transition:transform .18s,box-shadow .18s}
-.mgk-bolha:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 18px 40px -14px rgba(0,0,0,.5)}
-.mgk-bolha.oculta{display:none}
-.mgk-bolha .pt{position:absolute;right:2px;bottom:4px;width:13px;height:13px;border-radius:50%;
-  background:var(--muted2);border:2px solid var(--card)}
-.mgk-bolha.pronto .pt{background:#2E9E6B}
-.mgk-bolha.ruim .pt{background:var(--danger)}
-.mgk-bolha .n{position:fixed;pointer-events:none}
+/* O Kronos vive na barra fixa de baixo. O ponto de status fica no canto
+   do botão, do mesmo jeito que a bolha antiga mostrava. */
+.mg-dock .mg-kronos-b{position:relative}
+.mg-dock .mg-kronos-b svg{display:block}
+.mg-dock .mg-kronos-b::after{content:"";position:absolute;right:9px;bottom:6px;width:8px;height:8px;
+  border-radius:50%;background:#8a8271;border:2px solid #211f1c}
+.mg-dock .mg-kronos-b.pronto::after{background:#2E9E6B}
+.mg-dock .mg-kronos-b.ruim::after{background:var(--danger)}
 
 .mgk-painel{position:fixed;right:20px;bottom:84px;z-index:71;width:390px;max-width:calc(100vw - 32px);
   height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;
@@ -20866,7 +20908,6 @@ async function mgCarregarNaoLidas(){
 .mgk-nota{font-size:10.5px;color:var(--muted2);margin-top:6px;line-height:1.5}
 
 @media(max-width:720px){
-  .mgk-bolha{right:14px;bottom:78px;width:50px;height:50px;font-size:24px}
   .mgk-painel{right:8px;left:8px;bottom:74px;width:auto;height:min(70vh,520px)}
 }
 @media (prefers-reduced-motion: reduce){
@@ -21081,7 +21122,7 @@ window.MGCmd = MGCmd;
    ===================================================================== */
 const MGKronos = (function(){
 
-let painel = null, bolha = null;
+let painel = null;
 let aberto = false;
 let hist = [];                 /* {papel, texto, acao, passos, erro}      */
 let pensando = false;
@@ -21190,12 +21231,10 @@ async function limpar(){
    --------------------------------------------------------------------- */
 function montar(){
   if(painel) return;
-  bolha = document.createElement('button');
-  bolha.className = 'mgk-bolha';
-  bolha.title = 'Kronos, o Claude dentro do MGP';
-  bolha.innerHTML = mgGato(30) + '<span class="pt"></span>';
-  bolha.onclick = alternar;
-  document.body.appendChild(bolha);
+  /* A bolha flutuante saiu: ela ficava fixa no canto de baixo à direita
+     e cobria conteúdo em toda tela. O Kronos passa a ser um botão da
+     barra fixa de baixo, junto do sino e do menu, e o estado dele vira
+     uma classe nesse botão. */
 
   painel = document.createElement('section');
   painel.className = 'mgk-painel';
@@ -21216,10 +21255,13 @@ function montar(){
   pintarBolha();
 }
 function pintarBolha(){
-  if(!bolha) return;
-  bolha.classList.toggle('oculta', aberto);
-  bolha.classList.toggle('pronto', estado === 'ok');
-  bolha.classList.toggle('ruim', estado === 'sem_chave' || estado === 'chave_invalida');
+  const b = document.getElementById('mg-kronos-b');
+  if(!b) return;
+  b.classList.toggle('on', aberto);
+  b.classList.toggle('pronto', estado === 'ok');
+  b.classList.toggle('ruim', estado === 'sem_chave' || estado === 'chave_invalida');
+  b.title = estado === 'ok' ? 'Kronos, o Claude dentro do MGP'
+          : (typeof motivo === 'function' ? motivo() : 'Kronos indisponível');
 }
 function alternar(){ aberto ? fechar() : abrir() }
 function abrir(){
@@ -21510,11 +21552,13 @@ function sobreMensagem(id){
    --------------------------------------------------------------------- */
 function ligar(){
   montar();
-  /* a bolha só aparece para quem tem sessão */
+  /* quem não tem sessão não fala com o Kronos. O botão dele já nasce
+     escondido junto com a barra de baixo, então aqui basta fechar o
+     painel se a sessão cair com ele aberto. */
   const ver = () => {
     const tem = (typeof ME !== 'undefined') && ME && ME.id;
-    if(bolha) bolha.style.display = tem ? '' : 'none';
     if(!tem && aberto) fechar();
+    pintarBolha();
   };
   ver();
   setInterval(ver, 1500);
@@ -21527,10 +21571,461 @@ return {
   abrir, fechar, alternar, enviar, tecla, digitou, sugestao, limpar,
   perguntar, pedirNoChat, noCanal, sobreMensagem, sobrePessoa,
   confirmar, cancelar, ligado, motivo,
+  pintarBotao: pintarBolha,
   get estado(){ return estado },
 };
 })();
 window.MGKronos = MGKronos;
+</script>
+
+<script>
+/* =====================================================================
+   SEÇÃO · SHELL · a plataforma passa a ter quatro módulos
+
+   A tela de Início mostrava dez cartões: Demandas, MGP Tasks, Dash,
+   Checklist, Clientes, Equipe, Documentos, MGP Chat, Briefing e
+   Configurações. Virou vitrine, e o que a equipe usa todo dia ficava
+   disputando espaço com o que ninguém abre.
+
+   Ficam quatro: MGP Tasks, MGP Clientes, MGP Docs e MGP Chat.
+
+   Nada some de vez, com uma exceção: o Checklist sai da plataforma a
+   pedido, porque ninguém usa. O resto (Dash, Equipe, Briefing,
+   Configurações, Demandas) continua no menu "Início" da barra de baixo
+   e nos caminhos próprios: Configurações também abre pelo menu do seu
+   nome, e o Kanban continua com o menu ⋯ dele.
+
+   Esta seção roda por último de propósito: ela é a palavra final sobre
+   os rótulos e sobre quem aparece na vitrine, depois das oito camadas
+   que mexem em mgAtalhos ao longo do arquivo.
+   ===================================================================== */
+(function(){
+
+  /* ---------- 1. o Checklist sai ---------- */
+  if(typeof NAV !== 'undefined'){
+    const i = NAV.findIndex(n => n.v === 'checklist');
+    if(i >= 0) NAV.splice(i, 1);
+  }
+
+  /* ---------- 2. os nomes dos módulos ---------- */
+  const NOMES = {
+    tasks:    'MGP Tasks',
+    clientes: 'MGP Clientes',
+    docs:     'MGP Docs',
+    chat:     'MGP Chat',
+  };
+  if(typeof NAV !== 'undefined'){
+    NAV.forEach(n => { if(NOMES[n.v]) n.label = NOMES[n.v] });
+  }
+  if(typeof MG_NAV_CLI === 'object' && MG_NAV_CLI && MG_NAV_CLI.docs) MG_NAV_CLI.docs[1] = 'MGP Docs';
+
+  /* o título da tela acompanha o nome do módulo */
+  if(typeof showView === 'function'){
+    const _sv = showView;
+    showView = function(v){
+      const r = _sv(v);
+      try{
+        const t = document.getElementById('view-title');
+        if(t && NOMES[VIEW]) t.textContent = NOMES[VIEW];
+      }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------- 3. a vitrine do Início ---------- */
+  const VITRINE = ['tasks', 'clientes', 'docs', 'chat'];
+  if(typeof mgAtalhos === 'function'){
+    const _a = mgAtalhos;
+    mgAtalhos = function(){
+      const todos = _a();
+      /* o cliente tem a vitrine dele, montada na seção do portal */
+      if(typeof isAdmin === 'function' && !isAdmin()) return todos;
+      const porV = {};
+      todos.forEach(a => { porV[a.v] = a });
+      return VITRINE.map(v => porV[v]).filter(Boolean)
+                    .map(a => NOMES[a.v] ? {...a, label: NOMES[a.v]} : a);
+    };
+  }
+
+  /* ---------- 4. o menu lateral, quando aparece ---------- */
+  if(typeof buildNav === 'function'){
+    const _b = buildNav;
+    buildNav = function(){
+      const r = _b();
+      try{
+        const nav = document.getElementById('nav');
+        if(nav && typeof isAdmin === 'function' && isAdmin()){
+          nav.querySelectorAll('.nav-i').forEach(b=>{
+            if(!VITRINE.includes(b.dataset.v)) b.remove();
+          });
+        }
+      }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------- 5. quem tinha o Checklist aberto não fica preso ---------- */
+  if(typeof showView === 'function'){
+    const _sv2 = showView;
+    showView = function(v){ return _sv2(v === 'checklist' ? 'tasks' : v) };
+  }
+
+  /* redesenha o que já estiver na tela */
+  try{ if(typeof buildNav === 'function') buildNav() }catch(e){}
+  try{ if(typeof render === 'function' && typeof ME !== 'undefined' && ME) render() }catch(e){}
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · PORTAL DO CLIENTE · uma página só
+   ===================================================================== */
+#v-portal{padding:0}
+.mgp-portal{max-width:1080px;margin:0 auto;padding:26px 22px 120px;
+  display:flex;flex-direction:column;gap:30px}
+
+.mgp-cab{display:flex;align-items:center;gap:16px}
+.mgp-cab .logo{width:56px;height:56px;border-radius:14px;object-fit:cover;background:var(--card2);
+  border:1px solid var(--line2);display:grid;place-items:center;font-family:var(--font-d);
+  font-size:23px;font-weight:600;color:var(--brass2);flex-shrink:0}
+.mgp-cab h1{font-family:var(--font-d);font-size:27px;font-weight:500;line-height:1.15}
+.mgp-cab p{font-size:13px;color:var(--muted);margin-top:3px}
+
+.mgp-bloco{background:var(--card);border:1px solid var(--line2);border-radius:16px;overflow:hidden}
+.mgp-bloco > header{display:flex;align-items:center;gap:12px;padding:16px 20px;
+  border-bottom:1px solid var(--line)}
+.mgp-bloco > header .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  font-size:15px;flex-shrink:0}
+.mgp-bloco > header h2{font-family:var(--font-d);font-size:17px;font-weight:500;flex:1}
+.mgp-bloco > header .n{font-size:11.5px;font-weight:600;color:var(--muted);
+  background:var(--card2);border-radius:20px;padding:3px 11px}
+.mgp-bloco .corpo{padding:8px 12px 14px}
+.mgp-vazio{padding:26px 20px;text-align:center;font-size:13px;color:var(--muted)}
+
+.mgp-dem{display:flex;align-items:flex-start;gap:13px;width:100%;text-align:left;
+  padding:13px 14px;border-radius:11px;font-family:inherit;background:none;border:0;
+  transition:background .14s}
+.mgp-dem:hover{background:var(--card2)}
+.mgp-dem .pt{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.mgp-dem .tx{flex:1;min-width:0}
+.mgp-dem .tx b{display:block;font-size:14px;font-weight:600;line-height:1.35}
+.mgp-dem .tx span{display:block;font-size:12px;color:var(--muted);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgp-dem .est{font-size:11px;font-weight:600;border-radius:7px;padding:3px 9px;flex-shrink:0;
+  background:var(--card2);color:var(--muted)}
+.mgp-dem .prazo{font-size:11.5px;color:var(--muted2);flex-shrink:0;white-space:nowrap}
+.mgp-dem .prazo.atrasado{color:var(--danger);font-weight:600}
+
+.mgp-doc{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:12px 14px;border-radius:11px;font-family:inherit;background:none;border:0;
+  transition:background .14s}
+.mgp-doc:hover{background:var(--card2)}
+.mgp-doc .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  font-size:15px;flex-shrink:0}
+.mgp-doc .tx{flex:1;min-width:0}
+.mgp-doc .tx b{display:block;font-size:13.5px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgp-doc .tx span{font-size:11.5px;color:var(--muted)}
+.mgp-doc .abrir{font-size:11px;font-weight:700;color:var(--brass2);
+  border:1px solid var(--brass);border-radius:7px;padding:3px 10px;flex-shrink:0}
+
+.mgp-conversa{display:flex;align-items:center;gap:16px;padding:20px}
+.mgp-conversa .tx{flex:1;min-width:0}
+.mgp-conversa .tx b{display:block;font-family:var(--font-d);font-size:16px;font-weight:500}
+.mgp-conversa .tx span{font-size:12.5px;color:var(--muted);display:block;margin-top:3px}
+.mgp-conversa .sino{font-size:11.5px;font-weight:700;color:#fff;background:var(--danger);
+  border-radius:20px;padding:3px 10px}
+
+@media(max-width:640px){
+  .mgp-portal{padding:18px 14px 120px;gap:22px}
+  .mgp-cab h1{font-size:22px}
+  .mgp-dem .est,.mgp-dem .prazo{display:none}
+}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · PORTAL DO CLIENTE · uma página só
+
+   O cliente entrava numa plataforma feita para a equipe e precisava
+   escolher entre abas para achar o que interessa a ele. Agora ele abre
+   uma página só, com o que é dele:
+
+     · as demandas em aberto da empresa dele
+     · os documentos publicados no nome da empresa dele
+     · a porta de entrada do MGP Chat
+
+   Nada aqui inventa permissão. As demandas e os documentos já vêm
+   filtrados pelo RLS do banco pelo client_id da pessoa; o filtro daqui
+   é só para a tela não mostrar o que não é do escopo. E no chat, o que
+   o cliente enxerga continua sendo decidido por can_see_channel no
+   banco: o canal da empresa dele e as conversas diretas de que ele
+   participa.
+   ===================================================================== */
+(function(){
+  if(typeof NAV === 'undefined') return;
+
+  /* ---------- 1. a tela existe ---------- */
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-portal')){
+    const d = document.createElement('div');
+    d.className = 'view'; d.id = 'v-portal';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n => n.v === 'portal')){
+    NAV.unshift({v:'portal', ic:'⌂', label:'Início'});
+  }
+
+  /* ---------- 2. o cliente só tem esta página e o chat ----------
+     mgAbasCliente() é chamada de novo em vários momentos do boot e
+     torna a empurrar 'briefing' na lista. Em vez de corrigir a lista
+     uma vez e ver ela voltar, trocamos a própria função: ela passa a
+     ser a dona da resposta. O briefing continua existindo, agora
+     dentro do MGP Chat, por comando. */
+  function abasDoCliente(){
+    if(typeof ABAS_DO_CLIENTE === 'undefined') return;
+    ABAS_DO_CLIENTE.length = 0;
+    ABAS_DO_CLIENTE.push('portal', 'chat');
+  }
+  abasDoCliente();
+  if(typeof mgAbasCliente === 'function') window.mgAbasCliente = abasDoCliente;
+  if(typeof MG_NAV_CLI === 'object' && MG_NAV_CLI){
+    Object.keys(MG_NAV_CLI).forEach(k => delete MG_NAV_CLI[k]);
+    MG_NAV_CLI.portal = ['⌂', 'Início'];
+    MG_NAV_CLI.chat   = ['✉', 'MGP Chat'];
+  }
+  /* A barra de baixo.
+
+     A seção do menu de navegação troca tudo por um botão "Menu ▾" e
+     apaga a navegação do cliente. Isso faz sentido para a equipe, que
+     tem dez destinos. O cliente tem dois: esta página e o MGP Chat.
+     Esconder dois botões dentro de um menu é trabalho a mais para
+     ninguém, então para ele os dois voltam a ficar à vista. */
+  if(typeof mgDockItens === 'function'){
+    const _d = mgDockItens;
+    mgDockItens = function(){
+      abasDoCliente();
+      let html = _d.apply(this, arguments);
+      if(typeof isAdmin === 'function' && isAdmin()) return html;
+      if(typeof ME === 'undefined' || !ME) return html;
+      const abas = ['portal', 'chat'].map(v=>{
+        const [ic, rot] = MG_NAV_CLI[v];
+        return '<button class="' + (VIEW === v ? 'on' : '') + '"'
+          + ' onclick="mgIrPara(\'' + v + '\')" title="' + esc(rot) + '">'
+          + '<span class="ic">' + ic + '</span><span class="rot">' + esc(rot) + '</span></button>';
+      }).join('');
+      /* tira o botão de menu e põe os dois destinos no lugar dele */
+      html = html.replace(/<button class="mg-menu-b"[\s\S]*?<\/button><span class="sep"><\/span>/, '');
+      return abas + '<span class="sep"></span>' + html;
+    };
+  }
+
+  /* ---------- 3. dados do escopo ---------- */
+  function minhaEmpresa(){
+    const id = (typeof ME !== 'undefined' && ME) ? ME.client_id : null;
+    if(!id) return null;
+    return (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(c => c.id === id) || {id, nome:'sua empresa'};
+  }
+  function minhasDemandas(){
+    const emp = minhaEmpresa(); if(!emp) return [];
+    return (typeof TASKS !== 'undefined' ? TASKS : [])
+      .filter(t => t.client_id === emp.id && !t.archived
+                && clientStatus(t.status) !== 'Concluído')
+      .sort((a,b)=>{
+        /* com prazo primeiro, do mais próximo ao mais distante */
+        if(!!a.due !== !!b.due) return a.due ? -1 : 1;
+        if(a.due && b.due) return a.due < b.due ? -1 : 1;
+        return String(a.title||'').localeCompare(String(b.title||''));
+      });
+  }
+  function meusDocumentos(){
+    const emp = minhaEmpresa(); if(!emp) return [];
+    return (typeof DOCS !== 'undefined' ? DOCS : [])
+      .filter(d => d.client_id === emp.id)
+      .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  function prazoTexto(due){
+    if(!due) return {txt:'sem prazo', atrasado:false};
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const d = new Date(due + 'T00:00:00');
+    const dias = Math.round((d - hoje) / 86400000);
+    if(dias < 0)  return {txt:'atrasada há ' + (-dias) + (dias === -1 ? ' dia' : ' dias'), atrasado:true};
+    if(dias === 0) return {txt:'entrega hoje', atrasado:false};
+    if(dias === 1) return {txt:'entrega amanhã', atrasado:false};
+    return {txt:'em ' + dias + ' dias', atrasado:false};
+  }
+
+  /* ---------- 4. a tela ---------- */
+  function portalHTML(){
+    const emp = minhaEmpresa();
+    if(!emp){
+      return '<div class="mgp-portal"><div class="mgp-bloco"><div class="mgp-vazio">'
+        + 'Sua conta ainda não está ligada a uma empresa. Fale com a equipe da Modesto '
+        + 'para liberar o acesso.</div></div></div>';
+    }
+    const dem = minhasDemandas();
+    const doc = meusDocumentos();
+    const naoLidas = (typeof MG_NAOLIDAS !== 'undefined' && MG_NAOLIDAS) ? MG_NAOLIDAS.length : 0;
+    const hora = new Date().getHours();
+    const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const meuNome = (typeof ME !== 'undefined' && ME && ME.name) ? String(ME.name).split(' ')[0] : '';
+
+    const logo = emp.logo_url
+      ? '<img class="logo" src="' + mgUrlImagem(emp.logo_url) + '" alt="">'
+      : '<div class="logo">' + esc(String(emp.nome || '?').trim().charAt(0).toUpperCase()) + '</div>';
+
+    return '<div class="mgp-portal">'
+      + '<div class="mgp-cab">' + logo
+        + '<div><h1>' + esc(saud) + (meuNome ? ', ' + esc(meuNome) : '') + '.</h1>'
+        + '<p>Tudo da ' + esc(emp.nome || 'sua empresa') + ' com a Modesto, nesta página.</p></div></div>'
+
+      /* demandas */
+      + '<section class="mgp-bloco">'
+        + '<header><span class="ic" style="background:rgba(194,161,91,.14);color:var(--brass2)">▦</span>'
+        + '<h2>Demandas em aberto</h2>'
+        + '<span class="n">' + dem.length + '</span></header>'
+        + (dem.length
+            ? '<div class="corpo">' + dem.map(demandaHTML).join('') + '</div>'
+            : '<div class="mgp-vazio">Nenhuma demanda em aberto no momento. '
+              + 'Quando a equipe abrir uma, ela aparece aqui.</div>')
+      + '</section>'
+
+      /* documentos */
+      + '<section class="mgp-bloco">'
+        + '<header><span class="ic" style="background:rgba(46,158,107,.14);color:#2E9E6B">▣</span>'
+        + '<h2>Documentos</h2>'
+        + '<span class="n">' + doc.length + '</span></header>'
+        + (doc.length
+            ? '<div class="corpo">' + doc.map(documentoHTML).join('') + '</div>'
+            : '<div class="mgp-vazio">Nenhum documento publicado ainda. '
+              + 'Apresentações, propostas e relatórios aparecem aqui assim que a equipe enviar.</div>')
+      + '</section>'
+
+      /* chat */
+      + '<section class="mgp-bloco">'
+        + '<div class="mgp-conversa">'
+          + '<span class="ic" style="width:38px;height:38px;border-radius:11px;display:grid;'
+            + 'place-items:center;font-size:17px;background:rgba(45,111,207,.14);color:#2D6FCF">✉</span>'
+          + '<span class="tx"><b>MGP Chat</b>'
+            + '<span>Fale com a equipe da Modesto no canal da ' + esc(emp.nome || 'sua empresa')
+            + ' ou por conversa direta.</span></span>'
+          + (naoLidas ? '<span class="sino">' + naoLidas + '</span>' : '')
+          + '<button class="btn-p" onclick="mgIrPara(\'chat\')">Abrir conversa</button>'
+        + '</div>'
+      + '</section>'
+    + '</div>';
+  }
+
+  function demandaHTML(t){
+    const est = clientStatus(t.status);
+    const cor = (CLIENT_COLS.find(c => c.key === est) || {}).color || 'var(--muted)';
+    const p = prazoTexto(t.due);
+    const desc = String(t.description || '').replace(/\s+/g, ' ').trim();
+    return '<button class="mgp-dem" onclick="mgPortalDemanda(\'' + escJS(String(t.id)) + '\')">'
+      + '<span class="pt" style="background:' + esc(cor) + '"></span>'
+      + '<span class="tx"><b>' + esc(t.title || 'Demanda') + '</b>'
+      + (desc ? '<span>' + esc(desc.slice(0, 120)) + '</span>' : '') + '</span>'
+      + '<span class="est" style="color:' + esc(cor) + '">' + esc(est) + '</span>'
+      + '<span class="prazo' + (p.atrasado ? ' atrasado' : '') + '">' + esc(p.txt) + '</span>'
+      + '</button>';
+  }
+  function documentoHTML(d){
+    const t = docTipo(d.tipo);
+    return '<button class="mgp-doc" onclick="mgPortalDoc(\'' + escJS(String(d.id)) + '\')">'
+      + '<span class="ic" style="background:' + esc(t.hex) + '22;color:' + esc(t.hex) + '">'
+        + esc(t.ic) + '</span>'
+      + '<span class="tx"><b>' + esc(d.titulo || 'Documento') + '</b>'
+        + '<span>' + esc(t.label) + ' · ' + esc(docDate(d.created_at)) + '</span></span>'
+      + '<span class="abrir">abrir</span></button>';
+  }
+
+  window.mgPortalDemanda = function(id){
+    if(typeof openDetail === 'function') return openDetail(id);
+    if(typeof showDetail === 'function') return showDetail(id);
+  };
+  window.mgPortalDoc = function(id){
+    if(typeof abrirArquivoEmAba === 'function') return abrirArquivoEmAba(id);
+    if(typeof openDoc === 'function') return openDoc(id);
+  };
+
+  /* Os documentos só eram buscados ao abrir a tela de Documentos, que o
+     cliente não tem mais. Sem isso o bloco nascia vazio mesmo havendo
+     arquivo publicado. */
+  let buscando = false;
+  async function garantirDados(){
+    if(buscando) return; buscando = true;
+    try{
+      const faltas = [];
+      if(typeof loadDocs === 'function' && typeof DOCS_LOADED !== 'undefined' && !DOCS_LOADED)
+        faltas.push(loadDocs());
+      if(typeof TASKS !== 'undefined' && !TASKS.length && typeof loadTasks === 'function')
+        faltas.push(loadTasks());
+      if(faltas.length){ await Promise.all(faltas); renderPortal() }
+    }catch(e){ console.warn('[portal] dados', e) }
+    finally{ buscando = false }
+  }
+
+  function renderPortal(){
+    const el = document.getElementById('v-portal'); if(!el) return;
+    garantirDados();
+    try{ el.innerHTML = portalHTML() }
+    catch(e){
+      console.error('[portal]', e);
+      el.innerHTML = '<div class="mgp-portal"><div class="mgp-bloco"><div class="mgp-vazio">'
+        + 'Não foi possível montar esta página agora. Recarregue, e se continuar assim '
+        + 'avise a equipe da Modesto.</div></div></div>';
+    }
+  }
+  window.renderPortal = renderPortal;
+
+  /* ---------- 5. entra na navegação ---------- */
+  const _sv = showView;
+  showView = function(v){
+    if(v === 'portal'){
+      VIEW = 'portal';
+      document.querySelectorAll('.nav-i').forEach(b => b.classList.toggle('on', b.dataset.v === 'portal'));
+      document.querySelectorAll('.content > .view').forEach(el => el.classList.remove('on'));
+      const el = document.getElementById('v-portal'); if(el) el.classList.add('on');
+      const t = document.getElementById('view-title'); if(t) t.textContent = 'Início';
+      document.body.classList.remove('mg-tasks', 'mg-e-chat');
+      document.body.classList.add('mg-sem-tarefas');
+      renderPortal();
+      if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+      return;
+    }
+    return _sv(v);
+  };
+  const _rd = render;
+  render = function(){
+    if(VIEW === 'portal') return renderPortal();
+    return _rd();
+  };
+
+  /* ---------- 6. o cliente cai aqui, não no Kanban ---------- */
+  (function(){
+    const _boot = (typeof boot === 'function') ? boot : null;
+    const levar = () => {
+      if(typeof ME === 'undefined' || !ME) return;
+      if(typeof isAdmin === 'function' && isAdmin()) return;
+      if(VIEW !== 'portal' && VIEW !== 'chat') showView('portal');
+    };
+    [300, 900, 1800].forEach(ms => setTimeout(levar, ms));
+    if(_boot){
+      boot = async function(){ const r = await _boot(); levar(); return r };
+    }
+  })();
+
+  /* os dados chegam depois do primeiro desenho: repinta quando mudarem */
+  ['refresh', 'loadDocs'].forEach(nome=>{
+    if(typeof window[nome] !== 'function') return;
+    const _f = window[nome];
+    window[nome] = async function(...a){
+      const r = await _f.apply(this, a);
+      if(VIEW === 'portal') renderPortal();
+      return r;
+    };
+  });
+})();
 </script>
 
 </body>

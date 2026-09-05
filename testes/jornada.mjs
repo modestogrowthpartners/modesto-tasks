@@ -232,9 +232,16 @@ await page.waitForTimeout(700);
 const semChave = await page.evaluate(()=>{
   const b=[...document.querySelectorAll('.mgk-painel .mgk-b')].pop();
   return {txt:b?b.textContent:'', erro:b?b.className.includes('erro'):false,
-          bolhaRuim:document.querySelector('.mgk-bolha').className.includes('ruim')}});
+          semBolhaSolta:!document.querySelector('.mgk-bolha'),
+          botaoRuim:(()=>{ if(typeof mgDock==='function') mgDock();
+            const b=document.getElementById('mg-kronos-b');
+            return !!b && b.className.includes('ruim') })()}});
 ok('16 sem chave avisa e não inventa', semChave.erro && /ANTHROPIC_API_KEY/.test(semChave.txt)
-   && semChave.bolhaRuim, semChave.txt);
+   && semChave.botaoRuim, semChave.txt);
+
+/* ---- 16b. o Kronos mora na barra de baixo, não numa bolha flutuante ---- */
+ok('16b Kronos na barra de baixo, sem bolha flutuante', semChave.semBolhaSolta,
+   JSON.stringify(semChave).slice(0,120));
 
 /* ---- 17. comando que depende de IA é barrado com explicação ---- */
 await page.evaluate(()=>MGKronos.fechar());
@@ -294,7 +301,9 @@ ok('19b cartão de perfil com dado real', perfil && perfil.nome==='Elias Braga' 
 await page.evaluate(()=>showView('tasks')); await page.waitForTimeout(500);
 const fora = await page.evaluate(()=>({
   chatEscondido:!document.querySelector('#v-chat.on'),
-  luqVisivel:!!document.querySelector('.mgk-bolha'),
+  /* o Kronos deixou de ser bolha flutuante: agora é botão da barra de baixo */
+  luqVisivel:(()=>{ if(typeof mgDock==='function') mgDock();
+                    return !!document.getElementById('mg-kronos-b') })(),
   corpo:document.body.className.includes('mg-e-chat')}));
 await irChat();
 const voltou = await page.evaluate(()=>({
@@ -580,6 +589,31 @@ const recusa = await comErroPrevisto(()=>page.evaluate(async ()=>{
 }));
 ok('22e upload recusado avisa e oferece tentar de novo',
    recusa.falhou && recusa.refazer && recusa.semSubindo, JSON.stringify(recusa));
+
+/* ---- 24. a caixa de escrita não perde foco nem rascunho ---- */
+await page.evaluate(()=>showView('chat'));
+await page.waitForTimeout(500);
+await page.evaluate(()=>MGChat.abrir('ch-1'));
+await page.waitForTimeout(600);
+const foco = await page.evaluate(async ()=>{
+  const ta = document.getElementById('mgz-in');
+  ta.focus(); ta.value = 'primeira'; MGChat.digitou(ta,'');
+  await MGChat.enviar(''); await new Promise(x=>setTimeout(x,700));
+  const depoisDoEnvio = document.activeElement && document.activeElement.id === 'mgz-in';
+  /* agora um rascunho pela metade, e uma mensagem chegando por cima */
+  const ta2 = document.getElementById('mgz-in');
+  ta2.focus(); ta2.value = 'rascunho pela metade'; MGChat.digitou(ta2,'');
+  ta2.setSelectionRange(8, 8);
+  MGChat.desenhar(); await new Promise(x=>setTimeout(x,200));
+  const ta3 = document.getElementById('mgz-in');
+  return {depoisDoEnvio, rascunho: ta3.value,
+          cursor: ta3.selectionStart,
+          aindaFocado: document.activeElement && document.activeElement.id === 'mgz-in'};
+});
+ok('24 caixa mantém foco depois de enviar e não perde o rascunho',
+   foco.depoisDoEnvio && foco.rascunho === 'rascunho pela metade'
+   && foco.cursor === 8 && foco.aindaFocado, JSON.stringify(foco));
+await page.evaluate(()=>{ const t=document.getElementById('mgz-in'); if(t) t.value=''; });
 
 /* ---- 23. desempenho: a conversa longa não pode travar a tela ---- */
 const perf = await page.evaluate(async ()=>{

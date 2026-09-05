@@ -73,7 +73,12 @@
     api.then=(res,rej)=>Promise.resolve({data:alvo(),error:null,count:alvo().length}).then(res,rej);
     return api;
   }
-  const sess={user:{id:UID,email:'vinicius@x.com',confirmed_at:'2026-01-01'},access_token:'x'};
+  /* Quem está logado no dublê. Por padrão a Vinícius (admin); pondo
+     __COMO='cliente' em localStorage antes de carregar, entra a Flavia,
+     que é cliente da Cliente Um. É assim que a jornada testa o portal. */
+  let __eu = perfis[0];
+  try{ if(localStorage.getItem('__COMO') === 'cliente') __eu = perfis[2] }catch(e){}
+  const sess={user:{id:__eu.id, email:__eu.email, confirmed_at:'2026-01-01'}, access_token:'x'};
   function canal(){
     const c={_h:[],on(ev,f,g){c._h.push([ev,f,g]);return c},
       subscribe(cb){ if(cb) setTimeout(()=>cb('SUBSCRIBED'),0); return c },
