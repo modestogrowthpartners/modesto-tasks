@@ -22,7 +22,7 @@
     documents:[{id:'d-1',client_id:CID,titulo:'Doc Teste',tipo:'apresentacao',
                 storage_path:CID+'/x.pdf',metadata:{},created_at:'2026-09-01T10:00:00Z'}],
     channels:[
-      {id:'ch-1',tipo:'client',nome:'cliente-um',client_id:CID,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'},
+      {id:'ch-1',tipo:'client',nome:'cliente-um',client_id:CID,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z',config:{}},
       {id:'ch-2',tipo:'team',nome:'geral',client_id:null,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'},
       {id:'ch-3',tipo:'dm',nome:'dm:'+[UID,UID2].sort().join(':'),client_id:null,cor:null,created_by:UID,created_at:'2026-09-01T10:00:00Z'}],
     channel_members:[{channel_id:'ch-1',profile_id:UID,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null},
@@ -75,7 +75,15 @@
                            reactions:{},anexos:[],kind:'user',...x}));
       novos.forEach(x=>{ (FIX[table]=FIX[table]||[]).push(x); rows.push(x) }); persistir(); return api};
     api.upsert=api.insert;
-    api.update=v=>{novos=rows.filter(passa).map(r=>Object.assign(r,v));return api};
+    /* o dublê copiava as linhas, então update mexia só na cópia e o teste
+       nunca via a mudança. Agora ele grava também na fonte. */
+    api.update=v=>{
+      novos=rows.filter(passa).map(r=>Object.assign(r,v));
+      novos.forEach(n=>{ const real=(FIX[table]||[]).find(x=>String(x.id)===String(n.id));
+                         if(real) Object.assign(real, v) });
+      persistir();
+      return api;
+    };
     api.delete=()=>{novos=rows.filter(passa).slice();
       FIX[table]=(FIX[table]||[]).filter(r=>!passa(r)); persistir(); return api};
     api.then=(res,rej)=>Promise.resolve({data:alvo(),error:null,count:alvo().length}).then(res,rej);
