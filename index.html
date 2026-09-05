@@ -18031,11 +18031,17 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgj-campo > label{display:block;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
   color:var(--muted2);font-weight:700;margin-bottom:6px}
 .mgj-campo .ajuda{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
-.mgj-campo input[type=text],.mgj-campo textarea{width:100%;background:var(--card2);color:var(--text);
+.mgj-campo input[type=text],.mgj-campo input[type=date],
+.mgj-campo select,.mgj-campo textarea{width:100%;background:var(--card2);color:var(--text);
   border:1px solid var(--line2);border-radius:11px;padding:10px 13px;font-size:13.5px;
   font-family:inherit;outline:none;resize:vertical}
+.mgj-campo select{appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                   linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
 .mgj-campo textarea{min-height:74px;line-height:1.55}
-.mgj-campo input:focus,.mgj-campo textarea:focus{border-color:var(--brass);
+.mgj-campo input:focus,.mgj-campo select:focus,.mgj-campo textarea:focus{border-color:var(--brass);
   box-shadow:0 0 0 3px rgba(194,161,91,.14)}
 .mgj-campo .erro{font-size:11.5px;color:var(--danger);margin-top:5px;font-weight:600}
 .mgj-campo.ruim input,.mgj-campo.ruim textarea{border-color:var(--danger)}
@@ -18225,6 +18231,22 @@ function campoHTML(c, i){
         + '</div></div>'
       + '<div class="mgj-conta"></div>' + ajuda + '</div>';
   }
+  /* Lista de opções e data. Nasceram para o /demanda, que precisa escolher
+     empresa, prioridade e prazo dentro da mesma janela. */
+  if(c.tipo === 'lista'){
+    const atual = String(c.valor == null ? '' : c.valor);
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '">' + rot
+      + '<select id="' + id + '">'
+      + (c.opcoes||[]).map(o=>'<option value="' + esc(o.v) + '"'
+          + (String(o.v) === atual ? ' selected' : '') + '>' + esc(o.r) + '</option>').join('')
+      + '</select>' + ajuda + '<div class="erro" hidden></div></div>';
+  }
+  if(c.tipo === 'data'){
+    return '<div class="mgj-campo" data-campo="' + esc(c.nome) + '">' + rot
+      + '<input type="date" id="' + id + '" value="' + esc(c.valor||'') + '">'
+      + ajuda + '<div class="erro" hidden></div></div>';
+  }
+
   /* texto */
   const pre = c.prefixo
     ? '<div class="mgj-prefixo"><span class="p">' + esc(c.prefixo) + '</span>'
@@ -18247,7 +18269,7 @@ function ler(no, campos){
       saida[c.nome] = [...cx.querySelectorAll('.p.on')].map(b=>b.dataset.v);
       return;
     }
-    const el = cx.querySelector('input,textarea');
+    const el = cx.querySelector('input,textarea,select');
     saida[c.nome] = el ? el.value.trim() : '';
   });
   return saida;
@@ -19016,6 +19038,21 @@ function ladoHTML(){
         + 'Diretas' + (naoLidasDiretas() ? '<i class="pt"></i>' : '') + '</button>'
     + '</div>'
     + (aba === 'diretas' ? diretasHTML() : tudoHTML())
+    /* Escolha do tema, aqui e não numa camada por fora: desenhar() é
+       chamada por dentro do módulo em vários pontos, e quem envolvesse
+       MGChat.desenhar perderia justamente esses caminhos. */
+    + (function(){
+        /* a seção do tema roda depois desta no arquivo; a guarda evita
+           depender da ordem de carga */
+        const t = (typeof mgTemaAtual === 'function') ? mgTemaAtual()
+                : (document.body.classList.contains('theme-dark') ? 'dark' : 'light');
+        return '<div class="mgz-tema"><b>Tema</b>'
+          + '<button class="preto' + (t === 'dark' ? ' on' : '') + '"'
+          + ' title="Preto" aria-label="Tema preto" onclick="mgTema(\'dark\')"></button>'
+          + '<button class="bege' + (t === 'light' ? ' on' : '') + '"'
+          + ' title="Bege" aria-label="Tema bege" onclick="mgTema(\'light\')"></button>'
+        + '</div>';
+      })()
     + '<div class="mgz-eu">' + MGU.avatar(eu, {tam:32, presenca:true})
       + '<span class="tx"><b>' + esc(eu ? eu.nome : '—') + '</b>'
       + '<span>' + (eu && eu.ehEquipe ? 'Equipe Modesto' : (eu && eu.clienteId ? esc(clientName(eu.clienteId)) : 'Cliente')) + '</span></span>'
@@ -19543,11 +19580,6 @@ function reportsHTML(){
         + '<span>🗂</span><span class="tx"><b>' + esc(d.titulo||'documento') + '</b>'
         + '<span>' + esc(d.tipo||'') + ' · ' + esc(dataDe(d.created_at)) + '</span></span></button>').join('')
       : '<div class="nada">Nada no acervo desta empresa ainda.</div>')
-    + '<div class="rep-nota">'
-      + '<b>Publicação automática</b><br>'
-      + 'A ideia é o relatório semanal ser gerado e publicado aqui sozinho, no dia combinado. '
-      + 'Falta só a chave de IA no projeto: a estrutura que recebe isso já é esta.'
-    + '</div>'
   + '</aside>';
 }
 
@@ -19831,11 +19863,10 @@ function composerHTML(c, onde){
   return (th ? '' : menuComandosHTML())
     + '<div class="mgz-caixa">'
       + '<div class="mgz-fer">'
-        + '<button title="Negrito" onclick="MGChat.fmt(\'*\',\'' + onde + '\')"><b>B</b></button>'
-        + '<button title="Itálico" onclick="MGChat.fmt(\'_\',\'' + onde + '\')"><i>I</i></button>'
-        + '<button title="Riscado" onclick="MGChat.fmt(\'~\',\'' + onde + '\')"><s>S</s></button>'
-        + '<button title="Código" onclick="MGChat.fmt(\'`\',\'' + onde + '\')">&lt;/&gt;</button>'
-        + '<span class="div"></span>'
+        /* Negrito, itálico, riscado e código saíram da régua a pedido.
+           Quem quiser continua marcando na mão com *asterisco*, _sublinha_,
+           ~til~ e crase: a formatação da mensagem não mudou, só os botões
+           que quase ninguém usava e enchiam a barra. */
         + '<button class="mgz-ac" data-rotulo="Emoji" aria-label="Emoji"'
           + ' onclick="MGChat.emojiNoTexto(event)">' + mgzIcone('emoji') + '</button>'
         + (podeAnexar ? '<button class="mgz-ac" data-rotulo="Anexar arquivo" aria-label="Anexar arquivo"'
@@ -20993,11 +21024,21 @@ async function executar(linha){
 registrar({
   nome:'demanda', apelidos:['tarefa','task'], icone:'📝',
   descricao:'Transforma o que você escrever numa demanda estruturada',
-  uso:'<descrição>', exemplo:'revisar os criativos da próxima campanha do Cliente Um',
-  precisaIA:true,
-  executar: arg => MGKronos.pedirNoChat(
-    'Prepare uma demanda a partir disto: ' + arg
-    + '\nGere um título curto no imperativo e uma descrição organizada.')
+  uso:'<o que precisa ser feito>',
+  exemplo:'revisar os criativos da campanha do Meu Rodapé até sexta, urgente',
+  /* Deixou de exigir IA. Com o Kronos ligado ele interpreta; sem ele, a
+     leitura local entra no lugar e abre a janela de conferência. O miolo
+     mora na SEÇÃO · COMANDOS, no fim do arquivo. */
+  executar: arg => {
+    if(window.MGKronos && MGKronos.ligado()){
+      return MGKronos.pedirNoChat(
+        'Prepare uma demanda a partir disto: ' + arg
+        + '\nGere um título curto no imperativo, uma descrição com o contexto '
+        + 'e o passo a passo em passos.');
+    }
+    if(typeof window.mgProporDemanda === 'function') return window.mgProporDemanda(arg);
+    return MGChat.local('O leitor de demandas não carregou. Recarregue a página.');
+  }
 });
 
 registrar({
@@ -22621,6 +22662,391 @@ window.MGKronos = MGKronos;
                        fraco:'rgba(142,63,190,.09)', sombra:'rgba(142,63,190,.34)'};
   }
   try{ if(typeof buildNav === 'function') buildNav() }catch(e){}
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · TEMA · o modo escuro vira preto de verdade
+
+   O que existia como "escuro" era marrom: #16150f de fundo e #ece7db de
+   texto, os dois puxados para o quente. Sobre monitor bom parecia sépia,
+   e o pedido foi preto mesmo.
+
+   Aqui a paleta escura passa a ser neutra. O modo claro fica exatamente
+   como está, porque ele é a identidade bege da casa e ninguém reclamou
+   dele. O dourado da marca continua sendo o destaque nos dois.
+
+   Vem depois de tudo de propósito: precisa ganhar da regra original,
+   que tem a mesma especificidade e aparece antes.
+   ===================================================================== */
+body.theme-dark{
+  --paper:#0a0a0b; --card:#141416; --card2:#0f0f11; --card3:#1c1c1f;
+  --text:#ececee; --muted:#8d8d95; --muted2:#68686f;
+  --line:rgba(255,255,255,.075); --line2:rgba(255,255,255,.14);
+  --line-d:rgba(255,255,255,.10);
+  --ink:#000000; --ink2:#0a0a0b; --panel:#121214; --panel2:#17171a;
+}
+/* superfícies que traziam a cor no atributo, fora das variáveis */
+body.theme-dark .search input,
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea{background:#0f0f11;color:var(--text);border-color:var(--line2)}
+body.theme-dark .mg-dock{background:#141416;border-color:rgba(255,255,255,.13)}
+body.theme-dark .mg-dock button{color:#9a9aa2}
+body.theme-dark .mg-dock button:hover{color:#ececee;background:rgba(255,255,255,.07)}
+body.theme-dark .mg-navp{background:#141416;border-color:rgba(255,255,255,.13)}
+body.theme-dark .mg-navp button{color:#9a9aa2}
+body.theme-dark .mg-navp button:hover{background:rgba(255,255,255,.08);color:#ececee}
+body.theme-dark .mg-navp .sep-n{background:rgba(255,255,255,.1)}
+body.theme-dark .mg-dock .sep{background:rgba(255,255,255,.15)}
+body.theme-dark .mg-dock .conta{color:#8d8d95}
+body.theme-dark .mg-dock .mg-kronos-b::after{border-color:#141416}
+body.theme-dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16)}
+/* o desenho da marca ao fundo some quase por completo no preto */
+body.theme-dark .bg-anim{opacity:.35}
+
+/* seletor de tema dentro do MGP Chat */
+.mgz-tema{display:flex;align-items:center;gap:7px;padding:9px 12px;border-top:1px solid var(--line)}
+.mgz-tema b{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--muted2);flex:1}
+.mgz-tema button{width:24px;height:24px;border-radius:7px;border:2px solid var(--line2);
+  padding:0;flex-shrink:0;transition:border-color .15s,transform .15s}
+.mgz-tema button:hover{transform:scale(1.08)}
+.mgz-tema button.on{border-color:var(--brass)}
+.mgz-tema .preto{background:#0a0a0b}
+.mgz-tema .bege{background:#f8f5ef}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · TEMA · escolher preto ou bege sem sair do MGP Chat
+   ===================================================================== */
+(function(){
+  window.mgTema = function(v){
+    if(typeof setPref === 'function') return setPref('theme', v);
+    /* caminho de reserva, se as preferências ainda não carregaram */
+    document.body.classList.toggle('theme-dark', v === 'dark');
+    try{ localStorage.setItem('mgp_theme_fallback', v) }catch(e){}
+  };
+  function temaAtual(){
+    return document.body.classList.contains('theme-dark') ? 'dark' : 'light';
+  }
+  window.mgTemaAtual = temaAtual;
+
+  /* quem desenha o seletor é ladoHTML, dentro do próprio módulo do chat */
+})();
+</script>
+
+<script>
+/* =====================================================================
+   SEÇÃO · COMANDOS · /demanda por texto livre e /configcomoreport
+
+   O /demanda dependia do Kronos, e o Kronos depende de uma chave que
+   ainda não existe no projeto. Resultado: o comando mais útil da lista
+   era o único que não funcionava.
+
+   Aqui ele passa a ter dois caminhos, na mesma porta:
+
+     · com o Kronos ligado, o modelo interpreta e propõe, como antes;
+     · sem ele, um leitor local tira do texto o que dá para tirar com
+       certeza (prazo, empresa, prioridade, responsável) e abre a janela
+       de conferência já preenchida.
+
+   O leitor local é deliberadamente conservador. Ele só afirma o que
+   reconhece por regra clara; o que não reconhecer fica em branco para a
+   pessoa completar, em vez de chutar. Quando a chave chegar, o caminho
+   do Kronos assume sozinho e este continua como reserva.
+   ===================================================================== */
+(function(){
+  if(!window.MGCmd || !window.MGChat) return;
+
+  /* ---------- leitura do texto ---------- */
+  const MESES = ['janeiro','fevereiro','março','abril','maio','junho',
+                 'julho','agosto','setembro','outubro','novembro','dezembro'];
+  const SEMANA = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+
+  function iso(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+         + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function norm(s){
+    return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  }
+
+  /* Devolve {due, ini, fim} ou null. `ini` e `fim` são as posições do
+     pedaço reconhecido, para ele sair do título depois.
+
+     Trabalhamos por posição, e não pelo texto casado, porque a busca
+     roda no texto sem acento e o corte roda no texto original: procurar
+     "ate sexta" dentro de "até sexta" não acha nada. Normalizar em NFD e
+     tirar os acentos preserva o comprimento, então as posições valem nos
+     dois. */
+  function lerPrazo(txt){
+    const t = norm(txt);
+    const hoje = new Date(); hoje.setHours(12,0,0,0);
+    const em = (dias) => { const d = new Date(hoje); d.setDate(d.getDate()+dias); return iso(d) };
+
+    let m;
+    const achou = (mm, due) => ({due, ini: mm.index, fim: mm.index + mm[0].length});
+    if((m = /\b(depois de amanha)\b/.exec(t))) return achou(m, em(2));
+    if((m = /\b(hoje)\b/.exec(t)))             return achou(m, em(0));
+    if((m = /\b(amanha)\b/.exec(t)))           return achou(m, em(1));
+    if((m = /\bem (\d{1,3}) dias?\b/.exec(t))) return achou(m, em(parseInt(m[1],10)));
+    if((m = /\b(proxima semana|semana que vem)\b/.exec(t))) return achou(m, em(7));
+
+    /* 12/09, 12/09/2026, 12-09 */
+    if((m = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/.exec(t))){
+      const dia = +m[1], mes = +m[2];
+      let ano = m[3] ? +m[3] : hoje.getFullYear();
+      if(ano < 100) ano += 2000;
+      if(dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12){
+        const d = new Date(ano, mes-1, dia, 12);
+        /* sem ano escrito e data já passada: assume o ano que vem */
+        if(!m[3] && d < hoje) d.setFullYear(ano+1);
+        return {due: iso(d), ini: m.index, fim: m.index + m[0].length};
+      }
+    }
+    /* "dia 12", "até dia 12" */
+    if((m = /\b(?:ate\s+)?dia\s+(\d{1,2})\b/.exec(t))){
+      const dia = +m[1];
+      if(dia >= 1 && dia <= 31){
+        const d = new Date(hoje.getFullYear(), hoje.getMonth(), dia, 12);
+        if(d < hoje) d.setMonth(d.getMonth()+1);
+        return {due: iso(d), ini: m.index, fim: m.index + m[0].length};
+      }
+    }
+    /* "12 de setembro" */
+    if((m = /\b(\d{1,2}) de ([a-z]+)\b/.exec(t))){
+      const i = MESES.findIndex(x => norm(x) === m[2]);
+      if(i >= 0){
+        const d = new Date(hoje.getFullYear(), i, +m[1], 12);
+        if(d < hoje) d.setFullYear(d.getFullYear()+1);
+        return {due: iso(d), ini: m.index, fim: m.index + m[0].length};
+      }
+    }
+    /* "na sexta", "até sexta" */
+    if((m = /\b(?:ate\s+|na\s+|no\s+)?(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:-feira)?\b/.exec(t))){
+      const alvo = SEMANA.findIndex(x => norm(x) === m[1]);
+      if(alvo >= 0){
+        let dif = alvo - hoje.getDay();
+        if(dif <= 0) dif += 7;
+        return {due: em(dif), ini: m.index, fim: m.index + m[0].length};
+      }
+    }
+    return null;
+  }
+
+  function lerPrioridade(txt){
+    const t = norm(txt);
+    if(/\b(urgente|urgencia|pra ontem|prioridade alta|alta prioridade)\b/.test(t))
+      return {priority:'Alta', urgente:/\burgente|urgencia|pra ontem\b/.test(t)};
+    if(/\b(quando der|sem pressa|prioridade baixa|baixa prioridade)\b/.test(t))
+      return {priority:'Baixa', urgente:false};
+    return {priority:'Média', urgente:false};
+  }
+
+  /* empresa citada no texto, senão a empresa do canal aberto */
+  function lerCliente(txt){
+    const t = norm(txt);
+    const lista = (typeof CLIENTS !== 'undefined' ? CLIENTS : []);
+    /* o nome mais longo primeiro, para "Wondr/Barbie/PB" ganhar de "Wondr" */
+    const achado = lista.slice()
+      .sort((a,b)=> String(b.nome||'').length - String(a.nome||'').length)
+      .find(c => c.nome && norm(c.nome).length >= 4 && t.includes(norm(c.nome)));
+    if(achado) return {id: achado.id, nome: achado.nome, deOnde:'texto'};
+    const c = MGChat.canalAtual && MGChat.canalAtual();
+    if(c && c.tipo === 'client' && c.client_id){
+      return {id: c.client_id, nome: clientName(c.client_id), deOnde:'canal'};
+    }
+    return null;
+  }
+
+  /* @fulano, ou o primeiro nome de alguém da equipe citado no texto */
+  function lerResponsaveis(txt){
+    const t = norm(txt);
+    const gente = (typeof MGU !== 'undefined' && MGU.todos) ? MGU.todos() : [];
+    const equipe = gente.filter(u => u.ehEquipe && u.nome);
+    const achados = [];
+    const arrobas = String(txt).match(/@([\p{L}]+)/gu) || [];
+    arrobas.forEach(a=>{
+      const alvo = norm(a.slice(1));
+      const u = equipe.find(x => norm(x.nome).split(/\s+/)[0] === alvo)
+             || equipe.find(x => norm(x.nome).includes(alvo));
+      if(u) achados.push(String(u.nome).trim().split(/\s+/)[0]);
+    });
+    if(!achados.length){
+      equipe.forEach(u=>{
+        const primeiro = norm(u.nome).split(/\s+/)[0];
+        if(primeiro.length >= 4 && new RegExp('\\b' + primeiro + '\\b').test(t)){
+          achados.push(String(u.nome).trim().split(/\s+/)[0]);
+        }
+      });
+    }
+    return [...new Set(achados)];
+  }
+
+  /* Título: a primeira frase, sem os pedaços que já viraram campo.
+     Descrição: o texto inteiro, que é o contexto de verdade. */
+  function montar(texto){
+    const bruto = String(texto || '').trim();
+    const prazo = lerPrazo(bruto);
+    const pri   = lerPrioridade(bruto);
+    const cli   = lerCliente(bruto);
+    const resp  = lerResponsaveis(bruto);
+
+    /* o prazo sai por posição, no texto original */
+    let semPrazo = bruto;
+    if(prazo) semPrazo = bruto.slice(0, prazo.ini) + ' ' + bruto.slice(prazo.fim);
+    let titulo = semPrazo.split(/[.;\n]/)[0].trim();
+    titulo = titulo.replace(/@[\p{L}]+/gu, '')
+                   .replace(/\s+(at[ée]|para|pra|no|na|em|no dia|de)\s*$/i, '')
+                   .replace(/\s{2,}/g, ' ').trim();
+    if(titulo.length > 90) titulo = titulo.slice(0, 87).trim() + '…';
+    if(!titulo) titulo = bruto.slice(0, 80);
+
+    return {
+      title: titulo.charAt(0).toUpperCase() + titulo.slice(1),
+      description: bruto,
+      due: prazo ? prazo.due : '',
+      priority: pri.priority,
+      urgente: pri.urgente,
+      cliente: cli,
+      assignees: resp,
+    };
+  }
+  /* deixado à mão para o Kronos reaproveitar a mesma leitura quando entrar */
+  window.mgLerDemanda = montar;
+
+  /* ---------- a janela de conferência ---------- */
+  async function proporDemanda(texto){
+    const d = montar(texto);
+    const lista = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).slice()
+      .sort((a,b)=> String(a.nome||'').localeCompare(String(b.nome||'')));
+
+    const r = await MGJanela.abrir({
+      titulo: 'Nova demanda',
+      icone: '📝',
+      texto: d.cliente
+        ? 'Li o que você escreveu e preenchi o que deu para reconhecer. Confira antes de criar.'
+        : 'Li o que você escreveu. Escolha a empresa e confira o resto antes de criar.',
+      campos: [
+        {nome:'title', rotulo:'Título', tipo:'texto', valor:d.title, obrigatorio:true,
+         validar: v => String(v||'').trim() ? null : 'Dê um título à demanda.'},
+        {nome:'description', rotulo:'Descrição', tipo:'area', valor:d.description,
+         ajuda:'O que você escreveu, inteiro. Complete com o contexto que faltar.'},
+        {nome:'cliente', rotulo:'Empresa', tipo:'lista', valor:d.cliente ? d.cliente.id : '',
+         opcoes:[{v:'', r:'Sem empresa'}].concat(lista.map(c=>({v:c.id, r:c.nome}))),
+         ajuda:d.cliente && d.cliente.deOnde === 'canal' ? 'Peguei do canal desta conversa.' : ''},
+        {nome:'due', rotulo:'Entrega', tipo:'data', valor:d.due,
+         ajuda:d.due ? '' : 'Não achei prazo no texto. Deixe em branco se não houver.'},
+        {nome:'priority', rotulo:'Prioridade', tipo:'lista', valor:d.priority,
+         opcoes:[{v:'Baixa',r:'Baixa'},{v:'Média',r:'Média'},{v:'Alta',r:'Alta'}]},
+        /* nomes soltos, porque é assim que tasks.assignees guarda hoje.
+           Trocar para id é migração de dado, não campo de janela. */
+        {nome:'assignees', rotulo:'Responsáveis', tipo:'texto', valor:d.assignees.join(', '),
+         dica:'Nomes separados por vírgula',
+         ajuda:d.assignees.length ? 'Reconheci pelo texto.' : 'Deixe em branco se ainda não definiu.'},
+      ],
+      ok: 'Criar demanda',
+    });
+    if(!r) return MGChat.local('Deixei de lado. Nada foi criado.');
+
+    const linha = {
+      title: String(r.title).trim(),
+      description: String(r.description || ''),
+      status: 'Não iniciado',
+      priority: r.priority || 'Média',
+      client_id: r.cliente || null,
+      due: r.due || null,
+      urgente: !!d.urgente,
+      assignees: String(r.assignees || '').split(',').map(x=>x.trim()).filter(Boolean),
+      recurrence: 'none',
+      subtasks: [],
+    };
+    try{
+      const {data, error} = await sb.from('tasks').insert(linha).select().single();
+      if(error) throw error;
+      if(typeof loadTasks === 'function') await loadTasks();
+      if(typeof render === 'function' && VIEW !== 'chat') render();
+      return MGChat.local('Demanda criada: **' + linha.title + '**'
+        + (linha.client_id ? ' · ' + clientName(linha.client_id) : '')
+        + (linha.due ? ' · entrega ' + new Date(linha.due + 'T12:00:00').toLocaleDateString('pt-BR') : '')
+        + '\n\nEla já está no MGP Tasks.');
+    }catch(e){
+      const m = (e && e.message) || '';
+      return MGChat.local(/row-level security|permission/i.test(m)
+        ? 'O banco recusou: você não tem permissão para criar demanda. Nada foi criado.'
+        : 'Não consegui criar a demanda: ' + m + '. Nada foi criado.');
+    }
+  }
+  window.mgProporDemanda = proporDemanda;
+
+  /* ---------- /configcomoreport ---------- */
+  async function configComoReport(){
+    const c = MGChat.canalAtual && MGChat.canalAtual();
+    if(!c) return MGChat.local('Abra uma conversa antes de rodar este comando.');
+    if(c.tipo !== 'client' || !c.client_id){
+      return MGChat.local('Este ajuste é para o canal de uma empresa. '
+        + 'Em conversa de equipe ou direta não há acervo para onde mandar o arquivo.');
+    }
+    if(!isAdmin()) return MGChat.local('Só a equipe pode mudar o ajuste do canal.');
+
+    const cfg = c.config || {};
+    const ligar = !cfg.arquivos_para_acervo;
+    try{
+      const novo = Object.assign({}, cfg, {arquivos_para_acervo: ligar});
+      const {error} = await sb.from('channels').update({config: novo}).eq('id', c.id);
+      if(error) throw error;
+      c.config = novo;
+      MGChat.desenhar();
+      return MGChat.local(ligar
+        ? 'Pronto. A partir de agora todo arquivo enviado nesta conversa também entra no '
+          + 'acervo da **' + clientName(c.client_id) + '**, e aparece no MGP Docs e na aba '
+          + 'de Reports. Rode `/configcomoreport` de novo para desligar.'
+        : 'Desliguei. Os arquivos enviados aqui ficam só na conversa.');
+    }catch(e){
+      const m = (e && e.message) || '';
+      return MGChat.local(/column .*config|does not exist/i.test(m)
+        ? 'Falta a coluna `config` na tabela de canais. Rode a migração do banco antes.'
+        : 'Não consegui salvar o ajuste: ' + m);
+    }
+  }
+
+  /* ---------- todo anexo vira documento, quando o canal pede ---------- */
+  const _subir = MGChat.subirArquivos;
+  MGChat.subirArquivos = async function(itens, aviso){
+    const saida = await _subir.call(this, itens, aviso);
+    try{
+      const c = MGChat.canalAtual && MGChat.canalAtual();
+      if(c && c.tipo === 'client' && c.client_id && c.config && c.config.arquivos_para_acervo){
+        for(const a of saida){
+          await sb.from('documents').insert({
+            client_id: c.client_id,
+            titulo: String(a.nome || 'arquivo').replace(/\.[a-z0-9]{1,6}$/i, ''),
+            tipo: 'weekly',
+            storage_path: a.path,
+            metadata: {origem:'chat', canal:c.id, por: ME ? ME.name : null, nome_arquivo: a.nome},
+          });
+        }
+        if(typeof loadDocs === 'function') await loadDocs();
+      }
+    }catch(e){
+      /* o arquivo já foi para a conversa; o acervo é o extra, então o erro
+         avisa e não derruba o envio */
+      console.warn('[acervo]', e);
+      toast('O arquivo foi enviado, mas não entrou no acervo: ' + ((e && e.message) || ''));
+    }
+    return saida;
+  };
+
+  /* ---------- registro dos comandos ---------- */
+  MGCmd.registrar({
+    nome:'configcomoreport', apelidos:['reports','acervo'], icone:'🗂',
+    descricao:'Liga ou desliga: todo arquivo enviado aqui vai para o acervo da empresa',
+    uso:'', exigeArg:false,
+    permissao: () => typeof isAdmin === 'function' && isAdmin(),
+    executar: configComoReport,
+  });
 })();
 </script>
 

@@ -452,10 +452,12 @@ const rep = await page.evaluate(()=>{
   const r=document.querySelector('.mgz-rep'); if(!r) return null;
   return {abriu:true, titulo:(r.querySelector('.rep-topo b')||{}).textContent,
           secoes:[...r.querySelectorAll('h4')].map(h=>h.textContent.split('·')[0].trim()),
-          nota:!!r.querySelector('.rep-nota'),
+          /* o cartão de publicação automática saiu: confundia mais do que
+             explicava, e o que ele prometia virou o comando /configcomoreport */
+          semNota:!r.querySelector('.rep-nota'),
           classe:document.body.classList.contains('mgz-reports-on')};
 });
-ok('20i painel de Reports', rep && rep.abriu && rep.secoes.length === 2 && rep.nota && rep.classe,
+ok('20i painel de Reports', rep && rep.abriu && rep.secoes.length === 2 && rep.semNota && rep.classe,
    JSON.stringify(rep));
 await page.evaluate(()=>MGChat.alternarReports());
 
@@ -868,6 +870,153 @@ const semIA = await comErroPrevisto(()=>page.evaluate(async ()=>{
 ok('27c sem chave o Kronos avisa e não cria nada',
    /ANTHROPIC_API_KEY/.test(semIA.txt) && !semIA.criouMesmoAssim && semIA.semProposta,
    JSON.stringify(semIA).slice(0,150));
+
+/* ---- 28. /demanda lê o texto livre sem o Kronos ---- */
+const leitura = await page.evaluate(()=>{
+  const hoje = new Date(); hoje.setHours(12,0,0,0);
+  const daqui = n => { const d=new Date(hoje); d.setDate(d.getDate()+n);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') };
+  return {
+    amanha: mgLerDemanda('ajustar os criativos amanhã'),
+    dias:   mgLerDemanda('subir a campanha em 3 dias'),
+    data:   mgLerDemanda('entregar o relatório 20/12'),
+    urgente:mgLerDemanda('corrigir o pixel do site, urgente'),
+    calma:  mgLerDemanda('revisar textos quando der'),
+    cliente:mgLerDemanda('montar o plano do Cliente Um para o mês'),
+    esperado: {amanha: daqui(1), dias: daqui(3)},
+  };
+});
+ok('28 /demanda lê prazo, prioridade e empresa do texto',
+   leitura.amanha.due === leitura.esperado.amanha
+   && leitura.dias.due === leitura.esperado.dias
+   && /^\d{4}-12-20$/.test(leitura.data.due)
+   && leitura.urgente.priority === 'Alta' && leitura.urgente.urgente === true
+   && leitura.calma.priority === 'Baixa'
+   && leitura.cliente.cliente && leitura.cliente.cliente.id === 'c-1',
+   JSON.stringify({a:leitura.amanha.due, e:leitura.esperado.amanha, d:leitura.dias.due,
+                   data:leitura.data.due, u:leitura.urgente, c:leitura.calma.priority,
+                   cli:leitura.cliente.cliente}));
+
+/* ---- 28b. o título sai limpo e a descrição guarda o texto inteiro ---- */
+const titulo = await page.evaluate(()=>mgLerDemanda('revisar os criativos até sexta @Elias'));
+ok('28b título sem o prazo nem o arroba, descrição inteira',
+   !/sexta/i.test(titulo.title) && !/@/.test(titulo.title)
+   && /revisar os criativos/i.test(titulo.title)
+   && titulo.description === 'revisar os criativos até sexta @Elias'
+   && titulo.assignees.includes('Elias'),
+   JSON.stringify(titulo));
+
+/* ---- 28c. o comando cria a demanda de verdade, pela janela ---- */
+const demandaPeloChat = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,400));
+  MGChat.abrir('ch-1'); await new Promise(x=>setTimeout(x,600));
+  const antes = window.__FIX.tasks.length;
+  MGCmd.executar('/demanda trocar o banner do topo amanhã');
+  await new Promise(x=>setTimeout(x,600));
+  const j = document.querySelector('.mgj-janela, .mgj-fundo');
+  const tit = document.querySelector('[data-campo="title"] input');
+  const dt  = document.querySelector('[data-campo="due"] input');
+  const cli = document.querySelector('[data-campo="cliente"] select');
+  const ok1 = [...document.querySelectorAll('button')].find(b=>/Criar demanda/.test(b.textContent));
+  if(ok1) ok1.click();
+  await new Promise(x=>setTimeout(x,900));
+  const nova = window.__FIX.tasks[window.__FIX.tasks.length-1];
+  return {abriu:!!j, titulo: tit?tit.value:'', prazo: dt?dt.value:'',
+          empresaDoCanal: cli?cli.value:'',
+          criou: window.__FIX.tasks.length > antes,
+          gravada: nova ? {t:nova.title, c:nova.client_id, d:nova.due} : null};
+});
+ok('28c /demanda abre a janela e cria a demanda',
+   demandaPeloChat.abriu && /banner/i.test(demandaPeloChat.titulo) && demandaPeloChat.prazo
+   && demandaPeloChat.empresaDoCanal === 'c-1' && demandaPeloChat.criou
+   && demandaPeloChat.gravada && demandaPeloChat.gravada.c === 'c-1',
+   JSON.stringify(demandaPeloChat));
+
+/* ---- 29. a régua da caixa não tem mais B, I, S e código ---- */
+const regua = await page.evaluate(()=>{
+  const f = document.querySelector('.mgz-fer');
+  return {txt: f ? f.textContent.replace(/\s+/g,'') : '',
+          botoes: f ? [...f.querySelectorAll('button')].map(b=>b.dataset.rotulo||b.textContent.trim()) : []};
+});
+ok('29 régua sem os botões de formatação',
+   !/^BIS/.test(regua.txt) && !regua.botoes.some(b=>/^(B|I|S)$/.test(b))
+   && regua.botoes.some(b=>/Anexar/.test(b)) && regua.botoes.some(b=>/Emoji/.test(b)),
+   JSON.stringify(regua));
+
+/* ---- 30. tema preto de verdade, e a escolha mora no chat ---- */
+const tema = await page.evaluate(async ()=>{
+  MGChat.desenhar(); await new Promise(x=>setTimeout(x,250));
+  const sel = document.querySelector('#v-chat .mgz-tema');
+  mgTema('dark'); await new Promise(x=>setTimeout(x,250));
+  const cs = getComputedStyle(document.body);
+  const fundo = cs.getPropertyValue('--paper').trim();
+  /* preto de verdade: os três canais quase iguais. O marrom antigo era
+     rgb(22,21,15), com 7 de diferença entre o vermelho e o azul. */
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(fundo);
+  const rgb = m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : null;
+  const desvio = rgb ? Math.max(...rgb) - Math.min(...rgb) : 99;
+  const claro = rgb ? Math.max(...rgb) : 99;
+  mgTema('light'); await new Promise(x=>setTimeout(x,250));
+  const claroDepois = getComputedStyle(document.body).getPropertyValue('--paper').trim();
+  return {temSeletor:!!sel, fundo, desvio, claro, claroDepois};
+});
+ok('30 escuro é preto neutro e o claro continua bege',
+   tema.temSeletor && tema.desvio <= 2 && tema.claro <= 20
+   && /f8f5ef/i.test(tema.claroDepois), JSON.stringify(tema));
+
+/* ---- 31. /configcomoreport manda o arquivo para o acervo ---- */
+const acervo = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,400));
+  MGChat.abrir('ch-1'); await new Promise(x=>setTimeout(x,600));
+  const existe = !!MGCmd.achar('configcomoreport');
+  await MGCmd.executar('/configcomoreport');
+  await new Promise(x=>setTimeout(x,600));
+  const c = window.__FIX.channels.find(x=>x.id==='ch-1');
+  const ligado = !!(c.config && c.config.arquivos_para_acervo);
+  const antes = window.__FIX.documents.length;
+  /* envia um arquivo com o ajuste ligado */
+  const r = await MGChat.subirArquivos([{nome:'weekly setembro.pdf', tipo:'application/pdf',
+                                         tamanho:1234, arquivo:new Blob(['x'])}]);
+  await new Promise(x=>setTimeout(x,600));
+  const novo = window.__FIX.documents[window.__FIX.documents.length-1];
+  return {existe, ligado, caminho: r[0] && r[0].path,
+          criou: window.__FIX.documents.length > antes,
+          doc: novo ? {titulo:novo.titulo, cliente:novo.client_id,
+                       path:novo.storage_path, origem:(novo.metadata||{}).origem} : null};
+});
+ok('31 /configcomoreport manda o arquivo para o acervo da empresa',
+   acervo.existe && acervo.ligado && acervo.criou && acervo.doc
+   && acervo.doc.cliente === 'c-1' && acervo.doc.origem === 'chat'
+   && acervo.doc.titulo === 'weekly setembro'
+   && acervo.doc.path === acervo.caminho,
+   JSON.stringify(acervo));
+
+/* ---- 31b. desligando, o arquivo fica só na conversa ---- */
+const soConversa = await page.evaluate(async ()=>{
+  await MGCmd.executar('/configcomoreport');
+  await new Promise(x=>setTimeout(x,500));
+  const c = window.__FIX.channels.find(x=>x.id==='ch-1');
+  const antes = window.__FIX.documents.length;
+  await MGChat.subirArquivos([{nome:'rascunho.pdf', tipo:'application/pdf',
+                               tamanho:99, arquivo:new Blob(['x'])}]);
+  await new Promise(x=>setTimeout(x,500));
+  return {desligado: !(c.config && c.config.arquivos_para_acervo),
+          naoCriou: window.__FIX.documents.length === antes};
+});
+ok('31b desligado, o arquivo não vai para o acervo',
+   soConversa.desligado && soConversa.naoCriou, JSON.stringify(soConversa));
+
+/* ---- 31c. em canal de equipe o comando explica por que não vale ---- */
+const foraDeEmpresa = await page.evaluate(async ()=>{
+  MGChat.abrir('ch-2'); await new Promise(x=>setTimeout(x,600));
+  MGChat.limparLocais();
+  await MGCmd.executar('/configcomoreport');
+  await new Promise(x=>setTimeout(x,400));
+  const m = [...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  return {texto:(m?m.textContent:'').slice(-120)};
+});
+ok('31c fora de canal de empresa o comando explica',
+   /canal de uma empresa/.test(foraDeEmpresa.texto), foraDeEmpresa.texto);
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
