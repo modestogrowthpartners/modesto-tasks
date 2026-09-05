@@ -235,9 +235,18 @@
            signUp:()=>Promise.resolve({data:{user:{id:'novo'},session:null},error:null}),
            signOut:()=>Promise.resolve({error:null}),
            updateUser:()=>Promise.resolve({data:{},error:null}) },
-    storage:{ from:()=>({ createSignedUrl:()=>Promise.resolve({data:{signedUrl:'about:blank'},error:null}),
-                          upload:()=>Promise.resolve({data:{},error:null}),
-                          remove:()=>Promise.resolve({data:{},error:null}) }) },
+    /* link assinado com cara de link assinado de verdade: o dublê antigo
+       devolvia about:blank e escondia o caso de link ausente */
+    storage:{ from:()=>({
+      createSignedUrl:(caminho)=>Promise.resolve(
+        window.__semLink
+          ? {data:null, error:{message:'nao autorizado'}}
+          : {data:{signedUrl:'https://exemplo.invalid/assinado/'
+                   + encodeURIComponent(String(caminho||'')) + '?token=abc'}, error:null}),
+      upload:(caminho)=>Promise.resolve(
+        window.__uploadFalha ? {data:null, error:{message:'row-level security'}}
+                             : {data:{path:caminho}, error:null}),
+      remove:()=>Promise.resolve({data:{},error:null}) }) },
     channel:canal
   })};
 })();
