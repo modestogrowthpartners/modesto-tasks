@@ -20681,6 +20681,9 @@ function alternarEmpresa(cid){
 async function recarregar(){ CH_READY = null; CHMSGS = {}; desenhar() }
 /* zera os links assinados em cache; usado quando a sessão troca e pelos testes */
 function limparCacheAnexos(){ MGZ_URLS.clear(); MGZ_PEDINDO.clear() }
+/* o canal aberto agora, para quem precisa saber de qual empresa é a
+   conversa (os comandos, por exemplo) */
+function canalAtual(){ return CHANNELS.find(x => x.id === CHAN) || null }
 /* saída de emergência da tela de erro: solta o canal e volta para a lista */
 function sairDoCanal(){
   CHAN = null; thread = null; painelDir = null; perfilAberto = null;
@@ -20695,7 +20698,7 @@ return {
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
-  configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores,
+  configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores, canalAtual,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
   /* thread, comandos, busca e apoio ao Kronos */
@@ -21075,9 +21078,14 @@ registrar({
 });
 
 registrar({
-  nome:'briefing', icone:'📋',
-  descricao:'Abre o briefing de plano de mídia', uso:'', exigeArg:false,
-  executar: () => { showView('briefing') }
+  nome:'briefing', apelidos:['brief'], icone:'📋',
+  descricao:'Abre o briefing de mídia da empresa desta conversa', uso:'', exigeArg:false,
+  /* o miolo mora na SEÇÃO · BRIEFING, no fim do arquivo, junto do resto
+     do briefing. Aqui fica só a porta, para o comando existir uma vez só
+     e não virar duas entradas na lista. */
+  executar: () => (typeof window.mgBFPeloChat === 'function')
+    ? window.mgBFPeloChat()
+    : showView('briefing')
 });
 
 registrar({
@@ -21633,7 +21641,9 @@ window.MGKronos = MGKronos;
   }
 
   /* ---------- 3. a vitrine do Início ---------- */
-  const VITRINE = ['tasks', 'clientes', 'docs', 'chat'];
+  /* 'reports' entra por conta própria, na seção MGP REPORTS, que roda
+     depois desta. Aqui ele já é reconhecido para o menu lateral. */
+  const VITRINE = ['tasks', 'clientes', 'docs', 'chat', 'reports'];
   if(typeof mgAtalhos === 'function'){
     const _a = mgAtalhos;
     mgAtalhos = function(){
@@ -21642,7 +21652,7 @@ window.MGKronos = MGKronos;
       if(typeof isAdmin === 'function' && !isAdmin()) return todos;
       const porV = {};
       todos.forEach(a => { porV[a.v] = a });
-      return VITRINE.map(v => porV[v]).filter(Boolean)
+      return ['tasks', 'clientes', 'docs', 'chat'].map(v => porV[v]).filter(Boolean)
                     .map(a => NOMES[a.v] ? {...a, label: NOMES[a.v]} : a);
     };
   }
@@ -22025,6 +22035,592 @@ window.MGKronos = MGKronos;
       return r;
     };
   });
+})();
+</script>
+
+<script>
+/* =====================================================================
+   SEÇÃO · BRIEFING · menos obrigatório, comando no chat e documento no
+   canal do cliente
+
+   Três mudanças, nesta ordem de importância:
+
+   1. Só a verba do mês é obrigatória. O período era exigido junto e
+      travava quem ainda não tinha data fechada. O resto do formulário
+      continua ali, agora como convite e não como pedágio.
+
+   2. O briefing abre por comando no MGP Chat: /briefing.
+
+   3. Ao enviar, além da demanda que já era criada, o briefing vira um
+      documento e é publicado no canal da empresa, dentro do MGP Chat.
+
+   Sobre o formato do documento: ele sai em HTML autocontido, com estilo
+   de impressão e um botão "Salvar em PDF" que chama a impressão do
+   navegador. Gerar o PDF do lado do servidor exigiria uma biblioteca
+   externa ou uma Edge Function, e nenhuma das duas foi verificada aqui;
+   prometer PDF sem ter testado seria pior do que entregar o documento
+   que abre, imprime e fica salvo na conversa.
+   ===================================================================== */
+(function(){
+
+  /* ---------- 1. só a verba é obrigatória ---------- */
+  if(typeof mgBFRevisar === 'function'){
+    window.mgBFRevisar = function(){
+      if(!Number(MG_BF.verba_total)){
+        toast('A verba total do mês é o único campo obrigatório (seção 02)');
+        const el = document.getElementById('mg-bf-verba');
+        if(el){ el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}) }
+        return;
+      }
+      MG_BF_TELA = 'resumo'; mgBFDesenhar(); window.scrollTo({top:0, behavior:'smooth'});
+    };
+  }
+
+  /* ---------- 2. aproveita o último briefing da mesma empresa ----------
+     Não copia número: verba e datas são sempre do mês novo. O que volta
+     é o que costuma se repetir, e isso poupa digitação sem inventar
+     dado do mês que ainda não aconteceu. */
+  const HERDA = ['plataformas', 'campanhas', 'metas', 'apostas', 'observacoes', 'anexos', 'anexos_outros'];
+  async function ultimoBriefing(cid){
+    if(!cid) return null;
+    try{
+      const {data, error} = await sb.from('briefings')
+        .select('dados, created_at').eq('client_id', cid)
+        .order('created_at', {ascending:false}).limit(1);
+      if(error || !data || !data.length) return null;
+      return data[0].dados || null;
+    }catch(e){ return null }
+  }
+  if(typeof mgBFComecar === 'function'){
+    const _c = mgBFComecar;
+    window.mgBFComecar = async function(clientId){
+      const r = _c(clientId);
+      const antes = await ultimoBriefing(MG_BF_CLI);
+      if(!antes || MG_BF_TELA !== 'form') return r;
+      HERDA.forEach(k=>{
+        const v = antes[k];
+        if(v == null) return;
+        if(Array.isArray(v) && !v.length) return;
+        if(typeof v === 'string' && !v.trim()) return;
+        MG_BF[k] = JSON.parse(JSON.stringify(v));
+      });
+      /* verba herdada é verba do mês passado: zera para não passar por
+         número deste mês */
+      (MG_BF.plataformas || []).forEach(p => { p.verba = 0 });
+      MG_BF.__herdado = true;
+      if(typeof mgBFRecalcular === 'function') mgBFRecalcular();
+      mgBFDesenhar();
+      toast('Puxei o que se repete do último briefing desta empresa. Confira e ajuste.');
+      return r;
+    };
+  }
+
+  /* ---------- 3. o documento ---------- */
+  function linhaTab(a, b){
+    return '<tr><td>' + esc(a) + '</td><td class="n">' + esc(b) + '</td></tr>';
+  }
+  function documentoHTML(){
+    const cid   = mgBFCliente();
+    const nome  = MG_BF.marca || clientName(cid) || 'Cliente';
+    const mes   = (typeof mgBFMesCurto === 'function') ? mgBFMesCurto() : '';
+    const plats = (MG_BF.plataformas || []).filter(p => Number(p.verba) > 0);
+    const camps = (MG_BF.campanhas || []).filter(c => (c.nome || '').trim());
+    const metas = (MG_BF.metas || []).filter(m => (m.meta || '').trim());
+    const per = (MG_BF.inicio && MG_BF.fim)
+      ? new Date(MG_BF.inicio + 'T12:00:00').toLocaleDateString('pt-BR') + ' a '
+        + new Date(MG_BF.fim + 'T12:00:00').toLocaleDateString('pt-BR')
+      : 'não informado';
+    const total = Number(MG_BF.verba_total) || 0;
+    const pct = v => total ? Math.round(100 * (Number(v) || 0) / total) + '%' : '—';
+
+    const bloco = (titulo, dentro) => dentro
+      ? '<section><h2>' + esc(titulo) + '</h2>' + dentro + '</section>' : '';
+
+    return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<title>Briefing ' + esc(nome) + ' ' + esc(mes) + '</title><style>'
+      + '*{box-sizing:border-box}'
+      + 'body{margin:0;background:#f4f1ea;color:#23211d;'
+      + "font:15px/1.6 'Hanken Grotesk',system-ui,-apple-system,Segoe UI,sans-serif}"
+      + '.folha{max-width:820px;margin:0 auto;background:#fff;padding:52px 56px 64px;'
+      + 'box-shadow:0 20px 60px -30px rgba(0,0,0,.3)}'
+      + 'header{border-bottom:2px solid #c2a15b;padding-bottom:20px;margin-bottom:30px;'
+      + 'display:flex;align-items:flex-end;justify-content:space-between;gap:20px}'
+      + "h1{font:500 27px/1.2 Georgia,'Times New Roman',serif;margin:0}"
+      + '.sub{font-size:13px;color:#8a8271;margin-top:6px}'
+      + '.selo{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;'
+      + 'color:#9a7b3c;white-space:nowrap}'
+      + "h2{font:500 17px/1.3 Georgia,'Times New Roman',serif;margin:0 0 12px;color:#9a7b3c}"
+      + 'section{margin-bottom:30px}'
+      + '.verba{background:#faf7f0;border:1px solid #e6ded0;border-radius:12px;padding:20px 22px;'
+      + 'display:flex;gap:34px;flex-wrap:wrap}'
+      + '.verba div span{display:block;font-size:11px;letter-spacing:.6px;text-transform:uppercase;'
+      + 'color:#8a8271;margin-bottom:4px}'
+      + '.verba div b{font-size:22px;font-weight:600}'
+      + 'table{width:100%;border-collapse:collapse;font-size:14px}'
+      + 'th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #eee7da}'
+      + 'th{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:#8a8271;font-weight:700}'
+      + 'td.n,th.n{text-align:right;white-space:nowrap}'
+      + 'tfoot td{font-weight:700;border-bottom:0;border-top:2px solid #e6ded0}'
+      + 'p{margin:0 0 10px;white-space:pre-wrap}'
+      + '.rodape{margin-top:40px;padding-top:18px;border-top:1px solid #eee7da;'
+      + 'font-size:11.5px;color:#8a8271;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}'
+      + '.imprimir{position:fixed;right:20px;top:20px;background:#c2a15b;color:#131311;border:0;'
+      + "border-radius:10px;padding:11px 18px;font:600 13px/1 'Hanken Grotesk',system-ui,sans-serif;"
+      + 'cursor:pointer;box-shadow:0 10px 26px -10px rgba(0,0,0,.4)}'
+      + '@media print{body{background:#fff}.folha{box-shadow:none;max-width:none;padding:0}'
+      + '.imprimir{display:none}section{break-inside:avoid}}'
+      + '</style></head><body>'
+      + '<button class="imprimir" onclick="window.print()">Salvar em PDF</button>'
+      + '<div class="folha">'
+      + '<header><div><h1>Briefing de Mídia · ' + esc(nome) + '</h1>'
+        + '<div class="sub">' + esc(mes) + ' · preenchido por ' + esc(MG_BF.responsavel || '—')
+        + ' · ' + esc(new Date().toLocaleDateString('pt-BR')) + '</div></div>'
+        + '<div class="selo">Modesto Growth Partners</div></header>'
+
+      + '<section><h2>Verba e período</h2><div class="verba">'
+        + '<div><span>Verba total do mês</span><b>' + esc(mgBFDinheiro(total)) + '</b></div>'
+        + '<div><span>Período</span><b style="font-size:16px">' + esc(per) + '</b></div>'
+        + '</div></section>'
+
+      + bloco('Distribuição por plataforma', plats.length
+          ? '<table><thead><tr><th>Plataforma</th><th class="n">Verba</th><th class="n">%</th></tr></thead>'
+            + '<tbody>' + plats.map(p => '<tr><td>' + esc(p.nome) + '</td>'
+                + '<td class="n">' + esc(mgBFDinheiro(p.verba)) + '</td>'
+                + '<td class="n">' + esc(pct(p.verba)) + '</td></tr>').join('')
+            + '</tbody><tfoot><tr><td>Total</td>'
+            + '<td class="n">' + esc(mgBFDinheiro(mgBFSomaPlataformas())) + '</td>'
+            + '<td class="n">' + esc(pct(mgBFSomaPlataformas())) + '</td></tr></tfoot></table>'
+          : '<p>A distribuição fica a critério da Modesto.</p>')
+
+      + bloco('Campanhas do mês', camps.length
+          ? '<table><thead><tr><th>Campanha</th><th>Período</th><th>Plataformas</th></tr></thead><tbody>'
+            + camps.map(c => '<tr><td>' + esc(c.nome) + '</td>'
+                + '<td>' + esc([c.inicio, c.fim].filter(Boolean).join(' a ') || '—') + '</td>'
+                + '<td>' + esc(c.plataformas || '—') + '</td></tr>').join('')
+            + '</tbody></table>' : '')
+
+      + bloco('Metas', metas.length
+          ? '<table><thead><tr><th>Métrica</th><th>Meta</th><th>Prioridade</th></tr></thead><tbody>'
+            + metas.map(m => '<tr><td>' + esc(m.metrica) + '</td><td>' + esc(m.meta) + '</td>'
+                + '<td>' + esc(m.prioridade || '—') + '</td></tr>').join('')
+            + '</tbody></table>' : '')
+
+      + bloco('Apostas do mês', (MG_BF.apostas || '').trim() ? '<p>' + esc(MG_BF.apostas) + '</p>' : '')
+      + bloco('Observações', (MG_BF.observacoes || '').trim() ? '<p>' + esc(MG_BF.observacoes) + '</p>' : '')
+      + bloco('Materiais', ((MG_BF.anexos || []).length || (MG_BF.anexos_outros || '').trim())
+          ? '<p>' + esc([...(MG_BF.anexos || []), (MG_BF.anexos_outros || '').trim()]
+              .filter(Boolean).join(' · ')) + '</p>' : '')
+
+      + '<div class="rodape"><span>Documento gerado pela plataforma MGP.</span>'
+        + '<span>' + esc(nome) + ' · ' + esc(mes) + '</span></div>'
+      + '</div></body></html>';
+  }
+
+  /* publica o documento no canal da empresa, dentro do MGP Chat */
+  async function publicarNoCanal(cid, nomeArquivo, conteudo){
+    if(!cid) return {ok:false, motivo:'sem empresa'};
+    try{
+      const {data: canais, error: e1} = await sb.from('channels')
+        .select('id').eq('tipo', 'client').eq('client_id', cid).limit(1);
+      if(e1) throw e1;
+      if(!canais || !canais.length) return {ok:false, motivo:'esta empresa ainda não tem canal no MGP Chat'};
+      const canal = canais[0].id;
+
+      const arq = new Blob([conteudo], {type:'text/html;charset=utf-8'});
+      const id = (crypto.randomUUID ? crypto.randomUUID()
+                                    : Date.now() + '-' + Math.random().toString(16).slice(2));
+      const caminho = cid + '/chat/' + id + '.html';
+      const up = await sb.storage.from('documents').upload(caminho, arq,
+        {upsert:false, contentType:'text/html;charset=utf-8'});
+      if(up.error) throw up.error;
+
+      const {error: e2} = await sb.from('messages').insert({
+        channel_id: canal, author_id: ME.id, author_name: ME.name,
+        body: 'Briefing de mídia enviado.',
+        anexos: [{nome:nomeArquivo, tipo:'text/html', tamanho:arq.size, path:caminho}],
+      });
+      if(e2) throw e2;
+      return {ok:true, canal};
+    }catch(e){
+      return {ok:false, motivo:(e && e.message) || 'erro ao publicar'};
+    }
+  }
+
+  /* ---------- 4. envio: mantém tudo que já fazia e acrescenta o documento ---------- */
+  if(typeof mgBFEnviar === 'function'){
+    const _e = mgBFEnviar;
+    window.mgBFEnviar = async function(){
+      const cid  = mgBFCliente();
+      const nome = (MG_BF.marca || clientName(cid) || 'cliente');
+      const mes  = (typeof mgBFMesCurto === 'function') ? mgBFMesCurto() : '';
+      let doc = null;
+      try{ doc = documentoHTML(); window.__ULTIMO_DOC = doc }
+      catch(err){ console.error('[briefing] documento', err) }
+
+      const r = await _e.apply(this, arguments);
+
+      if(doc){
+        const arquivo = 'Briefing ' + nome + (mes ? ' ' + mes : '') + '.html';
+        const pub = await publicarNoCanal(cid, arquivo, doc);
+        toast(pub.ok ? 'Briefing publicado no canal da empresa no MGP Chat'
+                     : 'Briefing enviado, mas não foi para o chat: ' + pub.motivo);
+      }
+      return r;
+    };
+  }
+
+  /* ---------- 5. /briefing no MGP Chat ---------- */
+  function abrirBriefing(cid){
+    if(typeof showView !== 'function') return;
+    showView('briefing');
+    if(cid && typeof mgBFComecar === 'function') setTimeout(()=>mgBFComecar(cid), 250);
+  }
+  window.mgBFAbrirPeloChat = abrirBriefing;
+
+  /* o comando /briefing já existe na lista; aqui damos o miolo dele */
+  window.mgBFPeloChat = function(){
+    const c = (typeof MGChat !== 'undefined' && MGChat.canalAtual) ? MGChat.canalAtual() : null;
+    const cid = c && c.tipo === 'client' ? c.client_id : null;
+    if(!cid){
+      return MGChat.local('O `/briefing` abre a partir do canal de uma empresa. '
+        + 'Entre no canal do cliente e rode de novo.');
+    }
+    abrirBriefing(cid);
+    return MGChat.local('Abrindo o briefing de **' + clientName(cid) + '**. '
+      + 'A verba do mês é o único campo obrigatório, e ao enviar o documento vem para esta conversa.');
+  };
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · MGP REPORTS · métricas e pacing por cliente
+   ===================================================================== */
+#v-reports{padding:0}
+.mgr{max-width:1120px;margin:0 auto;padding:24px 22px 120px;display:flex;flex-direction:column;gap:22px}
+.mgr-topo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mgr-topo h1{font-family:var(--font-d);font-size:24px;font-weight:500;flex:1}
+.mgr-topo select{background:var(--card);border:1px solid var(--line2);border-radius:10px;
+  padding:9px 13px;font-family:inherit;font-size:13.5px;color:var(--text);min-width:190px}
+.mgr-topo .quando{font-size:12px;color:var(--muted2)}
+
+.mgr-num{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.mgr-n{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:16px 18px}
+.mgr-n span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--muted2);margin-bottom:7px}
+.mgr-n b{font-size:24px;font-weight:600;font-family:var(--font-d);letter-spacing:-.3px}
+.mgr-n .pe{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+.mgr-n.bom b{color:#2E9E6B} .mgr-n.ruim b{color:var(--danger)}
+
+.mgr-bloco{background:var(--card);border:1px solid var(--line2);border-radius:16px;overflow:hidden}
+.mgr-bloco > header{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
+.mgr-bloco > header h2{font-family:var(--font-d);font-size:16px;font-weight:500;flex:1}
+.mgr-bloco > header .n{font-size:11.5px;font-weight:600;color:var(--muted);
+  background:var(--card2);border-radius:20px;padding:3px 11px}
+.mgr-tab{width:100%;border-collapse:collapse;font-size:13px}
+.mgr-tab th,.mgr-tab td{text-align:left;padding:10px 20px;border-bottom:1px solid var(--line)}
+.mgr-tab th{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2)}
+.mgr-tab td.n,.mgr-tab th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mgr-tab tr:last-child td{border-bottom:0}
+.mgr-vazio{padding:24px 20px;font-size:13px;color:var(--muted);line-height:1.65}
+.mgr-vazio b{color:var(--text)}
+
+.mgr-barra{height:7px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:8px}
+.mgr-barra i{display:block;height:100%;border-radius:4px;background:var(--brass)}
+.mgr-barra i.acima{background:#D95D39}
+
+.mgr-aviso{background:var(--card2);border:1px dashed var(--line2);border-radius:14px;padding:18px 20px;
+  font-size:13px;color:var(--muted);line-height:1.7}
+.mgr-aviso b{color:var(--text)}
+.mgr-aviso ul{margin:9px 0 0;padding-left:19px}
+.mgr-aviso li{margin-bottom:5px}
+@media(max-width:640px){
+  .mgr{padding:16px 13px 120px}
+  .mgr-tab th,.mgr-tab td{padding:9px 13px}
+  .mgr-tab .oculta-cel{display:none}
+}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · MGP REPORTS · métricas e pacing por cliente
+
+   A aba junta num lugar só o que a plataforma já sabe sobre a
+   performance de cada empresa: o pacing diário, o plano de mídia e os
+   relatórios publicados. Ela lê as tabelas `pacing` e `media_plans`,
+   que já existiam e estavam fora do menu.
+
+   Um aviso honesto, porque muda o que dá para esperar da tela: hoje a
+   tabela de pacing está vazia e não existe nada alimentando ela. Para o
+   relatório diário automático funcionar de verdade faltam duas coisas
+   que não estão no código:
+
+     · uma entrada de dados das plataformas de mídia (Meta, Google,
+       TikTok) escrevendo em `pacing`;
+     · a chave da Anthropic no projeto, para o Kronos ler esses números
+       e escrever o relatório.
+
+   Enquanto isso, a tela mostra o que houver e diz na cara o que falta,
+   em vez de exibir número inventado.
+   ===================================================================== */
+(function(){
+  if(typeof NAV === 'undefined') return;
+
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-reports')){
+    const d = document.createElement('div');
+    d.className = 'view'; d.id = 'v-reports';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n => n.v === 'reports')){
+    const i = NAV.findIndex(n => n.v === 'chat');
+    NAV.splice(i < 0 ? NAV.length : i + 1, 0,
+      {v:'reports', ic:'◔', label:'MGP Reports', admin:true});
+  }
+
+  let MGR_CLI  = null;    /* empresa escolhida        */
+  let MGR_PC   = null;    /* linhas de pacing         */
+  let MGR_PL   = null;    /* plano de mídia           */
+  let MGR_ERRO = null;
+  let MGR_LENDO = false;
+
+  function empresas(){
+    return (typeof CLIENTS !== 'undefined' ? CLIENTS : []).slice()
+      .sort((a,b)=> String(a.nome||'').localeCompare(String(b.nome||'')));
+  }
+  function dinheiro(v, moeda){
+    const n = Number(v) || 0;
+    try{ return n.toLocaleString('pt-BR', {style:'currency', currency:moeda||'BRL', maximumFractionDigits:0}) }
+    catch(e){ return 'R$ ' + n.toLocaleString('pt-BR', {maximumFractionDigits:0}) }
+  }
+  function numero(v){ return (Number(v)||0).toLocaleString('pt-BR', {maximumFractionDigits:0}) }
+
+  async function carregar(cid){
+    if(!cid){ MGR_PC = []; MGR_PL = null; return }
+    MGR_LENDO = true; MGR_ERRO = null; desenhar();
+    try{
+      const desde = new Date(Date.now() - 60*86400000).toISOString().slice(0,10);
+      const [pc, pl] = await Promise.all([
+        sb.from('pacing').select('*').eq('client_id', cid).gte('dia', desde)
+          .order('dia', {ascending:false}).limit(90),
+        sb.from('media_plans').select('plano, atualizado_em').eq('client_id', cid).limit(1),
+      ]);
+      if(pc.error) throw pc.error;
+      MGR_PC = pc.data || [];
+      MGR_PL = (pl.data && pl.data.length) ? pl.data[0] : null;
+    }catch(e){
+      MGR_ERRO = (e && e.message) || 'não foi possível ler';
+      MGR_PC = []; MGR_PL = null;
+    }finally{
+      MGR_LENDO = false; desenhar();
+    }
+  }
+
+  /* último dia com dado, que é o retrato mais recente do mês */
+  function ultimo(){ return (MGR_PC && MGR_PC.length) ? MGR_PC[0] : null }
+
+  function investidoDe(linha){
+    return (linha.canais || []).reduce((s,c)=> s + (Number(c.investido) || 0), 0);
+  }
+
+  function numerosHTML(){
+    const l = ultimo();
+    if(!l) return '';
+    const inv = investidoDe(l);
+    const rec = Number(l.receita) || 0;
+    /* ROAS gravado quando existe; senão calculado, e só se houver investimento */
+    const roas = (l.roas != null && l.roas !== '') ? Number(l.roas) : (inv > 0 ? rec / inv : null);
+    const piso = (l.roas_piso != null && l.roas_piso !== '') ? Number(l.roas_piso) : null;
+    const dias = Number(l.dias_fechados) || 0;
+    const noMes = Number(l.dias_no_mes) || 0;
+    /* ritmo: quanto do mês já passou contra quanto da verba já saiu.
+       Sem verba planejada no plano, não dá para afirmar ritmo: fica '—'. */
+    const plano = MGR_PL && MGR_PL.plano ? Number(MGR_PL.plano.verba_total) || 0 : 0;
+    const pctMes = noMes ? dias / noMes : null;
+    const pctVerba = plano ? inv / plano : null;
+
+    const cartao = (rot, val, pe, cls) =>
+      '<div class="mgr-n ' + (cls||'') + '"><span>' + esc(rot) + '</span><b>' + esc(val) + '</b>'
+      + (pe ? '<span class="pe">' + pe + '</span>' : '') + '</div>';
+
+    return '<div class="mgr-num">'
+      + cartao('Investido', dinheiro(inv, l.moeda),
+          noMes ? esc(dias + ' de ' + noMes + ' dias fechados') : '')
+      + cartao('Receita', rec ? dinheiro(rec, l.moeda) : '—',
+          l.pedidos ? esc(numero(l.pedidos) + ' pedidos') : '')
+      + cartao('ROAS', roas == null ? '—' : roas.toFixed(2).replace('.', ','),
+          piso ? 'piso ' + esc(piso.toFixed(2).replace('.', ',')) : '',
+          (roas != null && piso) ? (roas >= piso ? 'bom' : 'ruim') : '')
+      + cartao('Ritmo da verba',
+          (pctMes == null || pctVerba == null) ? '—' : Math.round(pctVerba * 100) + '%',
+          (pctMes == null || pctVerba == null)
+            ? 'sem verba planejada no plano'
+            : esc(Math.round(pctMes * 100) + '% do mês passou')
+              + '<div class="mgr-barra"><i class="' + (pctVerba > pctMes ? 'acima' : '')
+              + '" style="width:' + Math.min(100, Math.round(pctVerba * 100)) + '%"></i></div>')
+      + '</div>';
+  }
+
+  function canaisHTML(){
+    const l = ultimo();
+    const canais = l ? (l.canais || []) : [];
+    if(!canais.length) return '';
+    const total = investidoDe(l) || 1;
+    return '<section class="mgr-bloco"><header><h2>Por canal</h2>'
+      + '<span class="n">' + canais.length + '</span></header>'
+      + '<table class="mgr-tab"><thead><tr><th>Canal</th><th class="n">Investido</th>'
+      + '<th class="n">% da verba</th></tr></thead><tbody>'
+      + canais.map(c => '<tr><td>' + esc(c.canal || '—') + '</td>'
+          + '<td class="n">' + esc(dinheiro(c.investido, l.moeda)) + '</td>'
+          + '<td class="n">' + Math.round(100 * (Number(c.investido)||0) / total) + '%</td></tr>').join('')
+      + '</tbody></table></section>';
+  }
+
+  function diasHTML(){
+    if(!MGR_PC || MGR_PC.length < 2) return '';
+    const l = ultimo();
+    return '<section class="mgr-bloco"><header><h2>Últimos dias</h2>'
+      + '<span class="n">' + MGR_PC.length + ' envios</span></header>'
+      + '<table class="mgr-tab"><thead><tr><th>Dia</th><th class="n">Investido</th>'
+      + '<th class="n oculta-cel">Receita</th><th class="n">ROAS</th></tr></thead><tbody>'
+      + MGR_PC.slice(0, 14).map(r=>{
+          const inv = investidoDe(r), rec = Number(r.receita) || 0;
+          const ro = (r.roas != null && r.roas !== '') ? Number(r.roas) : (inv > 0 ? rec / inv : null);
+          return '<tr><td>' + esc(new Date(r.dia + 'T12:00:00').toLocaleDateString('pt-BR')) + '</td>'
+            + '<td class="n">' + esc(dinheiro(inv, r.moeda)) + '</td>'
+            + '<td class="n oculta-cel">' + (rec ? esc(dinheiro(rec, r.moeda)) : '—') + '</td>'
+            + '<td class="n">' + (ro == null ? '—' : esc(ro.toFixed(2).replace('.', ','))) + '</td></tr>';
+        }).join('')
+      + '</tbody></table></section>';
+  }
+
+  function relatoriosHTML(){
+    if(!MGR_CLI) return '';
+    const docs = (typeof DOCS !== 'undefined' ? DOCS : [])
+      .filter(d => d.client_id === MGR_CLI)
+      .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 10);
+    return '<section class="mgr-bloco"><header><h2>Relatórios publicados</h2>'
+      + '<span class="n">' + docs.length + '</span></header>'
+      + (docs.length
+          ? '<table class="mgr-tab"><tbody>' + docs.map(d=>
+              '<tr><td><b>' + esc(d.titulo || 'documento') + '</b></td>'
+              + '<td class="oculta-cel">' + esc(docTipo(d.tipo).label) + '</td>'
+              + '<td class="n">' + esc(docDate(d.created_at)) + '</td></tr>').join('')
+            + '</tbody></table>'
+          : '<div class="mgr-vazio">Nenhum relatório publicado para esta empresa ainda.</div>')
+      + '</section>';
+  }
+
+  function faltaHTML(){
+    const semChave = !window.MGKronos || !MGKronos.ligado();
+    return '<div class="mgr-aviso">'
+      + '<b>Relatório diário automático</b><br>'
+      + 'A ideia é o Kronos ler estes números todo dia e escrever o relatório sozinho, '
+      + 'publicando no canal da empresa no MGP Chat. Para isso faltam duas coisas, e '
+      + 'nenhuma delas está no código da plataforma:'
+      + '<ul>'
+      + '<li>Uma entrada de dados das plataformas de mídia escrevendo na tabela '
+        + '<b>pacing</b>. Hoje ela só recebe envio manual.</li>'
+      + '<li>' + (semChave
+          ? 'A chave <b>ANTHROPIC_API_KEY</b> no projeto do Supabase. Sem ela o Kronos não roda.'
+          : 'A chave da Anthropic já está no projeto, então esta parte está pronta.') + '</li>'
+      + '</ul>'
+      + 'Até lá esta tela mostra o que houver de verdade e nada além disso.'
+      + '</div>';
+  }
+
+  function corpoHTMLReports(){
+    const emp = empresas();
+    const atual = emp.find(c => c.id === MGR_CLI);
+    const seletor = '<select onchange="mgReportsCliente(this.value)">'
+      + '<option value="">Escolha uma empresa</option>'
+      + emp.map(c => '<option value="' + esc(c.id) + '"' + (c.id === MGR_CLI ? ' selected' : '') + '>'
+          + esc(c.nome) + '</option>').join('')
+      + '</select>';
+
+    let miolo;
+    if(!MGR_CLI){
+      miolo = '<div class="mgr-bloco"><div class="mgr-vazio">'
+        + 'Escolha uma empresa acima para ver o pacing, os números do mês e os relatórios dela.'
+        + '</div></div>';
+    }else if(MGR_LENDO){
+      miolo = '<div class="mgr-bloco"><div class="mgr-vazio">'
+        + '<span class="mg-pontinhos">carregando os números</span></div></div>';
+    }else if(MGR_ERRO){
+      miolo = '<div class="mgr-bloco"><div class="mgr-vazio">'
+        + '<b>Não foi possível ler os números.</b><br>' + esc(MGR_ERRO) + '</div></div>';
+    }else if(!MGR_PC || !MGR_PC.length){
+      miolo = '<div class="mgr-bloco"><div class="mgr-vazio">'
+        + '<b>Sem dados de pacing para ' + esc(atual ? atual.nome : 'esta empresa') + '.</b><br>'
+        + 'A tabela de pacing não recebeu nenhum envio desta empresa nos últimos 60 dias.'
+        + '</div></div>' + relatoriosHTML();
+    }else{
+      const l = ultimo();
+      miolo = numerosHTML() + canaisHTML() + diasHTML() + relatoriosHTML();
+      miolo = '<div class="mgr-topo" style="margin:-6px 0 0"><span class="quando">'
+        + 'Retrato de ' + esc(new Date(l.dia + 'T12:00:00').toLocaleDateString('pt-BR'))
+        + (l.conta ? ' · conta ' + esc(l.conta) : '') + '</span></div>' + miolo;
+    }
+
+    return '<div class="mgr">'
+      + '<div class="mgr-topo"><h1>MGP Reports</h1>' + seletor + '</div>'
+      + miolo
+      + faltaHTML()
+      + '</div>';
+  }
+
+  function desenhar(){
+    const el = document.getElementById('v-reports'); if(!el) return;
+    try{ el.innerHTML = corpoHTMLReports() }
+    catch(e){
+      console.error('[reports]', e);
+      el.innerHTML = '<div class="mgr"><div class="mgr-bloco"><div class="mgr-vazio">'
+        + 'Não foi possível montar esta tela agora.</div></div></div>';
+    }
+  }
+  window.mgReportsCliente = function(cid){ MGR_CLI = cid || null; carregar(MGR_CLI) };
+  window.renderReports = desenhar;
+
+  const _sv = showView;
+  showView = function(v){
+    if(v === 'reports'){
+      if(typeof isAdmin === 'function' && !isAdmin()) return _sv('portal');
+      VIEW = 'reports';
+      document.querySelectorAll('.nav-i').forEach(b => b.classList.toggle('on', b.dataset.v === 'reports'));
+      document.querySelectorAll('.content > .view').forEach(el => el.classList.remove('on'));
+      const el = document.getElementById('v-reports'); if(el) el.classList.add('on');
+      const t = document.getElementById('view-title'); if(t) t.textContent = 'MGP Reports';
+      document.body.classList.remove('mg-tasks', 'mg-e-chat');
+      document.body.classList.add('mg-sem-tarefas');
+      desenhar();
+      if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+      return;
+    }
+    return _sv(v);
+  };
+  const _rd = render;
+  render = function(){
+    if(VIEW === 'reports') return desenhar();
+    return _rd();
+  };
+
+  /* entra na vitrine do Início, como quinto módulo */
+  if(typeof mgAtalhos === 'function'){
+    const _a = mgAtalhos;
+    mgAtalhos = function(){
+      const l = _a();
+      if(typeof isAdmin === 'function' && !isAdmin()) return l;
+      if(l.some(a => a.v === 'reports')) return l;
+      return l.concat([{v:'reports', ic:'◔', label:'MGP Reports',
+                        ds:'Pacing e métricas de cada cliente'}]);
+    };
+  }
+  if(typeof MG_TONS === 'object' && MG_TONS){
+    MG_TONS.reports = {tom:'#8E3FBE', chip:'rgba(142,63,190,.14)', borda:'rgba(142,63,190,.45)',
+                       fraco:'rgba(142,63,190,.09)', sombra:'rgba(142,63,190,.34)'};
+  }
+  try{ if(typeof buildNav === 'function') buildNav() }catch(e){}
 })();
 </script>
 

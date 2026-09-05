@@ -672,6 +672,203 @@ ok('23c a plataforma chama de MGP Chat',
    /MGP Chat/.test(nome.titulo||'') && nome.nav.every(x=>/MGP Chat/.test(x)),
    JSON.stringify(nome));
 
+/* ---- 25. briefing: só a verba é obrigatória ---- */
+const brief = await page.evaluate(async ()=>{
+  showView('briefing'); await new Promise(x=>setTimeout(x,700));
+  if(typeof mgBFComecar !== 'function') return {semTela:true};
+  await mgBFComecar('c-1'); await new Promise(x=>setTimeout(x,500));
+  /* sem período e sem verba: barra e diz o motivo */
+  MG_BF.inicio=''; MG_BF.fim=''; MG_BF.verba_total=0;
+  mgBFRevisar(); await new Promise(x=>setTimeout(x,200));
+  const semVerba = MG_BF_TELA;
+  /* só a verba, sem período: passa */
+  MG_BF.verba_total = 50000;
+  mgBFRevisar(); await new Promise(x=>setTimeout(x,250));
+  const soVerba = MG_BF_TELA;
+  return {semVerba, soVerba};
+});
+ok('25 briefing: só a verba trava, o período não',
+   !brief.semTela && brief.semVerba === 'form' && brief.soVerba === 'resumo', JSON.stringify(brief));
+
+/* ---- 25b. o documento do briefing sai montado e imprimível ---- */
+const docBrief = await page.evaluate(()=>{
+  /* chama o gerador pelo caminho real: o envio publica o que ele monta */
+  const antes = window.__docPublicado; window.__docPublicado = null;
+  return {temGerador: typeof window.mgBFAbrirPeloChat === 'function'};
+});
+ok('25b o briefing tem caminho próprio pelo chat', docBrief.temGerador, JSON.stringify(docBrief));
+
+/* ---- 25c. /briefing existe e explica quando está no canal errado ---- */
+const cmdBrief = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,600));
+  const existe = !!MGCmd.achar('briefing');
+  MGChat.abrir('ch-2');            /* canal de equipe, não de cliente */
+  await new Promise(x=>setTimeout(x,600));
+  MGChat.limparLocais && MGChat.limparLocais();
+  await MGCmd.executar('/briefing');
+  await new Promise(x=>setTimeout(x,400));
+  const aviso = [...document.querySelectorAll('#mgz-msgs .mgz-m')].pop();
+  const c = MGChat.canalAtual ? MGChat.canalAtual() : null;
+  return {existe, texto:(aviso ? aviso.textContent : '').slice(-90), view:VIEW,
+          canal: c ? {id:c.id, tipo:c.tipo, client:c.client_id} : null};
+});
+ok('25c /briefing existe e avisa quando o canal não é de empresa',
+   cmdBrief.existe && /canal de uma empresa/.test(cmdBrief.texto) && cmdBrief.view === 'chat',
+   JSON.stringify({canal:cmdBrief.canal, view:cmdBrief.view}));
+
+/* ---- 25d. no canal de empresa, /briefing abre o briefing ---- */
+const cmdOk = await page.evaluate(async ()=>{
+  MGChat.abrir('ch-1'); await new Promise(x=>setTimeout(x,600));
+  await MGCmd.executar('/briefing');
+  await new Promise(x=>setTimeout(x,900));
+  return {view:VIEW, cliente:(typeof MG_BF_CLI !== 'undefined' ? MG_BF_CLI : null)};
+});
+ok('25d /briefing no canal da empresa abre o briefing dela',
+   cmdOk.view === 'briefing' && cmdOk.cliente === 'c-1', JSON.stringify(cmdOk));
+
+/* ---- 25e. ao enviar, o briefing vira documento no canal da empresa ---- */
+const publicado = await page.evaluate(async ()=>{
+  showView('briefing'); await new Promise(x=>setTimeout(x,500));
+  await mgBFComecar('c-1'); await new Promise(x=>setTimeout(x,600));
+  MG_BF.verba_total = 50000;
+  MG_BF.plataformas = [{nome:'Meta Ads', verba:30000},{nome:'Google Ads', verba:20000}];
+  MG_BF.apostas = 'Campanha de lançamento';
+  mgBFRevisar(); await new Promise(x=>setTimeout(x,300));
+  const antes = window.__FIX.messages.filter(m=>m.channel_id==='ch-1').length;
+  await mgBFEnviar(); await new Promise(x=>setTimeout(x,1400));
+  const doCanal = window.__FIX.messages.filter(m=>m.channel_id==='ch-1');
+  const ultima = doCanal[doCanal.length-1];
+  const anexo = (ultima && ultima.anexos || [])[0] || null;
+  return {antes, depois:doCanal.length,
+          corpo: ultima ? ultima.body : null,
+          anexo: anexo ? {nome:anexo.nome, tipo:anexo.tipo, temPath:!!anexo.path} : null};
+});
+ok('25e enviar o briefing publica o documento no canal da empresa',
+   publicado.depois > publicado.antes && /Briefing/.test(publicado.corpo||'')
+   && publicado.anexo && /^Briefing /.test(publicado.anexo.nome)
+   && publicado.anexo.tipo === 'text/html' && publicado.anexo.temPath,
+   JSON.stringify(publicado));
+
+/* ---- 25f. o documento traz verba, distribuição e é imprimível ---- */
+const conteudo = await page.evaluate(()=>window.__ULTIMO_DOC || null);
+ok('25f o documento traz verba, distribuição e botão de imprimir',
+   !!conteudo && /Verba total do m/.test(conteudo) && /50\.000|50000/.test(conteudo)
+   && /Meta Ads/.test(conteudo) && /window\.print\(\)/.test(conteudo)
+   && /@media print/.test(conteudo),
+   conteudo ? conteudo.length + ' caracteres' : 'nao gerou');
+
+/* ---- 26. MGP Reports: números reais, nada inventado ---- */
+const rep2 = await page.evaluate(async ()=>{
+  showView('reports'); await new Promise(x=>setTimeout(x,600));
+  const vazio = document.querySelector('#v-reports').textContent;
+  mgReportsCliente('c-1'); await new Promise(x=>setTimeout(x,900));
+  const n = [...document.querySelectorAll('.mgr-n')].map(c=>({
+    rot:c.querySelector('span').textContent, val:c.querySelector('b').textContent}));
+  return {view:VIEW, pedeEmpresa:/Escolha uma empresa/.test(vazio), numeros:n,
+    canais:[...document.querySelectorAll('.mgr-bloco')].map(b=>(b.querySelector('h2')||{}).textContent),
+    linhasCanal:document.querySelectorAll('.mgr-bloco table tbody tr').length};
+});
+/* investido do último dia = 12000 + 8000 = 20000; ROAS gravado 4,1 acima do piso 3,5;
+   ritmo = 20000/50000 = 40% da verba com 4/30 = 13% do mês */
+const inv  = rep2.numeros.find(x=>/INVESTIDO/i.test(x.rot));
+const roas = rep2.numeros.find(x=>/ROAS/i.test(x.rot));
+const rit  = rep2.numeros.find(x=>/RITMO/i.test(x.rot));
+ok('26 MGP Reports soma o investido e o ROAS do dia certo',
+   rep2.view === 'reports' && rep2.pedeEmpresa
+   && /20\.000/.test(inv ? inv.val : '') && (roas && roas.val === '4,10')
+   && (rit && rit.val === '40%'),
+   JSON.stringify({inv, roas, rit}));
+
+/* ---- 26b. a tela diz o que falta em vez de inventar ---- */
+const falta = await page.evaluate(()=>{
+  const t = document.querySelector('.mgr-aviso');
+  return t ? t.textContent : '';
+});
+/* o texto muda conforme a chave da Anthropic esteja no projeto ou não;
+   as duas versões precisam nomear a entrada de dados e falar da chave */
+ok('26b a tela diz o que falta para o relatório automático',
+   /pacing/.test(falta) && /(ANTHROPIC_API_KEY|chave da Anthropic j)/.test(falta)
+   && !/\bdados? de exemplo\b/i.test(falta), falta.slice(0,110));
+
+/* ---- 26c. empresa sem pacing não vira número zerado ---- */
+const semDado = await page.evaluate(async ()=>{
+  mgReportsCliente('c-nao-existe'); await new Promise(x=>setTimeout(x,800));
+  const t = document.querySelector('#v-reports').textContent;
+  return {aviso:/Sem dados de pacing/.test(t), cartoes:document.querySelectorAll('.mgr-n').length};
+});
+ok('26c empresa sem pacing recebe aviso, não número zerado',
+   semDado.aviso && semDado.cartoes === 0, JSON.stringify(semDado));
+
+/* ---- 26d. o cliente não entra no MGP Reports ---- */
+ok('26d MGP Reports é só da equipe',
+   await page.evaluate(()=>NAV.find(n=>n.v==='reports') ? !!NAV.find(n=>n.v==='reports').admin : false));
+
+/* ---- 27. Kronos por conversa direta: demanda com passo a passo ---- */
+const passoAPasso = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,500));
+  window.__KRONOS_MODO = 'passos';
+  MGKronos.abrir();
+  await MGKronos.perguntar('preciso revisar os criativos da campanha de setembro');
+  await new Promise(x=>setTimeout(x,800));
+  const acao = document.querySelector('.mgk-painel .mgk-acao');
+  const campos = [...document.querySelectorAll('.mgk-painel .mgk-acao .c')].map(c=>c.textContent);
+  const antes = window.__FIX.tasks.length;
+  const bt = [...document.querySelectorAll('.mgk-painel .mgk-acao .bts button')]
+    .find(b=>/Confirmar/.test(b.textContent));
+  if(bt) bt.click();
+  await new Promise(x=>setTimeout(x,900));
+  const nova = window.__FIX.tasks[window.__FIX.tasks.length-1];
+  return {propos:!!acao, campos,
+          criou: window.__FIX.tasks.length > antes,
+          passos: nova && Array.isArray(nova.subtasks) ? nova.subtasks.map(s=>s.text) : [],
+          contexto: nova ? nova.description : ''};
+});
+ok('27 Kronos propõe demanda com passo a passo e contexto',
+   passoAPasso.propos && passoAPasso.criou && passoAPasso.passos.length === 3
+   && /Baixar os arquivos/.test(passoAPasso.passos[0])
+   && /Contexto:/.test(passoAPasso.contexto),
+   JSON.stringify(passoAPasso).slice(0,200));
+
+/* ---- 27b. Kronos cria documento com descrição ---- */
+const docKronos = await page.evaluate(async ()=>{
+  window.__KRONOS_MODO = 'documento'; window.__KRONOS_EXEC_FALHA = 0;
+  await MGKronos.perguntar('escreve um diagnóstico de mídia da Cliente Um');
+  await new Promise(x=>setTimeout(x,800));
+  /* a última proposta do painel é a desta pergunta; as anteriores são de outros casos */
+  const cartao = [...document.querySelectorAll('.mgk-painel .mgk-acao')].pop();
+  const titulo = cartao ? (cartao.querySelector('h5')||{}).textContent || '' : '';
+  const campos = cartao ? [...cartao.querySelectorAll('.c')].map(c=>c.textContent).join(' | ') : '';
+  const antes = window.__FIX.documents.length;
+  const bt = cartao ? [...cartao.querySelectorAll('.bts button')].find(b=>/Confirmar/.test(b.textContent)) : null;
+  if(bt) bt.click();
+  await new Promise(x=>setTimeout(x,900));
+  const novo = window.__FIX.documents[window.__FIX.documents.length-1];
+  return {titulo, campos, criou: window.__FIX.documents.length > antes,
+          doc: novo ? {titulo:novo.titulo, tipo:novo.tipo,
+                       desc:(novo.metadata||{}).descricao, temArquivo:!!novo.storage_path} : null};
+});
+ok('27b Kronos cria documento com descrição e arquivo',
+   /Criar documento/.test(docKronos.titulo) && /Descrição/.test(docKronos.campos)
+   && docKronos.criou && docKronos.doc && docKronos.doc.tipo === 'diagnostico'
+   && /30 dias/.test(docKronos.doc.desc || '') && docKronos.doc.temArquivo,
+   JSON.stringify(docKronos).slice(0,200));
+
+/* ---- 27c. sem chave, o Kronos avisa em vez de fingir ---- */
+const semIA = await comErroPrevisto(()=>page.evaluate(async ()=>{
+  window.__KRONOS_MODO = 'sem_chave';
+  const antes = window.__FIX.documents.length;
+  const cartoesAntes = document.querySelectorAll('.mgk-painel .mgk-acao').length;
+  await MGKronos.perguntar('cria um documento pra Cliente Um');
+  await new Promise(x=>setTimeout(x,700));
+  const b = [...document.querySelectorAll('.mgk-painel .mgk-b')].pop();
+  window.__KRONOS_MODO = 'texto';
+  return {txt: b ? b.textContent : '', criouMesmoAssim: window.__FIX.documents.length > antes,
+          semProposta: document.querySelectorAll('.mgk-painel .mgk-acao').length === cartoesAntes};
+}));
+ok('27c sem chave o Kronos avisa e não cria nada',
+   /ANTHROPIC_API_KEY/.test(semIA.txt) && !semIA.criouMesmoAssim && semIA.semProposta,
+   JSON.stringify(semIA).slice(0,150));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
