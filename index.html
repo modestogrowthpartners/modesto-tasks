@@ -214,7 +214,17 @@
      script-src ainda é obrigatório porque o arquivo usa handlers onclick em
      toda parte; sair disso exige delegação de evento e é trabalho à parte.
      Não há 'unsafe-eval': o único eval do arquivo foi removido. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://eeqaabwsheaiwyhujcqj.supabase.co wss://eeqaabwsheaiwyhujcqj.supabase.co; frame-src 'self' data: blob:; worker-src 'self' blob:">
+<!-- O GitHub Pages não deixa definir cabeçalho HTTP, então só entra aqui
+     o que a tag meta realmente aplica: Referrer-Policy e, dentro da CSP,
+     upgrade-insecure-requests.
+
+     O que NÃO dá para fazer daqui, e o navegador confirma com aviso no
+     console: frame-ancestors e X-Frame-Options são ignorados em meta, e
+     HSTS também. Proteção contra enquadramento em iframe e HSTS dependem
+     de cabeçalho HTTP, que só o servidor manda. O Pages já força HTTPS e
+     envia HSTS quando o domínio está com "Enforce HTTPS" ligado. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://eeqaabwsheaiwyhujcqj.supabase.co wss://eeqaabwsheaiwyhujcqj.supabase.co; frame-src 'self' data: blob:; worker-src 'self' blob:; upgrade-insecure-requests">
 <title>Modesto Tasks — Gestão de Demandas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -19673,6 +19683,25 @@ function citacaoHTML(m){
       navegador baixar a própria página de novo, e esta página tem
       mais de 1 MB.
    ---------------------------------------------------------------- */
+/* Espelho da lista allowed_mime_types do bucket `documents`. */
+const MG_TIPOS_OK = new Set([
+  'image/png','image/jpeg','image/gif','image/webp','image/avif',
+  'application/pdf','text/html','text/plain','text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel','application/vnd.ms-powerpoint','application/msword',
+  'application/zip','application/json',
+]);
+const MG_EXT_OK = /\.(png|jpe?g|gif|webp|avif|pdf|html?|txt|csv|xlsx?|pptx?|docx?|zip|json)$/i;
+function mgTipoPermitido(f){
+  const t = String(f && f.type || '').toLowerCase().split(';')[0].trim();
+  if(t && MG_TIPOS_OK.has(t)) return true;
+  /* alguns navegadores mandam type vazio; aí vale a extensão, e o banco
+     ainda confere do lado de lá */
+  return !t && MG_EXT_OK.test(String(f && f.name || ''));
+}
+
 function ehPDF(a){
   return /^application\/pdf$/i.test(a && a.tipo || '') || /\.pdf$/i.test(a && a.nome || '');
 }
@@ -20253,6 +20282,15 @@ function escolherArquivo(onde){
   inp.onchange = e=>{
     [...e.target.files].forEach(f=>{
       if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
+      /* O bucket passou a recusar tipo fora da lista. Conferir aqui antes
+         é o que separa um aviso legível de um erro cru do storage no meio
+         do envio. A lista é a mesma do banco, de propósito: se divergir,
+         quem manda é o banco e a tela vira mentira. */
+      if(!mgTipoPermitido(f)){
+        toast('"' + f.name + '" não é um tipo aceito. '
+            + 'Envie imagem, PDF, HTML, planilha, apresentação, documento ou zip.');
+        return;
+      }
       const item = {nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f, previa:null};
       /* miniatura local, feita do próprio arquivo: aparece na hora, antes
          de qualquer viagem até o servidor */
@@ -20285,8 +20323,13 @@ async function subirArquivos(itens, aviso){
     const up = await sb.storage.from('documents').upload(path, f.arquivo, {upsert:false});
     if(up.error){
       const m = up.error.message || '';
-      throw new Error(/row-level security|not authorized|denied/i.test(m)
-        ? 'o banco não deixou enviar arquivo nesta conversa'
+      throw new Error(
+        /row-level security|not authorized|denied/i.test(m)
+          ? 'o banco não deixou enviar arquivo nesta conversa'
+        : /mime type|not allowed|invalid_mime/i.test(m)
+          ? '"' + f.nome + '" é de um tipo que o acervo não aceita'
+        : /maximum allowed size|payload too large|entity too large/i.test(m)
+          ? '"' + f.nome + '" passa do tamanho máximo de 25 MB'
         : 'falha ao enviar "' + f.nome + '": ' + m);
     }
     /* o link assinado NÃO vai mais para o banco: ele expira e deixava a
@@ -20730,6 +20773,7 @@ return {
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
   configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores, canalAtual,
+  tipoPermitido: mgTipoPermitido,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
   exemploDemanda, exemploDocumento,
   /* thread, comandos, busca e apoio ao Kronos */

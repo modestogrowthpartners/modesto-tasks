@@ -216,6 +216,16 @@ const ESCRITA_NOMES = new Set(ESCRITA.map((f) => f.name));
 /* ---------------------------------------------------------------------
    Execução das ferramentas de leitura, sempre sob a RLS de quem chamou
    --------------------------------------------------------------------- */
+/* Tira do termo de busca os caracteres que o PostgREST lê como sintaxe
+   dentro de .or(): vírgula separa condição, parêntese agrupa, ponto separa
+   coluna de operador, aspas delimitam valor, barra invertida escapa. */
+function termoSeguro(v: unknown): string {
+  return String(v ?? "").replace(/[,()."'\\*%]/g, " ").trim().slice(0, 120);
+}
+function ehUUID(v: unknown): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v ?? ""));
+}
+
 async function lerFerramenta(sb: SupabaseClient, nome: string, a: any): Promise<any> {
   const lim = (n: any, p = 20) => Math.min(Math.max(parseInt(n) || p, 1), 60);
 
@@ -249,7 +259,16 @@ async function lerFerramenta(sb: SupabaseClient, nome: string, a: any): Promise<
       .limit(lim(a?.limite, 20));
     if (cid) q = q.eq("client_id", cid);
     if (a?.status) q = q.eq("status", a.status);
-    if (a?.termo) q = q.or(`title.ilike.%${a.termo}%,description.ilike.%${a.termo}%`);
+    if (a?.termo) {
+      /* .or() recebe uma STRING no dialeto de filtro do PostgREST, então
+         vírgula, parêntese, ponto e aspas dentro do termo viram sintaxe,
+         não texto. Sem isso, um termo como `x,client_id.not.is.null`
+         acrescenta condição própria à consulta. O RLS continua limitando
+         as linhas, então isto não vazava dado de outra empresa, mas
+         alargava a busca além do pedido e podia quebrar a chamada. */
+      const t = termoSeguro(a.termo);
+      if (t) q = q.or(`title.ilike.%${t}%,description.ilike.%${t}%`);
+    }
     if (a?.responsavel) q = q.contains("assignees", [a.responsavel]);
     if (a?.apenas_abertas) q = q.not("status", "in", '("Feito","Concluído Atendimento")');
     const { data, error } = await q;
@@ -286,7 +305,13 @@ async function lerFerramenta(sb: SupabaseClient, nome: string, a: any): Promise<
       .eq("channel_id", a.canal_id)
       .order("created_at", { ascending: false })
       .limit(lim(a?.limite, 40));
-    if (a?.raiz_thread) q = q.or(`id.eq.${a.raiz_thread},reply_to.eq.${a.raiz_thread}`);
+    if (a?.raiz_thread) {
+      /* id de thread entra numa string de filtro: só passa se for uuid */
+      if (!ehUUID(a.raiz_thread)) {
+        return { erro: "O id da thread não é válido." };
+      }
+      q = q.or(`id.eq.${a.raiz_thread},reply_to.eq.${a.raiz_thread}`);
+    }
     const { data, error } = await q;
     if (error) throw error;
     const linhas = (data ?? []).reverse();

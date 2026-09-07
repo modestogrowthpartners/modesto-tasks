@@ -1018,6 +1018,60 @@ const foraDeEmpresa = await page.evaluate(async ()=>{
 ok('31c fora de canal de empresa o comando explica',
    /canal de uma empresa/.test(foraDeEmpresa.texto), foraDeEmpresa.texto);
 
+/* ---- 32. upload: tipo fora da lista é recusado com aviso legível ---- */
+const tipos = await page.evaluate(()=>({
+  aceita: ['foto.png','doc.pdf','plano.xlsx','relatorio.html','notas.txt','pacote.zip']
+    .map(n=>({n, ok: MGChat.tipoPermitido({name:n, type:''})})),
+  recusa: ['virus.exe','script.sh','mapa.svg','lib.dll','app.apk']
+    .map(n=>({n, ok: MGChat.tipoPermitido({name:n, type:''})})),
+  porMime: [
+    {n:'sem extensão, mime bom', ok: MGChat.tipoPermitido({name:'x', type:'application/pdf'})},
+    {n:'svg por mime',           ok: MGChat.tipoPermitido({name:'x.svg', type:'image/svg+xml'})},
+    {n:'mime com charset',       ok: MGChat.tipoPermitido({name:'p.html', type:'text/html;charset=utf-8'})},
+  ],
+}));
+ok('32 upload aceita o que o acervo aceita e recusa o resto',
+   tipos.aceita.every(x=>x.ok) && tipos.recusa.every(x=>!x.ok)
+   && tipos.porMime[0].ok && !tipos.porMime[1].ok && tipos.porMime[2].ok,
+   JSON.stringify(tipos));
+
+/* ---- 32b. o arquivo recusado não entra na fila e a pessoa é avisada ---- */
+const recusado = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,400));
+  MGChat.abrir('ch-1'); await new Promise(x=>setTimeout(x,600));
+  window.__inputs=[]; const _c=document.createElement.bind(document);
+  document.createElement = function(t){ const el=_c(t); if(t==='input') window.__inputs.push(el); return el };
+  MGChat.escolherArquivo('');
+  return true;
+});
+const h = await page.evaluateHandle(()=>window.__inputs[window.__inputs.length-1]);
+await h.asElement().setInputFiles({name:'malicioso.exe', mimeType:'application/x-msdownload',
+                                   buffer:Buffer.from('MZ')});
+await page.waitForTimeout(400);
+const filaVazia = await page.evaluate(()=>({
+  semFila: !document.querySelector('.mgz-fila'),
+  aviso: (document.querySelector('.toast, #toast')||{}).textContent || ''
+}));
+ok('32b executável não entra na fila de envio', recusado && filaVazia.semFila,
+   JSON.stringify(filaVazia));
+
+/* ---- 33. cabeçalhos: só declara o que a tag meta realmente aplica ---- */
+const cab = await page.evaluate(()=>{
+  const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+  const ref = document.querySelector('meta[name="referrer"]');
+  const c = csp ? csp.getAttribute('content') : '';
+  return {referrer: ref ? ref.getAttribute('content') : null,
+          upgrade: /upgrade-insecure-requests/.test(c),
+          /* estas são ignoradas em meta; declarar aqui só gera erro no console */
+          semFrameAncestors: !/frame-ancestors/.test(c),
+          semUnsafeEval: !/unsafe-eval/.test(c),
+          objectNone: /object-src 'none'/.test(c)};
+});
+ok('33 CSP e referrer sem regra inerte',
+   cab.referrer === 'strict-origin-when-cross-origin' && cab.upgrade
+   && cab.semFrameAncestors && cab.semUnsafeEval && cab.objectNone,
+   JSON.stringify(cab));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
