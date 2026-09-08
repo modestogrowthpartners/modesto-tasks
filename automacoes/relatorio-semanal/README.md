@@ -146,14 +146,18 @@ concluir que a janela veio inteira.
 
 ### BLOCO 2
 
+Só o que foi **concluído dentro da semana**. Tarefa aberta não entra: o post é
+registro do que saiu, não lista de pendência. Cada cliente aparece com o número
+de cards concluídos e, abaixo, a lista deles.
+
 ```sql
-select c.nome as cliente, t.title, t.status, t.priority, t.urgente,
-       t.created_at, t.completed_at
+select c.nome as cliente, t.title, t.completed_at
 from public.tasks t
 left join public.clients c on c.id = t.client_id
 where t.archived = false
-  and (t.created_at >= '<segunda>' or t.completed_at >= '<segunda>')
-order by c.nome, t.completed_at desc nulls last
+  and t.completed_at >= '<segunda>'
+  and t.completed_at <= '<sexta 16h>'
+order by c.nome, t.completed_at desc
 ```
 
 Atenção: **não filtrar por `updated_at`**. Em 08/09/2026 uma alteração em massa
@@ -190,11 +194,13 @@ Nota `private` fica fora: é anotação interna de quem escreveu.
 
 [... demais clientes na ordem fixa ...]
 
-*BLOCO 2 — Tarefas da semana*
+*BLOCO 2 - Tarefas da semana*
 
-*Wondr:* 4 concluídas, 2 abertas
-• Concluído: <título>
-• Em aberto: <título> (<status>)
+*Wondr:* 4 concluídas
+• <título>
+• <título>
+• <título>
+• <título>
 
 [... demais clientes na ordem fixa ...]
 

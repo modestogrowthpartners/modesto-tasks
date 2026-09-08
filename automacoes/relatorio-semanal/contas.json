@@ -10,37 +10,111 @@
       "rotulo": "Wondr",
       "supabase_cliente": "Wondr/Barbie/PB",
       "supabase_client_id": "abbf1611-06e7-49e7-8920-3ce0bfc86146",
-      "supabase_filtro_titulo": ["wondr", "pink beach", "pb "],
-      "google_ads": [{ "id": "4154437131", "nome": "WONDR", "moeda": "EUR" }],
-      "meta_ads": [
-        { "id": "act_2084569325186193", "nome": "WONDR EXPERIENCE", "moeda": "EUR" },
-        { "id": "act_331761388917652", "nome": "PINK BEACH", "moeda": "EUR" }
+      "supabase_filtro_titulo": [
+        "wondr",
+        "pink beach",
+        "pb "
       ],
-      "tiktok": [{ "id": "7030798271740116994", "nome": "WONDR B.V.", "moeda": "EUR" }]
+      "google_ads": [
+        {
+          "id": "4154437131",
+          "nome": "WONDR",
+          "moeda": "EUR"
+        }
+      ],
+      "meta_ads": [
+        {
+          "id": "act_2084569325186193",
+          "nome": "WONDR EXPERIENCE",
+          "moeda": "EUR"
+        },
+        {
+          "id": "act_331761388917652",
+          "nome": "PINK BEACH",
+          "moeda": "EUR"
+        }
+      ],
+      "tiktok": [
+        {
+          "id": "7030798271740116994",
+          "nome": "WONDR B.V.",
+          "moeda": "EUR"
+        }
+      ]
     },
     {
       "rotulo": "Barbie",
       "supabase_cliente": "Wondr/Barbie/PB",
       "supabase_client_id": "abbf1611-06e7-49e7-8920-3ce0bfc86146",
-      "supabase_filtro_titulo": ["barbie"],
-      "google_ads": [{ "id": "3805729384", "nome": "Barbie", "moeda": "EUR" }],
-      "meta_ads": [{ "id": "act_1450012306123467", "nome": "Barbie Experience", "moeda": "EUR" }],
-      "tiktok": [{ "id": "7527375330907439120", "nome": "Barbie Experience", "moeda": "EUR" }]
+      "supabase_filtro_titulo": [
+        "barbie"
+      ],
+      "google_ads": [
+        {
+          "id": "3805729384",
+          "nome": "Barbie",
+          "moeda": "EUR"
+        }
+      ],
+      "meta_ads": [
+        {
+          "id": "act_1450012306123467",
+          "nome": "Barbie Experience",
+          "moeda": "EUR"
+        }
+      ],
+      "tiktok": [
+        {
+          "id": "7527375330907439120",
+          "nome": "Barbie Experience",
+          "moeda": "EUR"
+        }
+      ]
     },
     {
       "rotulo": "Amakha",
       "supabase_cliente": "Amakha Paris",
       "supabase_client_id": "cbb0c902-f262-42be-8a6c-9264dd2fdc93",
-      "google_ads": [{ "id": "4074568221", "nome": "AMAKHA PARIS", "moeda": "BRL" }],
-      "meta_ads": [{ "id": "act_541549713104937", "nome": "Amakha Paris #1", "moeda": "BRL" }],
-      "tiktok": [{ "id": "7475811555985571856", "nome": "Amakha#1", "moeda": "BRL" }]
+      "google_ads": [
+        {
+          "id": "4074568221",
+          "nome": "AMAKHA PARIS",
+          "moeda": "BRL"
+        }
+      ],
+      "meta_ads": [
+        {
+          "id": "act_541549713104937",
+          "nome": "Amakha Paris #1",
+          "moeda": "BRL"
+        }
+      ],
+      "tiktok": [
+        {
+          "id": "7475811555985571856",
+          "nome": "Amakha#1",
+          "moeda": "BRL"
+        }
+      ]
     },
     {
       "rotulo": "Alliance",
       "supabase_cliente": "Alliance Laundry",
       "supabase_client_id": "ca04692e-41f4-4b10-a07c-18ab0cb1209c",
-      "google_ads": [{ "id": "5026131996", "nome": "LATAM", "moeda": "USD" }],
-      "meta_ads": [{ "id": "act_313434459904767", "nome": "LATAM", "moeda": "USD" }],
+      "google_ads": [
+        {
+          "id": "5026131996",
+          "nome": "LATAM",
+          "moeda": "USD"
+        }
+      ],
+      "meta_ads": [
+        {
+          "id": "act_313434459904767",
+          "nome": "LATAM",
+          "moeda": "USD"
+        }
+      ],
       "tiktok": []
     },
     {
@@ -48,17 +122,38 @@
       "supabase_cliente": "Meu Rodapé",
       "supabase_client_id": "25d38a74-41ec-4354-af16-6d165217be1d",
       "google_ads": [
-        { "id": "3084869797", "nome": "Meu Rodapé", "moeda": "BRL" },
-        { "id": "8056022205", "nome": "MEU RODAPÉ - ANTIGA", "moeda": "BRL", "obs": "legada, so reportar se houver evento" }
+        {
+          "id": "3084869797",
+          "nome": "Meu Rodapé",
+          "moeda": "BRL"
+        },
+        {
+          "id": "8056022205",
+          "nome": "MEU RODAPÉ - ANTIGA",
+          "moeda": "BRL",
+          "obs": "legada, so reportar se houver evento"
+        }
       ],
-      "meta_ads": [{ "id": "act_2964386040481714", "nome": "Meta Ads | Meu Rodapé V2", "moeda": "BRL" }],
+      "meta_ads": [
+        {
+          "id": "act_2964386040481714",
+          "nome": "Meta Ads | Meu Rodapé V2",
+          "moeda": "BRL"
+        }
+      ],
       "tiktok": []
     },
     {
       "rotulo": "D&G",
       "supabase_cliente": "Dolce & Gabbana",
       "supabase_client_id": "1e3ead69-3b53-4443-8dc4-9222815a4ec3",
-      "google_ads": [{ "id": "6813205150", "nome": "Dolce&Gabbana", "moeda": "BRL" }],
+      "google_ads": [
+        {
+          "id": "6813205150",
+          "nome": "Dolce&Gabbana",
+          "moeda": "BRL"
+        }
+      ],
       "meta_ads": [],
       "tiktok": []
     },
@@ -69,7 +164,7 @@
       "google_ads": [],
       "meta_ads": [],
       "tiktok": [],
-      "obs": "Nenhuma conta de midia conectada ao Pipeboard em 08/09/2026. So aparece no BLOCO 2."
+      "obs": "Conta pequena, sem conta de midia conectada ao Pipeboard. So aparece no BLOCO 2."
     },
     {
       "rotulo": "Ruminar",
@@ -77,8 +172,16 @@
       "supabase_client_id": "29c5ddc1-0146-4222-99c1-cd49b4b56311",
       "google_ads": [],
       "meta_ads": [
-        { "id": "act_367338121425127", "nome": "Ruminar - Lead Ad", "moeda": "BRL" },
-        { "id": "act_1649947782846182", "nome": "Ruminar - Whatsapp", "moeda": "BRL" }
+        {
+          "id": "act_367338121425127",
+          "nome": "Ruminar - Lead Ad",
+          "moeda": "BRL"
+        },
+        {
+          "id": "act_1649947782846182",
+          "nome": "Ruminar - Whatsapp",
+          "moeda": "BRL"
+        }
       ],
       "tiktok": []
     },
@@ -89,21 +192,67 @@
       "google_ads": [],
       "meta_ads": [],
       "tiktok": [],
-      "obs": "Nao existe como cliente no Supabase nem tem conta de midia conectada. Ha canal #botoclinic-midia no Slack. Mantido no post com marcador de sem dado ate ser cadastrado."
+      "obs": "Ainda nao vinculado (nem conta de midia nem cadastro no MGP Tasks). Ha canal #botoclinic-midia no Slack."
+    },
+    {
+      "rotulo": "Modesto (Interno)",
+      "supabase_cliente": "Modesto (Interno)",
+      "supabase_client_id": "8fc26c1f-645f-43fa-9b24-b1b4ec3d53f9",
+      "google_ads": [],
+      "meta_ads": [],
+      "tiktok": [],
+      "so_tarefas": true,
+      "obs": "Demanda interna. Nao entra no BLOCO 1, so no BLOCO 2."
     }
   ],
   "contas_sem_cliente_definido": [
-    { "plataforma": "meta", "id": "act_569930320273741", "nome": "Franqueadora", "hipotese": "possivelmente Amakha, nao confirmado" },
-    { "plataforma": "meta", "id": "act_933670330453437", "nome": "Amigo", "hipotese": "legada" },
-    { "plataforma": "google_ads", "id": "6761065385", "nome": "Nofaro", "hipotese": "legada, tudo pausado desde 2020" },
-    { "plataforma": "google_ads", "id": "3518484950", "nome": "Amigo 2026", "hipotese": "legada, tudo pausado desde 2020" }
+    {
+      "plataforma": "meta",
+      "id": "act_569930320273741",
+      "nome": "Franqueadora",
+      "hipotese": "possivelmente Amakha, nao confirmado"
+    },
+    {
+      "plataforma": "meta",
+      "id": "act_933670330453437",
+      "nome": "Amigo",
+      "hipotese": "legada"
+    },
+    {
+      "plataforma": "google_ads",
+      "id": "6761065385",
+      "nome": "Nofaro",
+      "hipotese": "legada, tudo pausado desde 2020"
+    },
+    {
+      "plataforma": "google_ads",
+      "id": "3518484950",
+      "nome": "Amigo 2026",
+      "hipotese": "legada, tudo pausado desde 2020"
+    }
   ],
   "clientes_supabase_fora_do_post": [
-    { "nome": "Modesto (Interno)", "id": "8fc26c1f-645f-43fa-9b24-b1b4ec3d53f9" },
-    { "nome": "Raízen - Shell Box", "id": "52ff4215-2612-470a-a1a3-03227e810658" }
+    {
+      "nome": "Raízen - Shell Box",
+      "id": "52ff4215-2612-470a-a1a3-03227e810658"
+    }
   ],
   "contas_google_inacessiveis": [
-    { "id": "1149522009", "erro": "CUSTOMER_NOT_ENABLED" },
-    { "id": "7999729145", "erro": "CUSTOMER_NOT_ENABLED" }
-  ]
+    {
+      "id": "1149522009",
+      "erro": "CUSTOMER_NOT_ENABLED"
+    },
+    {
+      "id": "7999729145",
+      "erro": "CUSTOMER_NOT_ENABLED"
+    }
+  ],
+  "slack_channel_pacing": {
+    "nome": "#controle_pacing_diário",
+    "id": "C0BG2NK56UC"
+  },
+  "portal": {
+    "canal_relatorio": "d40d1fd3-2a32-42da-8bff-f2235a75fc5e",
+    "canal_pacing": "71608354-2fbf-4edb-a95d-250063ff4498"
+  }
 }

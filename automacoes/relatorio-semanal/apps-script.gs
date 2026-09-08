@@ -86,7 +86,12 @@ var CLIENTES = [
     tasksCliente: 'Ruminar'
   },
   { rotulo: 'Botoclinic', meta: [], tasksCliente: null,
-    nota: 'Sem conta de mídia conectada e sem cadastro no MGP Tasks' }
+    nota: 'Ainda não vinculado' },
+
+  // Interno não tem conta de mídia e não entra em otimizações. Entra no
+  // BLOCO 2 porque demanda interna também é trabalho da semana.
+  { rotulo: 'Modesto (Interno)', meta: [], tasksCliente: 'Modesto (Interno)',
+    soTarefas: true }
 ];
 
 /** Categorias do activity log que são otimização de verdade. */
@@ -143,6 +148,7 @@ function janelaDaSemana() {
     inicioUnix: Math.floor(segunda.getTime() / 1000),
     fimUnix: Math.floor(sexta.getTime() / 1000),
     inicioISO: segunda.toISOString(),
+    fimISO: sexta.toISOString(),
     rotulo: dm(segunda) + ' a ' + dm(sexta)
   };
 }
@@ -411,10 +417,14 @@ function nomesMeta(eventos) {
 // ————————————————————————————————————————————————————————————
 
 function buscarTarefas(janela) {
+  // Só o que foi concluído dentro da semana. Tarefa aberta não entra: o post
+  // é registro do que saiu, não lista de pendência.
   var url = segredo('SUPABASE_URL') + '/rest/v1/tasks' +
-    '?select=title,status,created_at,completed_at,clients(nome)' +
+    '?select=title,status,completed_at,clients(nome)' +
     '&archived=eq.false' +
-    '&or=(created_at.gte.' + janela.inicioISO + ',completed_at.gte.' + janela.inicioISO + ')' +
+    '&completed_at=gte.' + janela.inicioISO +
+    '&completed_at=lte.' + janela.fimISO +
+    '&order=completed_at.desc' +
     '&limit=400';
 
   // Nunca filtre por updated_at: uma alteração em massa em 08/09/2026 tocou
@@ -434,10 +444,15 @@ function buscarTarefas(janela) {
   return JSON.parse(resp.getContentText());
 }
 
-function linhasTarefas(cliente, tarefas, janela) {
-  if (!cliente.tasksCliente) return ['• sem cadastro no MGP Tasks'];
+/**
+ * Concluídas da semana, uma por linha, com a contagem no cabeçalho do cliente.
+ * Devolve { cabecalho, linhas }.
+ */
+function linhasTarefas(cliente, tarefas) {
+  if (!cliente.tasksCliente) {
+    return { cabecalho: 'sem cadastro no MGP Tasks', linhas: [] };
+  }
 
-  var fim = janela.fim.toISOString();
   var minhas = tarefas.filter(function (t) {
     var nome = t.clients && t.clients.nome;
     if (nome !== cliente.tasksCliente) return false;
@@ -449,24 +464,12 @@ function linhasTarefas(cliente, tarefas, janela) {
     return true;
   });
 
-  if (!minhas.length) return ['• —'];
+  if (!minhas.length) return { cabecalho: 'nenhuma concluída', linhas: [] };
 
-  var feitas = minhas.filter(function (t) {
-    return t.completed_at && t.completed_at >= janela.inicioISO && t.completed_at <= fim;
-  });
-  var abertas = minhas.filter(function (t) { return feitas.indexOf(t) === -1; });
-
-  var linhas = [];
-  if (feitas.length) {
-    linhas.push('• Feito: ' + feitas.slice(0, 6).map(function (t) { return t.title; }).join(' · ') +
-      (feitas.length > 6 ? ' e mais ' + (feitas.length - 6) : ''));
-  }
-  if (abertas.length) {
-    linhas.push('• Aberto: ' + abertas.slice(0, 5).map(function (t) {
-      return t.title + ' (' + t.status + ')';
-    }).join(' · ') + (abertas.length > 5 ? ' e mais ' + (abertas.length - 5) : ''));
-  }
-  return { linhas: linhas, feitas: feitas.length, abertas: abertas.length };
+  return {
+    cabecalho: minhas.length + (minhas.length === 1 ? ' concluída' : ' concluídas'),
+    linhas: minhas.map(function (t) { return '• ' + t.title; })
+  };
 }
 
 // ————————————————————————————————————————————————————————————
@@ -486,6 +489,7 @@ function montarPost(janela, google) {
   var p = ['*RESUMO DA SEMANA · ' + janela.rotulo + '*', '', '*BLOCO 1 - Otimizações da semana*', ''];
 
   CLIENTES.forEach(function (cliente) {
+    if (cliente.soTarefas) return;   // interno não entra em otimizações
     p.push('*' + cliente.rotulo + ':*');
     var linhas = linhasGoogle(google[cliente.rotulo]).concat(linhasMeta(cliente.meta, janela));
     if (!linhas.length) linhas = [cliente.nota ? '• ' + cliente.nota : '• —'];
@@ -499,14 +503,9 @@ function montarPost(janela, google) {
     p.push('_Falha ao ler o MGP Tasks: ' + erroTarefas + '_', '');
   } else {
     CLIENTES.forEach(function (cliente) {
-      var r = linhasTarefas(cliente, tarefas, janela);
-      if (Array.isArray(r)) {
-        p.push('*' + cliente.rotulo + ':*');
-        r.forEach(function (l) { p.push(l); });
-      } else {
-        p.push('*' + cliente.rotulo + ':* ' + r.feitas + ' concluídas, ' + r.abertas + ' abertas');
-        r.linhas.forEach(function (l) { p.push(l); });
-      }
+      var r = linhasTarefas(cliente, tarefas);
+      p.push('*' + cliente.rotulo + ':* ' + r.cabecalho);
+      r.linhas.forEach(function (l) { p.push(l); });
       p.push('');
     });
   }
