@@ -25106,12 +25106,33 @@ window.mgResumoHTML    = mgResumoHTML;
   from{transform:translateX(-38px)}
   to  {transform:translateX(calc(100% + 38px))}
 }
-/* as duas poses de pata trocam em degrau, sem transição: é pixel, não
-   deve haver meio-caminho entre uma pose e outra */
-@keyframes mgPataA{0%,49.9%{opacity:1}50%,100%{opacity:0}}
-@keyframes mgPataB{0%,49.9%{opacity:0}50%,100%{opacity:1}}
-.mg-gato-anda .pa{animation:mgPataA .34s steps(1,end) infinite}
-.mg-gato-anda .pb{animation:mgPataB .34s steps(1,end) infinite}
+@keyframes mgGatoAtravessaVolta{
+  from{transform:translateX(calc(100% + 38px))}
+  to  {transform:translateX(-38px)}
+}
+.mg-gato-anda.espelhado{animation-name:mgGatoAtravessaVolta}
+/* Quatro poses de pata em degrau, sem transição: é pixel, não pode
+   haver meio-caminho entre uma pose e outra. Duas poses davam um trote
+   de brinquedo; quatro dão a passada alternada de bicho de verdade. */
+@keyframes mgPata0{0%,24.9%{opacity:1}25%,100%{opacity:0}}
+@keyframes mgPata1{0%,24.9%{opacity:0}25%,49.9%{opacity:1}50%,100%{opacity:0}}
+@keyframes mgPata2{0%,49.9%{opacity:0}50%,74.9%{opacity:1}75%,100%{opacity:0}}
+@keyframes mgPata3{0%,74.9%{opacity:0}75%,100%{opacity:1}}
+.mg-gato-anda .p0{animation:mgPata0 var(--mg-passo,.56s) steps(1,end) infinite}
+.mg-gato-anda .p1{animation:mgPata1 var(--mg-passo,.56s) steps(1,end) infinite}
+.mg-gato-anda .p2{animation:mgPata2 var(--mg-passo,.56s) steps(1,end) infinite}
+.mg-gato-anda .p3{animation:mgPata3 var(--mg-passo,.56s) steps(1,end) infinite}
+
+/* o corpo sobe e desce um pixel a cada meia passada. É esse balanço,
+   mais do que as patas, que faz o olho ler "andando" num bicho pequeno */
+@keyframes mgGatoBalanco{0%,49.9%{transform:translateY(0)}
+                         50%,100%{transform:translateY(-1px)}}
+.mg-gato-anda svg{animation:mgGatoBalanco var(--mg-passo,.56s) steps(1,end) infinite}
+/* indo para a esquerda, o bicho vira de frente para o lado que anda */
+.mg-gato-anda.espelhado svg{transform:scaleX(-1)}
+@keyframes mgGatoBalancoEsp{0%,49.9%{transform:scaleX(-1) translateY(0)}
+                            50%,100%{transform:scaleX(-1) translateY(-1px)}}
+.mg-gato-anda.espelhado svg{animation-name:mgGatoBalancoEsp}
 
 /* a barra precisa ser referência de posição para o gato andar sobre ela */
 .mg-dock{position:fixed}
@@ -25136,9 +25157,14 @@ const MG_GATO_CORPO = [
   '11111111111',
   '.111111111.',
 ];
+/* Quatro poses, na ordem em que um gato de verdade tira as patas do
+   chão: dianteira e traseira em diagonal, passando pelo meio. As da
+   frente ficam nas colunas 1 a 3 e as de trás nas 6 a 8. */
 const MG_GATO_PATAS = [
-  '.1.1..1.1..',   /* pose A */
-  '..1.1..1.1.',   /* pose B */
+  '.1.1..1.1..',   /* patas abertas          */
+  '.11...11...',   /* dianteira à frente     */
+  '..11...11..',   /* dianteira atrás        */
+  '..1....1...',   /* juntas, no meio        */
 ];
 
 function mgQuadros(linhas, cor, deslocaY){
@@ -25163,8 +25189,9 @@ function mgGatoDePerfil(altura, cor){
     + ' width="' + larg + '" height="' + alt + '"'
     + ' shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
     + mgQuadros(MG_GATO_CORPO, c, 0)
-    + '<g class="pa">' + mgQuadros([MG_GATO_PATAS[0]], c, MG_GATO_CORPO.length) + '</g>'
-    + '<g class="pb">' + mgQuadros([MG_GATO_PATAS[1]], c, MG_GATO_CORPO.length) + '</g>'
+    + MG_GATO_PATAS.map((pose, i)=>
+        '<g class="p' + i + '">'
+        + mgQuadros([pose], c, MG_GATO_CORPO.length) + '</g>').join('')
     + '</svg>';
 }
 
@@ -25189,42 +25216,69 @@ function mgGatoPodeAndar(){
   return barra.getClientRects().length > 0;
 }
 
+let mgGatoParaTras = false;
+
 function mgGatoAtravessar(){
-  if(mgGatoNaBarra || !mgGatoPodeAndar()) return;
+  /* isConnected, e não só a existência da variável: se o nó saiu do DOM
+     por outro caminho que não o fim da animação (a barra foi redesenhada,
+     alguém limpou a tela), a referência velha travava o bicho para
+     sempre. */
+  if((mgGatoNaBarra && mgGatoNaBarra.isConnected) || !mgGatoPodeAndar()) return;
+  mgGatoNaBarra = null;
   const barra = document.querySelector('.mg-dock');
   const el = document.createElement('div');
-  el.className = 'mg-gato-anda';
+  el.className = 'mg-gato-anda' + (mgGatoParaTras ? ' espelhado' : '');
+  mgGatoParaTras = !mgGatoParaTras;          /* na próxima ele volta */
   el.setAttribute('aria-hidden', 'true');
-  /* 11 a 16 segundos: passo de gato, não de corrida */
-  el.style.setProperty('--mg-gato-tempo', (11 + Math.random()*5).toFixed(1) + 's');
+
+  /* A passada tem que combinar com a velocidade, senão o bicho patina no
+     lugar ou desliza sem mexer as patas. Ele anda ~46 px por segundo e
+     avança cerca de um corpo por ciclo de quatro poses. */
+  const largura = Math.max(barra.getBoundingClientRect().width, 220) + 76;
+  const segundos = largura / 46;
+  el.style.setProperty('--mg-gato-tempo', segundos.toFixed(1) + 's');
+  el.style.setProperty('--mg-passo', (28 / 46).toFixed(2) + 's');
+
   el.innerHTML = mgGatoDePerfil(18);
   barra.appendChild(el);
   mgGatoNaBarra = el;
   el.addEventListener('animationend', e=>{
-    if(e.animationName !== 'mgGatoAtravessa') return;    /* as patas também disparam */
+    /* as patas e o balanço também disparam animationend o tempo todo */
+    if(!/^mgGatoAtravessa/.test(e.animationName)) return;
     el.remove();
     if(mgGatoNaBarra === el) mgGatoNaBarra = null;
   });
 }
 
-/* Ele passa de tempos em tempos, não sem parar: bicho que anda direto na
-   tela deixa de ser piada e vira distração. */
-function mgGatoAgendar(){
+/* O gatilho é trocar de aba: é quando a barra chama a atenção sozinha e
+   o bicho aparece sem interromper nada. Com uma pausa mínima, senão
+   quem clica rápido entre as abas enfileira gato atrás de gato. */
+const MG_GATO_PAUSA = 12000;
+let mgGatoUltima = 0;
+
+function mgGatoNaTroca(){
+  const agora = Date.now();
+  if(agora - mgGatoUltima < MG_GATO_PAUSA) return;
+  mgGatoUltima = agora;
+  /* espera a aba nova assentar antes de soltar o bicho */
   clearTimeout(mgGatoRelogio);
-  const espera = 50000 + Math.random()*70000;            /* 50 s a 2 min */
-  mgGatoRelogio = setTimeout(()=>{
-    mgGatoAtravessar();
-    mgGatoAgendar();
-  }, espera);
+  mgGatoRelogio = setTimeout(mgGatoAtravessar, 420);
+}
+
+if(typeof showView === 'function'){
+  const _ver = showView;
+  showView = function(v){
+    const antes = (typeof VIEW !== 'undefined') ? VIEW : null;
+    const r = _ver.apply(this, arguments);
+    if(v !== antes){ try{ mgGatoNaTroca() }catch(e){ console.warn('[gato]', e) } }
+    return r;
+  };
 }
 
 document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden){
-    clearTimeout(mgGatoRelogio);
-    if(mgGatoNaBarra){ mgGatoNaBarra.remove(); mgGatoNaBarra = null }
-  }else{
-    mgGatoAgendar();
-  }
+  if(!document.hidden) return;
+  clearTimeout(mgGatoRelogio);
+  if(mgGatoNaBarra){ mgGatoNaBarra.remove(); mgGatoNaBarra = null }
 });
 
 /* chamar o gato na hora, para quem quiser ver de novo */
@@ -25234,10 +25288,14 @@ window.mgGatoPassear = function(){
 };
 
 /* a primeira passada vem logo depois de a barra aparecer */
-setTimeout(()=>{ mgGatoAtravessar(); mgGatoAgendar() }, 6000);
+setTimeout(mgGatoAtravessar, 6000);
 
-window.mgGatoDePerfil = mgGatoDePerfil;
+window.mgGatoDePerfil  = mgGatoDePerfil;
 window.mgGatoPodeAndar = mgGatoPodeAndar;
+window.mgGatoNaTroca   = mgGatoNaTroca;
+/* zera a pausa entre passadas. Serve ao teste, que troca de aba dezenas
+   de vezes antes de chegar no caso do gato. */
+window.mgGatoZerarPausa = ()=>{ mgGatoUltima = 0 };
 
 })();
 </script>

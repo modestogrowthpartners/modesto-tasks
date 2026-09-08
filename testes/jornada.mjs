@@ -1862,8 +1862,9 @@ const passeio = await page.evaluate(async ()=>{
   r.apareceu = !!g;
   r.naBarra  = !!(g && g.parentElement && g.parentElement.classList.contains('mg-dock'));
   r.semClique = !!g && getComputedStyle(g).pointerEvents === 'none';
-  r.duasPoses = !!(g && g.querySelector('.pa') && g.querySelector('.pb'));
+  r.quatroPoses = !!g && [0,1,2,3].every(i => !!g.querySelector('.p' + i));
   r.temTempo  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-gato-tempo')));
+  r.temPasso  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-passo')));
 
   /* com as animações desligadas ele não sai do lugar */
   if(g) g.remove();
@@ -1877,7 +1878,7 @@ const passeio = await page.evaluate(async ()=>{
 });
 ok('45b o gato atravessa a barra e obedece a preferência de animação',
    passeio.temBarra && passeio.podeAndar && passeio.apareceu && passeio.naBarra && passeio.semClique
-   && passeio.duasPoses && passeio.temTempo
+   && passeio.quatroPoses && passeio.temTempo && passeio.temPasso
    && passeio.respeitaPreferencia && passeio.ficouQuieto,
    JSON.stringify(passeio));
 
@@ -1886,17 +1887,46 @@ const gatoLado = await page.evaluate(()=>{
   const d = document.createElement('div');
   d.innerHTML = mgGatoDePerfil(18);
   const svg = d.querySelector('svg');
-  const pa = [...svg.querySelectorAll('.pa rect')].map(r=>r.getAttribute('x')).join(',');
-  const pb = [...svg.querySelectorAll('.pb rect')].map(r=>r.getAttribute('x')).join(',');
+  const poses = [0,1,2,3].map(i =>
+    [...svg.querySelectorAll('.p' + i + ' rect')].map(r=>r.getAttribute('x')).join(','));
+  /* a mesma linha do corpo em todas as poses: só as patas mudam */
+  const alturaDasPatas = [...svg.querySelectorAll('[class^="p"] rect')]
+    .map(r=>r.getAttribute('y'));
   return {caixa: svg.getAttribute('viewBox'),
           corpo: svg.querySelectorAll(':scope > rect').length,
-          pa, pb, diferentes: pa !== pb,
-          mesmoTanto: pa.split(',').length === pb.split(',').length};
+          poses, todasDiferentes: new Set(poses).size === 4,
+          umaLinhaSo: new Set(alturaDasPatas).size === 1};
 });
-ok('45c o gato de perfil troca só as patas entre as duas poses',
+ok('45c o gato de perfil tem quatro poses de pata, e só elas mudam',
    gatoLado.caixa === '0 0 11 7' && gatoLado.corpo === 45
-   && gatoLado.diferentes && gatoLado.mesmoTanto && gatoLado.pa === '1,3,6,8',
+   && gatoLado.todasDiferentes && gatoLado.umaLinhaSo
+   && gatoLado.poses[0] === '1,3,6,8' && gatoLado.poses[3] === '2,7',
    JSON.stringify(gatoLado));
+
+/* ---- 45d. trocar de aba é o que chama o gato ---- */
+const naTroca = await page.evaluate(async ()=>{
+  const barra = document.querySelector('.mg-dock');
+  if(barra) barra.style.setProperty('display', 'inline-flex', 'important');
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  mgFecharLupa && mgFecharLupa();
+  /* a suíte trocou de aba dezenas de vezes até aqui, então a pausa entre
+     passadas já está correndo. Zeramos para medir a troca desta vez. */
+  mgGatoZerarPausa();
+
+  /* a pausa mínima existe para clique rápido não enfileirar gato */
+  showView('calendar'); await new Promise(r=>setTimeout(r,300));
+  showView('board');    await new Promise(r=>setTimeout(r,700));
+  const veioNaPrimeira = !!document.querySelector('.mg-gato-anda');
+
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  showView('list'); await new Promise(r=>setTimeout(r,700));
+  const veioNaSegunda = !!document.querySelector('.mg-gato-anda');
+
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  return {veioNaPrimeira, respeitouAPausa: !veioNaSegunda};
+});
+ok('45d o gato aparece ao trocar de aba, com pausa entre uma e outra',
+   naTroca.veioNaPrimeira && naTroca.respeitouAPausa, JSON.stringify(naTroca));
 
 
 /* =====================================================================
