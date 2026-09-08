@@ -1,5 +1,8 @@
 /**
- * RELATÓRIO SEMANAL — PARTE 2 DE 2: Meta, MGP Tasks, montagem e post no Slack
+ * RELATÓRIO SEMANAL, PARTE 2 DE 2: Meta, MGP Tasks, montagem e publicação
+ *
+ * Publica em dois lugares, com o mesmo texto: o canal do Slack e o canal
+ * #resumo-otimizacoes-e-tarefas do portal (modestopartners.com.br).
  *
  * Onde roda: Google Apps Script (script.google.com), projeto standalone.
  * Agende `main` para SEXTA, 16:00 (Acionadores > Adicionar acionador >
@@ -27,6 +30,7 @@
 // ————————————————————————————————————————————————————————————
 
 var CANAL_SLACK = 'C0C0H9AGT8U';           // #resumo_otmizações_e_tarefas
+var CANAL_PORTAL = 'd40d1fd3-2a32-42da-8bff-f2235a75fc5e'; // #resumo-otimizacoes-e-tarefas
 var API_META = 'v24.0';
 
 /** Arquivos deixados pela parte 1. Um por MCC. */
@@ -97,11 +101,17 @@ function main() {
   var google = lerGoogleDoDrive();
   var post = montarPost(janela, google);
 
-  if (post.length > 4000) {
-    Logger.log('AVISO: post com ' + post.length + ' caracteres, perto do teto do Slack.');
+  if (post.length > 4500) {
+    Logger.log('AVISO: post com ' + post.length + ' caracteres, perto do teto de 5000 do Slack.');
   }
-  postarNoSlack(post);
-  Logger.log('Publicado. ' + post.length + ' caracteres.');
+
+  // Os dois destinos são independentes: se um cair, o outro ainda recebe.
+  var falhas = [];
+  try { postarNoSlack(post); }  catch (e) { falhas.push('Slack: ' + e); }
+  try { postarNoPortal(post); } catch (e) { falhas.push('Portal: ' + e); }
+
+  if (falhas.length) throw new Error(falhas.join(' | '));
+  Logger.log('Publicado no Slack e no portal. ' + post.length + ' caracteres.');
 }
 
 /** Use para conferir o texto sem publicar. */
@@ -522,6 +532,43 @@ function postarNoSlack(texto) {
 
   var corpo = JSON.parse(resp.getContentText());
   if (!corpo.ok) throw new Error('Slack recusou: ' + corpo.error);
+}
+
+/**
+ * Publica o mesmo texto no portal (modestopartners.com.br), como mensagem do
+ * canal de equipe #resumo-otimizacoes-e-tarefas.
+ *
+ * O texto não precisa de conversão: o portal usa a mesma marcação do Slack
+ * (*negrito*, _itálico_, `código`, ~riscado~), o que foi verificado na função
+ * corpoHTML do index.html.
+ *
+ * Canal de EQUIPE de propósito. Este post junta todos os clientes, e canal do
+ * tipo `client` é visível para o cliente: publicar ali vazaria a informação de
+ * um cliente para outro.
+ */
+function postarNoPortal(texto) {
+  var resp = UrlFetchApp.fetch(segredo('SUPABASE_URL') + '/rest/v1/messages', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      apikey: segredo('SUPABASE_KEY'),
+      Authorization: 'Bearer ' + segredo('SUPABASE_KEY'),
+      Prefer: 'return=minimal'
+    },
+    payload: JSON.stringify({
+      channel_id: CANAL_PORTAL,
+      author_id: null,
+      author_name: 'MGP Reports',
+      body: texto,
+      kind: 'user'
+    }),
+    muteHttpExceptions: true
+  });
+
+  var codigo = resp.getResponseCode();
+  if (codigo !== 201 && codigo !== 200) {
+    throw new Error('Portal ' + codigo + ': ' + resp.getContentText());
+  }
 }
 
 function dinheiro(valor, moeda) {

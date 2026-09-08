@@ -1,7 +1,20 @@
 # Relatório semanal de otimizações e tarefas
 
-Post automático no Slack toda **sexta-feira às 16h (America/Sao_Paulo)**, no canal
-`#resumo_otmizações_e_tarefas` (`C0C0H9AGT8U`).
+Post automático toda **sexta-feira às 16h (America/Sao_Paulo)**, com o mesmo
+texto em dois lugares:
+
+| Destino | Canal | Id |
+|---|---|---|
+| Slack | `#resumo_otmizações_e_tarefas` | `C0C0H9AGT8U` |
+| Portal (modestopartners.com.br) | `#resumo-otimizacoes-e-tarefas` | `d40d1fd3-2a32-42da-8bff-f2235a75fc5e` |
+
+O texto é idêntico nos dois e não precisa de conversão: o portal usa a mesma
+marcação do Slack (`*negrito*`, `_itálico_`, `` `código` ``, `~riscado~`), como
+se vê na função `corpoHTML` do `index.html`.
+
+O canal do portal é de **equipe**, não de cliente, e isso é proposital: o post
+junta todos os clientes, e canal do tipo `client` é visível para o cliente.
+Publicar ali vazaria informação de um cliente para outro.
 
 ## Como o envio automático acontece
 
