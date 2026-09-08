@@ -170,7 +170,7 @@ function linhasGoogle(contas) {
 
   contas.forEach(function (conta) {
     if (conta.erro) {
-      linhas.push('• Google (' + conta.conta_id + '): falha na coleta — ' + conta.erro);
+      linhas.push('• Google (' + conta.conta_id + '): falha na coleta: ' + conta.erro);
       return;
     }
 
@@ -194,32 +194,32 @@ function linhasGoogle(contas) {
         txt += ', de ' + dinheiro(de, conta.moeda) + ' para ' +
                dinheiro(para, conta.moeda) + '/dia no total (' + variacao(de, para) + ')';
       }
-      linhas.push(txt + ' — ' + quem(orcamentos));
+      linhas.push(txt + ' · ' + quem(orcamentos));
     }
 
     if (troas.length) {
       linhas.push('• Google: tROAS ajustado em ' + troas.length +
         (troas.length === 1 ? ' campanha' : ' campanhas') +
-        ' (' + amostraTroas(troas) + ') — ' + quem(troas));
+        ' (' + amostraTroas(troas) + ') · ' + quem(troas));
     }
 
     if (criadas.length) {
       linhas.push('• Google: ' + criadas.length +
         (criadas.length === 1 ? ' campanha criada' : ' campanhas criadas') +
-        ' — ' + nomes(criadas) + ' — ' + quem(criadas));
+        ' · ' + nomes(criadas) + ' · ' + quem(criadas));
     }
 
     if (ativadas.length || pausadas.length) {
       var partes = [];
       if (ativadas.length) partes.push(ativadas.length + ' ativada(s): ' + nomes(ativadas));
       if (pausadas.length) partes.push(pausadas.length + ' pausada(s): ' + nomes(pausadas));
-      linhas.push('• Google: ' + partes.join(' · ') + ' — ' +
+      linhas.push('• Google: ' + partes.join(' · ') + ' · ' +
                   quem(ativadas.concat(pausadas)));
     }
 
     if (conta.criativos > 0) {
       linhas.push('• Google: ' + conta.criativos +
-        ' alterações de criativo e assets — ' + Object.keys(conta.criativos_por_pessoa).join(', '));
+        ' alterações de criativo e assets · ' + Object.keys(conta.criativos_por_pessoa).join(', '));
     }
   });
 
@@ -271,7 +271,7 @@ function linhasMeta(contas, janela) {
     try {
       eventos = buscarAtividadesMeta(conta.id, janela);
     } catch (e) {
-      linhas.push('• Meta (' + conta.nome + '): falha na coleta — ' + e);
+      linhas.push('• Meta (' + conta.nome + '): falha na coleta: ' + e);
       return;
     }
 
@@ -299,21 +299,21 @@ function linhasMeta(contas, janela) {
         txt += ', de ' + dinheiro(de, conta.moeda) + ' para ' +
                dinheiro(para, conta.moeda) + '/dia somados (' + variacao(de, para) + ')';
       }
-      linhas.push(txt + ' — ' + quemMeta(orcamentos));
+      linhas.push(txt + ' · ' + quemMeta(orcamentos));
     }
 
     if (criadas.length) {
-      linhas.push('• Meta: ' + criadas.length + ' campanhas e conjuntos criados — ' +
-                  nomesMeta(criadas) + ' — ' + quemMeta(criadas));
+      linhas.push('• Meta: ' + criadas.length + ' campanhas e conjuntos criados · ' +
+                  nomesMeta(criadas) + ' · ' + quemMeta(criadas));
     }
     if (status.length) {
       linhas.push('• Meta: ' + status.length +
-                  ' mudanças de status em campanhas, conjuntos e anúncios — ' +
+                  ' mudanças de status em campanhas, conjuntos e anúncios · ' +
                   quemMeta(status));
     }
     if (alvo.length) {
       linhas.push('• Meta: segmentação alterada em ' + alvo.length +
-                  ' conjuntos — ' + nomesMeta(alvo) + ' — ' + quemMeta(alvo));
+                  ' conjuntos: ' + nomesMeta(alvo) + ' · ' + quemMeta(alvo));
     }
   });
 
@@ -473,7 +473,7 @@ function montarPost(janela, google) {
     erroTarefas = String(e);
   }
 
-  var p = ['*RESUMO DA SEMANA — ' + janela.rotulo + '*', '', '*BLOCO 1 — Otimizações da semana*', ''];
+  var p = ['*RESUMO DA SEMANA · ' + janela.rotulo + '*', '', '*BLOCO 1 - Otimizações da semana*', ''];
 
   CLIENTES.forEach(function (cliente) {
     p.push('*' + cliente.rotulo + ':*');
@@ -483,7 +483,7 @@ function montarPost(janela, google) {
     p.push('');
   });
 
-  p.push('*BLOCO 2 — Tarefas da semana*', '');
+  p.push('*BLOCO 2 - Tarefas da semana*', '');
 
   if (erroTarefas) {
     p.push('_Falha ao ler o MGP Tasks: ' + erroTarefas + '_', '');
