@@ -1719,6 +1719,128 @@ const semPapel = await page.evaluate(async ()=>{
 ok('42h o resumo é da equipe e não do cliente',
    !semPapel.podeCliente && semPapel.podeEquipe, JSON.stringify(semPapel));
 
+
+/* =====================================================================
+   43 — lateral: empresa de um canal só é a própria conversa
+   ===================================================================== */
+const lateral = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(r=>setTimeout(r,300));
+  MGChat.trocarAba('tudo'); await new Promise(r=>setTimeout(r,400));
+  const so = document.querySelector('.mgz-i.mgz-so');
+  if(!so) return {erro:'sem linha de empresa'};
+  const antes = CHAN;
+  so.click(); await new Promise(r=>setTimeout(r,400));
+  return {
+    rotulo: (so.querySelector('.nm')||{}).textContent,
+    grupos: document.querySelectorAll('.mgz-emp').length,
+    linhasSo: document.querySelectorAll('.mgz-i.mgz-so').length,
+    antes, depois: CHAN,
+    umClique: CHAN === 'ch-1',
+  };
+});
+ok('43 empresa de um canal só abre a conversa num clique',
+   lateral.umClique && lateral.linhasSo === 1 && lateral.grupos === 0
+   && /Cliente Um/.test(lateral.rotulo||''),
+   JSON.stringify(lateral));
+
+/* ---- 43b. ganhando um segundo canal, volta a ser grupo ---- */
+const virouGrupo = await page.evaluate(async ()=>{
+  window.__FIX.channels.push({id:'ch-1b', tipo:'client', nome:'cliente-um-criativos',
+    client_id:'c-1', cor:null, icone:null, descricao:null,
+    created_by:ME.id, created_at:new Date().toISOString(), config:{}});
+  await MGChat.carregarCanais();
+  MGChat.desenhar(); await new Promise(r=>setTimeout(r,400));
+  const r = {grupos: document.querySelectorAll('.mgz-emp').length,
+             linhasSo: document.querySelectorAll('.mgz-i.mgz-so').length,
+             abertoPorPadrao: !!document.querySelector('.mgz-emp.aberta')};
+  window.__FIX.channels = window.__FIX.channels.filter(c=>c.id !== 'ch-1b');
+  await MGChat.carregarCanais(); MGChat.desenhar();
+  return r;
+});
+ok('43b com dois canais a empresa volta a ser grupo, já aberto',
+   virouGrupo.grupos === 1 && virouGrupo.linhasSo === 0 && virouGrupo.abertoPorPadrao,
+   JSON.stringify(virouGrupo));
+
+/* ---- 43c. a opção de manter aberta existe e é respeitada ---- */
+const opcao = await page.evaluate(async ()=>{
+  const html = mgPrefConteudo('msgs');
+  const tem = /Manter as empresas abertas/.test(html);
+  mgSetEmpresas('off');
+  const desligada = mgP('empresasSempre');
+  mgSetEmpresas('on');
+  return {tem, desligada, religada: mgP('empresasSempre')};
+});
+ok('43c a opção de manter as empresas abertas existe e grava',
+   opcao.tem && opcao.desligada === 'off' && opcao.religada === 'on',
+   JSON.stringify(opcao));
+
+/* =====================================================================
+   44 — card limpo: descrição e tempo só ao abrir
+   ===================================================================== */
+const card = await page.evaluate(async ()=>{
+  showView('board'); await new Promise(r=>setTimeout(r,500));
+  const html = $('v-board').innerHTML;
+  const um = document.querySelector('.card-t');
+  return {
+    temDescricao: /class="card-desc"/.test(html),
+    temEstimativa: /class="card-est"/.test(html),
+    temCronometro: /class="tchip/.test(html),
+    temChipDeTempo: /mg-tempo-chip/.test(html),
+    temTitulo: !!(um && um.querySelector('.tt')),
+    temCliente: !!(um && um.querySelector('.cbadge')),
+    temPrioridade: !!(um && um.querySelector('.prio')),
+  };
+});
+ok('44 o card do quadro não carrega descrição nem tempo',
+   !card.temDescricao && !card.temEstimativa && !card.temCronometro
+   && !card.temChipDeTempo && card.temTitulo && card.temCliente && card.temPrioridade,
+   JSON.stringify(card));
+
+/* ---- 44b. mas os dois continuam inteiros ao abrir o card ---- */
+const dentro = await page.evaluate(async ()=>{
+  /* o caso 39b apaga a t-1 da memória de propósito, então aqui usamos uma
+     demanda que ainda existe, com descrição e tempo gravados */
+  const alvo = TASKS[0];
+  alvo.description = 'contexto completo da demanda, que não cabe no card';
+  alvo.time_spent = 5400;
+  await openDetail(alvo.id); await new Promise(r=>setTimeout(r,450));
+  const corpo = document.getElementById('slide').innerHTML;
+  const desc = document.getElementById('d-desc');
+  const r = {
+    descricaoNoDetalhe: !!desc && /não cabe no card/.test(desc.value || ''),
+    tempoNoDetalhe: /[Tt]empo/.test(corpo),
+  };
+  closeDetail();
+  return r;
+});
+ok('44b descrição e tempo seguem inteiros ao abrir o card',
+   dentro.descricaoNoDetalhe && dentro.tempoNoDetalhe, JSON.stringify(dentro));
+
+/* =====================================================================
+   45 — a marca do Kronos é o sprite de pixel
+   ===================================================================== */
+const marcaKronos = await page.evaluate(()=>{
+  const linha = mgGatoLinha(17), cheio = mgGato(20);
+  const conta = s => (s.match(/<rect/g)||[]).length;
+  const d = document.createElement('div'); d.innerHTML = cheio;
+  const svg = d.querySelector('svg');
+  return {
+    quadrosLinha: conta(linha),
+    quadrosCheio: conta(cheio),
+    herdaCor: /currentColor/.test(linha),
+    corPropria: /#D2694A/i.test(cheio),
+    semSuavizar: svg.getAttribute('shape-rendering') === 'crispEdges',
+    caixa: svg.getAttribute('viewBox'),
+    proporcao: svg.getAttribute('width') + 'x' + svg.getAttribute('height'),
+  };
+});
+ok('45 o Kronos vira sprite de pixel, com cor herdada no traço',
+   marcaKronos.quadrosLinha === 28 && marcaKronos.quadrosCheio === 30
+   && marcaKronos.herdaCor && marcaKronos.corPropria
+   && marcaKronos.semSuavizar && marcaKronos.caixa === '0 0 7 5'
+   && marcaKronos.proporcao === '20x14',
+   JSON.stringify(marcaKronos));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

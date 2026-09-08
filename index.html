@@ -1489,25 +1489,18 @@ function renderDashboard(){
    ===================================================================== */
 function taskCard(t,accent){
   const over=isOverdue(t.due,t.status);
-  const running=!!t.timer_start;
   const as=(t.assignees||[]).slice(0,3);
   return `<div class="card-t" style="border-left-color:${accent}" data-id="${t.id}"
       ${isAdmin()?`draggable="true" ondragstart="dragStart(event,'${escJS(t.id)}')" ondragend="this.classList.remove('dragging')"`:''}
       onclick="openDetail('${escJS(t.id)}')">
     <div class="card-strip" style="background:${clientColor(t.client_id)}"></div>
     <div class="tt">${esc(t.title)}</div>
-    ${t.description?`<div class="card-desc">${esc(t.description)}</div>`:''}
-    ${(()=>{const e=estimateFor(t);return e?`<div class="card-est">📊 ~${fmtDur(e.sec)} estimado</div>`:''})()}
     <div class="card-meta">
       <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${mgUrlImagem(clientLogo(t.client_id))}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
       ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${t.recurrence==='daily'?'Diária':'Semanal'}</span>`:''}
       ${(t.subtasks&&t.subtasks.length)?(()=>{const d=t.subtasks.filter(x=>x.done).length,tt=t.subtasks.length;return `<span class="sub-prog ${d===tt?'full':''}">☑ ${d}/${tt}</span>`;})():''}
     </div>
     <div class="card-foot">
-      <span class="tchip ${running?'run':''}" onclick="toggleTimer(event,'${escJS(t.id)}')" title="${running?'Pausar':'Iniciar'} tempo">
-        <span class="p">${running?'⏸':'▶'}</span>
-        <span class="js-timer" data-base="${t.time_spent||0}" data-start="${running?new Date(t.timer_start).getTime():''}">${fmtDur(taskElapsed(t))}</span>
-      </span>
       <div style="display:flex;align-items:center;gap:7px">
         <span class="prio ${t.priority}">${t.priority}</span>
         ${as.length?`<div class="avs">${as.map(a=>`<div class="av" title="${esc(a)}">${initials(a)}</div>`).join('')}</div>`:''}
@@ -5840,7 +5833,11 @@ function mgPrefConteudo(aba){
       mgSeg(mgP('enterEnvia'), [['on','Enviar'],['off','Quebrar linha']], "v=>mgP('enterEnvia',v)".length?'mgSetEnter':'mgSetEnter'))}
     <div class="grupo-tt">Ao ler</div>
     ${mgLinha('Mostrar o horário de cada mensagem','', mgSeg(mgP('horas'), [['on','Mostrar'],['off','Ocultar']], 'mgSetHoras'))}
-    ${mgLinha('Modo compacto','Menos espaço entre as mensagens', mgSeg(mgP('compacto'), [['off','Normal'],['on','Compacto']], 'mgSetCompacto'))}`;
+    ${mgLinha('Modo compacto','Menos espaço entre as mensagens', mgSeg(mgP('compacto'), [['off','Normal'],['on','Compacto']], 'mgSetCompacto'))}
+    <div class="grupo-tt">Na lista de conversas</div>
+    ${mgLinha('Manter as empresas abertas',
+      'Empresa com mais de um canal já aparece expandida. Empresa com um canal só é a própria conversa, sem passo no meio.',
+      mgSeg(mgP('empresasSempre') || 'on', [['on','Abertas'],['off','Fechadas']], 'mgSetEmpresas'))}`;
 
   case 'lidas': return `
     <h3>Marcar como lida</h3>
@@ -5891,6 +5888,10 @@ function mgPrefConteudo(aba){
 function mgSetEnter(v){ mgP('enterEnvia',v) }
 function mgSetHoras(v){ mgP('horas',v) }
 function mgSetCompacto(v){ mgP('compacto',v) }
+function mgSetEmpresas(v){
+  mgP('empresasSempre', v);
+  try{ if(window.MGChat && MGChat.desenhar) MGChat.desenhar() }catch(_){}
+}
 function mgSetAnim(v){ mgP('animacoes',v) }
 function mgLimparPrefs(){
   if(!confirm('Restaurar as preferências padrão deste navegador?')) return;
@@ -12256,11 +12257,9 @@ function mgTempoDesenhar(){
     let html = _tc(t, cor);
     /* logo abaixo do título, que é .tt */
     html = html.replace(/(<div class="tt">[\s\S]*?<\/div>)/, '$1' + mgAbertaEm(t));
-    const min = mgTempoTotal(t);
-    if(min){
-      html = html.replace('<div class="card-meta">',
-        `<div class="card-meta"><span class="mg-tempo-chip">⏱ ${mgHoraMin(min)}</span>`);
-    }
+    /* tempo e descrição saíram do card: o quadro é para bater o olho e
+       achar a demanda, não para ler o conteúdo dela. Os dois continuam
+       inteiros ao abrir o card, que é onde se trabalha. */
     return html;
   };
 })();
@@ -17629,6 +17628,9 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
   min-width:17px;height:17px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
 .mgz-emp .dentro{display:none;margin-left:9px;padding-left:8px;border-left:1px solid var(--line)}
 .mgz-emp.aberta .dentro{display:block}
+/* Empresa com um canal só: a linha É a conversa, então ela fica com o
+   peso do cabeçalho de empresa, e não com o do item de dentro. */
+.mgz-i.mgz-so .nm{font-weight:700}
 .mgz-vazio-sec{font-size:11.5px;color:var(--muted2);padding:4px 10px 6px}
 
 .mgz-eu{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);
@@ -17915,8 +17917,10 @@ body.mg-sem-hora .mgz-m .hora{display:none}
 .mgz-m.luq .quem{color:var(--brass2)}
 /* O gato é preto, então o fundo dele é dourado fixo nos dois temas. Se
    herdasse a cor do tema, no escuro sumiria contra o próprio fundo. */
+/* fundo escuro atrás do sprite, nos dois temas: é o contraste em que o
+   pixel de terracota foi desenhado para ser lido */
 .mgz-gato{width:36px;height:36px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
-  background:#E9DCBB;border:1px solid var(--brass)}
+  background:var(--ink);border:1px solid var(--line2)}
 .mg-gato{display:block}
 .mgz-m .selo{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   color:var(--brass2);border:1px solid var(--brass);border-radius:5px;padding:1px 5px}
@@ -18481,28 +18485,61 @@ window.MGJanela = MGJanela;
    olhos amarelos flutuando: era o "ícone que não estava claro". Para
    ficar dentro de uma régua de ícones, existe a versão em traço, que
    herda a cor do botão e casa com os outros desenhos. */
-function mgGatoLinha(tam){
+/* ---------------------------------------------------------------------
+   A marca do Kronos
+
+   Sprite de pixel, desenhado numa grade de 7 por 5. Cada quadrado é um
+   <rect> de 1 por 1 no viewBox, então ele escala sem borrar, e
+   shape-rendering="crispEdges" impede o navegador de suavizar a borda
+   dos quadrados, que é justamente o que mataria o efeito.
+
+   Duas versões, como antes: a de traço herda a cor de quem chama
+   (currentColor), para funcionar em botão claro e escuro; a cheia tem
+   cor própria, porque é avatar e precisa ser a mesma em todo lugar.
+   --------------------------------------------------------------------- */
+const MG_KRONOS_GRADE = [
+  '.11111.',
+  '1111111',
+  '11.1.11',
+  '1111111',
+  '1.1.1.1',
+];
+const MG_KRONOS_COR  = '#D2694A';   /* terracota */
+const MG_KRONOS_OLHO = '#17150F';
+
+function mgKronosQuadros(cor){
+  let out = '';
+  MG_KRONOS_GRADE.forEach((linha, y)=>{
+    [...linha].forEach((c, x)=>{
+      if(c !== '1') return;
+      out += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + cor + '"/>';
+    });
+  });
+  return out;
+}
+
+function mgKronosSVG(tam, cor, olho, classe){
   const t = tam || 17;
-  return '<svg class="mg-gato-l" viewBox="0 0 32 32" width="' + t + '" height="' + t + '"'
-    + ' fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"'
-    + ' stroke-linecap="round" aria-hidden="true" focusable="false">'
-    + '<path d="M6 5.2l4.2 4.3A11.6 11.6 0 0116 8.4c2.2 0 4.2.4 5.8 1.1L26 5.2v9.1a10 10 0 01-20 0V5.2z"/>'
-    + '<path d="M12.4 15.4v1.2M19.6 15.4v1.2"/>'
-    + '<path d="M14.6 20.4h2.8"/>'
+  /* a grade é 7x5; a altura acompanha para o bicho não esticar */
+  const alt = Math.round(t * 5 / 7);
+  return '<svg class="' + classe + '" viewBox="0 0 7 5" width="' + t + '" height="' + alt + '"'
+    + ' shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
+    + mgKronosQuadros(cor)
+    + (olho
+        ? '<rect x="2" y="2" width="1" height="1" fill="' + olho + '"/>'
+        + '<rect x="4" y="2" width="1" height="1" fill="' + olho + '"/>'
+        : '')
     + '</svg>';
 }
+
+/* versão de traço: herda a cor de quem chama, e os olhos são vazados */
+function mgGatoLinha(tam){
+  return mgKronosSVG(tam || 17, 'currentColor', null, 'mg-gato-l');
+}
+/* versão cheia: cor própria e olhos desenhados, para ficar igual sobre
+   qualquer fundo em que o avatar caia */
 function mgGato(tam){
-  const t = tam || 20;
-  return '<svg class="mg-gato" viewBox="0 0 32 32" width="' + t + '" height="' + t + '"'
-    + ' aria-hidden="true" focusable="false">'
-    + '<path fill="#17150F" d="M5 3.4l4.6 4.8A11.7 11.7 0 0116 6.9c2.4 0 4.6.5 6.4 1.3L27 3.4v10.2'
-    + 'a11 11 0 01-22 0V3.4z"/>'
-    + '<ellipse cx="11.6" cy="14.6" rx="1.7" ry="2.2" fill="#E8C25C"/>'
-    + '<ellipse cx="20.4" cy="14.6" rx="1.7" ry="2.2" fill="#E8C25C"/>'
-    + '<path fill="#E8C25C" d="M16 18.6l-1.7 1.5h3.4L16 18.6z"/>'
-    + '<path stroke="#E8C25C" stroke-width="1" stroke-linecap="round" fill="none"'
-    + ' d="M16 20.6v1.4M16 22c-.9 1-2.4 1-3.2.1M16 22c.9 1 2.4 1 3.2.1"/>'
-    + '</svg>';
+  return mgKronosSVG(tam || 20, MG_KRONOS_COR, MG_KRONOS_OLHO, 'mg-gato');
 }
 
 const MGChat = (function(){
@@ -18514,7 +18551,16 @@ const EMOJIS = ['👍','❤️','🎉','🔥','👀','✅','🙏','😂','💡',
 let carregandoMsgs = false;
 let erroMsgs = null;
 let erroCanais = null;
-let empresasAbertas = new Set();
+/* O que está aberto na lateral sobrevive ao recarregar. Antes o Set vivia
+   só em memória, então toda visita recomeçava com tudo fechado. */
+const MGZ_ABERTAS = 'mgp_chat_empresas_abertas';
+let empresasAbertas = (function(){
+  try{ return new Set(JSON.parse(localStorage.getItem(MGZ_ABERTAS) || '[]')) }
+  catch(_){ return new Set() }
+})();
+function guardarAbertas(){
+  try{ localStorage.setItem(MGZ_ABERTAS, JSON.stringify([...empresasAbertas])) }catch(_){}
+}
 let respondendo = null;     /* citação de mensagem órfã, caso legado     */
 let painelDir = null;       /* painel da direita: null | 'info' | 'thread'*/
 let thread = null;          /* id da mensagem-raiz aberta na thread       */
@@ -19175,6 +19221,10 @@ function menuCanal(ev, id){
   m.innerHTML = '<div class="tt">' + esc(nomeCanal(c)) + '</div>'
     + '<button onclick="MGChat.fecharMenuCanal();MGChat.editarCanal(\'' + escJS(c.id) + '\')">'
     + '<span class="ic">⚙</span>Configurar canal</button>'
+    + (c.tipo === 'client' && c.client_id
+        ? '<button onclick="MGChat.fecharMenuCanal();MGChat.novoCanalCliente(\''
+          + escJS(c.client_id) + '\')"><span class="ic">＋</span>Novo canal desta empresa</button>'
+        : '')
     + '<button class="perigo" onclick="MGChat.fecharMenuCanal();MGChat.excluirCanal(\'' + escJS(c.id) + '\')">'
     + '<span class="ic">🗑</span>Excluir canal</button>';
   document.body.appendChild(m);
@@ -19232,10 +19282,39 @@ function tudoHTML(){
         + (isAdmin() ? '<button class="add" title="Configurar canais" onclick="MGChat.configurar()">⚙</button>' : '')
       + '</div>'
       + (grupos.length ? grupos.map(g=>{
-          const aberta = empresasAbertas.has(g.cid) || g.cs.some(c=>c.id===CHAN) || !!busca;
-          if(aberta) empresasAbertas.add(g.cid);
           const marca = (typeof mgClientLogo==='function') ? mgClientLogo(g.cid, 18)
             : '<span class="h"></span>';
+
+          /* Quase toda empresa tem UM canal, com o nome dela. O grupo virava
+             então uma casca em volta de um item só: era preciso clicar para
+             abrir a empresa e clicar de novo na conversa, que repetia o mesmo
+             nome logo abaixo. Com um canal só, a linha da empresa É a
+             conversa. Ganhando um segundo canal, ela volta a ser grupo. */
+          if(g.cs.length === 1){
+            const c = g.cs[0];
+            const n = CH_NAOLIDAS[c.id] || 0;
+            const doCanal = nomeCanal(c);
+            const rotulo = MGU.norm(doCanal) === MGU.norm(g.nome)
+              ? g.nome : g.nome + ' · ' + doCanal;
+            const linha = '<button class="mgz-i mgz-so ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
+              + ' title="' + esc(doCanal) + '"'
+              + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
+              + marca
+              + '<span class="nm">' + esc(rotulo) + '</span>'
+              + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+              + '</button>';
+            if(!ehDono()) return linha;
+            /* um ⋯ só. Dois botões iguais lado a lado viravam adivinhação de
+               qual é qual; "Novo canal" passou para dentro do menu. */
+            return '<span class="mgz-linha">' + linha
+              + '<button class="mgz-mais" title="Opções do canal" aria-label="Opções do canal"'
+              + ' onclick="MGChat.menuCanal(event,\'' + escJS(c.id) + '\')">⋯</button></span>';
+          }
+
+          const sempre = (typeof mgP === 'function') && mgP('empresasSempre') !== 'off';
+          const aberta = sempre || empresasAbertas.has(g.cid)
+                      || g.cs.some(c=>c.id===CHAN) || !!busca;
+          if(aberta && !sempre) empresasAbertas.add(g.cid);
           return '<div class="mgz-emp ' + (aberta?'aberta':'') + '">'
             + '<button class="cab" onclick="MGChat.alternarEmpresa(\'' + escJS(g.cid) + '\')">'
               + '<span class="seta">▶</span>' + marca
@@ -20947,6 +21026,7 @@ function trocarAba(a){ aba = a; CH_FILTER = ''; desenhar();
 function alternarNaoLidas(){ soNaoLidas = !soNaoLidas; desenhar() }
 function alternarEmpresa(cid){
   if(empresasAbertas.has(cid)) empresasAbertas.delete(cid); else empresasAbertas.add(cid);
+  guardarAbertas();
   desenhar();
 }
 async function recarregar(){ CH_READY = null; CHMSGS = {}; desenhar() }
