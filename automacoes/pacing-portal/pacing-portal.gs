@@ -109,6 +109,90 @@ function propriedade(chave) {
 }
 
 /**
+ * Gráfico de projeção até o fim do mês: três linhas no acumulado.
+ *
+ *   Plano de mídia   reta pontilhada, a verba do mês distribuída por dia
+ *   Realizado        linha cheia, só até o último dia FECHADO
+ *   Projeção         pontilhada, o ritmo atual estendido até o fim do mês
+ *
+ * O dia de hoje fica de fora da média de propósito. Ele está em curso e
+ * sempre parece um dia fraco, então entra na média puxando a projeção para
+ * baixo e faz a conta mentir todo dia, sempre no mesmo sentido.
+ *
+ * @param {Object} o
+ *   o.conta      nome que vai no título
+ *   o.diario     array com o gasto de cada dia do mês, índice 0 = dia 1.
+ *                Inclua o dia de hoje: ele é desenhado, só não entra na média.
+ *   o.fechados   quantos dias já fecharam (normalmente ontem)
+ *   o.diasNoMes  28, 30, 31
+ *   o.meta       verba do mês. Zero ou ausente esconde a linha do plano.
+ *   o.moeda      'R$', 'US$', '€'
+ * @return {Object} { url, realizado, media, projecao, percentualDoPlano }
+ */
+function graficoProjecao(o) {
+  var diasNoMes = o.diasNoMes || 30;
+  var fechados = Math.max(1, Math.min(o.fechados || 1, diasNoMes));
+  var moeda = o.moeda || 'R$';
+
+  var acumulado = [], soma = 0;
+  for (var i = 0; i < o.diario.length; i++) {
+    soma += Number(o.diario[i]) || 0;
+    acumulado.push(Math.round(soma * 100) / 100);
+  }
+
+  var realizadoFechado = acumulado[fechados - 1] || 0;
+  var media = realizadoFechado / fechados;
+  var projecao = media * diasNoMes;
+
+  var rotulos = [], plano = [], real = [], proj = [];
+  for (var d = 1; d <= diasNoMes; d++) {
+    rotulos.push(String(d));
+    plano.push(o.meta ? Math.round((o.meta / diasNoMes) * d * 100) / 100 : null);
+    real.push(d <= fechados ? acumulado[d - 1] : null);
+    // A projeção começa no último ponto do realizado, para as linhas se
+    // encostarem em vez de aparecer um degrau entre elas.
+    proj.push(d < fechados ? null
+      : Math.round((realizadoFechado + media * (d - fechados)) * 100) / 100);
+  }
+
+  var conjuntos = [];
+  if (o.meta) {
+    conjuntos.push({ label: 'Plano de mídia', data: plano, borderColor: '#8a8578',
+      borderDash: [4, 4], borderWidth: 2, fill: false, pointRadius: 0 });
+  }
+  conjuntos.push({ label: 'Realizado', data: real, borderColor: '#1a1a18',
+    borderWidth: 3, fill: false, pointRadius: 0 });
+  conjuntos.push({ label: 'Projeção no ritmo', data: proj, borderColor: '#c2a15b',
+    borderDash: [2, 3], borderWidth: 2, fill: false, pointRadius: 0 });
+
+  var cfg = {
+    type: 'line',
+    data: { labels: rotulos, datasets: conjuntos },
+    options: {
+      plugins: {
+        title: { display: true, text: o.conta + ' · investimento acumulado no mês' },
+        legend: { position: 'bottom' }
+      }
+    }
+  };
+
+  return {
+    url: 'https://quickchart.io/chart?w=560&h=300&c=' +
+         encodeURIComponent(JSON.stringify(cfg)),
+    realizado: realizadoFechado,
+    media: media,
+    projecao: projecao,
+    percentualDoPlano: o.meta ? (projecao / o.meta) * 100 : null,
+    resumo: '*Realizado* ' + moeda + ' ' + Math.round(realizadoFechado).toLocaleString('pt-BR') +
+            ' em ' + fechados + ' dias fechados · média ' + moeda + ' ' +
+            Math.round(media).toLocaleString('pt-BR') + '/dia' +
+            (o.meta ? '\n*Projeção no mês* ' + moeda + ' ' +
+              Math.round(projecao).toLocaleString('pt-BR') + ' · ' +
+              Math.round((projecao / o.meta) * 100) + '% do plano' : '')
+  };
+}
+
+/**
  * Exemplo do formato, com os números reais do post de 14/08 no Slack.
  * Rode uma vez para ver a tela de Pacing sair do estado vazio.
  */
