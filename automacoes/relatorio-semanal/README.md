@@ -3,9 +3,42 @@
 Post automático no Slack toda **sexta-feira às 16h (America/Sao_Paulo)**, no canal
 `#resumo_otmizações_e_tarefas` (`C0C0H9AGT8U`).
 
-Quem dispara é uma Routine do Claude Code (cron `0 19 * * 5` em UTC, que é 16h em
-Brasília). Cada disparo abre uma sessão nova, que lê este diretório e executa o
-procedimento abaixo.
+## Como o envio automático acontece
+
+Duas rotas, e elas não são equivalentes.
+
+**Rota A, recomendada: Apps Script.** Roda sozinha, sem depender do Claude, com
+acionador nativo do Google. São dois arquivos neste diretório:
+
+| Arquivo | Onde roda | Quando |
+|---|---|---|
+| `google-ads-script.js` | Google Ads Scripts, dentro do MCC | sexta, 15:30 |
+| `apps-script.gs` | Apps Script (script.google.com) | sexta, 16:00 |
+
+O primeiro coleta o Google Ads e grava um JSON no Drive. O segundo lê esse JSON,
+busca Meta e MGP Tasks, monta o post e publica. Instalação:
+
+1. No Google Ads, em cada um dos dois MCCs (Modesto Growth Partners e Wondr
+   Experience), crie um script com o conteúdo de `google-ads-script.js`, ajuste
+   `CONTAS` e `ARQUIVO_SAIDA` conforme os comentários, autorize e agende para
+   sexta às 15:30.
+2. Em script.google.com, crie um projeto com `apps-script.gs`. Em Configurações
+   do projeto, confirme o fuso `America/Sao_Paulo` e cadastre as quatro
+   propriedades de script: `META_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY`,
+   `SLACK_TOKEN`.
+3. Rode `previa()` uma vez e confira o texto no log antes de agendar.
+4. Crie o acionador semanal de `main` para sexta, 16h.
+
+Sobre o `META_TOKEN`: use System User do Business Manager, com `ads_read`. Token
+de usuário comum expira e o relatório para de sair numa sexta qualquer, sem aviso.
+
+**Rota B, ponte: Routine do Claude Code.** Existe uma Routine agendada
+(`0 19 * * 5` em UTC, que é 16h em Brasília) que acorda a sessão do Claude e
+manda executar o procedimento deste README. Funciona, mas é frágil por um motivo
+concreto: a criação de Routine por API não consegue anexar conectores MCP nesta
+organização, então ela depende de disparar numa sessão que já tenha Slack,
+Pipeboard e Supabase carregados. Sessão remota é efêmera. Trate a rota B como
+ponte até a rota A estar no ar, e confira o resultado nas primeiras semanas.
 
 ## O que entra no post
 
