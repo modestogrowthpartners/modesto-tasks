@@ -30,7 +30,10 @@
                      {channel_id:'ch-3',profile_id:UID2,last_read_at:'2026-09-01T10:00:00Z',apelido:null,avatar_url:null}],
     messages:[{id:'m-1',channel_id:'ch-1',author_id:UID2,author_name:'Elias Braga',body:'bom dia',
                kind:'user',created_at:new Date(Date.now()-3600e3).toISOString(),reply_to:null,reactions:{},anexos:[]}],
-    task_notes:[], briefings:[],
+    task_notes:[{id:'n-1', task_id:'t-1', author_id:UID2, author_name:'Elias Braga',
+                 body:'ajustei as mensagens do bot', visibility:'public', anexos:[],
+                 created_at:'2026-09-02T11:00:00Z'}],
+    briefings:[],
     media_plans:[{id:'mp-1', client_id:CID, plano:{verba_total:50000}, atualizado_em:'2026-09-01T10:00:00Z'}],
     pacing:[
       {id:'pc-1', conta:'Cliente Um Ads', client_id:CID, dia:'2026-09-04', mes:'2026-09', moeda:'BRL',
@@ -62,9 +65,13 @@
     const filtros=[];
     const api={};
     const passa=r=>filtros.every(([c,v])=>String(r[c])===String(v));
-    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','gte','lte','gt','lt','is','in']
+    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','lte','lt','is','in']
       .forEach(m=>api[m]=()=>api);
     api.eq=(c,v)=>{ filtros.push([c,v]); return api };
+    /* gt e gte de verdade: sem eles o sync incremental do app devolvia a
+       tabela inteira e o teste não provava nada */
+    api.gt =(c,v)=>{ rows=rows.filter(r=>String(r[c]||'') >  String(v)); return api };
+    api.gte=(c,v)=>{ rows=rows.filter(r=>String(r[c]||'') >= String(v)); return api };
     api.neq=()=>api;
     let novos=null;
     const alvo=()=>novos||rows.filter(passa);
@@ -95,6 +102,20 @@
   let __eu = perfis[0];
   try{ if(localStorage.getItem('__COMO') === 'cliente') __eu = perfis[2] }catch(e){}
   const sess={user:{id:__eu.id, email:__eu.email, confirmed_at:'2026-01-01'}, access_token:'x'};
+  const CANAIS=[];
+  /* dispara um evento de realtime nos ouvintes registrados. Sem isso o
+     dublê guardava os handlers e nunca os chamava, então o caminho da
+     mensagem chegando pelo tempo real ficava sem teste. */
+  window.__disparar=function(tabela, evento, linha){
+    CANAIS.forEach(c=>c._h.forEach(([ev,f,g])=>{
+      if(ev!=='postgres_changes') return;
+      const cfg = (typeof f==='object' && f) ? f : {};
+      if(cfg.table && cfg.table!==tabela) return;
+      if(cfg.event && cfg.event!=='*' && cfg.event!==evento) return;
+      const cb = (typeof g==='function') ? g : (typeof f==='function' ? f : null);
+      if(cb) cb({eventType:evento, new:evento==='DELETE'?null:linha, old:evento==='DELETE'?linha:null});
+    }));
+  };
   function canal(){
     const c={_h:[],on(ev,f,g){c._h.push([ev,f,g]);return c},
       subscribe(cb){ if(cb) setTimeout(()=>cb('SUBSCRIBED'),0); return c },
@@ -102,6 +123,7 @@
       track(){ return Promise.resolve('ok') },
       send(){ return Promise.resolve('ok') },
       unsubscribe(){ return Promise.resolve('ok') }};
+    CANAIS.push(c);
     return c;
   }
   window.supabase={createClient:()=>({

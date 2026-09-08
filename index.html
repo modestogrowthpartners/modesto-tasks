@@ -20454,30 +20454,40 @@ function pastaDoCanal(){
   if(c && c.tipo === 'client' && c.client_id) return c.client_id + '/chat';
   return 'equipe/chat';
 }
+/* Um caminho só para tudo que entra: o botão de anexo, o Ctrl+V e o
+   arrastar-e-soltar terminam aqui. Assim a validação de tipo e tamanho
+   vale igual nos três, e não há como um deles ficar para trás. */
+function receberArquivos(lista, onde){
+  let entraram = 0;
+  [...(lista||[])].forEach(f=>{
+    if(!f) return;
+    if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
+    /* O bucket passou a recusar tipo fora da lista. Conferir aqui antes
+       é o que separa um aviso legível de um erro cru do storage no meio
+       do envio. A lista é a mesma do banco, de propósito: se divergir,
+       quem manda é o banco e a tela vira mentira. */
+    if(!mgTipoPermitido(f)){
+      toast('"' + (f.name || 'arquivo') + '" não é um tipo aceito. '
+          + 'Envie imagem, PDF, HTML, planilha, apresentação, documento ou zip.');
+      return;
+    }
+    const item = {nome:f.name || 'arquivo', tipo:f.type||'', tamanho:f.size, arquivo:f, previa:null};
+    /* miniatura local, feita do próprio arquivo: aparece na hora, antes
+       de qualquer viagem até o servidor */
+    if(ehImagem(item)){ try{ item.previa = URL.createObjectURL(f) }catch(_){} }
+    filaDe(onde).push(item);
+    entraram++;
+  });
+  if(entraram){
+    desenhar();
+    const ta = caixa(onde); if(ta) ta.focus();
+  }
+  return entraram;
+}
 function escolherArquivo(onde){
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true;
-  inp.onchange = e=>{
-    [...e.target.files].forEach(f=>{
-      if(f.size > 25*1024*1024){ toast('"' + f.name + '" passa de 25 MB'); return }
-      /* O bucket passou a recusar tipo fora da lista. Conferir aqui antes
-         é o que separa um aviso legível de um erro cru do storage no meio
-         do envio. A lista é a mesma do banco, de propósito: se divergir,
-         quem manda é o banco e a tela vira mentira. */
-      if(!mgTipoPermitido(f)){
-        toast('"' + f.name + '" não é um tipo aceito. '
-            + 'Envie imagem, PDF, HTML, planilha, apresentação, documento ou zip.');
-        return;
-      }
-      const item = {nome:f.name, tipo:f.type||'', tamanho:f.size, arquivo:f, previa:null};
-      /* miniatura local, feita do próprio arquivo: aparece na hora, antes
-         de qualquer viagem até o servidor */
-      if(ehImagem(item)){ try{ item.previa = URL.createObjectURL(f) }catch(_){} }
-      filaDe(onde).push(item);
-    });
-    desenhar();
-    const ta = caixa(onde); if(ta) ta.focus();
-  };
+  inp.onchange = e=>receberArquivos(e.target.files, onde);
   inp.click();
 }
 function tirarDaFila(i, onde){
@@ -20955,7 +20965,7 @@ return {
   iniciar, desenhar, abrir, abrirDireta, escolherPessoa, filtrar, focarBusca, voltar,
   alternarInfo, alternarEmpresa, enviar, enviarThread, reenviar, tecla, digitou, fmt, fmtLinha,
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
-  abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
+  abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, receberArquivos, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
   menuCanal, fecharMenuCanal,
   configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores, canalAtual,
@@ -23302,6 +23312,866 @@ body.theme-dark .bg-anim{opacity:.35}
     permissao: () => typeof isAdmin === 'function' && isAdmin(),
     executar: configComoReport,
   });
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · ANOTAÇÃO COM PRINT, THREAD NO CANAL E AVISO NA TELA
+
+   Três coisas nesta seção:
+
+   1. Colar um print na anotação da demanda (Ctrl+V, arrastar ou botão),
+      com miniatura antes de enviar.
+   2. A anotação marcada como "Cliente" cai no canal dele no MGP Chat,
+      dentro de uma thread [DEMANDA] — uma por demanda, não uma mensagem
+      solta por anotação.
+   3. Mensagem recebida vira aviso na tela de quem recebeu, em qualquer
+      lugar da plataforma, não só dentro do chat.
+   ===================================================================== */
+
+/* ---------- 1. fila de imagens da anotação ---------- */
+.mg-nfila{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}
+.mg-nfila:empty{display:none;margin:0}
+.mg-nf-i{position:relative;width:74px;height:74px;border-radius:10px;overflow:hidden;
+  border:1px solid var(--line2);background:var(--card2);flex:0 0 auto}
+.mg-nf-i img{width:100%;height:100%;object-fit:cover;display:block}
+.mg-nf-i .x{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;
+  border:0;background:rgba(0,0,0,.62);color:#fff;font-size:11px;line-height:1;
+  display:grid;place-items:center;padding:0;cursor:pointer}
+.mg-nf-i .x:hover{background:var(--danger)}
+.mg-nf-i .pc{position:absolute;inset:0;display:grid;place-items:center;
+  background:rgba(0,0,0,.45);color:#fff;font-size:11px;font-weight:700}
+
+.mg-nota-img{background:var(--card2);border:1px solid var(--line2);border-radius:9px;
+  padding:6px 11px;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.mg-nota-img:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-nota-dica{font-size:11px;color:var(--muted2);margin-top:5px}
+
+#d-note-input.mg-colando,
+#mgz-in.mg-colando,
+#mgz-in-th.mg-colando{outline:2px dashed var(--brass);outline-offset:2px}
+
+/* imagens dentro da anotação já salva */
+.mg-nanx{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.mg-nanx a{display:block;width:104px;height:78px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line);background:var(--card2)}
+.mg-nanx img{width:100%;height:100%;object-fit:cover;display:block}
+.mg-nanx .quebrou{display:grid;place-items:center;width:104px;height:78px;border-radius:9px;
+  border:1px dashed var(--line2);color:var(--muted2);font-size:11px}
+
+/* selo de publicado no chat */
+.mg-nota-selo{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;
+  background:rgba(194,161,91,.16);color:var(--brass2);margin-left:2px}
+
+/* ---------- 3. avisos na tela ---------- */
+#mg-avisos{position:fixed;top:14px;right:14px;z-index:4200;display:flex;
+  flex-direction:column;gap:9px;width:326px;max-width:calc(100vw - 28px);pointer-events:none}
+.mg-aviso{pointer-events:auto;display:flex;gap:11px;align-items:flex-start;
+  background:var(--card);border:1px solid var(--line2);border-radius:13px;
+  padding:12px 13px;box-shadow:0 12px 34px rgba(0,0,0,.20);cursor:pointer;
+  animation:mgAvisoEntra .22s cubic-bezier(.2,.9,.3,1)}
+.mg-aviso:hover{border-color:var(--brass)}
+.mg-aviso .av{width:32px;height:32px;border-radius:9px;flex:0 0 auto;display:grid;
+  place-items:center;font-size:12px;font-weight:700;color:#fff;background:var(--brass2)}
+.mg-aviso .tx{flex:1;min-width:0}
+.mg-aviso .tt{font-size:12.5px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-aviso .cp{font-size:12px;color:var(--muted);line-height:1.45;margin-top:2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mg-aviso .on{font-size:10.5px;color:var(--muted2);margin-top:4px;font-weight:600}
+.mg-aviso .x{background:none;border:0;color:var(--muted2);font-size:14px;padding:0 2px;
+  line-height:1;cursor:pointer;flex:0 0 auto}
+.mg-aviso .x:hover{color:var(--danger)}
+@keyframes mgAvisoEntra{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.mg-aviso.saindo{opacity:0;transform:translateX(18px);transition:.18s}
+@media(max-width:640px){
+  #mg-avisos{top:auto;bottom:86px;right:10px;left:10px;width:auto}
+}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · ANOTAÇÃO COM PRINT, THREAD NO CANAL E AVISO NA TELA
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   PARTE 1 — colar imagem na anotação
+   --------------------------------------------------------------------- */
+
+let MG_NOTA_FILA = [];          /* {nome, tipo, tamanho, arquivo, previa} */
+const MG_NOTA_VIS_KEY = 'mgp_nota_visibilidade';
+
+const MG_IMG_OK = new Set(['image/png','image/jpeg','image/gif','image/webp','image/avif']);
+
+/* Print vindo de alguns sistemas chega como bmp ou tiff, que o acervo não
+   aceita. Em vez de recusar, convertemos para PNG no próprio navegador. */
+function mgParaPNG(arquivo){
+  return new Promise((ok, falhou)=>{
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        c.toBlob(b=>{
+          URL.revokeObjectURL(url);
+          b ? ok(new File([b], 'print.png', {type:'image/png'})) : falhou(new Error('sem conversão'));
+        }, 'image/png');
+      }catch(e){ URL.revokeObjectURL(url); falhou(e) }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); falhou(new Error('imagem ilegível')) };
+    img.src = url;
+  });
+}
+
+async function mgNotaAceitar(arquivos){
+  const lista = [...arquivos].filter(Boolean);
+  let entraram = 0;
+  for(let f of lista){
+    if(!/^image\//i.test(f.type||'')){
+      toast('Só imagem por aqui. Para outros arquivos use “Anexar arquivo”.');
+      continue;
+    }
+    if(!MG_IMG_OK.has((f.type||'').toLowerCase())){
+      try{ f = await mgParaPNG(f) }
+      catch(e){ toast('Este formato de imagem não é aceito'); continue }
+    }
+    if(f.size > 25*1024*1024){ toast('A imagem passa de 25 MB'); continue }
+    MG_NOTA_FILA.push({
+      nome: f.name || ('print-' + Date.now() + '.png'),
+      tipo: f.type, tamanho: f.size, arquivo: f,
+      previa: URL.createObjectURL(f),
+    });
+    entraram++;
+  }
+  if(entraram) mgNotaPintarFila();
+  return entraram;
+}
+
+function mgNotaPintarFila(){
+  const cx = document.getElementById('mg-nota-fila');
+  if(!cx) return;
+  cx.innerHTML = MG_NOTA_FILA.map((f,i)=>
+    '<div class="mg-nf-i" title="' + esc(f.nome) + '">'
+    + '<img src="' + esc(f.previa) + '" alt="' + esc(f.nome) + '">'
+    + '<button class="x" title="Tirar" onclick="mgNotaTirar(' + i + ')">✕</button>'
+    + '</div>').join('');
+  const bt = document.getElementById('mg-nota-env');
+  const ta = document.getElementById('d-note-input');
+  if(bt && ta) bt.disabled = !ta.value.trim() && !MG_NOTA_FILA.length;
+}
+
+window.mgNotaTirar = function(i){
+  const f = MG_NOTA_FILA[i];
+  if(f && f.previa){ try{ URL.revokeObjectURL(f.previa) }catch(_){} }
+  MG_NOTA_FILA.splice(i,1);
+  mgNotaPintarFila();
+};
+
+function mgNotaLimparFila(){
+  MG_NOTA_FILA.forEach(f=>{ if(f.previa){ try{ URL.revokeObjectURL(f.previa) }catch(_){} } });
+  MG_NOTA_FILA = [];
+  mgNotaPintarFila();
+}
+
+window.mgNotaEscolherImagem = function(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.onchange = e => mgNotaAceitar(e.target.files);
+  inp.click();
+};
+
+/* monta a barra de imagens e o seletor de três níveis depois de cada
+   redesenho do painel de detalhe */
+function mgNotaEnfeitar(){
+  const ta = document.getElementById('d-note-input');
+  if(!ta || ta.dataset.mgPronto) return;
+  ta.dataset.mgPronto = '1';
+
+  /* três níveis: quem vê a anotação */
+  const sel = document.getElementById('d-note-vis');
+  if(sel){
+    let lembrado = 'public';
+    try{ lembrado = localStorage.getItem(MG_NOTA_VIS_KEY) || 'public' }catch(_){}
+    sel.innerHTML =
+        '<option value="public">🌐 Cliente · vai para o MGP Chat dele</option>'
+      + '<option value="equipe">👥 Equipe · só o time vê</option>'
+      + '<option value="private">🔒 Pessoal · só você vê</option>';
+    sel.value = ['public','equipe','private'].includes(lembrado) ? lembrado : 'public';
+    sel.onchange = ()=>{ try{ localStorage.setItem(MG_NOTA_VIS_KEY, sel.value) }catch(_){} };
+  }
+
+  /* fila de miniaturas logo abaixo da caixa de texto */
+  if(!document.getElementById('mg-nota-fila')){
+    ta.insertAdjacentHTML('afterend',
+      '<div class="mg-nfila" id="mg-nota-fila"></div>'
+      + '<div class="mg-nota-dica">Cole um print com Ctrl+V, arraste a imagem para cá '
+      + 'ou use o botão de imagem.</div>');
+  }
+
+  /* botão de imagem, ao lado do seletor */
+  const linha = sel ? sel.parentElement : null;
+  if(linha && !linha.querySelector('.mg-nota-img')){
+    sel.insertAdjacentHTML('afterend',
+      '<button type="button" class="mg-nota-img" onclick="mgNotaEscolherImagem()">'
+      + '<span>🖼</span><span>Imagem</span></button>');
+  }
+
+  /* o botão de enviar ganha id para poder desabilitar */
+  if(linha){
+    const bt = [...linha.querySelectorAll('button')]
+      .find(b => /adicionar anota/i.test(b.textContent||''));
+    if(bt && !bt.id) bt.id = 'mg-nota-env';
+  }
+
+  /* colar, arrastar e digitar */
+  ta.addEventListener('paste', e=>{
+    const it = (e.clipboardData && e.clipboardData.items) || [];
+    const arqs = [];
+    for(const i of it){ if(i.kind === 'file'){ const f = i.getAsFile(); if(f) arqs.push(f) } }
+    if(!arqs.length) return;                 /* texto puro segue o caminho normal */
+    e.preventDefault();
+    mgNotaAceitar(arqs).then(n=>{ if(n) toast(n === 1 ? 'Print colado' : n + ' imagens coladas') });
+  });
+  ['dragenter','dragover'].forEach(ev=>ta.addEventListener(ev, e=>{
+    if(!e.dataTransfer || !(e.dataTransfer.types||[]).includes('Files')) return;
+    e.preventDefault(); ta.classList.add('mg-colando');
+  }));
+  ['dragleave','dragend','drop'].forEach(ev=>ta.addEventListener(ev, ()=>ta.classList.remove('mg-colando')));
+  ta.addEventListener('drop', e=>{
+    const arqs = (e.dataTransfer && e.dataTransfer.files) || [];
+    if(!arqs.length) return;
+    e.preventDefault();
+    mgNotaAceitar(arqs);
+  });
+  ta.addEventListener('input', ()=>{
+    const bt = document.getElementById('mg-nota-env');
+    if(bt) bt.disabled = !ta.value.trim() && !MG_NOTA_FILA.length;
+  });
+
+  mgNotaPintarFila();
+}
+
+if(typeof renderDetailBody === 'function'){
+  const _rdb = renderDetailBody;
+  renderDetailBody = function(){
+    const r = _rdb.apply(this, arguments);
+    try{ mgNotaEnfeitar() }catch(e){ console.warn('[anotação]', e) }
+    return r;
+  };
+}
+/* trocar de demanda esvazia a fila: o print era daquela, não desta */
+if(typeof openDetail === 'function'){
+  const _od = openDetail;
+  openDetail = function(id){
+    if(DETAIL_ID && String(DETAIL_ID) !== String(id)) mgNotaLimparFila();
+    return _od.apply(this, arguments);
+  };
+}
+
+/* ---------------------------------------------------------------------
+   PARTE 2 — anexos das anotações já salvas
+
+   O link assinado não vai para o banco: ele expira. Quem resolve é
+   mgNotaURL(), na hora de mostrar, com uma hora de validade em memória.
+   --------------------------------------------------------------------- */
+const MG_NURL = new Map();        /* path -> {url, ate} */
+const MG_NPED = new Set();
+
+async function mgNotaURL(path){
+  if(!path || MG_NPED.has(path)) return;
+  const c = MG_NURL.get(path);
+  if(c && c.ate > Date.now()) return;
+  MG_NPED.add(path);
+  try{
+    const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 3600);
+    if(error || !data || !data.signedUrl) throw (error || new Error('sem link'));
+    MG_NURL.set(path, {url:data.signedUrl, ate: Date.now() + 55*60*1000});
+    document.querySelectorAll('img[data-nota-anexo="' + CSS.escape(path) + '"]')
+      .forEach(img=>img.setAttribute('src', data.signedUrl));
+  }catch(e){
+    document.querySelectorAll('[data-nota-anexo="' + CSS.escape(path) + '"]')
+      .forEach(el=>{ const p = el.parentElement;
+        if(p) p.outerHTML = '<span class="quebrou">imagem indisponível</span>' });
+  }finally{ MG_NPED.delete(path) }
+}
+
+function mgNotaAnexosHTML(n){
+  const lista = Array.isArray(n && n.anexos) ? n.anexos : [];
+  if(!lista.length) return '';
+  lista.forEach(a=>{ if(a && a.path) mgNotaURL(a.path) });
+  return '<div class="mg-nanx">' + lista.map(a=>{
+    const c = MG_NURL.get(a.path);
+    const url = (c && c.ate > Date.now()) ? c.url : '';
+    return '<a href="javascript:void(0)" onclick="mgNotaAbrir(\'' + escJS(a.path) + '\')" '
+      + 'title="' + esc(a.nome||'imagem') + '">'
+      + '<img data-nota-anexo="' + esc(a.path) + '" alt="' + esc(a.nome||'imagem') + '"'
+      + (url ? ' src="' + esc(url) + '"' : '') + '></a>';
+  }).join('') + '</div>';
+}
+
+window.mgNotaAbrir = async function(path){
+  try{
+    const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if(error) throw error;
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }catch(e){ toast('Não foi possível abrir a imagem') }
+};
+
+/* redesenha a lista de anotações com os anexos e o selo de publicado */
+if(typeof renderNotes === 'function'){
+  renderNotes = function(){
+    const lista = (typeof _notes !== 'undefined' && _notes) ? _notes : [];
+    if(!lista.length) return '<div style="color:var(--muted);font-size:13px">Nenhuma anotação ainda.</div>';
+    return lista.map(n=>{
+      const v = n.visibility || 'public';
+      const rotulo = v === 'public' ? '🌐 Cliente' : v === 'equipe' ? '👥 Equipe' : '🔒 Pessoal';
+      const classe = v === 'private' ? 'priv' : 'pub';
+      return '<div class="note">'
+        + '<div class="nh"><div class="nav">' + initials(n.author_name) + '</div>'
+        +   '<span class="nn">' + esc(n.author_name||'Usuário') + '</span>'
+        +   '<span class="note-badge ' + classe + '">' + rotulo + '</span>'
+        +   (n.__noChat ? '<span class="mg-nota-selo">no MGP Chat</span>' : '')
+        +   '<span class="nt">' + new Date(n.created_at).toLocaleString('pt-BR',
+              {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</span>'
+        +   ((n.author_id === (ME&&ME.id) || isAdmin())
+              ? '<button class="del" onclick="deleteNote(\'' + escJS(n.id) + '\')">excluir</button>' : '')
+        + '</div>'
+        + '<div class="nb">' + esc(n.body||'') + '</div>'
+        + mgNotaAnexosHTML(n)
+        + '</div>';
+    }).join('');
+  };
+}
+
+/* ---------------------------------------------------------------------
+   PARTE 3 — a anotação chegando no canal do cliente
+
+   Uma thread por demanda, não uma mensagem solta por anotação. A raiz
+   leva [DEMANDA] no começo e fica guardada em tasks.chat_msg_id; as
+   anotações entram como resposta dentro dela.
+   --------------------------------------------------------------------- */
+function mgCabecalhoDemanda(t){
+  const linhas = [];
+  const st = (typeof clientStatus === 'function') ? clientStatus(t.status) : t.status;
+  if(st) linhas.push('Status: ' + st);
+  if(t.due && typeof fmtDate === 'function') linhas.push('Prazo: ' + fmtDate(t.due));
+  const quem = (t.assignees || []).filter(Boolean).join(', ');
+  if(quem) linhas.push('Responsável: ' + quem);
+  return '[DEMANDA] ' + (t.title || 'Sem título')
+       + (linhas.length ? '\n' + linhas.join(' · ') : '');
+}
+
+async function mgCanalDoCliente(cid){
+  if(!cid) return null;
+  const local = (typeof CHANNELS !== 'undefined' && CHANNELS || [])
+    .find(c => c.tipo === 'client' && c.client_id === cid);
+  if(local) return local.id;
+  const {data, error} = await sb.from('channels')
+    .select('id').eq('tipo','client').eq('client_id', cid).limit(1);
+  if(error || !data || !data.length) return null;
+  return data[0].id;
+}
+
+async function mgPublicarNota(t, corpo, anexos){
+  const canal = await mgCanalDoCliente(t.client_id);
+  if(!canal) return {ok:false, motivo:'esta empresa ainda não tem canal no MGP Chat'};
+
+  let raiz = t.chat_msg_id || null;
+  if(raiz){
+    const {data} = await sb.from('messages').select('id,channel_id').eq('id', raiz).maybeSingle();
+    if(!data || data.channel_id !== canal) raiz = null;      /* apagada ou de outro canal */
+  }
+  if(!raiz){
+    const {data, error} = await sb.from('messages').insert({
+      channel_id: canal, author_id: ME.id, author_name: ME.name,
+      body: mgCabecalhoDemanda(t),
+    }).select().single();
+    if(error) throw error;
+    raiz = data.id;
+    const up = await sb.from('tasks').update({chat_msg_id: raiz}).eq('id', t.id);
+    if(up.error) console.warn('[demanda no chat]', up.error);
+    t.chat_msg_id = raiz;
+  }
+
+  const linha = {channel_id: canal, author_id: ME.id, author_name: ME.name,
+                 body: corpo || ' ', reply_to: raiz};
+  if(anexos && anexos.length) linha.anexos = anexos;
+  const {error} = await sb.from('messages').insert(linha);
+  if(error) throw error;
+  return {ok:true, canal, raiz};
+}
+
+async function mgSubirImagensDaNota(t){
+  const saida = [];
+  for(const f of MG_NOTA_FILA){
+    const ext = (String(f.nome||'').split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'') || 'png';
+    const id = (crypto.randomUUID ? crypto.randomUUID()
+                                  : Date.now() + '-' + Math.random().toString(16).slice(2));
+    const path = t.client_id + '/tarefas/' + id + '.' + ext;
+    const up = await sb.storage.from('documents').upload(path, f.arquivo, {upsert:false});
+    if(up.error) throw up.error;
+    saida.push({nome:f.nome, tipo:f.tipo, tamanho:f.tamanho, path});
+  }
+  return saida;
+}
+
+/* substitui a versão original: agora sobe as imagens e publica no canal */
+addNote = async function(){
+  const inp = document.getElementById('d-note-input');
+  const corpo = inp ? inp.value.trim() : '';
+  if(!corpo && !MG_NOTA_FILA.length) return;
+
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  if(!t){ toast('Demanda não encontrada'); return }
+
+  const vis = (document.getElementById('d-note-vis') || {}).value || 'public';
+  const bt = document.getElementById('mg-nota-env');
+  const rotuloAntes = bt ? bt.textContent : '';
+  if(bt){ bt.disabled = true; bt.textContent = MG_NOTA_FILA.length ? 'Enviando imagem…' : 'Salvando…' }
+
+  try{
+    let anexos = [];
+    if(MG_NOTA_FILA.length){
+      try{ anexos = await mgSubirImagensDaNota(t) }
+      catch(err){
+        console.error('[anotação · imagem]', err);
+        toast('A imagem não subiu, mas o texto foi salvo: ' + ((err && err.message) || ''));
+      }
+    }
+
+    const linha = {task_id: DETAIL_ID, author_id: ME.id, author_name: ME.name,
+                   body: corpo || '(imagem)', visibility: vis};
+    if(anexos.length) linha.anexos = anexos;
+    let {data, error} = await sb.from('task_notes').insert(linha).select().single();
+    if(error && /anexos/i.test(error.message||'')){
+      delete linha.anexos;
+      ({data, error} = await sb.from('task_notes').insert(linha).select().single());
+    }
+    if(error) throw error;
+
+    if(inp) inp.value = '';
+
+    /* só a anotação de cliente vira mensagem no canal dele */
+    if(vis === 'public'){
+      try{
+        const r = await mgPublicarNota(t, corpo || '(imagem)', anexos);
+        if(r.ok){ data.__noChat = true; toast('Anotação publicada no MGP Chat do cliente ✓') }
+        else toast('Anotação salva. Não foi para o chat: ' + r.motivo);
+      }catch(err){
+        console.error('[anotação · chat]', err);
+        toast('Anotação salva, mas não foi para o chat: ' + ((err && err.message) || ''));
+      }
+    }else{
+      toast('Anotação salva ✓');
+    }
+
+    if(typeof _notes !== 'undefined') _notes.push(data);
+    mgNotaLimparFila();
+    const cx = document.getElementById('d-notes');
+    if(cx) cx.innerHTML = renderNotes();
+  }catch(err){
+    console.error('[anotação]', err);
+    toast('Erro ao salvar anotação: ' + ((err && err.message) || ''));
+  }finally{
+    const b2 = document.getElementById('mg-nota-env');
+    if(b2){ b2.disabled = false; b2.textContent = rotuloAntes || 'Adicionar anotação' }
+  }
+};
+
+/* ---------------------------------------------------------------------
+   PARTE 4 — aviso na tela quando chega mensagem
+
+   O realtime do MGP Chat só subia quando você abria o chat. Agora ele
+   sobe junto com a sessão, então a mensagem aparece esteja você onde
+   estiver na plataforma.
+   --------------------------------------------------------------------- */
+let MG_AVISOS_CHAT = [];          /* para a central de notificações */
+let mgCanalAvisos = null;
+
+function mgCaixaAvisos(){
+  let el = document.getElementById('mg-avisos');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'mg-avisos';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function mgFecharAviso(el){
+  if(!el || el.classList.contains('saindo')) return;
+  el.classList.add('saindo');
+  setTimeout(()=>{ if(el.parentElement) el.remove() }, 200);
+}
+
+function mgAvisoNaTela(o){
+  const cx = mgCaixaAvisos();
+  /* no máximo três de pé: acima disso o mais antigo sai */
+  while(cx.children.length >= 3) cx.removeChild(cx.firstElementChild);
+  const el = document.createElement('div');
+  el.className = 'mg-aviso';
+  el.innerHTML =
+      '<div class="av">' + esc(o.iniciais || '·') + '</div>'
+    + '<div class="tx"><div class="tt">' + esc(o.titulo || '') + '</div>'
+    +   '<div class="cp">' + esc(o.corpo || '') + '</div>'
+    +   (o.onde ? '<div class="on">' + esc(o.onde) + '</div>' : '')
+    + '</div>'
+    + '<button class="x" title="Dispensar">✕</button>';
+  el.querySelector('.x').onclick = e => { e.stopPropagation(); mgFecharAviso(el) };
+  el.onclick = ()=>{ mgFecharAviso(el); try{ o.aoClicar && o.aoClicar() }catch(_){} };
+  cx.appendChild(el);
+  setTimeout(()=>mgFecharAviso(el), 8000);
+  return el;
+}
+
+/* aviso do sistema operacional, só com a aba escondida e permissão dada */
+function mgAvisoDoNavegador(titulo, corpo){
+  try{
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    if(!document.hidden) return;
+    const n = new Notification(titulo, {body: corpo, tag: 'mgp-chat', renotify: false});
+    n.onclick = ()=>{ try{ window.focus(); n.close() }catch(_){} };
+  }catch(_){}
+}
+
+/* pede a permissão uma vez só, e apenas depois de um clique do usuário */
+function mgPedirPermissao(){
+  try{
+    if(!('Notification' in window) || Notification.permission !== 'default') return;
+    if(localStorage.getItem('mgp_perm_pedida') === '1') return;
+    localStorage.setItem('mgp_perm_pedida', '1');
+    Notification.requestPermission().catch(()=>{});
+  }catch(_){}
+}
+document.addEventListener('click', function umaVez(){
+  document.removeEventListener('click', umaVez);
+  if(typeof ME !== 'undefined' && ME && ME.id) setTimeout(mgPedirPermissao, 1200);
+}, {once:true});
+
+function mgNomeDoCanal(cid){
+  const c = (typeof CHANNELS !== 'undefined' && CHANNELS || []).find(x => x.id === cid);
+  if(!c) return 'MGP Chat';
+  if(c.tipo === 'dm' && typeof MGChat !== 'undefined' && MGChat.nomeCanal){
+    try{ return MGChat.nomeCanal(c) }catch(_){}
+  }
+  return c.nome || 'MGP Chat';
+}
+
+function mgChegouMensagem(m){
+  if(!m || !m.channel_id || !ME) return;
+  if(m.author_id === ME.id) return;                      /* eco do meu próprio envio */
+  if(m.kind === 'system') return;
+  /* já estou olhando exatamente essa conversa */
+  if(typeof VIEW !== 'undefined' && VIEW === 'chat'
+     && typeof CHAN !== 'undefined' && CHAN === m.channel_id && !document.hidden) return;
+
+  const onde = mgNomeDoCanal(m.channel_id);
+  const quem = m.author_name || 'Alguém';
+  const temAnexo = !!(m.anexos && m.anexos.length);
+  const corpo = String(m.body || '').trim();
+  const resumo = (corpo && corpo !== ' ') ? corpo : (temAnexo ? '📎 enviou um arquivo' : '');
+
+  mgAvisoNaTela({
+    iniciais: (typeof initials === 'function') ? initials(quem) : '·',
+    titulo: quem,
+    corpo: resumo,
+    onde: onde,
+    aoClicar: ()=>{
+      try{
+        if(typeof showView === 'function') showView('chat');
+        if(typeof MGChat !== 'undefined' && MGChat.abrir) MGChat.abrir(m.channel_id);
+      }catch(e){ console.warn('[aviso]', e) }
+    },
+  });
+  mgAvisoDoNavegador(quem + ' · ' + onde, resumo);
+
+  MG_AVISOS_CHAT.unshift({
+    ts: m.created_at || new Date().toISOString(), icon:'💬', unread:true, mgChat:true,
+    canal: m.channel_id,
+    text: '<b>' + esc(quem) + '</b> mandou mensagem em ' + esc(onde),
+  });
+  if(MG_AVISOS_CHAT.length > 12) MG_AVISOS_CHAT.length = 12;
+  try{
+    if(typeof buildNotifs === 'function') buildNotifs();
+    if(typeof updateNotifBadge === 'function') updateNotifBadge();
+  }catch(_){}
+}
+
+/* as mensagens entram na central de notificações junto com as demandas */
+if(typeof buildNotifs === 'function'){
+  const _bn = buildNotifs;
+  buildNotifs = function(){
+    const r = _bn.apply(this, arguments);
+    try{
+      if(typeof NOTIFS === 'undefined') return r;
+      for(let i = NOTIFS.length - 1; i >= 0; i--){
+        if(NOTIFS[i] && NOTIFS[i].mgChat) NOTIFS.splice(i, 1);
+      }
+      MG_AVISOS_CHAT.slice().reverse().forEach(a => NOTIFS.unshift(a));
+    }catch(e){ console.warn('[avisos do chat]', e) }
+    return r;
+  };
+}
+if(typeof renderNotifs === 'function'){
+  const _rn = renderNotifs;
+  renderNotifs = function(){
+    const r = _rn.apply(this, arguments);
+    try{
+      let itens = (typeof NOTIFS !== 'undefined' && NOTIFS) ? NOTIFS : [];
+      if(typeof PREFS !== 'undefined' && PREFS.notifUnread === 'on') itens = itens.filter(i=>i.unread);
+      document.querySelectorAll('#notif-list .nitem').forEach((el, i)=>{
+        const n = itens[i];
+        if(!n || !n.mgChat) return;
+        el.onclick = ()=>{
+          if(typeof closeNotifs === 'function') closeNotifs();
+          if(typeof showView === 'function') showView('chat');
+          if(typeof MGChat !== 'undefined' && MGChat.abrir) MGChat.abrir(n.canal);
+        };
+      });
+    }catch(e){ console.warn('[avisos do chat]', e) }
+    return r;
+  };
+}
+
+/* o ouvinte sobe com a sessão, não só ao abrir o chat */
+async function mgLigarAvisos(){
+  if(mgCanalAvisos || !ME || !ME.id) return;
+  try{
+    if(typeof CHANNELS !== 'undefined' && !CHANNELS.length
+       && typeof MGChat !== 'undefined' && MGChat.carregarCanais){
+      await MGChat.carregarCanais().catch(()=>{});
+    }
+    mgCanalAvisos = sb.channel('mgp-avisos')
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'},
+          p => { try{ mgChegouMensagem(p.new) }catch(e){ console.warn('[aviso]', e) } })
+      .subscribe();
+  }catch(e){ console.warn('[avisos]', e) }
+}
+
+/* ---------------------------------------------------------------------
+   PARTE 5 — velocidade
+
+   Três desperdícios medidos, todos de repetição:
+
+   1. refresh() recarregava as 428 demandas inteiras a cada evento de
+      realtime. Um cronômetro rodando gerava um evento por segundo, e
+      cada um baixava a tabela toda e redesenhava a tela.
+   2. A varredura de 25 em 25 segundos fazia o mesmo, mesmo sem nada ter
+      mudado.
+   3. Quatro laços de tempo continuavam medindo a tela com a aba
+      escondida, quando não há tela para medir.
+   --------------------------------------------------------------------- */
+
+/* 1 e 2 — refresh coalescido, incremental, e sem redesenho à toa */
+let MG_MARCO = null;              /* maior updated_at que já vimos */
+let MG_CHEIO = 0;                 /* quantas rodadas desde a última completa */
+let MG_PEDIDO = null;
+let MG_ADIADO = false;
+
+function mgMarcoDe(lista){
+  let alto = null;
+  (lista || []).forEach(t=>{
+    const u = t.updated_at || t.created_at;
+    if(u && (!alto || u > alto)) alto = u;
+  });
+  return alto;
+}
+
+async function mgSincronizar(){
+  /* completa: primeira vez, a cada 10 rodadas, ou voltando do zero.
+     A completa é a única que enxerga demanda apagada. */
+  const precisaCheia = !MG_MARCO || MG_CHEIO >= 10
+                    || !(typeof TASKS !== 'undefined' && TASKS.length);
+  if(precisaCheia){
+    MG_CHEIO = 0;
+    await loadTasks();
+    MG_MARCO = mgMarcoDe(TASKS);
+    buildNotifs(); updateNotifBadge(); render();
+    if(DETAIL_ID) renderDetailBody();
+    return;
+  }
+
+  MG_CHEIO++;
+  const {data, error} = await sb.from('tasks').select('*').gt('updated_at', MG_MARCO);
+  if(error){ MG_CHEIO = 10; return }                 /* força completa na próxima */
+  if(!data || !data.length) return;                 /* nada mudou: nada a redesenhar */
+
+  const porId = new Map(TASKS.map(t=>[t.id, t]));
+  data.forEach(t=>{
+    if(porId.has(t.id)) Object.assign(porId.get(t.id), t);
+    else TASKS.push(t);
+  });
+  /* a ordem tem que ser a mesma do carregamento completo, senão o
+     Kanban embaralha quando uma demanda nova entra pelo incremental */
+  TASKS.sort((a,b)=>
+      (Number(a.position)||0) - (Number(b.position)||0)
+   || String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  MG_MARCO = mgMarcoDe(data) || MG_MARCO;
+  buildNotifs(); updateNotifBadge(); render();
+  if(DETAIL_ID) renderDetailBody();
+}
+
+if(typeof refresh === 'function'){
+  refresh = function(){
+    if(document.hidden){ MG_ADIADO = true; return Promise.resolve() }
+    if(MG_PEDIDO) return MG_PEDIDO;
+    MG_PEDIDO = new Promise(pronto=>{
+      setTimeout(async ()=>{
+        MG_PEDIDO = null;
+        try{ await mgSincronizar() }
+        catch(e){ console.warn('[sync]', e); MG_CHEIO = 10 }
+        pronto();
+      }, 700);                    /* junta a rajada de eventos numa ida só */
+    });
+    return MG_PEDIDO;
+  };
+}
+
+/* a demanda apagada some na hora, sem esperar a rodada completa */
+try{
+  sb.channel('mgp-tarefas-fora')
+    .on('postgres_changes', {event:'DELETE', schema:'public', table:'tasks'}, p=>{
+      const id = p && p.old && p.old.id; if(!id) return;
+      if(typeof TASKS === 'undefined') return;
+      const antes = TASKS.length;
+      TASKS = TASKS.filter(t => t.id !== id);
+      if(TASKS.length !== antes && !DETAIL_ID){ try{ render() }catch(_){} }
+    })
+    .subscribe();
+}catch(e){ /* realtime é opcional */ }
+
+/* 3 — laços de tempo param com a aba escondida */
+['mgEstadoDaTela','mgPainelAberto','mgAtualizarCron'].forEach(nome=>{
+  const f = window[nome];
+  if(typeof f !== 'function') return;
+  window[nome] = function(){
+    if(document.hidden) return;
+    return f.apply(this, arguments);
+  };
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) return;
+  ['mgEstadoDaTela','mgPainelAberto','mgAtualizarCron'].forEach(n=>{
+    try{ typeof window[n] === 'function' && window[n]() }catch(_){}
+  });
+  if(MG_ADIADO){ MG_ADIADO = false; try{ refresh() }catch(_){} }
+});
+
+/* ---------------------------------------------------------------------
+   Entrada
+   --------------------------------------------------------------------- */
+if(typeof boot === 'function'){
+  const _boot = boot;
+  boot = async function(){
+    const r = await _boot.apply(this, arguments);
+    mgArrancar();
+    return r;
+  };
+}
+
+/* boot() pode já ter sido disparado antes deste bloco ser lido: a sessão
+   é resolvida numa microtarefa, no meio do arquivo. Envolver boot() não
+   basta, então o arranque também se procura sozinho até a sessão existir. */
+function mgArrancar(){
+  const temSessao = (typeof ME !== 'undefined') && ME && ME.id;
+  if(!temSessao) return false;
+  try{ mgLigarAvisos() }catch(e){ console.warn('[avisos]', e) }
+  if(MG_MARCO === null && typeof TASKS !== 'undefined' && TASKS.length){
+    try{ MG_MARCO = mgMarcoDe(TASKS) }catch(_){}
+  }
+  return MG_MARCO !== null;
+}
+(function procurar(n){
+  if(mgArrancar()) return;
+  if(n > 75) return;                 /* ~30 s e para de procurar */
+  setTimeout(()=>procurar(n+1), 400);
+})(0);
+
+/* ---------------------------------------------------------------------
+   PARTE 6 — Ctrl+V também na caixa do MGP Chat
+
+   desenhar() troca o innerHTML inteiro a cada atualização, então ouvir
+   na própria caixa não sobrevive ao primeiro redesenho. Os ouvintes
+   ficam no documento e olham quem está em foco.
+   --------------------------------------------------------------------- */
+const MG_CAIXAS_CHAT = {'mgz-in':'', 'mgz-in-th':'th'};
+
+function mgOndeDoChat(alvo){
+  const id = alvo && alvo.id;
+  return (id && Object.prototype.hasOwnProperty.call(MG_CAIXAS_CHAT, id))
+    ? MG_CAIXAS_CHAT[id] : null;
+}
+
+document.addEventListener('paste', e=>{
+  const onde = mgOndeDoChat(e.target);
+  if(onde === null) return;
+  const it = (e.clipboardData && e.clipboardData.items) || [];
+  const arqs = [];
+  for(const i of it){ if(i.kind === 'file'){ const f = i.getAsFile(); if(f) arqs.push(f) } }
+  if(!arqs.length) return;                       /* texto puro segue normal */
+  e.preventDefault();
+  try{
+    const n = MGChat.receberArquivos(arqs, onde);
+    if(n) toast(n === 1 ? 'Print colado' : n + ' arquivos colados');
+  }catch(err){ console.warn('[colar no chat]', err) }
+});
+
+document.addEventListener('dragover', e=>{
+  const onde = mgOndeDoChat(e.target);
+  if(onde === null) return;
+  if(!e.dataTransfer || !(e.dataTransfer.types||[]).includes('Files')) return;
+  e.preventDefault();
+  e.target.classList.add('mg-colando');
+});
+['dragleave','dragend'].forEach(ev=>document.addEventListener(ev, e=>{
+  if(mgOndeDoChat(e.target) !== null) e.target.classList.remove('mg-colando');
+}));
+document.addEventListener('drop', e=>{
+  const onde = mgOndeDoChat(e.target);
+  if(onde === null) return;
+  e.target.classList.remove('mg-colando');
+  const arqs = (e.dataTransfer && e.dataTransfer.files) || [];
+  if(!arqs.length) return;
+  e.preventDefault();
+  try{ MGChat.receberArquivos(arqs, onde) }
+  catch(err){ console.warn('[soltar no chat]', err) }
+});
+
+/* ---------------------------------------------------------------------
+   PARTE 7 — "Início" sai do menu Ir para
+
+   A tela inicial continua existindo e continua a um clique: pela logo
+   da barra de baixo e pelo botão de início do topo. O que sai é a
+   entrada repetida dentro do menu.
+   --------------------------------------------------------------------- */
+if(typeof mgNavItens === 'function'){
+  const _nav = mgNavItens;
+  window.mgNavItens = function(){
+    const l = _nav.apply(this, arguments) || [];
+    return l.filter(n => n && n.v !== 'home');
+  };
+}
+
+/* nomes que os testes e o resto da plataforma usam */
+window.mgAvisoNaTela      = mgAvisoNaTela;
+window.mgChegouMensagem   = mgChegouMensagem;
+window.mgCabecalhoDemanda = mgCabecalhoDemanda;
+window.mgPublicarNota     = mgPublicarNota;
+window.mgNotaFila         = ()=>MG_NOTA_FILA;
+window.mgNotaAceitar      = mgNotaAceitar;
+window.mgNotaLimparFila   = mgNotaLimparFila;
+window.mgSincronizar      = mgSincronizar;
+/* estado do sincronizador, para o teste poder olhar e reiniciar */
+window.mgSyncEstado       = ()=>({marco: MG_MARCO, rodadas: MG_CHEIO});
+window.mgSyncReiniciar    = ()=>{ MG_CHEIO = 0;
+  MG_MARCO = mgMarcoDe(typeof TASKS !== 'undefined' ? TASKS : []) };
+window.mgLigarAvisos      = mgLigarAvisos;
+
 })();
 </script>
 

@@ -1166,6 +1166,291 @@ const dono = await page.evaluate(()=>({
 ok('36b o administrador continua com tudo',
    dono.ehDaCasa && dono.ehDono && dono.menuEquipe, JSON.stringify(dono));
 
+
+/* =====================================================================
+   37 — colar print na anotação da demanda
+   ===================================================================== */
+await page.bringToFront();
+await page.evaluate(async ()=>{ showView('tasks'); await new Promise(r=>setTimeout(r,250)); });
+await page.evaluate(async ()=>{ await openDetail('t-1'); await new Promise(r=>setTimeout(r,300)); });
+
+/* ---- 37. o seletor passa a ter os três níveis ---- */
+const niveis = await page.evaluate(()=>{
+  const s = document.getElementById('d-note-vis');
+  return s ? [...s.options].map(o=>o.value) : [];
+});
+ok('37 anotação tem cliente, equipe e pessoal',
+   niveis.length === 3 && niveis.includes('public') && niveis.includes('equipe') && niveis.includes('private'),
+   JSON.stringify(niveis));
+
+/* ---- 37b. Ctrl+V com imagem entra na fila, com miniatura ---- */
+const colou = await page.evaluate(async ()=>{
+  const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  const ta = document.getElementById('d-note-input');
+  const dt = new DataTransfer();
+  dt.items.add(new File([arr], 'print.png', {type:'image/png'}));
+  ta.dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles:true, cancelable:true}));
+  await new Promise(r=>setTimeout(r,250));
+  return {
+    naFila: mgNotaFila().length,
+    miniaturas: document.querySelectorAll('#mg-nota-fila .mg-nf-i img').length,
+    temBotaoImagem: !!document.querySelector('.mg-nota-img'),
+  };
+});
+ok('37b Ctrl+V põe o print na fila, com miniatura',
+   colou.naFila === 1 && colou.miniaturas === 1 && colou.temBotaoImagem, JSON.stringify(colou));
+
+/* ---- 37c. o que não é imagem é recusado ---- */
+const recusou = await page.evaluate(async ()=>{
+  const antes = mgNotaFila().length;
+  await mgNotaAceitar([new File(['#!/bin/sh'], 'script.sh', {type:'application/x-sh'})]);
+  return {antes, depois: mgNotaFila().length};
+});
+ok('37c arquivo que não é imagem não entra na anotação',
+   recusou.depois === recusou.antes, JSON.stringify(recusou));
+
+/* ---- 37d. anotação de cliente vira thread [DEMANDA] no canal dele ---- */
+const naThread = await page.evaluate(async ()=>{
+  document.getElementById('d-note-vis').value = 'public';
+  document.getElementById('d-note-input').value = 'ajustei as mensagens do bot';
+  await addNote();
+  await new Promise(r=>setTimeout(r,300));
+  const msgs = window.__FIX.messages.filter(m=>m.channel_id === 'ch-1');
+  const raiz = msgs.find(m=>/^\[DEMANDA\]/.test(m.body||''));
+  const resposta = msgs.find(m=>raiz && m.reply_to === raiz.id);
+  const t = TASKS.find(x=>x.id === 't-1');
+  return {
+    temRaiz: !!raiz,
+    tituloNaRaiz: !!(raiz && raiz.body.includes('Demanda de teste')),
+    respostaNaThread: !!resposta,
+    corpoDaResposta: resposta ? resposta.body : '',
+    comAnexo: !!(resposta && resposta.anexos && resposta.anexos.length === 1),
+    guardouNaDemanda: !!(t && raiz && t.chat_msg_id === raiz.id),
+    filaEsvaziou: mgNotaFila().length === 0,
+    notaComAnexo: !!(window.__FIX.task_notes.slice(-1)[0].anexos || []).length,
+  };
+});
+ok('37d anotação de cliente abre a thread [DEMANDA] no canal dele',
+   naThread.temRaiz && naThread.tituloNaRaiz && naThread.respostaNaThread
+   && naThread.corpoDaResposta === 'ajustei as mensagens do bot'
+   && naThread.comAnexo && naThread.guardouNaDemanda
+   && naThread.filaEsvaziou && naThread.notaComAnexo, JSON.stringify(naThread));
+
+/* ---- 37e. a segunda anotação entra na MESMA thread ---- */
+const segunda = await page.evaluate(async ()=>{
+  const antes = window.__FIX.messages.filter(m=>/^\[DEMANDA\]/.test(m.body||'')).length;
+  document.getElementById('d-note-vis').value = 'public';
+  document.getElementById('d-note-input').value = 'subi os criativos';
+  await addNote();
+  await new Promise(r=>setTimeout(r,300));
+  const raizes = window.__FIX.messages.filter(m=>/^\[DEMANDA\]/.test(m.body||''));
+  const raiz = raizes[0];
+  const respostas = window.__FIX.messages.filter(m=>raiz && m.reply_to === raiz.id);
+  return {antes, raizes: raizes.length, respostas: respostas.length};
+});
+ok('37e a segunda anotação vai para a mesma thread',
+   segunda.raizes === 1 && segunda.respostas === 2, JSON.stringify(segunda));
+
+/* ---- 37f. anotação de equipe NÃO chega no cliente ---- */
+const soEquipe = await page.evaluate(async ()=>{
+  const antes = window.__FIX.messages.filter(m=>m.channel_id === 'ch-1').length;
+  document.getElementById('d-note-vis').value = 'equipe';
+  document.getElementById('d-note-input').value = 'conta do cliente está sem verba, avisar o comercial';
+  await addNote();
+  await new Promise(r=>setTimeout(r,300));
+  const n = window.__FIX.task_notes.slice(-1)[0];
+  return {antes, depois: window.__FIX.messages.filter(m=>m.channel_id === 'ch-1').length,
+          salvou: n.body, nivel: n.visibility};
+});
+ok('37f anotação de equipe fica na demanda, não vai para o cliente',
+   soEquipe.depois === soEquipe.antes && soEquipe.nivel === 'equipe'
+   && /comercial/.test(soEquipe.salvou), JSON.stringify(soEquipe));
+
+await page.evaluate(()=>closeDetail());
+
+/* =====================================================================
+   38 — mensagem recebida vira aviso na tela
+   ===================================================================== */
+
+/* ---- 38. chegou mensagem de outra pessoa: aparece o cartão ---- */
+const aviso = await page.evaluate(async ()=>{
+  showView('tasks'); await new Promise(r=>setTimeout(r,200));
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  window.__disparar('messages','INSERT',{
+    id:'m-rt-1', channel_id:'ch-2', author_id:'u-colega', author_name:'Elias Braga',
+    body:'olha o relatório de setembro', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,250));
+  const c = document.querySelector('.mg-aviso');
+  return {
+    apareceu: !!c,
+    quem: c ? c.querySelector('.tt').textContent : '',
+    corpo: c ? c.querySelector('.cp').textContent : '',
+    onde: c ? (c.querySelector('.on')||{}).textContent : '',
+  };
+});
+ok('38 mensagem recebida vira aviso na tela, fora do chat',
+   aviso.apareceu && aviso.quem === 'Elias Braga'
+   && /relatório de setembro/.test(aviso.corpo) && /geral/.test(aviso.onde),
+   JSON.stringify(aviso));
+
+/* ---- 38b. clicar no aviso abre a conversa ---- */
+const clicou = await page.evaluate(async ()=>{
+  const c = document.querySelector('.mg-aviso');
+  if(!c) return {erro:'sem aviso'};
+  c.click();
+  await new Promise(r=>setTimeout(r,500));
+  return {view: VIEW, canal: CHAN, sumiu: !document.querySelector('.mg-aviso')};
+});
+ok('38b clicar no aviso abre a conversa certa',
+   clicou.view === 'chat' && clicou.canal === 'ch-2', JSON.stringify(clicou));
+
+/* ---- 38c. a minha própria mensagem não vira aviso ---- */
+const semEco = await page.evaluate(async ()=>{
+  showView('tasks'); await new Promise(r=>setTimeout(r,200));
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  window.__disparar('messages','INSERT',{
+    id:'m-rt-2', channel_id:'ch-2', author_id:ME.id, author_name:ME.name,
+    body:'mandei eu mesmo', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,250));
+  return {avisos: document.querySelectorAll('.mg-aviso').length};
+});
+ok('38c a minha própria mensagem não vira aviso', semEco.avisos === 0, JSON.stringify(semEco));
+
+/* ---- 38d. a conversa que já estou olhando não vira aviso ---- */
+const semRuido = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(r=>setTimeout(r,300));
+  await MGChat.abrir('ch-1'); await new Promise(r=>setTimeout(r,300));
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  window.__disparar('messages','INSERT',{
+    id:'m-rt-3', channel_id:'ch-1', author_id:'u-colega', author_name:'Elias Braga',
+    body:'estou olhando esta conversa agora', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,250));
+  return {avisos: document.querySelectorAll('.mg-aviso').length, canal: CHAN, view: VIEW};
+});
+ok('38d conversa aberta na tela não gera aviso',
+   semRuido.avisos === 0 && semRuido.canal === 'ch-1', JSON.stringify(semRuido));
+
+/* ---- 38e. o aviso entra também na central de notificações ---- */
+const central = await page.evaluate(async ()=>{
+  buildNotifs();
+  const doChat = (NOTIFS||[]).filter(n=>n.mgChat);
+  return {quantos: doChat.length, texto: doChat.length ? doChat[0].text : ''};
+});
+ok('38e a mensagem também entra na central de notificações',
+   central.quantos >= 1 && /Elias Braga/.test(central.texto), JSON.stringify(central));
+
+/* =====================================================================
+   39 — velocidade: sincronização incremental
+   ===================================================================== */
+
+/* ---- 39. nada mudou, nada é redesenhado ---- */
+const sync = await page.evaluate(async ()=>{
+  showView('tasks'); await new Promise(r=>setTimeout(r,250));
+  mgSyncReiniciar();                    /* parte de um estado conhecido */
+  const conta = {n:0};
+  const _r = window.render;
+  window.render = function(){ conta.n++; return _r.apply(this, arguments) };
+
+  await refresh();                      /* nada mudou */
+  const parado = conta.n;
+
+  const t = window.__FIX.tasks.find(x=>x.id==='t-1');
+  t.title = 'Demanda renomeada por outro usuário';
+  t.updated_at = new Date(Date.now() + 120000).toISOString();
+  await refresh();                      /* uma mudou */
+  const mexido = conta.n;
+
+  window.render = _r;
+  return {parado, mexido, tituloNaTela: (TASKS.find(x=>x.id==='t-1')||{}).title,
+          escondido: document.hidden, temMarco: !!mgSyncEstado().marco};
+});
+ok('39 sync só redesenha quando alguma demanda muda de verdade',
+   !sync.escondido && sync.temMarco && sync.parado === 0 && sync.mexido === 1
+   && sync.tituloNaTela === 'Demanda renomeada por outro usuário', JSON.stringify(sync));
+
+/* ---- 39c. de tempos em tempos ele volta a ler a tabela inteira ----
+   é a rede de segurança para demanda apagada sem evento de tempo real */
+const rede = await page.evaluate(async ()=>{
+  mgSyncReiniciar();
+  for(let i = 0; i < 10; i++) await refresh();      /* dez incrementais */
+  const antes = mgSyncEstado().rodadas;
+  await refresh();                                   /* a seguinte é completa */
+  return {antes, depois: mgSyncEstado().rodadas};
+});
+ok('39c a cada dez rodadas ele relê a tabela inteira',
+   rede.antes === 10 && rede.depois === 0, JSON.stringify(rede));
+
+/* ---- 39b. demanda apagada some na hora ---- */
+const apagou = await page.evaluate(async ()=>{
+  const antes = TASKS.length;
+  window.__disparar('tasks','DELETE',{id:'t-1'});
+  await new Promise(r=>setTimeout(r,200));
+  return {antes, depois: TASKS.length, aindaTem: TASKS.some(t=>t.id==='t-1')};
+});
+ok('39b demanda apagada por outro sai da tela na hora',
+   apagou.depois === apagou.antes - 1 && !apagou.aindaTem, JSON.stringify(apagou));
+
+
+/* =====================================================================
+   40 — Ctrl+V também na caixa do MGP Chat, e o menu sem "Início"
+   ===================================================================== */
+
+/* ---- 40. colar print na caixa do chat põe na fila de envio ---- */
+const colouChat = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(r=>setTimeout(r,300));
+  await MGChat.abrir('ch-1'); await new Promise(r=>setTimeout(r,300));
+  const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  const ta = document.getElementById('mgz-in');
+  if(!ta) return {erro:'sem caixa'};
+  const dt = new DataTransfer();
+  dt.items.add(new File([arr], 'print.png', {type:'image/png'}));
+  ta.dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles:true, cancelable:true}));
+  await new Promise(r=>setTimeout(r,300));
+  const it = document.querySelector('.mgz-fila .it');
+  return {
+    naFila: document.querySelectorAll('.mgz-fila .it').length,
+    comMiniatura: !!(it && it.querySelector('img')),
+    nome: it ? (it.querySelector('.nm')||{}).textContent : '',
+  };
+});
+ok('40 Ctrl+V na caixa do MGP Chat põe o print na fila de envio',
+   colouChat.naFila === 1 && colouChat.comMiniatura && /print\.png/.test(colouChat.nome||''),
+   JSON.stringify(colouChat));
+
+/* ---- 40b. executável colado no chat é recusado, como no botão ---- */
+const chatRecusa = await page.evaluate(async ()=>{
+  const antes = document.querySelectorAll('.mgz-fila .it').length;
+  const n = MGChat.receberArquivos(
+    [new File(['MZ'], 'virus.exe', {type:'application/x-msdownload'})], '');
+  await new Promise(r=>setTimeout(r,200));
+  return {antes, entraram:n, depois: document.querySelectorAll('.mgz-fila .it').length};
+});
+ok('40b executável colado no chat continua sendo recusado',
+   chatRecusa.entraram === 0 && chatRecusa.depois === chatRecusa.antes,
+   JSON.stringify(chatRecusa));
+
+/* ---- 40c. "Início" não fica mais no menu Ir para ---- */
+const menuIr = await page.evaluate(async ()=>{
+  const itens = mgNavItens().map(n=>n.v);
+  mgNavAbrir();
+  await new Promise(r=>setTimeout(r,150));
+  const rotulos = [...document.querySelectorAll('#mg-navp button')].map(b=>b.textContent.trim());
+  mgNavFechar();
+  return {itens, rotulos, temHome: itens.includes('home'),
+          temBotaoDeInicio: !!document.getElementById('mg-btn-home')};
+});
+ok('40c o menu Ir para não repete o Início',
+   !menuIr.temHome && !menuIr.rotulos.some(r=>/^⌂?\s*Início$/.test(r))
+   && menuIr.temBotaoDeInicio && menuIr.itens.length > 0,
+   JSON.stringify(menuIr));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
