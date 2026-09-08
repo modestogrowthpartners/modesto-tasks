@@ -25097,18 +25097,25 @@ window.mgResumoHTML    = mgResumoHTML;
    • não recebe clique: pointer-events fica desligado, senão ele rouba o
      toque dos botões da barra por onde passa.
    ===================================================================== */
-.mg-gato-anda{position:absolute;bottom:100%;left:0;margin-bottom:1px;
-  pointer-events:none;z-index:1;opacity:.92;
+/* O gato mora no body, não dentro da barra. A barra é overflow-x:auto
+   para rolar os atalhos em tela estreita, e overflow em um eixo torna o
+   outro auto também: qualquer filho posicionado fora da caixa é
+   recortado. Foi por isso que ele andava sem aparecer. */
+.mg-gato-anda{position:fixed;pointer-events:none;z-index:94;opacity:.92;
   animation:mgGatoAtravessa var(--mg-gato-tempo,13s) linear both}
 .mg-gato-anda svg{display:block}
 
+/* A distância vem do JS, em pixels. Aqui havia um erro que fazia o bicho
+   quase não sair do lugar: translateX(100%) mede a largura do PRÓPRIO
+   elemento, não a do pai. Como o gato tem cerca de 28 px, ele andava
+   104 px no tempo em que deveria atravessar a barra inteira. */
 @keyframes mgGatoAtravessa{
-  from{transform:translateX(-38px)}
-  to  {transform:translateX(calc(100% + 38px))}
+  from{transform:translateX(var(--mg-de,-38px))}
+  to  {transform:translateX(var(--mg-ate,300px))}
 }
 @keyframes mgGatoAtravessaVolta{
-  from{transform:translateX(calc(100% + 38px))}
-  to  {transform:translateX(-38px)}
+  from{transform:translateX(var(--mg-ate,300px))}
+  to  {transform:translateX(var(--mg-de,-38px))}
 }
 .mg-gato-anda.espelhado{animation-name:mgGatoAtravessaVolta}
 /* Quatro poses de pata em degrau, sem transição: é pixel, não pode
@@ -25234,13 +25241,19 @@ function mgGatoAtravessar(){
   /* A passada tem que combinar com a velocidade, senão o bicho patina no
      lugar ou desliza sem mexer as patas. Ele anda ~46 px por segundo e
      avança cerca de um corpo por ciclo de quatro poses. */
-  const largura = Math.max(barra.getBoundingClientRect().width, 220) + 76;
-  const segundos = largura / 46;
-  el.style.setProperty('--mg-gato-tempo', segundos.toFixed(1) + 's');
+  const ALTURA = 18;
+  const r = barra.getBoundingClientRect();
+  const de = -38, ate = Math.round(r.width) + 38;
+  const percurso = ate - de;
+  el.style.left = Math.round(r.left) + 'px';
+  el.style.top  = Math.round(r.top - ALTURA - 1) + 'px';   /* em cima da barra */
+  el.style.setProperty('--mg-de',  de  + 'px');
+  el.style.setProperty('--mg-ate', ate + 'px');
+  el.style.setProperty('--mg-gato-tempo', (percurso / 46).toFixed(1) + 's');
   el.style.setProperty('--mg-passo', (28 / 46).toFixed(2) + 's');
 
-  el.innerHTML = mgGatoDePerfil(18);
-  barra.appendChild(el);
+  el.innerHTML = mgGatoDePerfil(ALTURA);
+  document.body.appendChild(el);
   mgGatoNaBarra = el;
   el.addEventListener('animationend', e=>{
     /* as patas e o balanço também disparam animationend o tempo todo */

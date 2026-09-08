@@ -1860,7 +1860,10 @@ const passeio = await page.evaluate(async ()=>{
   await new Promise(x=>setTimeout(x,250));
   const g = document.querySelector('.mg-gato-anda');
   r.apareceu = !!g;
-  r.naBarra  = !!(g && g.parentElement && g.parentElement.classList.contains('mg-dock'));
+  /* ele mora no body de propósito: a barra é overflow-x:auto e recortaria
+     um filho posicionado acima dela */
+  r.noBody   = !!(g && g.parentElement === document.body);
+  r.fixo     = !!g && getComputedStyle(g).position === 'fixed';
   r.semClique = !!g && getComputedStyle(g).pointerEvents === 'none';
   r.quatroPoses = !!g && [0,1,2,3].every(i => !!g.querySelector('.p' + i));
   r.temTempo  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-gato-tempo')));
@@ -1877,7 +1880,8 @@ const passeio = await page.evaluate(async ()=>{
   return r;
 });
 ok('45b o gato atravessa a barra e obedece a preferência de animação',
-   passeio.temBarra && passeio.podeAndar && passeio.apareceu && passeio.naBarra && passeio.semClique
+   passeio.temBarra && passeio.podeAndar && passeio.apareceu
+   && passeio.noBody && passeio.fixo && passeio.semClique
    && passeio.quatroPoses && passeio.temTempo && passeio.temPasso
    && passeio.respeitaPreferencia && passeio.ficouQuieto,
    JSON.stringify(passeio));
@@ -1927,6 +1931,45 @@ const naTroca = await page.evaluate(async ()=>{
 });
 ok('45d o gato aparece ao trocar de aba, com pausa entre uma e outra',
    naTroca.veioNaPrimeira && naTroca.respeitouAPausa, JSON.stringify(naTroca));
+
+/* ---- 45e. ele atravessa de verdade, e é desenhado ----
+   Dois defeitos que só aparecem medindo, e que passaram batido antes:
+   translateX(100%) media a largura do PRÓPRIO gato e não a da barra,
+   então ele andava 100 px no tempo de atravessar a tela inteira; e a
+   barra é overflow-x:auto, o que recortava um filho posicionado fora
+   dela, deixando o bicho invisível mesmo estando lá. */
+const travessia = await page.evaluate(async ()=>{
+  const barra = document.querySelector('.mg-dock');
+  barra.style.setProperty('display', 'inline-flex', 'important');
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  mgGatoZerarPausa(); mgGatoPassear();
+  await new Promise(r=>setTimeout(r,300));
+
+  const onde = ()=>{
+    const g = document.querySelector('.mg-gato-anda');
+    if(!g) return null;
+    const r = g.getBoundingClientRect();
+    return {x:r.left, y:r.top, w:r.width,
+            pintado: document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) !== null};
+  };
+  const a1 = onde();
+  await new Promise(r=>setTimeout(r,1500));
+  const a2 = onde();
+  if(!a1 || !a2) return {erro:'sumiu no meio'};
+
+  const larguraBarra = barra.getBoundingClientRect().width;
+  return {
+    andou: Math.round(a2.x - a1.x),
+    porSegundo: Math.round((a2.x - a1.x) / 1.5),
+    larguraBarra: Math.round(larguraBarra),
+    pintado: a2.pintado,
+    acimaDaBarra: a2.y + 18 <= Math.round(barra.getBoundingClientRect().top) + 2,
+  };
+});
+ok('45e o gato atravessa a barra de verdade, e é desenhado na tela',
+   travessia.andou > 40 && travessia.porSegundo > 25 && travessia.porSegundo < 80
+   && travessia.pintado && travessia.acimaDaBarra,
+   JSON.stringify(travessia));
 
 
 /* =====================================================================
