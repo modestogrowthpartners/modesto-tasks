@@ -7931,7 +7931,10 @@ function mgDesenharHistorico(){
    PARTE 4 — Modo cliente: ver a plataforma como cada empresa a vê
    Disponível só para o dono da conta (abaixo, MG_DONOS).
    ===================================================================== */
-const MG_DONOS = ['vinicius.reis'];             /* e-mail antes do @, ou e-mail inteiro */
+/* Quem pode entrar no modo cliente. Vale o e-mail inteiro OU só o
+   trecho antes do @, e é de propósito: assim a liberação não quebra se a
+   pessoa trocar de domínio. */
+const MG_DONOS = ['vinicius.reis', 'vanessa.modesto'];
 let MG_ESPELHO = {on:false, clientId:null, clientIdReal:null};
 
 function mgEhDono(){
@@ -7948,6 +7951,17 @@ function mgEhDono(){
   const _isAdmin = isAdmin;
   isAdmin = function(){ return MG_ESPELHO.on ? false : _isAdmin() };
   window.mgSouAdminDeVerdade = _isAdmin;
+
+  /* ehDono() nasceu depois deste espelho, na separação entre equipe e
+     administrador, e ficou de fora daqui. Resultado: dentro da prévia do
+     cliente o isAdmin() já respondia "não", mas tudo que é guardado por
+     ehDono() continuava à mostra: o ⋯ dos canais, criar e excluir
+     empresa, a aba Peso e limpeza. A prévia mentia. */
+  if(typeof ehDono === 'function'){
+    const _ehDono = ehDono;
+    ehDono = function(){ return MG_ESPELHO.on ? false : _ehDono() };
+    window.mgSouDonoDeVerdade = _ehDono;
+  }
 })();
 
 (function(){
