@@ -2106,6 +2106,102 @@ ok('46e imagem e vídeo abrem na página; PDF segue abrindo em guia',
    && lupa.fechouComEsc && lupa.videoNaLupa && lupa.pdfEmGuia && lupa.pdfSemLupa,
    JSON.stringify(lupa));
 
+
+/* =====================================================================
+   47 — o gato pula
+   ===================================================================== */
+
+/* ---- 47. abrir o Kronos faz o gato saltar do botão até o painel ---- */
+const salto = await page.evaluate(async ()=>{
+  const barra = document.querySelector('.mg-dock');
+  if(barra) barra.style.setProperty('display', 'inline-flex', 'important');
+  document.querySelectorAll('.mg-gato-salto').forEach(e=>e.remove());
+  MGKronos.fechar();
+  await new Promise(r=>setTimeout(r,150));
+
+  const botao = document.getElementById('mg-kronos-b');
+  const deOnde = botao ? botao.getBoundingClientRect() : null;
+
+  MGKronos.abrir();
+  const pontos = [];
+  for(let i=0;i<7;i++){
+    await new Promise(r=>setTimeout(r,70));
+    const caixa = document.querySelector('.mg-gato-salto');
+    const s = caixa && caixa.querySelector('.arco');
+    if(!s){ pontos.push(null); continue }
+    const r = s.getBoundingClientRect();
+    pontos.push({x:Math.round(r.x), y:Math.round(r.y),
+                 /* de onde a animação parte, que é o botão. A posição do
+                    primeiro quadro já é a de 70 ms depois, então ela não
+                    serve para dizer onde o pulo começou. */
+                 partiu: {x: parseInt(caixa.style.left,10), y: parseInt(caixa.style.top,10)},
+                 pintado: document.elementFromPoint(r.x+r.width/2, r.y+r.height/2) !== null});
+  }
+  const vistos = pontos.filter(Boolean);
+  const painel = document.querySelector('.mgk-painel');
+  const av = painel ? painel.querySelector('.mgk-topo .av svg') : null;
+
+  await new Promise(r=>setTimeout(r,700));
+  return {
+    quadros: vistos.length,
+    subiu: vistos.length > 2 && Math.min(...vistos.map(p=>p.y)) < vistos[0].y - 40,
+    desceu: vistos.length > 2 && vistos[vistos.length-1].y > Math.min(...vistos.map(p=>p.y)),
+    saiuDoBotao: !!deOnde && vistos.length > 0
+              && Math.abs(vistos[0].partiu.y - (deOnde.top  + deOnde.height/2)) < 20
+              && Math.abs(vistos[0].partiu.x - (deOnde.left + deOnde.width/2))  < 20,
+    sempreVisivel: vistos.every(p=>p.pintado),
+    sumiuNoFim: !document.querySelector('.mg-gato-salto'),
+    avatarVoltou: av ? getComputedStyle(av).opacity : null,
+    painelAberto: !!(painel && painel.classList.contains('on')),
+  };
+});
+ok('47 abrir o Kronos faz o gato saltar do botão até o painel, em arco',
+   salto.painelAberto && salto.quadros >= 4 && salto.subiu && salto.desceu
+   && salto.saiuDoBotao && salto.sempreVisivel && salto.sumiuNoFim
+   && salto.avatarVoltou === '1',
+   JSON.stringify(salto));
+
+/* ---- 47b. clicar num gato faz ele pular, e dá para repetir ---- */
+const pulaAoClicar = await page.evaluate(async ()=>{
+  const av = document.querySelector('.mgk-topo .av svg');
+  if(!av) return {erro:'sem gato no cabeçalho'};
+  const bate = async ()=>{
+    av.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+    await new Promise(r=>setTimeout(r,80));
+    return {classe: av.classList.contains('mg-pula'),
+            anim: getComputedStyle(av).animationName};
+  };
+  const um = await bate();
+  await new Promise(r=>setTimeout(r,700));
+  const limpou = !av.classList.contains('mg-pula');
+  const dois = await bate();                 /* repete: a classe tem que voltar */
+  await new Promise(r=>setTimeout(r,700));
+  return {um, limpou, dois};
+});
+ok('47b clicar no gato faz ele pular, e o pulo pode se repetir',
+   pulaAoClicar.um && pulaAoClicar.um.classe && pulaAoClicar.um.anim === 'mgPulo'
+   && pulaAoClicar.limpou && pulaAoClicar.dois.classe && pulaAoClicar.dois.anim === 'mgPulo',
+   JSON.stringify(pulo));
+
+/* ---- 47c. o gato que atravessa a barra não pula ao ser clicado ----
+   ele é pointer-events:none de propósito, para não roubar o clique dos
+   botões da barra por onde passa */
+const naoPula = await page.evaluate(async ()=>{
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  mgGatoZerarPausa(); mgGatoPassear();
+  await new Promise(r=>setTimeout(r,250));
+  const g = document.querySelector('.mg-gato-anda svg');
+  if(!g) return {erro:'sem gato andando'};
+  g.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+  await new Promise(r=>setTimeout(r,100));
+  const r = {pulou: g.classList.contains('mg-pula'),
+             semClique: getComputedStyle(g.closest('.mg-gato-anda')).pointerEvents === 'none'};
+  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
+  return r;
+});
+ok('47c o gato que atravessa a barra não pula nem rouba o clique',
+   !naoPula.pulou && naoPula.semClique, JSON.stringify(naoPula));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

@@ -25537,5 +25537,167 @@ window.mgEhVideoArquivo  = ehVideoArquivo;
 })();
 </script>
 
+<style>
+/* =====================================================================
+   SEÇÃO · O GATO PULA
+
+   Duas coisas:
+   • Ao abrir o Kronos, o gato salta do botão da barra até o cabeçalho do
+     painel, em arco. É ele saindo do chat e entrando na conversa.
+   • Clicar em qualquer gato da tela faz ele dar um pulo no lugar.
+
+   O pulo tem agacha, impulso, ápice e aterrissagem, com o corpo
+   achatando na saída e na chegada. Sem esse esmagamento o pulo vira um
+   deslize para cima, que é o que faz sprite parecer boneco de papel.
+   ===================================================================== */
+.mg-pula{transform-origin:50% 100%;animation:mgPulo .52s cubic-bezier(.3,.7,.4,1) both}
+@keyframes mgPulo{
+  0%   {transform:translateY(0)     scale(1,1)}
+  12%  {transform:translateY(2px)   scale(1.14,.82)}   /* agacha  */
+  30%  {transform:translateY(-13px) scale(.9,1.14)}    /* impulso */
+  46%  {transform:translateY(-17px) scale(1,1)}        /* ápice   */
+  68%  {transform:translateY(-2px)  scale(.95,1.06)}   /* queda   */
+  80%  {transform:translateY(1px)   scale(1.16,.84)}   /* pousa   */
+  92%  {transform:translateY(0)     scale(.98,1.03)}
+  100% {transform:translateY(0)     scale(1,1)}
+}
+
+/* o salto do botão até o painel: X linear, Y em arco. São dois
+   elementos porque uma transform só não faz parábola. */
+.mg-gato-salto{position:fixed;z-index:200;pointer-events:none;
+  animation:mgSaltoX var(--mg-salto,.46s) linear both}
+.mg-gato-salto .arco{display:block;transform-origin:50% 100%;
+  animation:mgSaltoY var(--mg-salto,.46s) ease-out both}
+@keyframes mgSaltoX{from{transform:translateX(0)}
+                    to  {transform:translateX(var(--mg-dx,0px))}}
+@keyframes mgSaltoY{
+  0%  {transform:translateY(0) scale(1.12,.86)}
+  22% {transform:translateY(calc(var(--mg-alto,-34px) * .7)) scale(.9,1.12)}
+  55% {transform:translateY(var(--mg-alto,-34px)) scale(1,1)}
+  100%{transform:translateY(var(--mg-dy,0px)) scale(1.1,.9)}
+}
+
+body.mg-sem-anim .mg-pula,
+body.mg-sem-anim .mg-gato-salto{animation:none}
+@media (prefers-reduced-motion: reduce){
+  .mg-pula{animation:none}
+  .mg-gato-salto{display:none}
+}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · O GATO PULA
+   ===================================================================== */
+(function(){
+
+function podeMexer(){
+  if(document.body.classList.contains('mg-sem-anim')) return false;
+  try{
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  }catch(_){}
+  return true;
+}
+
+/* Pulo no lugar. Tira a classe no fim para poder repetir: animação de
+   uma vez só não reinicia sozinha se a classe continuar lá. */
+window.mgGatoPulo = function(el){
+  if(!el || !podeMexer()) return false;
+  const alvo = el.tagName === 'svg' ? el : (el.querySelector('svg') || el);
+  alvo.classList.remove('mg-pula');
+  void alvo.offsetWidth;                       /* força o reinício */
+  alvo.classList.add('mg-pula');
+  alvo.addEventListener('animationend', function fim(e){
+    if(e.animationName !== 'mgPulo') return;
+    alvo.classList.remove('mg-pula');
+    alvo.removeEventListener('animationend', fim);
+  });
+  return true;
+};
+
+/* ---------------------------------------------------------------------
+   O salto do botão da barra até o painel do Kronos
+   --------------------------------------------------------------------- */
+function mgGatoSalta(deEl, ateEl, aoChegar){
+  if(!deEl || !ateEl || !podeMexer()){ if(aoChegar) aoChegar(); return }
+  const a = deEl.getBoundingClientRect();
+  const b = ateEl.getBoundingClientRect();
+  const TAM = 22;
+
+  const salto = document.createElement('div');
+  salto.className = 'mg-gato-salto';
+  salto.setAttribute('aria-hidden', 'true');
+  salto.style.left = Math.round(a.left + a.width/2  - TAM/2) + 'px';
+  salto.style.top  = Math.round(a.top  + a.height/2 - TAM/2) + 'px';
+
+  const dx = Math.round((b.left + b.width/2)  - (a.left + a.width/2));
+  const dy = Math.round((b.top  + b.height/2) - (a.top  + a.height/2));
+  /* o arco sobe além do destino: gato não vai em linha reta */
+  const alto = Math.min(dy, 0) - 30;
+
+  salto.style.setProperty('--mg-dx',   dx + 'px');
+  salto.style.setProperty('--mg-dy',   dy + 'px');
+  salto.style.setProperty('--mg-alto', alto + 'px');
+  salto.style.setProperty('--mg-salto', '.46s');
+  salto.innerHTML = '<span class="arco">'
+    + (typeof mgGato === 'function' ? mgGato(TAM) : '') + '</span>';
+
+  /* o gato do destino some enquanto o outro está no ar: é o mesmo bicho */
+  const chegada = ateEl.querySelector('svg') || ateEl;
+  const opacidadeAntes = chegada.style.opacity;
+  chegada.style.opacity = '0';
+
+  document.body.appendChild(salto);
+  const arco = salto.querySelector('.arco');
+  arco.addEventListener('animationend', e=>{
+    if(e.animationName !== 'mgSaltoY') return;
+    salto.remove();
+    chegada.style.opacity = opacidadeAntes || '';
+    mgGatoPulo(ateEl);                          /* firma as patas ao pousar */
+    if(aoChegar) aoChegar();
+  });
+}
+window.mgGatoSalta = mgGatoSalta;
+
+/* ---------------------------------------------------------------------
+   Ao abrir o Kronos, ele salta de dentro do chat
+   --------------------------------------------------------------------- */
+function mgKronosSaltou(){
+  const painel = document.querySelector('.mgk-painel');
+  if(!painel || !painel.classList.contains('on')) return;
+  const botao = document.getElementById('mg-kronos-b');
+  const av = painel.querySelector('.mgk-topo .av');
+  if(!botao || !av) return;
+  /* espera o painel existir na tela para medir onde o gato tem que cair */
+  requestAnimationFrame(()=>mgGatoSalta(botao, av));
+}
+
+if(typeof MGKronos !== 'undefined'){
+  ['abrir', 'alternar'].forEach(nome=>{
+    const _f = MGKronos[nome];
+    if(typeof _f !== 'function') return;
+    MGKronos[nome] = function(){
+      const painel = document.querySelector('.mgk-painel');
+      const estavaAberto = !!(painel && painel.classList.contains('on'));
+      const r = _f.apply(this, arguments);
+      if(!estavaAberto){ try{ mgKronosSaltou() }catch(e){ console.warn('[pulo]', e) } }
+      return r;
+    };
+  });
+}
+
+/* ---------------------------------------------------------------------
+   Clicar num gato faz ele pular
+   --------------------------------------------------------------------- */
+document.addEventListener('click', e=>{
+  const svg = e.target.closest('svg.mg-gato, svg.mg-gato-l');
+  if(!svg) return;
+  /* o que está atravessando a barra não recebe clique e nem deve pular */
+  if(svg.closest('.mg-gato-anda, .mg-gato-salto')) return;
+  mgGatoPulo(svg);
+}, true);
+
+})();
+</script>
+
 </body>
 </html>
