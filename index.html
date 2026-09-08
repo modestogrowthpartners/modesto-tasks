@@ -1086,7 +1086,18 @@ const escJS = s => esc(String(s==null?'':s)
   .replace(/\\/g,'\\\\').replace(/'/g,"\\'")
   .replace(/\r/g,'\\r').replace(/\n/g,'\\n'));
 function initials(n){return (n||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase()}
-function isAdmin(){return ME && ME.role==='admin'}
+/* Dois níveis dentro da casa.
+
+   isAdmin() responde "é da Modesto", e é o que quase toda a tela precisa
+   saber: quem é da casa vê e trabalha em tudo. Ele inclui 'equipe' de
+   propósito, para que criar o papel novo não tirasse acesso de ninguém.
+
+   ehDono() responde "é administrador de verdade", e guarda só o que é
+   irreversível ou de gestão: mexer em pessoa, criar e apagar empresa,
+   criar e apagar canal. É o espelho de is_dono() no banco, e o banco é
+   quem decide: aqui a checagem só evita mostrar botão que vai falhar. */
+function isAdmin(){ return !!ME && (ME.role === 'admin' || ME.role === 'equipe') }
+function ehDono(){  return !!ME && ME.role === 'admin' }
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200)}
 
 function celebrate(){
@@ -3332,7 +3343,7 @@ renderClientes = async function(){
   bloco.innerHTML = `
     <h3>Clientes</h3>
     <div class="desc">${CLIENTS.length} empresa(s) cadastrada(s). O acesso de cada cliente é criado junto com a empresa.</div>
-    <button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`;
+    ${ehDono()?`<button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`:''}`;
 };
 
 /* ---- ao criar com sucesso, atualiza a lista por trás ---- */
@@ -3349,7 +3360,7 @@ criarClienteCompleto = async function(){
       if(bloco) bloco.innerHTML = `
         <h3>Clientes</h3>
         <div class="desc">${CLIENTS.length} empresa(s) cadastrada(s). O acesso de cada cliente é criado junto com a empresa.</div>
-        <button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`;
+        ${ehDono()?`<button class="mg-add" onclick="abrirNovoCliente()"><span class="p">+</span>Adicionar cliente</button>`:''}`;
       if(guardado && $('nc-res')) $('nc-res').innerHTML = guardado;
     }
   }
@@ -3427,7 +3438,7 @@ document.addEventListener('keydown', e=>{
         <div id="ec-res"></div>
         <div class="mg-perigo">
           <div class="aviso">Excluir remove a empresa da lista. As demandas e documentos dela ficam sem vínculo.</div>
-          <button class="mg-btn-perigo" onclick="excluirClienteDaJanela()">Excluir cliente</button>
+          ${ehDono()?`<button class="mg-btn-perigo" onclick="excluirClienteDaJanela()">Excluir cliente</button>`:''}
         </div>
       </div>
     </div>
@@ -8948,7 +8959,7 @@ function mgTocarFiltros(e){
       a.push(`<button onclick="mgAlternarBusca()" title="Buscar"><span class="ic">⌕</span></button>`);
     }
     if(VIEW==='clientes' && isAdmin())
-      a.push(`<button onclick="abrirNovoCliente()" title="Adicionar cliente"><span class="ic">＋</span><span class="rot">Adicionar cliente</span></button>`);
+      if(ehDono()) a.push(`<button onclick="abrirNovoCliente()" title="Adicionar cliente"><span class="ic">＋</span><span class="rot">Adicionar cliente</span></button>`);
     if(VIEW==='chat')
       a.push(`<button onclick="mgChatBuscar()" title="Buscar conversa"><span class="ic">⌕</span><span class="rot">Conversas</span></button>`);
     if(VIEW==='checklist')
@@ -19128,7 +19139,7 @@ function itemCanal(c){
      mesmo lugar onde está o + de criar, que é onde a pessoa procura.
      O botão não pode ficar DENTRO do outro: botão dentro de botão é HTML
      inválido e o clique vira loteria. Por isso a linha vira um invólucro. */
-  const podeMexer = isAdmin() && c.tipo !== 'dm';
+  const podeMexer = ehDono() && c.tipo !== 'dm';
   const linha = '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
     + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
     + marcaCanal(c, 20)
@@ -19155,7 +19166,7 @@ function menuCanal(ev, id){
   if(ev){ ev.stopPropagation(); ev.preventDefault() }
   fecharMenuCanal();
   const c = CHANNELS.find(x=>x.id===id);
-  if(!c || !isAdmin()) return;
+  if(!c || !ehDono()) return;
 
   const m = document.createElement('div');
   m.className = 'mgz-menu';
@@ -19228,12 +19239,12 @@ function tudoHTML(){
               + '<span class="seta">▶</span>' + marca
               + '<span class="nm">' + esc(g.nome) + '</span>'
               + (g.naoLidas ? '<span class="n">' + g.naoLidas + '</span>' : '')
-              + (isAdmin() ? '<span class="add" title="Novo canal desta empresa"'
+              + (ehDono() ? '<span class="add" title="Novo canal desta empresa"'
                   + ' onclick="event.stopPropagation();MGChat.novoCanalCliente(\'' + escJS(g.cid) + '\')">＋</span>' : '')
             + '</button><div class="dentro">' + g.cs.map(itemCanal).join('') + '</div></div>';
         }).join('') : '<div class="mgz-vazio-sec">nenhum canal ainda</div>')
       + '<div class="mgz-sec">Equipe'
-        + (isAdmin() ? '<button class="add" title="Novo canal interno" onclick="MGChat.novoCanalEquipe()">＋</button>' : '')
+        + (ehDono() ? '<button class="add" title="Novo canal interno" onclick="MGChat.novoCanalEquipe()">＋</button>' : '')
       + '</div>'
       + (daEquipe.length ? daEquipe.map(itemCanal).join('') : '<div class="mgz-vazio-sec">nenhum canal</div>')
       + '<div class="mgz-sec">Conversas diretas'
@@ -20687,7 +20698,7 @@ async function novoCanalEquipe(){     return novoCanal('team', null) }
 
 /* Editar o canal aberto: mesma janela, mais o botão de excluir. */
 async function editarCanal(id){
-  if(!isAdmin()) return;
+  if(!ehDono()) return;
   /* sem argumento vale o canal aberto, que é como a engrenagem do
      cabeçalho sempre chamou; com argumento vale o da lateral */
   const c = CHANNELS.find(x=>x.id === (id || CHAN));
@@ -20737,7 +20748,7 @@ async function excluirCanal(alvo){
      como vem do menu da lateral */
   const c = (typeof alvo === 'string') ? CHANNELS.find(x=>x.id===alvo) : alvo;
   if(!c) return;
-  if(!isAdmin()){ toast('Só administrador pode excluir canal'); return }
+  if(!ehDono()){ toast('Só administrador pode excluir canal'); return }
   const quantas = (CHMSGS[c.id] || []).length;
   const ok = await MGJanela.confirmar('Excluir #' + c.nome + '?', {
     texto: 'O canal e todas as mensagens dele somem para todo mundo.',
@@ -21870,6 +21881,36 @@ window.MGKronos = MGKronos;
    ===================================================================== */
 (function(){
 
+  /* ---------- 0. o que é só do dono ----------
+     A aba Equipe gerencia pessoas e papéis, então ela some para quem é
+     equipe. O filtro entra em NAV, no menu da barra e na vitrine, que são
+     os três caminhos que levam a uma tela. */
+  if(typeof NAV !== 'undefined'){
+    const eq = NAV.find(n => n.v === 'equipe');
+    if(eq) eq.dono = true;
+  }
+  const soDoDono = l => (typeof ehDono === 'function' && ehDono())
+    ? l : l.filter(n => !n.dono);
+  if(typeof mgNavItens === 'function'){
+    const _mn = mgNavItens;
+    window.mgNavItens = function(){ return soDoDono(_mn.apply(this, arguments)) };
+  }
+  if(typeof mgAtalhos === 'function'){
+    const _ma = mgAtalhos;
+    mgAtalhos = function(){ return soDoDono(_ma.apply(this, arguments)) };
+  }
+  if(typeof showView === 'function'){
+    const _sv0 = showView;
+    showView = function(v){
+      const n = (typeof NAV !== 'undefined') ? NAV.find(x => x.v === v) : null;
+      if(n && n.dono && !(typeof ehDono === 'function' && ehDono())){
+        if(typeof toast === 'function') toast('Esta tela é do administrador');
+        return _sv0('tasks');
+      }
+      return _sv0(v);
+    };
+  }
+
   /* ---------- 1. o Checklist sai ---------- */
   if(typeof NAV !== 'undefined'){
     const i = NAV.findIndex(n => n.v === 'checklist');
@@ -22043,7 +22084,18 @@ window.MGKronos = MGKronos;
     cont.appendChild(d);
   }
   if(!NAV.some(n => n.v === 'portal')){
-    NAV.unshift({v:'portal', ic:'⌂', label:'Início'});
+    NAV.unshift({v:'portal', ic:'⌂', label:'Início', soCliente:true});
+  }
+  /* O portal precisa estar no NAV para o cliente enxergar, mas para a
+     equipe ele duplicava o "Início" no menu da barra de baixo: um leva à
+     tela inicial da equipe, o outro ao portal, que a equipe nem usa. */
+  if(typeof mgNavItens === 'function'){
+    const _n = mgNavItens;
+    window.mgNavItens = function(){
+      const l = _n.apply(this, arguments);
+      return (typeof isAdmin === 'function' && isAdmin())
+        ? l.filter(n => !n.soCliente) : l;
+    };
   }
 
   /* ---------- 2. o cliente só tem esta página e o chat ----------
@@ -22591,11 +22643,6 @@ window.MGKronos = MGKronos;
 .mgr-barra i{display:block;height:100%;border-radius:4px;background:var(--brass)}
 .mgr-barra i.acima{background:#D95D39}
 
-.mgr-aviso{background:var(--card2);border:1px dashed var(--line2);border-radius:14px;padding:18px 20px;
-  font-size:13px;color:var(--muted);line-height:1.7}
-.mgr-aviso b{color:var(--text)}
-.mgr-aviso ul{margin:9px 0 0;padding-left:19px}
-.mgr-aviso li{margin-bottom:5px}
 @media(max-width:640px){
   .mgr{padding:16px 13px 120px}
   .mgr-tab th,.mgr-tab td{padding:9px 13px}
@@ -22773,23 +22820,12 @@ window.MGKronos = MGKronos;
       + '</section>';
   }
 
-  function faltaHTML(){
-    const semChave = !window.MGKronos || !MGKronos.ligado();
-    return '<div class="mgr-aviso">'
-      + '<b>Relatório diário automático</b><br>'
-      + 'A ideia é o Kronos ler estes números todo dia e escrever o relatório sozinho, '
-      + 'publicando no canal da empresa no MGP Chat. Para isso faltam duas coisas, e '
-      + 'nenhuma delas está no código da plataforma:'
-      + '<ul>'
-      + '<li>Uma entrada de dados das plataformas de mídia escrevendo na tabela '
-        + '<b>pacing</b>. Hoje ela só recebe envio manual.</li>'
-      + '<li>' + (semChave
-          ? 'A chave <b>ANTHROPIC_API_KEY</b> no projeto do Supabase. Sem ela o Kronos não roda.'
-          : 'A chave da Anthropic já está no projeto, então esta parte está pronta.') + '</li>'
-      + '</ul>'
-      + 'Até lá esta tela mostra o que houver de verdade e nada além disso.'
-      + '</div>';
-  }
+  /* O cartão que explicava o que falta para o relatório automático saiu.
+     Ele afirmava, a partir do estado do Kronos em memória, que a chave da
+     Anthropic já estaria no projeto, o que não é verdade em produção.
+     Fora o erro, o pedido foi deixar a aba sem texto até o Kronos existir
+     de fato: quando ele começar a publicar, o que aparece aqui é
+     relatório, não promessa de relatório. */
 
   function corpoHTMLReports(){
     const emp = empresas();
@@ -22827,7 +22863,6 @@ window.MGKronos = MGKronos;
     return '<div class="mgr">'
       + '<div class="mgr-topo"><h1>MGP Reports</h1>' + seletor + '</div>'
       + miolo
-      + faltaHTML()
       + '</div>';
   }
 

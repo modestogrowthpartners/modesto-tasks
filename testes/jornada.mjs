@@ -781,16 +781,15 @@ ok('26 MGP Reports soma o investido e o ROAS do dia certo',
    && (rit && rit.val === '40%'),
    JSON.stringify({inv, roas, rit}));
 
-/* ---- 26b. a tela diz o que falta em vez de inventar ---- */
-const falta = await page.evaluate(()=>{
-  const t = document.querySelector('.mgr-aviso');
-  return t ? t.textContent : '';
-});
-/* o texto muda conforme a chave da Anthropic esteja no projeto ou não;
-   as duas versões precisam nomear a entrada de dados e falar da chave */
-ok('26b a tela diz o que falta para o relatório automático',
-   /pacing/.test(falta) && /(ANTHROPIC_API_KEY|chave da Anthropic j)/.test(falta)
-   && !/\bdados? de exemplo\b/i.test(falta), falta.slice(0,110));
+/* ---- 26b. a aba não promete o que ainda não existe ---- */
+const semPromessa = await page.evaluate(()=>({
+  semCartao: !document.querySelector('.mgr-aviso'),
+  texto: (document.querySelector('#v-reports')||{}).textContent || '',
+}));
+ok('26b a aba não escreve promessa de relatório automático',
+   semPromessa.semCartao && !/autom[áa]tico/i.test(semPromessa.texto)
+   && !/chave da Anthropic/i.test(semPromessa.texto),
+   semPromessa.texto.slice(0,110));
 
 /* ---- 26c. empresa sem pacing não vira número zerado ---- */
 const semDado = await page.evaluate(async ()=>{
@@ -1122,15 +1121,50 @@ ok('35 canal tem menu de opções na lateral, com excluir',
    && menuLateral.opcoes.some(o=>/Excluir/.test(o))
    && menuLateral.fechou, JSON.stringify(menuLateral));
 
-/* ---- 35b. cliente não vê opção de excluir canal ---- */
-ok('35b o menu de canal é só da equipe',
-   await page.evaluate(()=>{
-     const _a = isAdmin; window.isAdmin = () => false;
-     MGChat.desenhar();
-     const tem = !!document.querySelector('.mgz-mais');
-     window.isAdmin = _a; MGChat.desenhar();
-     return !tem;
-   }));
+/* ---- 35b. o menu de canal é só do administrador ----
+   equipe trabalha no canal mas não cria nem apaga; cliente idem */
+const menuPorPapel = await page.evaluate(async ()=>{
+  const antes = ME.role;
+  const ver = async papel => {
+    ME.role = papel; MGChat.desenhar();
+    await new Promise(r=>setTimeout(r,150));
+    return !!document.querySelector('.mgz-mais');
+  };
+  const r = {admin: await ver('admin'), equipe: await ver('equipe'), cliente: await ver('client')};
+  ME.role = antes; MGChat.desenhar();
+  return r;
+});
+ok('35b só o administrador vê o menu de canal',
+   menuPorPapel.admin && !menuPorPapel.equipe && !menuPorPapel.cliente,
+   JSON.stringify(menuPorPapel));
+
+/* ---- 36. o papel equipe trabalha em tudo, menos administrar ---- */
+const papeis = await page.evaluate(async ()=>{
+  const antes = ME.role;
+  ME.role = 'equipe';
+  const r = {
+    ehDaCasa: isAdmin(),          /* trabalha: vê demandas, clientes, docs */
+    ehDono: ehDono(),             /* administra: não                        */
+    abaEquipe: !!(typeof mgAtalhos==='function' && mgAtalhos().find(a=>a.v==='equipe')),
+    menuEquipe: !!(typeof mgNavItens==='function' && mgNavItens().find(n=>n.v==='equipe')),
+  };
+  showView('equipe'); await new Promise(x=>setTimeout(x,300));
+  r.tentouAbrirEquipe = VIEW;
+  ME.role = antes;
+  return r;
+});
+ok('36 equipe trabalha em tudo mas não administra',
+   papeis.ehDaCasa && !papeis.ehDono && !papeis.abaEquipe
+   && !papeis.menuEquipe && papeis.tentouAbrirEquipe !== 'equipe',
+   JSON.stringify(papeis));
+
+/* ---- 36b. o administrador continua com tudo ---- */
+const dono = await page.evaluate(()=>({
+  ehDaCasa: isAdmin(), ehDono: ehDono(),
+  menuEquipe: !!(typeof mgNavItens==='function' && mgNavItens().find(n=>n.v==='equipe')),
+}));
+ok('36b o administrador continua com tudo',
+   dono.ehDaCasa && dono.ehDono && dono.menuEquipe, JSON.stringify(dono));
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));

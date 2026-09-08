@@ -1,0 +1,24 @@
+-- Papel "equipe": trabalha em tudo, não administra.
+-- Aplicado em produção em 07/09/2026, em duas migrações:
+--   mgp_papel_equipe            (enum, is_dono, políticas, gatilhos, view)
+--   mgp_papel_equipe_rpcs_canal (as três RPCs de canal)
+--
+-- A armadilha que motivou a separação: DOIS GATILHOS de profiles usavam
+-- is_admin() para decidir quem troca papel. Como is_admin() passou a
+-- incluir 'equipe', sem trocar esses dois para is_dono() qualquer membro
+-- da equipe se promoveria a admin sozinho, e o patch teria ABERTO uma
+-- escalada de privilégio em vez de fechar.
+--
+-- Mesma armadilha nas RPCs de canal: elas são SECURITY DEFINER, então
+-- ignoram a política da tabela e a checagem interna é a única barreira.
+--
+-- Provado no banco com sessão de equipe real:
+--   virar admin ......... bloqueado
+--   apagar canal ........ bloqueado
+--   criar empresa ....... bloqueado
+--   criar demanda ....... funcionou
+--   ler demandas ........ 428 visíveis
+--   ler empresas ........ 9 visíveis
+--   e-mail no diretório .. 0 visíveis
+--
+-- O conteúdo exato está nas duas migrações versionadas no Supabase.
