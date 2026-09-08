@@ -17554,6 +17554,50 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
 .mgz-i .n{flex-shrink:0;background:var(--danger);color:#fff;font-size:10px;font-weight:700;
   min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center}
 .mgz-i.on .n{background:var(--ink2);color:var(--brass-soft)}
+
+/* a linha vira invólucro para o ⋯ caber sem virar botão dentro de botão */
+.mgz-linha{position:relative;display:block}
+.mgz-mais{position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;border:0;border-radius:6px;background:none;color:var(--muted2);
+  font-family:inherit;font-size:14px;line-height:1;display:none;place-items:center;padding:0}
+.mgz-linha:hover .mgz-mais,.mgz-mais:focus-visible{display:grid}
+.mgz-mais:hover{background:var(--card2);color:var(--text)}
+.mgz-linha:hover .mgz-i .n{opacity:0}
+.mgz-i.on ~ .mgz-mais{color:var(--ink2)}
+
+.mgz-menu{position:fixed;z-index:120;min-width:196px;background:var(--card);
+  border:1px solid var(--line2);border-radius:12px;padding:6px;
+  box-shadow:0 20px 46px -18px rgba(0,0,0,.5)}
+.mgz-menu .tt{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted2);padding:6px 10px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
+  border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;font-weight:600;
+  color:var(--text);text-align:left}
+.mgz-menu button:hover{background:var(--card2)}
+.mgz-menu button.perigo{color:#d9705f}
+.mgz-menu button.perigo:hover{background:rgba(217,112,95,.12)}
+.mgz-menu .ic{width:16px;text-align:center;flex-shrink:0}
+
+/* ---------- aba Novidades ---------- */
+.mgz-filtro .conta{font-size:11.5px;color:var(--muted2);font-weight:600;flex:1}
+.mgz-nv{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 9px;border:0;
+  border-radius:10px;background:none;text-align:left;font-family:inherit;
+  transition:background .13s}
+.mgz-nv:hover{background:var(--card)}
+.mgz-nv.on{background:var(--card2)}
+.mgz-nv .tx{flex:1;min-width:0}
+.mgz-nv .l1{display:flex;align-items:baseline;gap:8px}
+.mgz-nv .l1 b{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-nv .l1 .q{font-size:10.5px;color:var(--muted2);flex-shrink:0}
+.mgz-nv .pv{display:block;font-size:12px;color:var(--muted2);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgz-nv .pv i{font-style:normal;color:var(--muted)}
+.mgz-nv.novo .l1 b{color:var(--text);font-weight:700}
+.mgz-nv.novo .pv{color:var(--muted)}
+.mgz-nv .n{flex-shrink:0;background:var(--danger);color:#fff;font-size:10px;font-weight:700;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;
+  margin-top:3px}
 .mgz-i .mgu-av{margin:-1px 0}
 /* conversa de grupo: duas fotos sobrepostas no lugar de uma */
 .mgz-pilha{display:inline-flex;flex-shrink:0}
@@ -19046,8 +19090,12 @@ function ladoHTML(){
       + '<button class="' + (aba==='tudo'?'on':'') + '" onclick="MGChat.trocarAba(\'tudo\')">Conversas</button>'
       + '<button class="' + (aba==='diretas'?'on':'') + '" onclick="MGChat.trocarAba(\'diretas\')">'
         + 'Diretas' + (naoLidasDiretas() ? '<i class="pt"></i>' : '') + '</button>'
+      + '<button class="' + (aba==='novidades'?'on':'') + '" onclick="MGChat.trocarAba(\'novidades\')">'
+        + 'Novidades' + (totalNaoLidas() ? '<i class="pt"></i>' : '') + '</button>'
     + '</div>'
-    + (aba === 'diretas' ? diretasHTML() : tudoHTML())
+    + (aba === 'diretas'   ? diretasHTML()
+     : aba === 'novidades' ? novidadesHTML()
+     : tudoHTML())
     /* Escolha do tema, aqui e não numa camada por fora: desenhar() é
        chamada por dentro do módulo em vários pontos, e quem envolvesse
        MGChat.desenhar perderia justamente esses caminhos. */
@@ -19075,12 +19123,60 @@ function naoLidasDiretas(){
 }
 function itemCanal(c){
   const n = CH_NAOLIDAS[c.id] || 0;
-  return '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
+  /* Excluir canal existia, mas só dentro da engrenagem do cabeçalho: era
+     preciso abrir o canal para achar. Aqui ele fica ao lado do nome, no
+     mesmo lugar onde está o + de criar, que é onde a pessoa procura.
+     O botão não pode ficar DENTRO do outro: botão dentro de botão é HTML
+     inválido e o clique vira loteria. Por isso a linha vira um invólucro. */
+  const podeMexer = isAdmin() && c.tipo !== 'dm';
+  const linha = '<button class="mgz-i ' + (c.id===CHAN?'on':'') + (n?' novo':'') + '"'
     + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
     + marcaCanal(c, 20)
     + '<span class="nm">' + esc(nomeCanal(c)) + '</span>'
     + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
     + '</button>';
+  if(!podeMexer) return linha;
+  return '<span class="mgz-linha">' + linha
+    + '<button class="mgz-mais" title="Opções do canal" aria-label="Opções do canal"'
+    + ' onclick="MGChat.menuCanal(event,\'' + escJS(c.id) + '\')">⋯</button></span>';
+}
+
+/* Menu do canal na lateral. Some ao clicar fora, com Escape, e ao rolar a
+   lista, porque ele é posicionado em coordenada de tela. */
+let menuAberto = null;
+function fecharMenuCanal(){
+  if(!menuAberto) return;
+  menuAberto.remove(); menuAberto = null;
+  document.removeEventListener('click', fecharMenuCanal, true);
+  document.removeEventListener('keydown', escapaMenu, true);
+}
+function escapaMenu(e){ if(e.key === 'Escape') fecharMenuCanal() }
+function menuCanal(ev, id){
+  if(ev){ ev.stopPropagation(); ev.preventDefault() }
+  fecharMenuCanal();
+  const c = CHANNELS.find(x=>x.id===id);
+  if(!c || !isAdmin()) return;
+
+  const m = document.createElement('div');
+  m.className = 'mgz-menu';
+  m.innerHTML = '<div class="tt">' + esc(nomeCanal(c)) + '</div>'
+    + '<button onclick="MGChat.fecharMenuCanal();MGChat.editarCanal(\'' + escJS(c.id) + '\')">'
+    + '<span class="ic">⚙</span>Configurar canal</button>'
+    + '<button class="perigo" onclick="MGChat.fecharMenuCanal();MGChat.excluirCanal(\'' + escJS(c.id) + '\')">'
+    + '<span class="ic">🗑</span>Excluir canal</button>';
+  document.body.appendChild(m);
+
+  const b = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : {left:20, bottom:80};
+  const larg = m.offsetWidth || 200, alt = m.offsetHeight || 90;
+  m.style.left = Math.min(window.innerWidth - larg - 10, Math.max(10, b.left - larg + 30)) + 'px';
+  m.style.top  = Math.min(window.innerHeight - alt - 10, b.bottom + 6) + 'px';
+
+  menuAberto = m;
+  /* na fase de captura, para o clique não reabrir o menu que acabou de fechar */
+  setTimeout(()=>{
+    document.addEventListener('click', fecharMenuCanal, true);
+    document.addEventListener('keydown', escapaMenu, true);
+  }, 0);
 }
 
 /* ----- aba "Conversas": tudo, por empresa ----- */
@@ -19153,11 +19249,83 @@ function buscaHTMLLateral(){
   + '</div>';
 }
 
+/* ----- aba "Novidades" -----
+   O filtro de não lidas era um botão dentro da aba de diretas, então só
+   filtrava conversa direta e sumia da vista em qualquer outra aba. Vira
+   aba própria, com o que chegou por último em TODA conversa que a pessoa
+   participa: primeiro o que ela ainda não leu, depois o resto em ordem de
+   chegada. É a tela de "o que aconteceu enquanto eu estava fora". */
+function totalNaoLidas(){
+  return CHANNELS.reduce((a,c)=>a+(CH_NAOLIDAS[c.id]||0), 0);
+}
+function novidadesHTML(){
+  const linhas = CHANNELS
+    .filter(c=>combina(c) && visivel(c))
+    .map(c=>({c, u: ULTIMAS[c.id], n: CH_NAOLIDAS[c.id]||0}))
+    .filter(x=>x.u || x.n)
+    .sort((a,b)=>{
+      const ta = a.u ? new Date(a.u.em).getTime() : 0;
+      const tb = b.u ? new Date(b.u.em).getTime() : 0;
+      return tb - ta;
+    });
+
+  const naoLidas = linhas.filter(x=>x.n > 0);
+  const lidas    = linhas.filter(x=>x.n === 0);
+
+  if(!linhas.length){
+    return buscaHTMLLateral()
+      + '<div class="mgz-lista"><div class="mgz-vazio-sec">'
+      + 'Nada novo por aqui ainda.</div></div>';
+  }
+
+  const bloco = (rot, itens) => itens.length
+    ? '<div class="mgz-sec">' + rot + '</div>' + itens.map(itemNovidade).join('') : '';
+
+  return buscaHTMLLateral()
+    + (naoLidas.length
+        ? '<div class="mgz-filtro"><span class="conta">' + totalNaoLidas()
+          + (totalNaoLidas()===1 ? ' mensagem não lida' : ' mensagens não lidas') + '</span>'
+          + '<button class="nova" onclick="MGChat.marcarTudoLido()">Marcar tudo como lido</button></div>'
+        : '')
+    + '<div class="mgz-lista">'
+      + bloco('Não lidas', naoLidas)
+      + bloco(naoLidas.length ? 'Antes disso' : 'Recentes', lidas)
+    + '</div>';
+}
+function itemNovidade(x){
+  const c = x.c, u = x.u, n = x.n;
+  const autor = u ? (u.kind === 'kronos' ? 'Kronos'
+                   : (MGU.get(u.autor_id) || {}).primeiro || u.autor_nome || '') : '';
+  const previa = !u ? '' : (String(u.corpo||'').trim()
+                   || (u.tem_anexo ? 'enviou um arquivo' : '…'));
+  return '<button class="mgz-nv ' + (n?'novo':'') + (c.id===CHAN?' on':'') + '"'
+    + ' onclick="MGChat.abrir(\'' + escJS(c.id) + '\')">'
+    + marcaCanal(c, 30)
+    + '<span class="tx">'
+      + '<span class="l1"><b>' + esc(nomeCanal(c)) + '</b>'
+      + (u ? '<span class="q">' + esc(dataDe(u.em)) + '</span>' : '') + '</span>'
+      + '<span class="pv">' + (autor ? '<i>' + esc(autor) + ':</i> ' : '')
+      + esc(previa.slice(0,90)) + '</span>'
+    + '</span>'
+    + (n ? '<span class="n">' + (n>99?'99+':n) + '</span>' : '')
+    + '</button>';
+}
+async function marcarTudoLido(){
+  const alvos = CHANNELS.filter(c=>(CH_NAOLIDAS[c.id]||0) > 0);
+  if(!alvos.length) return;
+  for(const c of alvos){ await marcarLido(c.id) }
+  await carregarNaoLidas();
+  desenhar();
+  toast(alvos.length === 1 ? 'Conversa marcada como lida'
+                           : alvos.length + ' conversas marcadas como lidas');
+}
+
 /* ----- aba "Diretas" ----- */
 function diretasHTML(){
   const busca = CH_FILTER;
-  let lista = CHANNELS.filter(c=>c.tipo==='dm' && combina(c));
-  if(soNaoLidas) lista = lista.filter(c=>(CH_NAOLIDAS[c.id]||0) > 0);
+  /* o filtro de não lidas saiu daqui: virou a aba Novidades, que cobre
+     toda conversa e não só as diretas */
+  const lista = CHANNELS.filter(c=>c.tipo==='dm' && combina(c));
 
   lista.sort((a,b)=>{
     const ua = ULTIMAS[a.id], ub = ULTIMAS[b.id];
@@ -19174,7 +19342,7 @@ function diretasHTML(){
       .flatMap(c=>outrosLados(c)).filter(Boolean));
     const sobrando = (busca ? MGU.buscar(busca) : MGU.todos())
       .filter(u=>u.id !== ME.id && !jaTem.has(u.id) && u.resolvido);
-    if(sobrando.length && !soNaoLidas){
+    if(sobrando.length){
       novas = '<div class="mgz-sec">Começar uma conversa</div>'
         + sobrando.slice(0,8).map(u=>
             '<button class="mgz-md" onclick="MGChat.abrirDireta(\'' + escJS(u.id) + '\')">'
@@ -19188,14 +19356,13 @@ function diretasHTML(){
 
   return buscaHTMLLateral()
     + '<div class="mgz-filtro">'
-      + '<button class="' + (soNaoLidas?'on':'') + '" onclick="MGChat.alternarNaoLidas()">'
-        + '<i></i>Não lidas</button>'
+      + '<span class="conta">' + lista.length
+        + (lista.length === 1 ? ' conversa' : ' conversas') + '</span>'
       + '<button class="nova" onclick="MGChat.novaConversa()" title="Nova conversa">✎ Nova</button>'
     + '</div>'
     + '<div class="mgz-lista">'
       + (lista.length ? lista.map(itemDireta).join('')
-         : '<div class="mgz-vazio-sec">' + (soNaoLidas ? 'nenhuma conversa não lida'
-              : 'nenhuma conversa direta ainda') + '</div>')
+         : '<div class="mgz-vazio-sec">nenhuma conversa direta ainda</div>')
       + novas
     + '</div>';
 }
@@ -20519,9 +20686,11 @@ async function novoCanalCliente(cid){ return novoCanal('client', cid) }
 async function novoCanalEquipe(){     return novoCanal('team', null) }
 
 /* Editar o canal aberto: mesma janela, mais o botão de excluir. */
-async function editarCanal(){
+async function editarCanal(id){
   if(!isAdmin()) return;
-  const c = CHANNELS.find(x=>x.id===CHAN);
+  /* sem argumento vale o canal aberto, que é como a engrenagem do
+     cabeçalho sempre chamou; com argumento vale o da lateral */
+  const c = CHANNELS.find(x=>x.id === (id || CHAN));
   if(!c || c.tipo === 'dm'){ toast('Conversa direta não tem configuração de canal'); return }
   await carregarMembros(c.id);
   const gente = genteDoCanal(c.client_id);
@@ -20563,7 +20732,12 @@ async function editarCanal(){
 /* nome antigo, que outras camadas ainda chamam */
 async function renomear(){ return editarCanal() }
 
-async function excluirCanal(c){
+async function excluirCanal(alvo){
+  /* aceita o objeto, como sempre veio da janela de configurar, ou o id,
+     como vem do menu da lateral */
+  const c = (typeof alvo === 'string') ? CHANNELS.find(x=>x.id===alvo) : alvo;
+  if(!c) return;
+  if(!isAdmin()){ toast('Só administrador pode excluir canal'); return }
   const quantas = (CHMSGS[c.id] || []).length;
   const ok = await MGJanela.confirmar('Excluir #' + c.nome + '?', {
     texto: 'O canal e todas as mensagens dele somem para todo mundo.',
@@ -20772,9 +20946,11 @@ return {
   responder, cancelarResposta, copiar, excluir, reagir, irPara,
   abrirEmojis, escolherEmoji, emojiNoTexto, escolherArquivo, tirarDaFila, abrirAnexo,
   novoCanalCliente, novoCanalEquipe, novoCanal, editarCanal, renomear, excluirCanal,
+  menuCanal, fecharMenuCanal,
   configurar, recarregar, recarregarMsgs, sairDoCanal, limparCacheAnexos, verAnteriores, canalAtual,
   tipoPermitido: mgTipoPermitido,
   carregarNaoLidas, carregarMsgs, carregarMembros, carregarCanais, carregarThreads,
+  marcarTudoLido, totalNaoLidas,
   exemploDemanda, exemploDocumento,
   /* thread, comandos, busca e apoio ao Kronos */
   abrirThread, fecharThread, abrirComandos, escolherComando, chamarKronos,

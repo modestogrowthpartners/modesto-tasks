@@ -399,7 +399,7 @@ const diretas = await page.evaluate(()=>{
           temFiltro:!!document.querySelector('.mgz-filtro button')};
 });
 ok('20f aba de diretas com prévia e horário',
-   diretas.abas === 2 && /Diretas/.test(diretas.ativa||'') && diretas.itens >= 1
+   diretas.abas === 3 && /Diretas/.test(diretas.ativa||'') && diretas.itens >= 1
    && diretas.comPrevia >= 1 && diretas.temHora && diretas.temFiltro, JSON.stringify(diretas));
 
 /* ---- 20g. conversa em grupo ---- */
@@ -1071,6 +1071,66 @@ ok('33 CSP e referrer sem regra inerte',
    cab.referrer === 'strict-origin-when-cross-origin' && cab.upgrade
    && cab.semFrameAncestors && cab.semUnsafeEval && cab.objectNone,
    JSON.stringify(cab));
+
+/* ---- 34. Novidades: aba própria com não lidas e recentes ---- */
+const novidades = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(x=>setTimeout(x,500));
+  MGChat.trocarAba('novidades'); await new Promise(x=>setTimeout(x,500));
+  const secoes = [...document.querySelectorAll('.mgz-side .mgz-sec')].map(s=>s.textContent.trim());
+  const itens = [...document.querySelectorAll('.mgz-nv')].map(b=>({
+    novo: b.classList.contains('novo'),
+    txt: b.textContent.replace(/\s+/g,' ').trim().slice(0,50),
+  }));
+  return {abas:[...document.querySelectorAll('.mgz-abas button')].map(b=>b.textContent.replace(/\s+/g,'')),
+          secoes, itens, total: MGChat.totalNaoLidas(),
+          botaoLerTudo: !!document.querySelector('.mgz-filtro .nova')};
+});
+ok('34 Novidades é aba própria, com não lidas primeiro',
+   novidades.abas.length === 3 && /Novidades/.test(novidades.abas[2])
+   && novidades.itens.length >= 1
+   && (novidades.total === 0 || novidades.secoes.includes('Não lidas'))
+   && (novidades.itens[0] ? novidades.itens[0].novo === (novidades.total > 0) : true),
+   JSON.stringify(novidades).slice(0,220));
+
+/* ---- 34b. marcar tudo como lido zera o contador ---- */
+const lerTudo = await page.evaluate(async ()=>{
+  const antes = MGChat.totalNaoLidas();
+  await MGChat.marcarTudoLido();
+  await new Promise(x=>setTimeout(x,700));
+  return {antes, depois: MGChat.totalNaoLidas()};
+});
+ok('34b marcar tudo como lido zera as não lidas',
+   lerTudo.antes === 0 || lerTudo.depois < lerTudo.antes, JSON.stringify(lerTudo));
+
+/* ---- 35. excluir canal fica ao lado do nome, na lateral ---- */
+const menuLateral = await page.evaluate(async ()=>{
+  MGChat.trocarAba('tudo'); await new Promise(x=>setTimeout(x,500));
+  const linha = document.querySelector('.mgz-linha');
+  const pontos = linha ? linha.querySelector('.mgz-mais') : null;
+  if(!pontos) return {temPontos:false};
+  /* botão dentro de botão é HTML inválido: o ⋯ tem que ser irmão, não filho */
+  const aninhado = !!document.querySelector('.mgz-i .mgz-mais');
+  pontos.click(); await new Promise(x=>setTimeout(x,300));
+  const m = document.querySelector('.mgz-menu');
+  const opcoes = m ? [...m.querySelectorAll('button')].map(b=>b.textContent.trim()) : [];
+  document.body.click(); await new Promise(x=>setTimeout(x,300));
+  return {temPontos:true, aninhado, opcoes, fechou: !document.querySelector('.mgz-menu')};
+});
+ok('35 canal tem menu de opções na lateral, com excluir',
+   menuLateral.temPontos && !menuLateral.aninhado
+   && menuLateral.opcoes.some(o=>/Configurar/.test(o))
+   && menuLateral.opcoes.some(o=>/Excluir/.test(o))
+   && menuLateral.fechou, JSON.stringify(menuLateral));
+
+/* ---- 35b. cliente não vê opção de excluir canal ---- */
+ok('35b o menu de canal é só da equipe',
+   await page.evaluate(()=>{
+     const _a = isAdmin; window.isAdmin = () => false;
+     MGChat.desenhar();
+     const tem = !!document.querySelector('.mgz-mais');
+     window.isAdmin = _a; MGChat.desenhar();
+     return !tem;
+   }));
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
