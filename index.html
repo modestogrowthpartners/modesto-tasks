@@ -16076,7 +16076,9 @@ function mgFAtualizarMarcas(){
   if(typeof ABAS_DO_CLIENTE === 'undefined') return;
   if(!ABAS_DO_CLIENTE.includes('minhas')) ABAS_DO_CLIENTE.unshift('minhas');
   if(typeof NAV !== 'undefined' && !NAV.some(n => n.v === 'minhas')){
-    NAV.unshift({v:'minhas', ic:'▤', label:'Demandas'});
+    /* é a lista da empresa do CLIENTE. Para a equipe ela duplica o
+       MGP Tasks, então fica marcada e o filtro de mgNavItens a tira. */
+    NAV.unshift({v:'minhas', ic:'▤', label:'Demandas', soCliente:true});
   }
   if(typeof MG_NAV_CLI === 'object' && MG_NAV_CLI) MG_NAV_CLI.minhas = ['▤','Demandas'];
 })();
@@ -24142,21 +24144,6 @@ document.addEventListener('drop', e=>{
   catch(err){ console.warn('[soltar no chat]', err) }
 });
 
-/* ---------------------------------------------------------------------
-   PARTE 7 — "Início" sai do menu Ir para
-
-   A tela inicial continua existindo e continua a um clique: pela logo
-   da barra de baixo e pelo botão de início do topo. O que sai é a
-   entrada repetida dentro do menu.
-   --------------------------------------------------------------------- */
-if(typeof mgNavItens === 'function'){
-  const _nav = mgNavItens;
-  window.mgNavItens = function(){
-    const l = _nav.apply(this, arguments) || [];
-    return l.filter(n => n && n.v !== 'home');
-  };
-}
-
 /* nomes que os testes e o resto da plataforma usam */
 window.mgAvisoNaTela      = mgAvisoNaTela;
 window.mgChegouMensagem   = mgChegouMensagem;
@@ -24171,6 +24158,398 @@ window.mgSyncEstado       = ()=>({marco: MG_MARCO, rodadas: MG_CHEIO});
 window.mgSyncReiniciar    = ()=>{ MG_CHEIO = 0;
   MG_MARCO = mgMarcoDe(typeof TASKS !== 'undefined' ? TASKS : []) };
 window.mgLigarAvisos      = mgLigarAvisos;
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · PESO E LIMPEZA · o que ocupa espaço e o que dá para tirar
+
+   Duas fontes de peso, medidas e não estimadas:
+
+   1. As logos das empresas são base64 dentro da linha de clients. Elas
+      viajam inteiras em TODA carga da plataforma, porque loadClients()
+      faz select('*'). Uma logo de 68 kB desenhada a 26 px é 68 kB
+      jogados fora em cada abertura.
+   2. O acervo acumula arquivo que nenhuma demanda, documento ou
+      mensagem aponta mais. Ninguém alcança, e continua ocupando cota.
+
+   Esta tela mede as duas e deixa agir, com o antes e o depois à vista.
+   Nada é apagado nem reescrito sem clique.
+   ===================================================================== */
+.mg-peso-t{display:flex;align-items:baseline;gap:10px;margin:2px 0 14px}
+.mg-peso-t b{font-family:var(--font-d);font-size:26px;font-weight:600;color:var(--text)}
+.mg-peso-t span{font-size:12.5px;color:var(--muted)}
+
+.mg-peso-lin{display:flex;align-items:center;gap:11px;padding:8px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px}
+.mg-peso-lin:last-child{border-bottom:0}
+.mg-peso-lin img{width:30px;height:30px;object-fit:contain;border-radius:6px;
+  background:#fff;border:1px solid var(--line);flex:0 0 auto}
+.mg-peso-lin .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-peso-lin .kb{font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted);flex:0 0 auto}
+.mg-peso-lin .kb.alto{color:var(--danger)}
+.mg-peso-lin .kb.novo{color:var(--st-done,#2e7d5b)}
+.mg-peso-lin .seta{color:var(--muted2);flex:0 0 auto}
+
+.mg-peso-cx{background:var(--card2);border:1px solid var(--line);border-radius:12px;
+  padding:13px 15px;margin:10px 0 16px}
+.mg-peso-cx h4{font-family:var(--font-d);font-size:14px;font-weight:600;margin:0 0 3px;color:var(--text)}
+.mg-peso-cx .d{font-size:12px;color:var(--muted);line-height:1.5}
+.mg-peso-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.mg-peso-b{background:var(--brass);border:0;border-radius:9px;padding:8px 15px;
+  font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer}
+.mg-peso-b:hover{filter:brightness(1.06)}
+.mg-peso-b:disabled{opacity:.55;cursor:default}
+.mg-peso-b.fio{background:none;border:1px solid var(--line2);color:var(--text)}
+.mg-peso-b.fio:hover{border-color:var(--brass);color:var(--brass2);filter:none}
+.mg-peso-b.risco{background:none;border:1px solid rgba(184,74,62,.42);color:var(--danger)}
+.mg-peso-b.risco:hover{background:rgba(184,74,62,.07);filter:none}
+.mg-peso-vazio{font-size:12.5px;color:var(--muted);padding:8px 0}
+.mg-peso-nota{font-size:11.5px;color:var(--muted2);line-height:1.55;margin-top:9px}
+.mg-peso-alerta{display:flex;gap:10px;align-items:flex-start;background:rgba(184,74,62,.06);
+  border:1px solid rgba(184,74,62,.3);border-radius:11px;padding:11px 14px;
+  font-size:12.5px;line-height:1.5;margin:10px 0 4px}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · PESO E LIMPEZA
+   ===================================================================== */
+(function(){
+
+let MG_PESO = null;        /* último resultado da medição */
+let MG_PESO_LENDO = false;
+
+function kb(n){
+  if(!n && n !== 0) return '—';
+  if(n < 1024) return n + ' B';
+  if(n < 1048576) return (n/1024).toFixed(0) + ' kB';
+  return (n/1048576).toFixed(1).replace('.',',') + ' MB';
+}
+
+/* ---------------------------------------------------------------------
+   1. Medir
+   --------------------------------------------------------------------- */
+
+/* o acervo é uma árvore: list() só devolve um nível por vez */
+async function mgAcervoTodo(prefixo, fundo){
+  const saida = [];
+  if((fundo||0) > 4) return saida;                /* trava contra ciclo */
+  let de = 0;
+  for(;;){
+    const {data, error} = await sb.storage.from('documents')
+      .list(prefixo, {limit:100, offset:de});
+    if(error || !data || !data.length) break;
+    for(const it of data){
+      const caminho = prefixo ? prefixo + '/' + it.name : it.name;
+      const ehPasta = !it.id && !(it.metadata && it.metadata.size);
+      if(ehPasta) saida.push(...await mgAcervoTodo(caminho, (fundo||0) + 1));
+      else saida.push({caminho, tamanho: Number((it.metadata||{}).size) || 0,
+                       tipo: (it.metadata||{}).mimetype || '',
+                       em: it.created_at || it.updated_at || null});
+    }
+    if(data.length < 100) break;
+    de += 100;
+  }
+  return saida;
+}
+
+/* todo caminho que ainda é apontado por alguma linha do banco */
+async function mgAcervoApontado(){
+  const usados = new Set();
+  const junta = anexos => (Array.isArray(anexos) ? anexos : []).forEach(a=>{
+    if(a && a.path) usados.add(String(a.path));
+  });
+  const [docs, msgs, tks, nts] = await Promise.all([
+    sb.from('documents').select('storage_path'),
+    sb.from('messages').select('anexos'),
+    sb.from('tasks').select('anexos'),
+    sb.from('task_notes').select('anexos'),
+  ]);
+  (docs.data||[]).forEach(d=>{ if(d.storage_path) usados.add(String(d.storage_path)) });
+  (msgs.data||[]).forEach(m=>junta(m.anexos));
+  (tks.data ||[]).forEach(t=>junta(t.anexos));
+  (nts.data ||[]).forEach(n=>junta(n.anexos));
+  return usados;
+}
+
+async function mgPesoMedir(){
+  if(MG_PESO_LENDO) return MG_PESO;
+  MG_PESO_LENDO = true;
+  mgPesoPintar();
+  try{
+    const logos = (typeof CLIENTS !== 'undefined' ? CLIENTS : [])
+      .map(c=>({id:c.id, nome:c.nome, url:c.logo_url || '',
+                bytes: (c.logo_url||'').length}))
+      .filter(l=>l.bytes > 0)
+      .sort((a,b)=>b.bytes - a.bytes);
+
+    let arquivos = [], apontados = new Set(), falhou = null;
+    try{
+      [arquivos, apontados] = await Promise.all([mgAcervoTodo('', 0), mgAcervoApontado()]);
+    }catch(e){ falhou = (e && e.message) || 'não foi possível ler o acervo' }
+
+    arquivos.forEach(a=>{ a.orfao = !apontados.has(a.caminho) });
+    arquivos.sort((a,b)=>b.tamanho - a.tamanho);
+
+    MG_PESO = {
+      logos,
+      logosBytes: logos.reduce((s,l)=>s+l.bytes, 0),
+      arquivos,
+      acervoBytes: arquivos.reduce((s,a)=>s+a.tamanho, 0),
+      orfaos: arquivos.filter(a=>a.orfao),
+      falhou,
+      em: new Date(),
+    };
+  }finally{
+    MG_PESO_LENDO = false;
+    mgPesoPintar();
+  }
+  return MG_PESO;
+}
+
+/* ---------------------------------------------------------------------
+   2. Encolher as logos
+
+   Uma logo é desenhada no máximo a 30 px na plataforma. Guardar 1024 px
+   de lado não melhora nada na tela e custa em toda carga. 160 px cobre
+   até tela retina com folga.
+   --------------------------------------------------------------------- */
+const MG_LOGO_LADO = 160;
+
+function mgCarregarImagem(url){
+  return new Promise((ok, nao)=>{
+    const i = new Image();
+    i.onload = ()=>ok(i);
+    i.onerror = ()=>nao(new Error('imagem ilegível'));
+    i.src = url;
+  });
+}
+
+async function mgLogoEncolhida(url){
+  const img = await mgCarregarImagem(url);
+  const maior = Math.max(img.naturalWidth, img.naturalHeight) || 1;
+  const fator = Math.min(1, MG_LOGO_LADO / maior);
+  const l = Math.max(1, Math.round(img.naturalWidth  * fator));
+  const a = Math.max(1, Math.round(img.naturalHeight * fator));
+  const c = document.createElement('canvas');
+  c.width = l; c.height = a;
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = true;
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(img, 0, 0, l, a);
+  const png  = c.toDataURL('image/png');
+  /* webp costuma ganhar com folga, mas só vale se o navegador realmente
+     produziu webp: alguns devolvem png com o mesmo pedido */
+  let webp = '';
+  try{ webp = c.toDataURL('image/webp', 0.92) }catch(_){}
+  const usa = (webp.indexOf('data:image/webp') === 0 && webp.length < png.length) ? webp : png;
+  return {url: usa, bytes: usa.length, largura: l, altura: a};
+}
+
+window.mgPesoPreverLogos = async function(){
+  const bt = document.getElementById('mg-peso-prever');
+  if(bt){ bt.disabled = true; bt.textContent = 'Calculando…' }
+  try{
+    for(const l of (MG_PESO ? MG_PESO.logos : [])){
+      if(l.novo) continue;
+      try{ l.novo = await mgLogoEncolhida(l.url) }
+      catch(e){ l.erro = (e && e.message) || 'falhou' }
+    }
+    mgPesoPintar();
+  }finally{
+    const b2 = document.getElementById('mg-peso-prever');
+    if(b2){ b2.disabled = false; b2.textContent = 'Recalcular' }
+  }
+};
+
+window.mgPesoAplicarLogos = async function(){
+  if(!MG_PESO) return;
+  const alvos = MG_PESO.logos.filter(l => l.novo && l.novo.bytes < l.bytes * 0.8);
+  if(!alvos.length){ toast('Nenhuma logo compensa trocar'); return }
+  const ganho = alvos.reduce((s,l)=>s + (l.bytes - l.novo.bytes), 0);
+  const ok = await MGJanela.confirmar('Trocar ' + alvos.length + ' logo(s) pela versão menor?', {
+    texto: 'Economia de ' + kb(ganho) + ' em cada abertura da plataforma.',
+    aviso: 'A imagem original é substituída e não dá para desfazer. '
+         + 'As miniaturas ao lado já mostram como cada uma vai ficar.',
+    ok: 'Trocar', icone: '⚖',
+  });
+  if(!ok) return;
+
+  const bt = document.getElementById('mg-peso-aplicar');
+  if(bt){ bt.disabled = true; bt.textContent = 'Gravando…' }
+  let trocadas = 0, erros = 0;
+  for(const l of alvos){
+    try{
+      const {error} = await sb.from('clients').update({logo_url: l.novo.url}).eq('id', l.id);
+      if(error) throw error;
+      const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x=>x.id === l.id);
+      if(c) c.logo_url = l.novo.url;
+      l.url = l.novo.url; l.bytes = l.novo.bytes; l.novo = null;
+      trocadas++;
+    }catch(e){ erros++; console.error('[peso · logo]', e) }
+  }
+  if(bt){ bt.disabled = false; bt.textContent = 'Trocar pelas menores' }
+  MG_PESO.logosBytes = MG_PESO.logos.reduce((s,x)=>s+x.bytes, 0);
+  toast(erros ? (trocadas + ' trocada(s), ' + erros + ' falharam')
+              : (trocadas + ' logo(s) trocada(s) ✓'));
+  try{ if(typeof render === 'function') render() }catch(_){}
+  mgPesoPintar();
+};
+
+/* ---------------------------------------------------------------------
+   3. Tirar o que ninguém alcança
+   --------------------------------------------------------------------- */
+window.mgPesoLimparOrfaos = async function(){
+  if(!MG_PESO || !MG_PESO.orfaos.length) return;
+  const lista = MG_PESO.orfaos;
+  const total = lista.reduce((s,a)=>s+a.tamanho, 0);
+  const ok = await MGJanela.confirmar('Remover ' + lista.length + ' arquivo(s) sem dono?', {
+    texto: lista.slice(0,6).map(a=>a.caminho.split('/').pop()).join(', ')
+         + (lista.length > 6 ? ' e mais ' + (lista.length-6) : ''),
+    aviso: 'São ' + kb(total) + ' que nenhuma demanda, documento ou mensagem aponta. '
+         + 'A remoção é definitiva.',
+    ok: 'Remover', icone: '🗑',
+  });
+  if(!ok) return;
+
+  const bt = document.getElementById('mg-peso-orfaos');
+  if(bt){ bt.disabled = true; bt.textContent = 'Removendo…' }
+  try{
+    const {error} = await sb.storage.from('documents').remove(lista.map(a=>a.caminho));
+    if(error) throw error;
+    toast(lista.length + ' arquivo(s) removido(s), ' + kb(total) + ' liberados ✓');
+    await mgPesoMedir();
+  }catch(e){
+    toast('Não foi possível remover: ' + ((e && e.message) || ''));
+    console.error('[peso · órfãos]', e);
+  }finally{
+    const b2 = document.getElementById('mg-peso-orfaos');
+    if(b2){ b2.disabled = false; b2.textContent = 'Remover os sem dono' }
+  }
+};
+
+/* ---------------------------------------------------------------------
+   4. A tela
+   --------------------------------------------------------------------- */
+function mgPesoHTML(){
+  if(MG_PESO_LENDO && !MG_PESO)
+    return '<h3>Peso e limpeza</h3><div class="sub">Medindo o que ocupa espaço…</div>';
+
+  if(!MG_PESO)
+    return '<h3>Peso e limpeza</h3>'
+      + '<div class="sub">Mede o que a plataforma carrega em toda abertura e o que ficou '
+      + 'no acervo sem ninguém apontar. Nada é apagado sem o seu clique.</div>'
+      + '<div class="mg-peso-acoes"><button class="mg-peso-b" onclick="mgPesoMedir()">Medir agora</button></div>';
+
+  const p = MG_PESO;
+  const previu  = p.logos.some(l=>l.novo);
+  const ganho   = p.logos.reduce((s,l)=>s + (l.novo ? Math.max(0, l.bytes - l.novo.bytes) : 0), 0);
+  const grandes = p.arquivos.slice(0, 8);
+  const orfaos  = p.orfaos.reduce((s,a)=>s+a.tamanho, 0);
+
+  return '<h3>Peso e limpeza</h3>'
+    + '<div class="sub">Medido em ' + esc(p.em.toLocaleString('pt-BR')) + '.</div>'
+
+    /* ---- logos ---- */
+    + '<div class="mg-peso-cx"><h4>Logos das empresas</h4>'
+    +   '<div class="d">Elas ficam guardadas dentro da linha da empresa, não como arquivo. '
+    +   'Por isso viajam inteiras em <b>toda</b> abertura da plataforma, e são desenhadas '
+    +   'a no máximo 30 px na tela.</div>'
+    + '</div>'
+    + '<div class="mg-peso-t"><b>' + kb(p.logosBytes) + '</b>'
+    +   '<span>em ' + p.logos.length + ' logo(s), a cada abertura</span></div>'
+    + (p.logos.length
+        ? p.logos.map(l=>{
+            const alto = l.bytes > 12*1024;
+            return '<div class="mg-peso-lin">'
+              + '<img src="' + mgUrlImagem(l.url) + '" alt="">'
+              + '<span class="nm">' + esc(l.nome || 'sem nome') + '</span>'
+              + (l.novo
+                  ? '<span class="kb ' + (alto?'alto':'') + '">' + kb(l.bytes) + '</span>'
+                    + '<span class="seta">→</span>'
+                    + '<img src="' + mgUrlImagem(l.novo.url) + '" alt="">'
+                    + '<span class="kb novo">' + kb(l.novo.bytes) + '</span>'
+                  : '<span class="kb ' + (alto?'alto':'') + '">' + kb(l.bytes) + '</span>')
+              + (l.erro ? '<span class="kb alto">' + esc(l.erro) + '</span>' : '')
+              + '</div>';
+          }).join('')
+        : '<div class="mg-peso-vazio">Nenhuma empresa tem logo.</div>')
+    + '<div class="mg-peso-acoes">'
+    +   '<button class="mg-peso-b fio" id="mg-peso-prever" onclick="mgPesoPreverLogos()">'
+    +     (previu ? 'Recalcular' : 'Ver como ficariam menores') + '</button>'
+    +   (previu && ganho > 0
+        ? '<button class="mg-peso-b" id="mg-peso-aplicar" onclick="mgPesoAplicarLogos()">'
+          + 'Trocar pelas menores</button>' : '')
+    + '</div>'
+    + (previu
+        ? '<div class="mg-peso-nota">Economia de <b>' + kb(ganho) + '</b> em cada abertura, '
+          + 'para todo mundo. As miniaturas à direita são o resultado real, não uma estimativa.</div>'
+        : '')
+
+    /* ---- acervo ---- */
+    + '<div class="mg-peso-cx" style="margin-top:26px"><h4>Arquivos do acervo</h4>'
+    +   '<div class="d">Estes não pesam na abertura: só são baixados quando alguém abre. '
+    +   'Pesam na cota do Supabase.</div>'
+    + '</div>'
+    + (p.falhou
+        ? '<div class="mg-peso-alerta"><span>⚠</span><span>Não deu para ler o acervo: '
+          + esc(p.falhou) + '</span></div>'
+        : '<div class="mg-peso-t"><b>' + kb(p.acervoBytes) + '</b>'
+          + '<span>em ' + p.arquivos.length + ' arquivo(s)</span></div>'
+          + grandes.map(a=>
+              '<div class="mg-peso-lin">'
+              + '<span class="nm" title="' + esc(a.caminho) + '">'
+              +   esc(a.caminho.split('/').pop()) + (a.orfao ? ' · sem dono' : '') + '</span>'
+              + '<span class="kb' + (a.tamanho > 5*1024*1024 ? ' alto' : '') + '">'
+              +   kb(a.tamanho) + '</span></div>').join('')
+          + (p.arquivos.length > grandes.length
+              ? '<div class="mg-peso-nota">Mostrando os ' + grandes.length + ' maiores de '
+                + p.arquivos.length + '.</div>' : '')
+          + (p.orfaos.length
+              ? '<div class="mg-peso-alerta"><span>🗑</span><span><b>' + p.orfaos.length
+                + ' arquivo(s) sem dono</b>, somando ' + kb(orfaos) + '. Nenhuma demanda, '
+                + 'documento ou mensagem aponta para eles, então ninguém consegue abrir '
+                + 'pela plataforma.</span></div>'
+                + '<div class="mg-peso-acoes"><button class="mg-peso-b risco" id="mg-peso-orfaos" '
+                + 'onclick="mgPesoLimparOrfaos()">Remover os sem dono</button></div>'
+              : '<div class="mg-peso-nota">Nenhum arquivo sem dono. O acervo está limpo.</div>'))
+
+    + '<div class="mg-peso-acoes" style="margin-top:20px">'
+    +   '<button class="mg-peso-b fio" onclick="mgPesoMedir()">Medir de novo</button></div>';
+}
+
+function mgPesoPintar(){
+  const c = document.getElementById('mg-pref-corpo');
+  if(c && MG_PREF_ABA === 'peso') c.innerHTML = mgPesoHTML();
+}
+
+/* ---------------------------------------------------------------------
+   5. Entra em Configurações, só para o administrador
+   --------------------------------------------------------------------- */
+if(typeof mgPrefConteudo === 'function'){
+  const _conteudo = mgPrefConteudo;
+  mgPrefConteudo = function(aba){
+    return aba === 'peso' ? mgPesoHTML() : _conteudo.apply(this, arguments);
+  };
+}
+if(typeof mgDesenhaPref === 'function'){
+  const _desenha = mgDesenhaPref;
+  mgDesenhaPref = function(){
+    const dono = (typeof ehDono === 'function') && ehDono();
+    const i = MG_PREF_ABAS.findIndex(a => a.id === 'peso');
+    if(dono && i < 0) MG_PREF_ABAS.push({id:'peso', ic:'⚖', nome:'Peso e limpeza', grupo:'Conta'});
+    if(!dono && i >= 0) MG_PREF_ABAS.splice(i, 1);
+    if(!dono && MG_PREF_ABA === 'peso') MG_PREF_ABA = 'perfil';
+    return _desenha.apply(this, arguments);
+  };
+}
+
+window.mgPesoMedir  = mgPesoMedir;
+window.mgPesoHTML   = mgPesoHTML;
+window.mgPesoEstado = ()=>MG_PESO;
+window.mgLogoEncolhida = mgLogoEncolhida;
 
 })();
 </script>

@@ -58,6 +58,31 @@
       localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
     }catch(e){}
   }
+  /* acervo: dois apontados por t-1/d-1 e um sem dono nenhum */
+  FIX.__acervo = [
+    {caminho: CID+'/x.pdf',                 tamanho: 14336,  tipo:'application/pdf', em:'2026-08-06T10:00:00Z'},
+    {caminho: CID+'/tarefas/anexo-1.png',   tamanho: 155648, tipo:'image/png',       em:'2026-08-24T10:00:00Z'},
+    {caminho: 'equipe/chat/orfao.html',     tamanho: 955392, tipo:'text/html',       em:'2026-09-05T10:00:00Z'},
+  ];
+  FIX.tasks[0].anexos = [{nome:'anexo-1.png', path:CID+'/tarefas/anexo-1.png', tipo:'image/png', tamanho:155648}];
+
+  /* logo de 400 px com ruído, para o PNG não comprimir a quase nada:
+     é o que dá sentido ao teste de encolher */
+  try{
+    const c = document.createElement('canvas'); c.width = 400; c.height = 400;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0,0,400,400);
+    g.addColorStop(0,'#c2a15b'); g.addColorStop(1,'#1a1a18');
+    x.fillStyle = g; x.fillRect(0,0,400,400);
+    const d = x.getImageData(0,0,400,400);
+    for(let i=0;i<d.data.length;i+=4){
+      const r = (Math.sin(i*12.9898)*43758.5453) % 1;
+      d.data[i] = (d.data[i] + r*90) & 255;
+    }
+    x.putImageData(d,0,0);
+    FIX.clients[0].logo_url = c.toDataURL('image/png');
+  }catch(e){}
+
   window.__FIX = FIX;
 
   function builder(table){
@@ -319,6 +344,25 @@
     /* link assinado com cara de link assinado de verdade: o dublê antigo
        devolvia about:blank e escondia o caso de link ausente */
     storage:{ from:()=>({
+      /* árvore do acervo, para a tela de Peso e limpeza ter o que medir.
+         Um dos arquivos não é apontado por nada: é o órfão do teste. */
+      list:(prefixo, opc)=>{
+        const pre = String(prefixo||'').replace(/^\/|\/$/g,'');
+        const dentro = FIX.__acervo.filter(f =>
+          pre ? f.caminho.indexOf(pre + '/') === 0 : true);
+        const vistos = new Map();
+        dentro.forEach(f=>{
+          const resto = pre ? f.caminho.slice(pre.length+1) : f.caminho;
+          const corte = resto.indexOf('/');
+          if(corte < 0) vistos.set(resto, {name:resto, id:'o-'+resto,
+                                           created_at:f.em, metadata:{size:f.tamanho, mimetype:f.tipo}});
+          else{ const pasta = resto.slice(0,corte);
+                if(!vistos.has(pasta)) vistos.set(pasta, {name:pasta, id:null, metadata:null}) }
+        });
+        const todos = [...vistos.values()];
+        const de = (opc && opc.offset) || 0, ate = de + ((opc && opc.limit) || 100);
+        return Promise.resolve({data: todos.slice(de, ate), error:null});
+      },
       createSignedUrl:(caminho)=>Promise.resolve(
         window.__semLink
           ? {data:null, error:{message:'nao autorizado'}}
@@ -327,7 +371,11 @@
       upload:(caminho)=>Promise.resolve(
         window.__uploadFalha ? {data:null, error:{message:'row-level security'}}
                              : {data:{path:caminho}, error:null}),
-      remove:()=>Promise.resolve({data:{},error:null}) }) },
+      remove:(caminhos)=>{
+        const fora = new Set(caminhos||[]);
+        FIX.__acervo = FIX.__acervo.filter(f=>!fora.has(f.caminho));
+        return Promise.resolve({data:{},error:null});
+      } }) },
     channel:canal
   })};
 })();

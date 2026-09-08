@@ -1436,20 +1436,146 @@ ok('40b executável colado no chat continua sendo recusado',
    chatRecusa.entraram === 0 && chatRecusa.depois === chatRecusa.antes,
    JSON.stringify(chatRecusa));
 
-/* ---- 40c. "Início" não fica mais no menu Ir para ---- */
+/* ---- 40c. o menu Ir para tem Início e não tem tela de cliente ----
+   'minhas' e 'portal' são telas do CLIENTE; para a equipe elas
+   duplicavam MGP Tasks e Início. Quem fica é Início. */
 const menuIr = await page.evaluate(async ()=>{
   const itens = mgNavItens().map(n=>n.v);
   mgNavAbrir();
   await new Promise(r=>setTimeout(r,150));
   const rotulos = [...document.querySelectorAll('#mg-navp button')].map(b=>b.textContent.trim());
   mgNavFechar();
-  return {itens, rotulos, temHome: itens.includes('home'),
-          temBotaoDeInicio: !!document.getElementById('mg-btn-home')};
+  return {itens, rotulos,
+          temHome:    itens.includes('home'),
+          temMinhas:  itens.includes('minhas'),
+          temPortal:  itens.includes('portal'),
+          rotuloInicio: rotulos.filter(r=>/Início/.test(r)).length,
+          rotuloDemandas: rotulos.filter(r=>/^▤?\s*Demandas$/.test(r)).length};
 });
-ok('40c o menu Ir para não repete o Início',
-   !menuIr.temHome && !menuIr.rotulos.some(r=>/^⌂?\s*Início$/.test(r))
-   && menuIr.temBotaoDeInicio && menuIr.itens.length > 0,
+ok('40c o menu da equipe mantém Início e larga as telas do cliente',
+   menuIr.temHome && !menuIr.temMinhas && !menuIr.temPortal
+   && menuIr.rotuloInicio === 1 && menuIr.rotuloDemandas === 0,
    JSON.stringify(menuIr));
+
+/* ---- 40d. o cliente continua com as duas abas dele ----
+   'minhas' era a lista solta de demandas do cliente. Desde que o portal
+   virou página única, as demandas dele moram dentro do portal e
+   ABAS_DO_CLIENTE é só portal e chat. Ou seja: a entrada 'minhas' não
+   servia mais a ninguém, e sair do menu da equipe não tira nada do
+   cliente. Este caso é o que prova isso. */
+const menuCli = await page.evaluate(async ()=>{
+  const antes = ME.role, antesCli = ME.client_id;
+  ME.role = 'client'; ME.client_id = 'c-1';
+  const itens = mgNavItens().map(n=>n.v);
+  const abas = (typeof ABAS_DO_CLIENTE !== 'undefined') ? [...ABAS_DO_CLIENTE] : [];
+  ME.role = antes; ME.client_id = antesCli;
+  return {itens, abas};
+});
+ok('40d o cliente segue com portal e chat, e as demandas dentro do portal',
+   menuCli.itens.join(',') === 'portal,chat'
+   && menuCli.abas.includes('portal') && menuCli.abas.includes('chat'),
+   JSON.stringify(menuCli));
+
+
+/* =====================================================================
+   41 — Peso e limpeza
+   ===================================================================== */
+
+/* ---- 41. a aba só existe para o administrador ---- */
+const abaPeso = await page.evaluate(async ()=>{
+  const antes = ME.role;
+  const ver = papel => { ME.role = papel; mgDesenhaPref();
+    return !!MG_PREF_ABAS.find(a=>a.id==='peso') };
+  const r = {admin: ver('admin'), equipe: ver('equipe'), cliente: ver('client')};
+  ME.role = antes; mgDesenhaPref();
+  return r;
+});
+ok('41 Peso e limpeza é só do administrador',
+   abaPeso.admin && !abaPeso.equipe && !abaPeso.cliente, JSON.stringify(abaPeso));
+
+/* ---- 41b. a medição separa logo, acervo e órfão ---- */
+const medida = await page.evaluate(async ()=>{
+  const p = await mgPesoMedir();
+  return {
+    logos: p.logos.length,
+    logoBytes: p.logosBytes,
+    arquivos: p.arquivos.length,
+    acervoBytes: p.acervoBytes,
+    orfaos: p.orfaos.map(o=>o.caminho),
+    falhou: p.falhou,
+  };
+});
+ok('41b a medição encontra as logos, o acervo e o que está sem dono',
+   !medida.falhou && medida.logos === 1 && medida.logoBytes > 20000
+   && medida.arquivos === 3 && medida.acervoBytes > 1000000
+   && medida.orfaos.length === 1 && /orfao\.html$/.test(medida.orfaos[0]),
+   JSON.stringify({...medida, orfaos:medida.orfaos.length}));
+
+/* ---- 41c. a prévia encolhe de verdade, e a imagem continua imagem ---- */
+const previa = await page.evaluate(async ()=>{
+  const antes = mgPesoEstado().logos[0].bytes;
+  await mgPesoPreverLogos();
+  const l = mgPesoEstado().logos[0];
+  if(!l.novo) return {erro:'sem prévia'};
+  /* prova que o resultado é uma imagem legível, não um base64 quebrado */
+  const img = await new Promise((ok2,nao)=>{
+    const i = new Image(); i.onload=()=>ok2(i); i.onerror=()=>nao(new Error('x')); i.src = l.novo.url;
+  }).catch(()=>null);
+  return {antes, depois: l.novo.bytes, lado: Math.max(l.novo.largura, l.novo.altura),
+          abriu: !!img, larguraReal: img ? img.naturalWidth : 0};
+});
+ok('41c a prévia encolhe a logo e o resultado continua sendo imagem',
+   previa.depois < previa.antes * 0.8 && previa.lado === 160
+   && previa.abriu && previa.larguraReal === 160,
+   JSON.stringify(previa));
+
+/* ---- 41d1. nada é trocado sem confirmar ---- */
+const semOk = await page.evaluate(async ()=>{
+  const _c = MGJanela.confirmar;
+  let perguntou = false;
+  MGJanela.confirmar = async ()=>{ perguntou = true; return false };   /* usuário diz não */
+  const antes = window.__FIX.clients[0].logo_url.length;
+  await mgPesoAplicarLogos();
+  await new Promise(r=>setTimeout(r,200));
+  MGJanela.confirmar = _c;
+  return {perguntou, antes, depois: window.__FIX.clients[0].logo_url.length};
+});
+ok('41d a logo não é trocada sem a confirmação',
+   semOk.perguntou && semOk.depois === semOk.antes, JSON.stringify(semOk));
+
+/* ---- 41e. confirmando, grava no banco e a tela passa a usar a menor ----
+   a janela de confirmação é dublada aqui de propósito: o que este caso
+   testa é o que acontece DEPOIS do sim. O caso acima cobre o não. */
+const trocou = await page.evaluate(async ()=>{
+  const _c = MGJanela.confirmar;
+  MGJanela.confirmar = async ()=>true;
+  const antes = window.__FIX.clients[0].logo_url.length;
+  await mgPesoAplicarLogos();
+  MGJanela.confirmar = _c;
+  await new Promise(r=>setTimeout(r,250));
+  return {antes, noBanco: window.__FIX.clients[0].logo_url.length,
+          naMemoria: CLIENTS[0].logo_url.length};
+});
+ok('41e trocar a logo grava no banco e a plataforma passa a usar a menor',
+   trocou.noBanco < trocou.antes * 0.8 && trocou.naMemoria === trocou.noBanco,
+   JSON.stringify(trocou));
+
+/* ---- 41f. remover o órfão tira do acervo e não encosta no resto ---- */
+const limpou = await page.evaluate(async ()=>{
+  const _c = MGJanela.confirmar;
+  MGJanela.confirmar = async ()=>true;
+  const antes = window.__FIX.__acervo.map(a=>a.caminho);
+  await mgPesoLimparOrfaos();
+  MGJanela.confirmar = _c;
+  await new Promise(r=>setTimeout(r,350));
+  return {antes, depois: window.__FIX.__acervo.map(a=>a.caminho),
+          orfaosAgora: mgPesoEstado().orfaos.length};
+});
+ok('41f remover os sem dono tira só eles',
+   limpou.antes.length === 3 && limpou.depois.length === 2
+   && !limpou.depois.some(c=>/orfao\.html$/.test(c))
+   && limpou.orfaosAgora === 0,
+   JSON.stringify(limpou));
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
