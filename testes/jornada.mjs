@@ -1834,12 +1834,204 @@ const marcaKronos = await page.evaluate(()=>{
     proporcao: svg.getAttribute('width') + 'x' + svg.getAttribute('height'),
   };
 });
-ok('45 o Kronos vira sprite de pixel, com cor herdada no traço',
-   marcaKronos.quadrosLinha === 28 && marcaKronos.quadrosCheio === 30
+/* a grade do gato de frente tem 29 quadrados (2+4+7+5+6+5); a versão
+   cheia soma os dois olhos e o focinho */
+ok('45 o Kronos é um gato de pixel, com cor herdada no traço',
+   marcaKronos.quadrosLinha === 29 && marcaKronos.quadrosCheio === 32
    && marcaKronos.herdaCor && marcaKronos.corPropria
-   && marcaKronos.semSuavizar && marcaKronos.caixa === '0 0 7 5'
-   && marcaKronos.proporcao === '20x14',
+   && marcaKronos.semSuavizar && marcaKronos.caixa === '0 0 7 6'
+   && marcaKronos.proporcao === '20x17',
    JSON.stringify(marcaKronos));
+
+/* ---- 45b. o gato atravessa a barra, e some quando não deve andar ---- */
+const passeio = await page.evaluate(async ()=>{
+  const r = {};
+  /* A barra é escondida por !important enquanto as boas-vindas estão
+     abertas, e mgEstadoDaTela repõe a classe a cada 700 ms. O que este
+     caso testa é "dada uma barra em cena, o gato anda sobre ela", então
+     forçamos a barra a aparecer em vez de brigar com o ciclo. */
+  const barra = document.querySelector('.mg-dock');
+  if(barra) barra.style.setProperty('display', 'inline-flex', 'important');
+  document.body.classList.remove('mg-sem-anim');
+  await new Promise(x=>setTimeout(x,200));
+  r.temBarra = (document.querySelector('.mg-dock') || {getClientRects:()=>[]}).getClientRects().length > 0;
+  r.podeAndar = mgGatoPodeAndar();
+  mgGatoPassear();
+  await new Promise(x=>setTimeout(x,250));
+  const g = document.querySelector('.mg-gato-anda');
+  r.apareceu = !!g;
+  r.naBarra  = !!(g && g.parentElement && g.parentElement.classList.contains('mg-dock'));
+  r.semClique = !!g && getComputedStyle(g).pointerEvents === 'none';
+  r.duasPoses = !!(g && g.querySelector('.pa') && g.querySelector('.pb'));
+  r.temTempo  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-gato-tempo')));
+
+  /* com as animações desligadas ele não sai do lugar */
+  if(g) g.remove();
+  document.body.classList.add('mg-sem-anim');
+  r.respeitaPreferencia = !mgGatoPodeAndar();
+  mgGatoPassear();
+  await new Promise(x=>setTimeout(x,150));
+  r.ficouQuieto = !document.querySelector('.mg-gato-anda');
+  document.body.classList.remove('mg-sem-anim');
+  return r;
+});
+ok('45b o gato atravessa a barra e obedece a preferência de animação',
+   passeio.temBarra && passeio.podeAndar && passeio.apareceu && passeio.naBarra && passeio.semClique
+   && passeio.duasPoses && passeio.temTempo
+   && passeio.respeitaPreferencia && passeio.ficouQuieto,
+   JSON.stringify(passeio));
+
+/* ---- 45c. o gato de perfil tem as duas poses de pata, e só elas mudam ---- */
+const gatoLado = await page.evaluate(()=>{
+  const d = document.createElement('div');
+  d.innerHTML = mgGatoDePerfil(18);
+  const svg = d.querySelector('svg');
+  const pa = [...svg.querySelectorAll('.pa rect')].map(r=>r.getAttribute('x')).join(',');
+  const pb = [...svg.querySelectorAll('.pb rect')].map(r=>r.getAttribute('x')).join(',');
+  return {caixa: svg.getAttribute('viewBox'),
+          corpo: svg.querySelectorAll(':scope > rect').length,
+          pa, pb, diferentes: pa !== pb,
+          mesmoTanto: pa.split(',').length === pb.split(',').length};
+});
+ok('45c o gato de perfil troca só as patas entre as duas poses',
+   gatoLado.caixa === '0 0 11 7' && gatoLado.corpo === 45
+   && gatoLado.diferentes && gatoLado.mesmoTanto && gatoLado.pa === '1,3,6,8',
+   JSON.stringify(gatoLado));
+
+
+/* =====================================================================
+   46 — a conversa para de pular, o Elias volta a ser equipe,
+        vídeo entra e a imagem abre na própria página
+   ===================================================================== */
+
+/* ---- 46. redesenhar não move quem está lendo mais acima ---- */
+const semTranco = await page.evaluate(async ()=>{
+  showView('chat'); await new Promise(r=>setTimeout(r,300));
+  await MGChat.abrir('ch-1'); await new Promise(r=>setTimeout(r,400));
+  const cx = document.getElementById('mgz-msgs');
+  if(!cx) return {erro:'sem conversa'};
+
+  /* enche a conversa para haver o que rolar */
+  for(let i=0;i<40;i++){
+    window.__FIX.messages.push({id:'m-rol-'+i, channel_id:'ch-1', author_id:'u-colega',
+      author_name:'Elias Braga', body:'mensagem de rolagem '+i, kind:'user',
+      created_at:new Date(Date.now()-(60-i)*60000).toISOString(),
+      reply_to:null, reactions:{}, anexos:[]});
+  }
+  await MGChat.carregarMsgs('ch-1');
+  MGChat.desenhar(); await new Promise(r=>setTimeout(r,300));
+
+  const cx2 = document.getElementById('mgz-msgs');
+  cx2.scrollTop = 0;                              /* lendo a mais antiga */
+  await new Promise(r=>setTimeout(r,60));
+  MGChat.desenhar(); await new Promise(r=>setTimeout(r,200));
+  const noTopoDepois = document.getElementById('mgz-msgs').scrollTop;
+
+  /* no meio da conversa */
+  const cx3 = document.getElementById('mgz-msgs');
+  const meio = Math.round(cx3.scrollHeight / 3);
+  cx3.scrollTop = meio;
+  await new Promise(r=>setTimeout(r,60));
+  MGChat.desenhar(); await new Promise(r=>setTimeout(r,200));
+  const noMeioDepois = document.getElementById('mgz-msgs').scrollTop;
+
+  /* colado no fim, tem que continuar colado */
+  const cx4 = document.getElementById('mgz-msgs');
+  cx4.scrollTop = cx4.scrollHeight;
+  await new Promise(r=>setTimeout(r,60));
+  MGChat.desenhar(); await new Promise(r=>setTimeout(r,200));
+  const cx5 = document.getElementById('mgz-msgs');
+  const colado = cx5.scrollHeight - cx5.scrollTop - cx5.clientHeight < 80;
+
+  return {noTopoDepois, meio, noMeioDepois, colado,
+          rolavel: cx5.scrollHeight > cx5.clientHeight + 100};
+});
+ok('46 redesenhar não puxa quem está lendo mais acima',
+   semTranco.rolavel && semTranco.noTopoDepois === 0
+   && Math.abs(semTranco.noMeioDepois - semTranco.meio) <= 2
+   && semTranco.colado,
+   JSON.stringify(semTranco));
+
+/* ---- 46b. enviar continua levando para a última mensagem ---- */
+const aoEnviar = await page.evaluate(async ()=>{
+  const cx = document.getElementById('mgz-msgs');
+  cx.scrollTop = 0;                                /* longe do fim */
+  const ta = document.getElementById('mgz-in');
+  ta.value = 'mandei do meio da conversa';
+  MGChat.digitou(ta, '');
+  await MGChat.enviar();
+  await new Promise(r=>setTimeout(r,500));
+  const c2 = document.getElementById('mgz-msgs');
+  return {noFim: c2.scrollHeight - c2.scrollTop - c2.clientHeight < 80,
+          ultima: (window.__FIX.messages.filter(m=>m.channel_id==='ch-1').slice(-1)[0]||{}).body};
+});
+ok('46b enviar leva para a última mensagem',
+   aoEnviar.noFim && aoEnviar.ultima === 'mandei do meio da conversa',
+   JSON.stringify(aoEnviar));
+
+/* ---- 46c. quem é do time aparece como equipe, não como cliente ---- */
+const papelNaTela = await page.evaluate(()=>{
+  const conta = id => { const u = MGU.get(id) || {};
+    return {papel:u.papel, equipe:!!u.ehEquipe, cliente:!!u.ehCliente} };
+  return {admin: conta('u-admin'), equipe: conta('u-colega'), cliente: conta('u-cli')};
+});
+ok('46c quem é equipe conta como equipe, e não como cliente',
+   papelNaTela.equipe.papel === 'equipe'
+   && papelNaTela.admin.equipe   && !papelNaTela.admin.cliente
+   && papelNaTela.equipe.equipe  && !papelNaTela.equipe.cliente
+   && !papelNaTela.cliente.equipe && papelNaTela.cliente.cliente,
+   JSON.stringify(papelNaTela));
+
+/* ---- 46d. vídeo passa a ser aceito, executável continua fora ---- */
+const video = await page.evaluate(()=>({
+  mp4:  MGChat.tipoPermitido(new File(['x'], 'criativo.mp4',  {type:'video/mp4'})),
+  mov:  MGChat.tipoPermitido(new File(['x'], 'criativo.mov',  {type:'video/quicktime'})),
+  webm: MGChat.tipoPermitido(new File(['x'], 'criativo.webm', {type:'video/webm'})),
+  exe:  MGChat.tipoPermitido(new File(['x'], 'virus.exe',     {type:'application/x-msdownload'})),
+  icone: mgIconeArquivo('criativo.mp4', 'video/mp4'),
+}));
+ok('46d vídeo é aceito e o executável continua recusado',
+   video.mp4 && video.mov && video.webm && !video.exe && video.icone === '🎬',
+   JSON.stringify(video));
+
+/* ---- 46e. imagem e vídeo abrem na própria página, o resto em guia ---- */
+const lupa = await page.evaluate(async ()=>{
+  let abriuGuia = 0;
+  const _open = window.open;
+  window.open = ()=>{ abriuGuia++; return null };
+
+  await MGChat.abrirAnexo('c-1/chat/foto.png');
+  await new Promise(r=>setTimeout(r,250));
+  const cx = document.getElementById('mg-lupa');
+  const r = {
+    abriuLupa: !!(cx && cx.classList.contains('on')),
+    temImagem: !!(cx && cx.querySelector('img')),
+    guiaNaImagem: abriuGuia,
+  };
+  /* Esc fecha */
+  document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true}));
+  await new Promise(r2=>setTimeout(r2,150));
+  r.fechouComEsc = !document.getElementById('mg-lupa').classList.contains('on');
+
+  /* vídeo também */
+  await MGChat.abrirAnexo('c-1/chat/criativo.mp4');
+  await new Promise(r2=>setTimeout(r2,250));
+  r.videoNaLupa = !!document.querySelector('#mg-lupa.on video');
+  mgFecharLupa();
+
+  /* PDF continua em guia nova */
+  await MGChat.abrirAnexo('c-1/chat/plano.pdf');
+  await new Promise(r2=>setTimeout(r2,250));
+  r.pdfEmGuia = abriuGuia === 1;
+  r.pdfSemLupa = !document.querySelector('#mg-lupa.on');
+
+  window.open = _open;
+  return r;
+});
+ok('46e imagem e vídeo abrem na página; PDF segue abrindo em guia',
+   lupa.abriuLupa && lupa.temImagem && lupa.guiaNaImagem === 0
+   && lupa.fechouComEsc && lupa.videoNaLupa && lupa.pdfEmGuia && lupa.pdfSemLupa,
+   JSON.stringify(lupa));
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));

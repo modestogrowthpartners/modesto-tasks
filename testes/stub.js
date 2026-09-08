@@ -6,7 +6,7 @@
     {id:UID, nome:'Vinícius Reis', role:'admin', client_id:null,
      avatar_url:'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',
      email:'vinicius@x.com', created_at:'2025-03-14T10:00:00Z'},
-    {id:UID2, nome:'Elias Braga', role:'admin', client_id:null, avatar_url:null, email:'elias@x.com', created_at:'2025-06-02T10:00:00Z'},
+    {id:UID2, nome:'Elias Braga', role:'equipe', client_id:null, avatar_url:null, email:'elias@x.com', created_at:'2025-06-02T10:00:00Z'},
     {id:UCLI, nome:'Flavia Marcos', role:'client', client_id:CID, avatar_url:null, email:'flavia@x.com'},
   ];
   const FIX={

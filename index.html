@@ -17255,8 +17255,11 @@ const MGU = (function(){
       email:     linha.email || null,
       desde:     linha.created_at || null,
       clienteId: linha.client_id || null,
-      ehEquipe:  papel === 'admin',
-      ehCliente: papel !== 'admin',
+      /* 'equipe' nasceu depois desta camada e ela não sabia dele, então
+         os cinco membros do time apareciam marcados como CLIENTE em toda
+         a plataforma. Da casa é admin OU equipe; cliente é o resto. */
+      ehEquipe:  papel === 'admin' || papel === 'equipe',
+      ehCliente: !(papel === 'admin' || papel === 'equipe'),
       resolvido: true,
     };
   }
@@ -17661,8 +17664,13 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
 .mgz-voltar{display:none;background:none;border:0;font-size:17px;color:var(--muted);
   padding:4px 6px;font-family:inherit;flex-shrink:0}
 
+/* scroll-behavior:smooth aqui era a causa do "a conversa fica pulando":
+   toda restauração de posição virava uma animação, e ler scrollTop no
+   meio dela devolvia um valor de passagem. O redesenho seguinte media
+   esse valor errado e mirava outro ponto, e assim por diante. Rolagem
+   de conversa tem que ser instantânea e obedecer o dedo de quem lê. */
 .mgz-msgs{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 0 8px;
-  display:flex;flex-direction:column;scroll-behavior:smooth}
+  display:flex;flex-direction:column;scroll-behavior:auto}
 .mgz-dia{align-self:stretch;display:flex;align-items:center;gap:12px;margin:14px 20px 8px;
   font-size:11.5px;font-weight:700;color:var(--muted)}
 .mgz-dia::before,.mgz-dia::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -18497,13 +18505,19 @@ window.MGJanela = MGJanela;
    (currentColor), para funcionar em botão claro e escuro; a cheia tem
    cor própria, porque é avatar e precisa ser a mesma em todo lugar.
    --------------------------------------------------------------------- */
+/* Gato de frente, 7 por 6. As orelhas são os cantos de cima, os dois
+   vazios da linha 3 são os olhos e o da linha 4 é o focinho. */
 const MG_KRONOS_GRADE = [
+  '1.....1',
+  '11...11',
+  '1111111',
+  '1.111.1',
+  '111.111',
   '.11111.',
-  '1111111',
-  '11.1.11',
-  '1111111',
-  '1.1.1.1',
 ];
+/* onde ficam olhos e focinho, para a versão cheia desenhá-los em vez de
+   deixar vazado: assim o avatar fica igual sobre qualquer fundo */
+const MG_KRONOS_CARA = [[1,3],[5,3],[3,4]];
 const MG_KRONOS_COR  = '#D2694A';   /* terracota */
 const MG_KRONOS_OLHO = '#17150F';
 
@@ -18520,14 +18534,16 @@ function mgKronosQuadros(cor){
 
 function mgKronosSVG(tam, cor, olho, classe){
   const t = tam || 17;
-  /* a grade é 7x5; a altura acompanha para o bicho não esticar */
-  const alt = Math.round(t * 5 / 7);
-  return '<svg class="' + classe + '" viewBox="0 0 7 5" width="' + t + '" height="' + alt + '"'
+  const linhas = MG_KRONOS_GRADE.length, colunas = MG_KRONOS_GRADE[0].length;
+  /* a altura acompanha a grade, senão o gato estica */
+  const alt = Math.round(t * linhas / colunas);
+  return '<svg class="' + classe + '" viewBox="0 0 ' + colunas + ' ' + linhas + '"'
+    + ' width="' + t + '" height="' + alt + '"'
     + ' shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
     + mgKronosQuadros(cor)
     + (olho
-        ? '<rect x="2" y="2" width="1" height="1" fill="' + olho + '"/>'
-        + '<rect x="4" y="2" width="1" height="1" fill="' + olho + '"/>'
+        ? MG_KRONOS_CARA.map(([x,y]) =>
+            '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + olho + '"/>').join('')
         : '')
     + '</svg>';
 }
@@ -19059,8 +19075,34 @@ function desenhar(){
     return;
   }
 
-  const guardado = (function(){ const cx=document.getElementById('mgz-msgs'); return cx?cx.scrollTop:null })();
-  const guardadoTh = (function(){ const cx=document.getElementById('mgz-th-corpo'); return cx?cx.scrollTop:null })();
+  /* Onde a leitura estava, medido ANTES de trocar o innerHTML.
+     Guardamos duas coisas: a posição exata e se ela estava colada no
+     fim. Só isso separa "acompanhar a conversa" de "puxar o tapete de
+     quem está lendo mais acima". */
+  const ondeEstava = (id => {
+    const cx = document.getElementById(id);
+    if(!cx) return null;
+    const noFim = cx.scrollHeight - cx.scrollTop - cx.clientHeight < 80;
+    /* Guardar só o pixel não basta: se uma imagem carrega ou uma
+       mensagem chega ACIMA do que está sendo lido, o conteúdo cresce e o
+       mesmo pixel passa a mostrar outra coisa. Então guardamos a
+       primeira mensagem visível e a distância dela até o topo da
+       viewport, e é ela que volta ao lugar. */
+    let mid = null, distancia = 0;
+    if(!noFim){
+      const itens = cx.querySelectorAll('.mgz-m[data-id]');
+      for(const el of itens){
+        if(el.offsetTop + el.offsetHeight > cx.scrollTop){
+          mid = el.getAttribute('data-id');
+          distancia = el.offsetTop - cx.scrollTop;
+          break;
+        }
+      }
+    }
+    return {topo: cx.scrollTop, noFim, mid, distancia};
+  });
+  const guardado   = ondeEstava('mgz-msgs');
+  const guardadoTh = ondeEstava('mgz-th-corpo');
 
   /* Guarda o que a pessoa está escrevendo.
 
@@ -19114,10 +19156,27 @@ function desenhar(){
   document.body.classList.toggle('mgz-info-on',   painelDir === 'info');
   document.body.classList.toggle('mgz-thread-on', painelDir === 'thread');
   document.body.classList.toggle('mgz-reports-on', painelDir === 'reports');
-  const cx = document.getElementById('mgz-msgs');
-  if(cx){ cx.scrollTop = (guardado !== null && guardado > 0) ? guardado : cx.scrollHeight }
-  const cth = document.getElementById('mgz-th-corpo');
-  if(cth){ cth.scrollTop = (guardadoTh !== null && guardadoTh > 0) ? guardadoTh : cth.scrollHeight }
+  /* A versão anterior tinha duas falhas que faziam a conversa pular:
+     ela caía para o fim sempre que a posição era 0, ou seja, quem
+     estivesse lendo a mensagem mais antiga era jogado para baixo a cada
+     redesenho; e desenhar() roda a toda hora (presença, digitando,
+     últimas, tempo real), então o tranco vinha sem ninguém ter feito
+     nada. Agora: quem estava colado no fim continua colado no fim, e
+     quem estava lendo mais acima fica exatamente onde estava. Ir para o
+     fim virou decisão explícita, de quem chama rolarFim(true). */
+  const voltar = (id, onde) => {
+    const cx = document.getElementById(id);
+    if(!cx) return;
+    if(!onde){ cx.scrollTop = cx.scrollHeight; return }   /* primeira pintura */
+    if(onde.noFim){ cx.scrollTop = cx.scrollHeight; return }
+    if(onde.mid){
+      const el = cx.querySelector('.mgz-m[data-id="' + CSS.escape(onde.mid) + '"]');
+      if(el){ cx.scrollTop = el.offsetTop - onde.distancia; return }
+    }
+    cx.scrollTop = onde.topo;            /* a mensagem saiu da janela */
+  };
+  voltar('mgz-msgs', guardado);
+  voltar('mgz-th-corpo', guardadoTh);
 
   /* devolve o rascunho, a altura da caixa, o cursor e o foco */
   escrevendo.forEach(g=>{
@@ -19951,8 +20010,12 @@ const MG_TIPOS_OK = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel','application/vnd.ms-powerpoint','application/msword',
   'application/zip','application/json',
+  /* vídeo: o criativo é o que mais circula nas conversas de mídia.
+     A lista é a mesma do bucket, de propósito: se divergir, quem manda
+     é o banco e a tela vira mentira. */
+  'video/mp4','video/quicktime','video/webm',
 ]);
-const MG_EXT_OK = /\.(png|jpe?g|gif|webp|avif|pdf|html?|txt|csv|xlsx?|pptx?|docx?|zip|json)$/i;
+const MG_EXT_OK = /\.(png|jpe?g|gif|webp|avif|pdf|html?|txt|csv|xlsx?|pptx?|docx?|zip|json|mp4|mov|webm)$/i;
 function mgTipoPermitido(f){
   const t = String(f && f.type || '').toLowerCase().split(';')[0].trim();
   if(t && MG_TIPOS_OK.has(t)) return true;
@@ -20549,7 +20612,7 @@ function receberArquivos(lista, onde){
        quem manda é o banco e a tela vira mentira. */
     if(!mgTipoPermitido(f)){
       toast('"' + (f.name || 'arquivo') + '" não é um tipo aceito. '
-          + 'Envie imagem, PDF, HTML, planilha, apresentação, documento ou zip.');
+          + 'Envie imagem, vídeo, PDF, HTML, planilha, apresentação, documento ou zip.');
       return;
     }
     const item = {nome:f.name || 'arquivo', tipo:f.type||'', tamanho:f.size, arquivo:f, previa:null};
@@ -25015,6 +25078,376 @@ window.mgSemana        = mgSemana;
 window.mgSemanaDados   = mgSemanaDados;
 window.mgResumoTexto   = mgResumoTexto;
 window.mgResumoHTML    = mgResumoHTML;
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · O GATO ANDANDO NA BARRA
+
+   Um gato de pixel atravessa a barra de baixo de vez em quando. É o
+   mesmo bicho da marca do Kronos, agora de perfil e com duas poses de
+   pata que alternam.
+
+   Três cuidados, porque enfeite que atrapalha vira defeito:
+   • some com a aba escondida, para não gastar quadro à toa;
+   • respeita "Animações: desligado" nas preferências e o
+     prefers-reduced-motion do sistema;
+   • não recebe clique: pointer-events fica desligado, senão ele rouba o
+     toque dos botões da barra por onde passa.
+   ===================================================================== */
+.mg-gato-anda{position:absolute;bottom:100%;left:0;margin-bottom:1px;
+  pointer-events:none;z-index:1;opacity:.92;
+  animation:mgGatoAtravessa var(--mg-gato-tempo,13s) linear both}
+.mg-gato-anda svg{display:block}
+
+@keyframes mgGatoAtravessa{
+  from{transform:translateX(-38px)}
+  to  {transform:translateX(calc(100% + 38px))}
+}
+/* as duas poses de pata trocam em degrau, sem transição: é pixel, não
+   deve haver meio-caminho entre uma pose e outra */
+@keyframes mgPataA{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+@keyframes mgPataB{0%,49.9%{opacity:0}50%,100%{opacity:1}}
+.mg-gato-anda .pa{animation:mgPataA .34s steps(1,end) infinite}
+.mg-gato-anda .pb{animation:mgPataB .34s steps(1,end) infinite}
+
+/* a barra precisa ser referência de posição para o gato andar sobre ela */
+.mg-dock{position:fixed}
+
+body.mg-sem-anim .mg-gato-anda{display:none}
+@media (prefers-reduced-motion: reduce){ .mg-gato-anda{display:none} }
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · O GATO ANDANDO NA BARRA
+   ===================================================================== */
+(function(){
+
+/* Gato de perfil, 11 por 7. Duas orelhas e um olho vazado na cabeça, o
+   rabo levantado atrás, e a última linha são as patas: ela é a única que
+   muda entre as duas poses. */
+const MG_GATO_CORPO = [
+  '..........1',
+  '1.1.......1',
+  '11111111111',
+  '1.111111111',
+  '11111111111',
+  '.111111111.',
+];
+const MG_GATO_PATAS = [
+  '.1.1..1.1..',   /* pose A */
+  '..1.1..1.1.',   /* pose B */
+];
+
+function mgQuadros(linhas, cor, deslocaY){
+  let out = '';
+  linhas.forEach((linha, y)=>{
+    [...linha].forEach((c, x)=>{
+      if(c !== '1') return;
+      out += '<rect x="' + x + '" y="' + (y + (deslocaY||0))
+           + '" width="1" height="1" fill="' + cor + '"/>';
+    });
+  });
+  return out;
+}
+
+function mgGatoDePerfil(altura, cor){
+  const alt = altura || 18;
+  const colunas = MG_GATO_CORPO[0].length;
+  const linhas  = MG_GATO_CORPO.length + 1;          /* corpo + a das patas */
+  const larg = Math.round(alt * colunas / linhas);
+  const c = cor || MG_KRONOS_COR;
+  return '<svg viewBox="0 0 ' + colunas + ' ' + linhas + '"'
+    + ' width="' + larg + '" height="' + alt + '"'
+    + ' shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
+    + mgQuadros(MG_GATO_CORPO, c, 0)
+    + '<g class="pa">' + mgQuadros([MG_GATO_PATAS[0]], c, MG_GATO_CORPO.length) + '</g>'
+    + '<g class="pb">' + mgQuadros([MG_GATO_PATAS[1]], c, MG_GATO_CORPO.length) + '</g>'
+    + '</svg>';
+}
+
+/* ---------------------------------------------------------------------
+   A travessia
+   --------------------------------------------------------------------- */
+let mgGatoNaBarra = null;
+let mgGatoRelogio = null;
+
+function mgGatoPodeAndar(){
+  if(document.hidden) return false;
+  if(document.body.classList.contains('mg-sem-anim')) return false;
+  try{
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  }catch(_){}
+  const barra = document.querySelector('.mg-dock');
+  if(!barra) return false;
+  /* A barra existe mas fica fora de cena no login e nas boas-vindas.
+     offsetParent NÃO serve para saber isso aqui: ele é sempre nulo em
+     elemento position:fixed, que é o caso da barra. getClientRects()
+     vazio é o teste certo de "não está sendo desenhado". */
+  return barra.getClientRects().length > 0;
+}
+
+function mgGatoAtravessar(){
+  if(mgGatoNaBarra || !mgGatoPodeAndar()) return;
+  const barra = document.querySelector('.mg-dock');
+  const el = document.createElement('div');
+  el.className = 'mg-gato-anda';
+  el.setAttribute('aria-hidden', 'true');
+  /* 11 a 16 segundos: passo de gato, não de corrida */
+  el.style.setProperty('--mg-gato-tempo', (11 + Math.random()*5).toFixed(1) + 's');
+  el.innerHTML = mgGatoDePerfil(18);
+  barra.appendChild(el);
+  mgGatoNaBarra = el;
+  el.addEventListener('animationend', e=>{
+    if(e.animationName !== 'mgGatoAtravessa') return;    /* as patas também disparam */
+    el.remove();
+    if(mgGatoNaBarra === el) mgGatoNaBarra = null;
+  });
+}
+
+/* Ele passa de tempos em tempos, não sem parar: bicho que anda direto na
+   tela deixa de ser piada e vira distração. */
+function mgGatoAgendar(){
+  clearTimeout(mgGatoRelogio);
+  const espera = 50000 + Math.random()*70000;            /* 50 s a 2 min */
+  mgGatoRelogio = setTimeout(()=>{
+    mgGatoAtravessar();
+    mgGatoAgendar();
+  }, espera);
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    clearTimeout(mgGatoRelogio);
+    if(mgGatoNaBarra){ mgGatoNaBarra.remove(); mgGatoNaBarra = null }
+  }else{
+    mgGatoAgendar();
+  }
+});
+
+/* chamar o gato na hora, para quem quiser ver de novo */
+window.mgGatoPassear = function(){
+  if(mgGatoNaBarra){ mgGatoNaBarra.remove(); mgGatoNaBarra = null }
+  mgGatoAtravessar();
+};
+
+/* a primeira passada vem logo depois de a barra aparecer */
+setTimeout(()=>{ mgGatoAtravessar(); mgGatoAgendar() }, 6000);
+
+window.mgGatoDePerfil = mgGatoDePerfil;
+window.mgGatoPodeAndar = mgGatoPodeAndar;
+
+})();
+</script>
+
+<script>
+/* =====================================================================
+   SEÇÃO · BOAS-VINDAS · o tour contando a plataforma de hoje
+
+   Dois passos tinham virado mentira, e mentira no onboarding é pior do
+   que silêncio, porque a pessoa vai procurar o botão que não existe:
+
+   • "Cronômetro por demanda": o cronômetro saiu faz tempo, trocado por
+     um campo de tempo escrito à mão.
+   • "públicas ou pessoais": a anotação passou a ter TRÊS níveis, e o de
+     cliente agora sai da demanda e cai no MGP Chat da empresa.
+
+   Além disso o cartão da primeira tela era desenhado antes das camadas
+   que renomeiam a plataforma, e ficava congelado com o nome antigo:
+   o array já dizia "MGP Tasks" e a tela ainda dizia "Modesto Tasks".
+   ===================================================================== */
+(function(){
+  if(typeof TOUR === 'undefined' || !TOUR.length) return;
+
+  const novo = {
+    tempo: {
+      t: 'Tempo por demanda',
+      p: 'Abra a demanda e informe quanto tempo levou, do jeito que preferir: '
+       + '1h30, 1:30, 90m ou 90. Se preencher o tempo de cada subtarefa, a soma passa a valer.',
+    },
+    notas: {
+      t: 'Anotações da equipe',
+      p: 'São três níveis. <b>Cliente</b> aparece para ele e vira mensagem no MGP Chat da '
+       + 'empresa. <b>Equipe</b> fica só com o time. <b>Pessoal</b> é só sua. '
+       + 'Dá para colar um print direto na anotação com Ctrl+V.',
+    },
+  };
+
+  TOUR.forEach(passo=>{
+    const troca = novo[passo.illus];
+    if(troca){ passo.t = troca.t; passo.p = troca.p }
+    /* travessão longo é vício de texto gerado, e some de toda a copy.
+       Vira ponto, e a palavra seguinte sobe para maiúscula, senão a
+       frase fica começando em minúscula. */
+    if(passo.p) passo.p = passo.p.replace(/\s+—\s+(\S)/g, (m, c)=>'. ' + c.toUpperCase());
+    if(passo.t) passo.t = passo.t.replace(/\s+—\s+/g, ': ');
+  });
+
+  /* O cartão é montado no meio do arquivo, antes das camadas que
+     renomeiam a plataforma e reescrevem estes passos. Sem redesenhar,
+     a primeira tela fica com o texto de antes. */
+  if(typeof renderTour === 'function'){
+    const repintar = ()=>{
+      const t = document.getElementById('tour');
+      if(t && t.classList.contains('on')){ try{ renderTour() }catch(e){ console.warn('[tour]', e) } }
+    };
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', repintar);
+    else setTimeout(repintar, 0);
+    setTimeout(repintar, 400);      /* rede de segurança: o tour abre depois do boot */
+  }
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · LUPA · abrir imagem e vídeo sem sair da página
+
+   Clicar num anexo abria outra guia. Para PDF e planilha faz sentido,
+   mas para imagem e vídeo era perder o lugar na conversa por nada.
+   Agora imagem e vídeo abrem por cima, com Esc e clique fora fechando,
+   e o resto segue abrindo em guia como antes.
+   ===================================================================== */
+#mg-lupa{position:fixed;inset:0;z-index:5000;display:none;
+  align-items:center;justify-content:center;padding:34px;
+  background:rgba(8,8,9,.90);backdrop-filter:blur(3px)}
+#mg-lupa.on{display:flex;animation:mgLupaEntra .16s ease both}
+@keyframes mgLupaEntra{from{opacity:0}to{opacity:1}}
+#mg-lupa img,#mg-lupa video{max-width:100%;max-height:100%;display:block;
+  border-radius:10px;box-shadow:0 30px 90px rgba(0,0,0,.6);background:#0a0a0b}
+#mg-lupa .mg-lupa-x{position:absolute;top:16px;right:18px;width:38px;height:38px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.45);
+  color:#fff;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center}
+#mg-lupa .mg-lupa-x:hover{background:rgba(255,255,255,.14)}
+#mg-lupa .mg-lupa-pe{position:absolute;bottom:16px;left:0;right:0;text-align:center;
+  color:rgba(255,255,255,.62);font-size:12px;display:flex;gap:14px;
+  align-items:center;justify-content:center;flex-wrap:wrap;padding:0 20px}
+#mg-lupa .mg-lupa-pe a{color:var(--brass);text-decoration:none;font-weight:700}
+#mg-lupa .mg-lupa-pe a:hover{text-decoration:underline}
+#mg-lupa .mg-lupa-nm{max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:640px){ #mg-lupa{padding:14px} }
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · LUPA
+   ===================================================================== */
+(function(){
+
+function ehImagemArquivo(nome, tipo){
+  return /^image\//i.test(tipo || '') || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(nome || '');
+}
+function ehVideoArquivo(nome, tipo){
+  return /^video\//i.test(tipo || '') || /\.(mp4|mov|webm|m4v)$/i.test(nome || '');
+}
+
+function caixaDaLupa(){
+  let el = document.getElementById('mg-lupa');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'mg-lupa';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.innerHTML = '<button class="mg-lupa-x" title="Fechar (Esc)" aria-label="Fechar">✕</button>'
+               + '<div class="mg-lupa-alvo"></div>'
+               + '<div class="mg-lupa-pe"></div>';
+  el.addEventListener('click', e=>{
+    /* fecha no fundo e no X, mas não ao clicar na própria mídia */
+    if(e.target === el || e.target.closest('.mg-lupa-x')) mgFecharLupa();
+  });
+  document.body.appendChild(el);
+  return el;
+}
+
+window.mgFecharLupa = function(){
+  const el = document.getElementById('mg-lupa');
+  if(!el || !el.classList.contains('on')) return false;
+  el.classList.remove('on');
+  /* para o vídeo, senão o som continua tocando com a lupa fechada */
+  el.querySelectorAll('video').forEach(v=>{ try{ v.pause() }catch(_){} });
+  el.querySelector('.mg-lupa-alvo').innerHTML = '';
+  return true;
+};
+
+/* Esc fecha, e na frente de quem mais escuta Esc: a lupa está por cima
+   de tudo, então é ela que deve responder primeiro. */
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape') return;
+  if(mgFecharLupa()){ e.stopPropagation(); e.preventDefault() }
+}, true);
+
+window.mgAbrirLupa = function(url, nome, tipo){
+  const bom = (typeof mgUrlImagemCrua === 'function') ? mgUrlImagemCrua(url) : url;
+  const endereco = bom || url;
+  if(!endereco) return false;
+  const el = caixaDaLupa();
+  const alvo = el.querySelector('.mg-lupa-alvo');
+  const rotulo = esc(nome || 'anexo');
+
+  if(ehVideoArquivo(nome, tipo)){
+    alvo.innerHTML = '<video controls autoplay playsinline src="' + esc(endereco) + '"></video>';
+  }else{
+    alvo.innerHTML = '<img alt="' + rotulo + '" src="' + esc(endereco) + '">';
+  }
+  el.querySelector('.mg-lupa-pe').innerHTML =
+      '<span class="mg-lupa-nm">' + rotulo + '</span>'
+    + '<a href="' + esc(endereco) + '" target="_blank" rel="noopener">Abrir em nova guia</a>';
+  el.classList.add('on');
+  const x = el.querySelector('.mg-lupa-x'); if(x) x.focus();
+  return true;
+};
+
+/* ---------------------------------------------------------------------
+   Os três caminhos que abriam guia passam pela lupa quando dá
+   --------------------------------------------------------------------- */
+async function comLink(path, seguir){
+  try{
+    const {data, error} = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if(error) throw error;
+    return seguir(data.signedUrl);
+  }catch(e){
+    toast('Não foi possível abrir o arquivo');
+    return false;
+  }
+}
+
+/* anexo da conversa */
+if(typeof MGChat !== 'undefined' && MGChat.abrirAnexo){
+  const _anexo = MGChat.abrirAnexo;
+  MGChat.abrirAnexo = function(path){
+    const nome = String(path || '').split('/').pop();
+    if(!ehImagemArquivo(nome) && !ehVideoArquivo(nome)) return _anexo.apply(this, arguments);
+    return comLink(path, url => mgAbrirLupa(url, nome));
+  };
+}
+/* anexo da demanda */
+if(typeof mgAbrirAnexo === 'function'){
+  const _daDemanda = mgAbrirAnexo;
+  window.mgAbrirAnexo = function(path){
+    const nome = String(path || '').split('/').pop();
+    if(!ehImagemArquivo(nome) && !ehVideoArquivo(nome)) return _daDemanda.apply(this, arguments);
+    return comLink(path, url => mgAbrirLupa(url, nome));
+  };
+}
+/* print da anotação: sempre imagem, sempre lupa */
+if(typeof mgNotaAbrir === 'function'){
+  window.mgNotaAbrir = function(path){
+    const nome = String(path || '').split('/').pop();
+    return comLink(path, url => mgAbrirLupa(url, nome));
+  };
+}
+
+/* ícone de vídeo na lista de anexos */
+if(typeof mgIconeArquivo === 'function'){
+  const _icone = mgIconeArquivo;
+  window.mgIconeArquivo = function(nome, tipo){
+    if(ehVideoArquivo(nome, tipo)) return '🎬';
+    return _icone.apply(this, arguments);
+  };
+}
+
+window.mgEhImagemArquivo = ehImagemArquivo;
+window.mgEhVideoArquivo  = ehVideoArquivo;
 
 })();
 </script>
