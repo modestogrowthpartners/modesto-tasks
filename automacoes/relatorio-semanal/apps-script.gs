@@ -88,8 +88,8 @@ var CLIENTES = [
   { rotulo: 'Botoclinic', meta: [], tasksCliente: null,
     nota: 'Ainda não vinculado' },
 
-  // Interno não tem conta de mídia e não entra em otimizações. Entra no
-  // BLOCO 2 porque demanda interna também é trabalho da semana.
+  // Interno não tem conta de mídia e não entra em otimizações. Entra nas
+  // tarefas porque demanda interna também é trabalho da semana.
   { rotulo: 'Modesto (Interno)', meta: [], tasksCliente: 'Modesto (Interno)',
     soTarefas: true }
 ];
@@ -486,7 +486,15 @@ function montarPost(janela, google) {
     erroTarefas = String(e);
   }
 
-  var p = ['*RESUMO DA SEMANA · ' + janela.rotulo + '*', '', '*BLOCO 1 - Otimizações da semana*', ''];
+  // O título de seção precisa pesar mais do que o nome do cliente, que
+  // também é negrito. Como o post é texto puro (Slack e portal leem a
+  // mesma marcação, sem tamanho de fonte), o destaque vem da régua acima
+  // do título. "Bloco 1" e "Bloco 2" saíram: numerar seção não diz nada
+  // a quem lê.
+  var REGUA = '──────────────────────────';
+
+  var p = ['*RESUMO DA SEMANA · ' + janela.rotulo + '*', '',
+           REGUA, '*Otimizações da semana*', ''];
 
   CLIENTES.forEach(function (cliente) {
     if (cliente.soTarefas) return;   // interno não entra em otimizações
@@ -497,7 +505,7 @@ function montarPost(janela, google) {
     p.push('');
   });
 
-  p.push('*BLOCO 2 - Tarefas da semana*', '');
+  p.push(REGUA, '*Tarefas da semana*', '');
 
   if (erroTarefas) {
     p.push('_Falha ao ler o MGP Tasks: ' + erroTarefas + '_', '');

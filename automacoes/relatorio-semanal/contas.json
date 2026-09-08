@@ -164,7 +164,7 @@
       "google_ads": [],
       "meta_ads": [],
       "tiktok": [],
-      "obs": "Conta pequena, sem conta de midia conectada ao Pipeboard. So aparece no BLOCO 2."
+      "obs": "Conta pequena, sem conta de midia conectada ao Pipeboard. So aparece nas tarefas."
     },
     {
       "rotulo": "Ruminar",
@@ -202,7 +202,7 @@
       "meta_ads": [],
       "tiktok": [],
       "so_tarefas": true,
-      "obs": "Demanda interna. Nao entra no BLOCO 1, so no BLOCO 2."
+      "obs": "Demanda interna. Nao entra nas otimizacoes, so nas tarefas."
     }
   ],
   "contas_sem_cliente_definido": [

@@ -55,10 +55,10 @@ ponte até a rota A estar no ar, e confira o resultado nas primeiras semanas.
 
 ## O que entra no post
 
-**BLOCO 1 — Otimizações da semana.** O que o time mexeu nas contas de mídia,
+**Otimizações da semana.** O que o time mexeu nas contas de mídia,
 puxado do histórico de alterações de cada plataforma.
 
-**BLOCO 2 — Tarefas da semana.** O que andou no MGP Tasks, puxado do Supabase
+**Tarefas da semana.** O que andou no MGP Tasks, puxado do Supabase
 (`eeqaabwsheaiwyhujcqj`).
 
 Nos dois blocos os clientes aparecem sempre na mesma ordem, a mesma do
@@ -94,12 +94,12 @@ fuso em `since`/`until`, o que evita o problema.
 |---|---|---|
 | Google Ads | `execute_google_ads_gaql_query` no recurso `change_event` | Só os últimos 30 dias, teto de 10 mil eventos por consulta. Traz e-mail de quem alterou e valor antes/depois. |
 | Meta Ads | `get_account_activities` (Activity Log) | Traz nome de quem alterou e valor antes/depois em **unidade menor da moeda** (2760 = R$ 27,60). |
-| TikTok Ads | não há | A API do TikTok Business não expõe log de alterações. As 3 contas (Wondr, Barbie, Amakha) ficam de fora do BLOCO 1. Se houver mudança relevante, o time registra como tarefa. |
+| TikTok Ads | não há | A API do TikTok Business não expõe log de alterações. As 3 contas (Wondr, Barbie, Amakha) ficam de fora das otimizações. Se houver mudança relevante, o time registra como tarefa. |
 | MGP Tasks | SQL no Supabase | Tabelas `tasks` e `task_notes`. |
 
 ## Procedimento
 
-### BLOCO 1
+### Otimizações da semana
 
 Para cada conta Google Ads do `contas.json`:
 
@@ -144,7 +144,7 @@ Descartar linhas com `actor_name` igual a `Meta`: são eventos automáticos da
 plataforma, não otimização do time. Conferir `coverage.truncated` antes de
 concluir que a janela veio inteira.
 
-### BLOCO 2
+### Tarefas da semana
 
 Só o que foi **concluído dentro da semana**. Tarefa aberta não entra: o post é
 registro do que saiu, não lista de pendência. Cada cliente aparece com o número
@@ -183,7 +183,8 @@ Nota `private` fica fora: é anotação interna de quem escreveu.
 ```
 *RESUMO DA SEMANA — DD/MM a DD/MM*
 
-*BLOCO 1 — Otimizações da semana*
+──────────────────────────
+*Otimizações da semana*
 
 *Wondr:*
 • Google: <o que mudou, com valor antes/depois quando houver> — <quem>
@@ -194,7 +195,8 @@ Nota `private` fica fora: é anotação interna de quem escreveu.
 
 [... demais clientes na ordem fixa ...]
 
-*BLOCO 2 - Tarefas da semana*
+──────────────────────────
+*Tarefas da semana*
 
 *Wondr:* 4 concluídas
 • <título>
@@ -233,6 +235,6 @@ mudança de conteúdo se faz aqui, não no trigger.
   recupera depois.
 - TikTok não tem log de alteração na API.
 - Dabela e Botoclinic não têm conta de mídia conectada ao Pipeboard. Dabela
-  aparece só no BLOCO 2; Botoclinic não existe nem como cliente no Supabase.
+  aparece só nas tarefas; Botoclinic não existe nem como cliente no Supabase.
 - O Activity Log do Meta falha com frequência em janelas largas. Por isso
   `limit=25` e paginação, e por isso vale checar `coverage.truncated`.
