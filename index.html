@@ -25723,5 +25723,131 @@ document.addEventListener('click', e=>{
 })();
 </script>
 
+<script>
+/* =====================================================================
+   SEÇÃO · TUDO AO VIVO · mudança de um chega em todo mundo na hora
+
+   Só demandas, anotações e mensagens tinham tempo real. Foto de perfil
+   trocada, canal novo, empresa nova, documento novo: nada disso chegava
+   nos outros até a pessoa recarregar a página.
+
+   Três cuidados, aprendidos aqui mesmo:
+   • um evento não redesenha nada sozinho. Ele marca o que ficou velho e
+     um só ciclo recarrega, senão dez linhas mexidas viram dez recargas;
+   • com a aba escondida nada roda, e o que ficou pendente é recarregado
+     ao voltar;
+   • cada assinante recebe só o que a RLS dele deixa ler, então isto não
+     abre dado de ninguém: é a mesma permissão da consulta normal.
+   ===================================================================== */
+(function(){
+
+let mgVivoCanal = null;
+let mgVivoRelogio = null;
+const MG_VELHO = new Set();          /* o que precisa ser recarregado */
+let mgVivoAdiado = false;
+
+/* o que fazer com cada tabela que mudou */
+const MG_VIVO = {
+  profiles: async ()=>{
+    if(typeof MGU === 'undefined' || !MGU.carregar) return;
+    await MGU.carregar(true);
+    /* nome, foto e cor aparecem em quase toda tela */
+    try{ if(typeof render === 'function') render() }catch(_){}
+    try{ if(typeof MGChat !== 'undefined' && VIEW === 'chat') MGChat.desenhar() }catch(_){}
+    try{ if(typeof mgAtualizarEu === 'function') mgAtualizarEu() }catch(_){}
+  },
+  channels: async ()=>{
+    if(typeof MGChat === 'undefined' || !MGChat.carregarCanais) return;
+    await MGChat.carregarCanais();
+    if(VIEW === 'chat') MGChat.desenhar();
+  },
+  channel_members: async ()=>{
+    if(typeof MGChat === 'undefined' || !MGChat.carregarMembros) return;
+    if(typeof CHAN === 'undefined' || !CHAN) return;
+    await MGChat.carregarMembros(CHAN);
+    if(VIEW === 'chat') MGChat.desenhar();
+  },
+  clients: async ()=>{
+    if(typeof loadClients !== 'function') return;
+    await loadClients();
+    try{ if(typeof buildClientFilter === 'function') buildClientFilter() }catch(_){}
+    try{ if(typeof render === 'function') render() }catch(_){}
+    try{ if(typeof MGChat !== 'undefined' && VIEW === 'chat') MGChat.desenhar() }catch(_){}
+  },
+  documents: async ()=>{
+    if(typeof loadDocs !== 'function') return;
+    await loadDocs();
+    try{ if(typeof render === 'function') render() }catch(_){}
+  },
+  projects: async ()=>{
+    if(typeof mgPjCarregar !== 'function') return;
+    await mgPjCarregar();
+    try{ if(typeof render === 'function') render() }catch(_){}
+  },
+};
+
+/* Um ciclo só para a rajada. Trocar a foto dispara UPDATE em profiles, e
+   criar canal dispara insert em channels e vários em channel_members:
+   sem juntar, cada linha viraria uma recarga. */
+function mgVivoAgendar(){
+  if(mgVivoRelogio) return;
+  mgVivoRelogio = setTimeout(async ()=>{
+    mgVivoRelogio = null;
+    if(document.hidden){ mgVivoAdiado = true; return }
+    const agora = [...MG_VELHO];
+    MG_VELHO.clear();
+    for(const tabela of agora){
+      try{ await (MG_VIVO[tabela] || (()=>{}))() }
+      catch(e){ console.warn('[ao vivo] ' + tabela, e) }
+    }
+  }, 400);
+}
+
+function mgVivoMudou(tabela){
+  if(!MG_VIVO[tabela]) return;
+  MG_VELHO.add(tabela);
+  mgVivoAgendar();
+}
+window.mgVivoMudou = mgVivoMudou;
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden || !mgVivoAdiado) return;
+  mgVivoAdiado = false;
+  /* voltou para a aba: recarrega tudo que mudou enquanto estava fora */
+  Object.keys(MG_VIVO).forEach(t=>MG_VELHO.add(t));
+  mgVivoAgendar();
+});
+
+function mgVivoLigar(){
+  if(mgVivoCanal) return;
+  if(typeof ME === 'undefined' || !ME || !ME.id) return;
+  try{
+    let c = sb.channel('mgp-ao-vivo');
+    Object.keys(MG_VIVO).forEach(tabela=>{
+      c = c.on('postgres_changes',
+        {event:'*', schema:'public', table:tabela},
+        ()=>{ try{ mgVivoMudou(tabela) }catch(e){ console.warn('[ao vivo]', e) } });
+    });
+    mgVivoCanal = c.subscribe();
+  }catch(e){ console.warn('[ao vivo]', e) }
+}
+window.mgVivoLigar = mgVivoLigar;
+
+/* mesma entrada dos avisos: a sessão pode já ter subido antes deste
+   bloco ser lido, então ele também se procura sozinho */
+(function procurar(n){
+  mgVivoLigar();
+  if(mgVivoCanal || n > 75) return;
+  setTimeout(()=>procurar(n+1), 400);
+})(0);
+
+if(typeof boot === 'function'){
+  const _boot = boot;
+  boot = async function(){ const r = await _boot.apply(this, arguments); mgVivoLigar(); return r };
+}
+
+})();
+</script>
+
 </body>
 </html>
