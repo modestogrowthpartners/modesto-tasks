@@ -23534,6 +23534,11 @@ body.theme-dark .bg-anim{opacity:.35}
 .mg-aviso:hover{border-color:var(--brass)}
 .mg-aviso .av{width:32px;height:32px;border-radius:9px;flex:0 0 auto;display:grid;
   place-items:center;font-size:12px;font-weight:700;color:#fff;background:var(--brass2)}
+/* o avatar do MGU traz o próprio tamanho e a própria cor; aqui ele só
+   precisa não encolher e ficar alinhado ao topo do texto */
+.mg-aviso .mgu-av{flex:0 0 auto;align-self:flex-start}
+.mg-aviso .av.gato{background:var(--ink);border:1px solid var(--line2);
+  display:grid;place-items:center}
 .mg-aviso .tx{flex:1;min-width:0}
 .mg-aviso .tt{font-size:12.5px;font-weight:700;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -23974,7 +23979,9 @@ function mgAvisoNaTela(o){
   const el = document.createElement('div');
   el.className = 'mg-aviso';
   el.innerHTML =
-      '<div class="av">' + esc(o.iniciais || '·') + '</div>'
+      /* o avatar já vem montado e escapado pelo MGU, então NÃO passa por
+         esc() de novo: escapar HTML pronto imprimiria as tags na tela */
+      (o.avatar || '<div class="av">' + esc(o.iniciais || '·') + '</div>')
     + '<div class="tx"><div class="tt">' + esc(o.titulo || '') + '</div>'
     +   '<div class="cp">' + esc(o.corpo || '') + '</div>'
     +   (o.onde ? '<div class="on">' + esc(o.onde) + '</div>' : '')
@@ -24034,7 +24041,24 @@ function mgChegouMensagem(m){
   const corpo = String(m.body || '').trim();
   const resumo = (corpo && corpo !== ' ') ? corpo : (temAnexo ? '📎 enviou um arquivo' : '');
 
+  /* A foto de quem enviou, com as iniciais como reserva: é o MGU que
+     resolve isso, inclusive quando o endereço da imagem falha. Mensagem
+     do Kronos leva o gato, que é a cara dele em todo o resto da tela. */
+  let retrato = '';
+  try{
+    retrato = (m.kind === 'kronos' && typeof mgGato === 'function')
+      ? '<span class="av gato">' + mgGato(20) + '</span>'
+      /* MGU é const de topo, não window.MGU: const e let não viram
+         propriedade do window, e testar por window.MGU dava sempre falso,
+         derrubando o retrato para as iniciais mesmo com foto no cadastro */
+      : (typeof MGU !== 'undefined' && MGU.avatar
+          ? MGU.avatar({id: m.author_id, nome: quem},
+                       {tam:34, forma:'quadrado', titulo:quem, classe:'av'})
+          : '');
+  }catch(e){ console.warn('[aviso] retrato', e) }
+
   mgAvisoNaTela({
+    avatar: retrato,
     iniciais: (typeof initials === 'function') ? initials(quem) : '·',
     titulo: quem,
     corpo: resumo,

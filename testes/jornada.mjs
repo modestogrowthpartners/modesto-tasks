@@ -1291,6 +1291,58 @@ const aviso = await page.evaluate(async ()=>{
     onde: c ? (c.querySelector('.on')||{}).textContent : '',
   };
 });
+/* ---- 38a. o cartão traz a foto de quem mandou ---- */
+const retratoNoAviso = await page.evaluate(async ()=>{
+  /* fora do chat, senão a conversa aberta engole o aviso de propósito */
+  showView('tasks'); await new Promise(r=>setTimeout(r,250));
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  /* quem manda a foto para o MGU é user_directory, não profiles: no dublê
+     são objetos diferentes, e mexer no lugar errado não muda nada */
+  const eu = window.__FIX.user_directory.find(p=>p.id === 'u-colega');
+  const antes = eu.avatar_url;
+  eu.avatar_url = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+  await MGU.carregar(true).catch(()=>{});
+
+  window.__disparar('messages','INSERT',{
+    id:'m-foto-1', channel_id:'ch-2', author_id:'u-colega', author_name:'Elias Braga',
+    body:'olha a foto no cartão', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,300));
+  const c = document.querySelector('.mg-aviso');
+  const av = c && c.querySelector('.mgu-av');
+  const img = av && av.querySelector('img');
+  const r = {
+    temAvatar: !!av,
+    temFoto: !!img,
+    daPessoaCerta: av ? av.getAttribute('data-uid') === 'u-colega' : null,
+    naoEscapou: c ? !/&lt;(span|img)/.test(c.innerHTML) : null,
+  };
+
+  /* sem foto, o mesmo lugar mostra as iniciais */
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  eu.avatar_url = null;
+  await MGU.carregar(true).catch(()=>{});
+  window.__disparar('messages','INSERT',{
+    id:'m-foto-2', channel_id:'ch-2', author_id:'u-colega', author_name:'Elias Braga',
+    body:'agora sem foto', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,300));
+  const c2 = document.querySelector('.mg-aviso');
+  const av2 = c2 && c2.querySelector('.mgu-av');
+  r.semFotoViraIniciais = !!av2 && !av2.querySelector('img')
+                       && /EB/i.test(av2.textContent || '');
+
+  eu.avatar_url = antes;
+  await MGU.carregar(true).catch(()=>{});
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  return r;
+});
+ok('38a o cartão de mensagem traz a foto de quem enviou',
+   retratoNoAviso.temAvatar && retratoNoAviso.temFoto
+   && retratoNoAviso.daPessoaCerta && retratoNoAviso.naoEscapou
+   && retratoNoAviso.semFotoViraIniciais,
+   JSON.stringify(retratoNoAviso));
+
 ok('38 mensagem recebida vira aviso na tela, fora do chat',
    aviso.apareceu && aviso.quem === 'Elias Braga'
    && /relatório de setembro/.test(aviso.corpo) && /geral/.test(aviso.onde),
@@ -1298,6 +1350,15 @@ ok('38 mensagem recebida vira aviso na tela, fora do chat',
 
 /* ---- 38b. clicar no aviso abre a conversa ---- */
 const clicou = await page.evaluate(async ()=>{
+  /* o caso monta o próprio cartão: depender do que outro caso deixou na
+     tela é o tipo de amarra que faz um teste quebrar por causa do vizinho */
+  showView('tasks'); await new Promise(r=>setTimeout(r,200));
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  window.__disparar('messages','INSERT',{
+    id:'m-rt-1b', channel_id:'ch-2', author_id:'u-colega', author_name:'Elias Braga',
+    body:'clique aqui', kind:'user',
+    created_at:new Date().toISOString(), reply_to:null, reactions:{}, anexos:[]});
+  await new Promise(r=>setTimeout(r,300));
   const c = document.querySelector('.mg-aviso');
   if(!c) return {erro:'sem aviso'};
   c.click();
