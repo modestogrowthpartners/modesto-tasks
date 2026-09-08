@@ -58,6 +58,25 @@
       localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
     }catch(e){}
   }
+  /* movimento da semana corrente: uma demanda concluída e duas anotações,
+     uma de cliente e uma interna. Datadas de agora, para o teste do resumo
+     semanal não depender do dia em que roda. */
+  (function(){
+    const agora = new Date().toISOString();
+    FIX.tasks.push({id:'t-fim', client_id:CID, title:'Subir campanha de setembro',
+      description:'', status:'Feito', priority:'Alta', assignees:['Everton'], assignee_ids:[UID2],
+      due:'2026-09-11', recurrence:'none', subtasks:[], time_spent:0, timer_start:null, position:11,
+      created_at:agora, updated_at:agora, completed_at:agora,
+      archived:false, urgente:false, anexos:[], project_id:null});
+    FIX.task_notes.push(
+      {id:'n-sem-1', task_id:'t-1', author_id:UID, author_name:'Vinícius Reis',
+       body:'ajustei o público da campanha de retargeting\nsegunda linha que não entra no resumo',
+       visibility:'public', anexos:[], created_at:agora},
+      {id:'n-sem-2', task_id:'t-1', author_id:UID, author_name:'Vinícius Reis',
+       body:'interno: cobrar a verba do mês com o comercial',
+       visibility:'equipe', anexos:[], created_at:agora});
+  })();
+
   /* acervo: dois apontados por t-1/d-1 e um sem dono nenhum */
   FIX.__acervo = [
     {caminho: CID+'/x.pdf',                 tamanho: 14336,  tipo:'application/pdf', em:'2026-08-06T10:00:00Z'},
@@ -90,13 +109,15 @@
     const filtros=[];
     const api={};
     const passa=r=>filtros.every(([c,v])=>String(r[c])===String(v));
-    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','lte','lt','is','in']
+    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','is','in']
       .forEach(m=>api[m]=()=>api);
     api.eq=(c,v)=>{ filtros.push([c,v]); return api };
     /* gt e gte de verdade: sem eles o sync incremental do app devolvia a
        tabela inteira e o teste não provava nada */
-    api.gt =(c,v)=>{ rows=rows.filter(r=>String(r[c]||'') >  String(v)); return api };
-    api.gte=(c,v)=>{ rows=rows.filter(r=>String(r[c]||'') >= String(v)); return api };
+    api.gt =(c,v)=>{ rows=rows.filter(r=>r[c] && String(r[c]) >  String(v)); return api };
+    api.gte=(c,v)=>{ rows=rows.filter(r=>r[c] && String(r[c]) >= String(v)); return api };
+    api.lt =(c,v)=>{ rows=rows.filter(r=>r[c] && String(r[c]) <  String(v)); return api };
+    api.lte=(c,v)=>{ rows=rows.filter(r=>r[c] && String(r[c]) <= String(v)); return api };
     api.neq=()=>api;
     let novos=null;
     const alvo=()=>novos||rows.filter(passa);

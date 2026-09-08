@@ -1577,6 +1577,148 @@ ok('41f remover os sem dono tira só eles',
    && limpou.orfaosAgora === 0,
    JSON.stringify(limpou));
 
+
+/* =====================================================================
+   42 — Resumo semanal
+   ===================================================================== */
+
+/* ---- 42. a semana é de segunda a domingo ---- */
+const faixa = await page.evaluate(()=>{
+  const s = mgSemana(0), a = mgSemana(1);
+  return {diaInicio: s.ini.getDay(), dias: Math.round((s.fim - s.ini)/86400000),
+          rotulo: s.rotulo, anteriorAntes: a.ini < s.ini,
+          umaSemanaAtras: Math.round((s.ini - a.ini)/86400000)};
+});
+ok('42 a semana vai de segunda a domingo',
+   faixa.diaInicio === 1 && faixa.dias === 7 && faixa.umaSemanaAtras === 7
+   && faixa.anteriorAntes && /^\d\d\/\d\d a \d\d\/\d\d$/.test(faixa.rotulo),
+   JSON.stringify(faixa));
+
+/* ---- 42b. separa otimização de tarefa, e deixa o interno de fora ---- */
+const dadosSem = await page.evaluate(async ()=>{
+  const d = await mgSemanaDados(mgSemana(0));
+  const c = d.find(x=>x.cid === 'c-1');
+  return c ? {nome:c.nome, otim:c.otimizacoes, tarefas:c.tarefas, empresas:d.length}
+           : {erro:'empresa não veio'};
+});
+/* as outras otimizações da lista vêm dos casos 37d e 37e, que gravaram
+   anotação de cliente nesta mesma semana. Estão certas ali. O que este
+   caso prova é o corte: entra a de cliente, sai a interna, e o texto
+   longo vira uma linha só. */
+ok('42b o resumo separa otimização de tarefa e ignora a anotação interna',
+   dadosSem.otim && dadosSem.otim.some(o=>/retargeting/.test(o))
+   && !dadosSem.otim.some(o=>/interno/.test(o))
+   && !dadosSem.otim.some(o=>/segunda linha/.test(o))
+   && dadosSem.otim.every(o=>!o.includes('\n'))
+   && dadosSem.tarefas.length === 1
+   && /Subir campanha de setembro · Everton/.test(dadosSem.tarefas[0]),
+   JSON.stringify(dadosSem));
+
+/* ---- 42c. o texto sai em bullets, com as duas listas ---- */
+const textoSem = await page.evaluate(async ()=>{
+  const d = await mgSemanaDados(mgSemana(0));
+  const c = d.find(x=>x.cid === 'c-1');
+  const txt = mgResumoTexto(c, mgSemana(0));
+  return {txt, bullets: (txt.match(/^• /gm)||[]).length,
+          otim: c.otimizacoes.length, tarefas: c.tarefas.length};
+});
+ok('42c o texto sai com as duas listas em bullets, e a conta bate',
+   /^Resumo da semana · /.test(textoSem.txt)
+   && textoSem.txt.includes('OTIMIZAÇÕES (' + textoSem.otim + ')')
+   && textoSem.txt.includes('TAREFAS CONCLUÍDAS (' + textoSem.tarefas + ')')
+   && textoSem.bullets === textoSem.otim + textoSem.tarefas
+   && !/ — /.test(textoSem.txt),
+   JSON.stringify({bullets:textoSem.bullets, otim:textoSem.otim, tarefas:textoSem.tarefas}));
+
+/* ---- 42d. empresa sem movimento não entra na lista ---- */
+const semMovimento = await page.evaluate(async ()=>{
+  const d = await mgSemanaDados(mgSemana(2));      /* retrasada: nada lá */
+  return {empresas: d.length};
+});
+ok('42d semana sem movimento não gera resumo vazio',
+   semMovimento.empresas === 0, JSON.stringify(semMovimento));
+
+/* ---- 42e. a janela pergunta empresa e semana, e o comando existe ---- */
+const janelaSem = await page.evaluate(async ()=>{
+  const _a = MGJanela.abrir;
+  const vistas = [];
+  MGJanela.abrir = async o => { vistas.push(o); return null };   /* usuário fecha */
+  await mgResumoSemanal();
+  MGJanela.abrir = _a;
+  const cmd = MGCmd.achar('resumosemanal') || MGCmd.achar('resumo');
+  return {
+    campos: (vistas[0] && vistas[0].campos || []).map(c=>c.nome),
+    temTodas: !!(vistas[0] && vistas[0].campos[0].opcoes||[]).find(o=>o.v === '*'),
+    semanas: (vistas[0] && vistas[0].campos[1] && vistas[0].campos[1].opcoes || []).length,
+    comando: !!cmd,
+  };
+});
+ok('42e a janela pede empresa e semana, e o comando está registrado',
+   janelaSem.campos.join(',') === 'empresa,quando' && janelaSem.temTodas
+   && janelaSem.semanas === 3 && janelaSem.comando, JSON.stringify(janelaSem));
+
+/* ---- 42f. enviar publica no canal da empresa, com o texto editado ---- */
+const enviouSem = await page.evaluate(async ()=>{
+  const _a = MGJanela.abrir;
+  let passo = 0;
+  MGJanela.abrir = async o => {
+    passo++;
+    if(passo === 1) return {empresa:'c-1', quando:'0'};
+    return {texto: (o.campos[0].valor || '') + '\n• linha que eu acrescentei na mão',
+            acao:'canal'};
+  };
+  const antes = window.__FIX.messages.filter(m=>m.channel_id === 'ch-1').length;
+  await mgResumoSemanal();
+  await new Promise(r=>setTimeout(r,350));
+  MGJanela.abrir = _a;
+  const nova = window.__FIX.messages.filter(m=>m.channel_id === 'ch-1').slice(-1)[0];
+  return {antes, depois: window.__FIX.messages.filter(m=>m.channel_id === 'ch-1').length,
+          corpo: (nova||{}).body || ''};
+});
+ok('42f enviar publica no canal da empresa, respeitando a edição',
+   enviouSem.depois === enviouSem.antes + 1
+   && /^Resumo da semana/.test(enviouSem.corpo)
+   && /linha que eu acrescentei na mão/.test(enviouSem.corpo),
+   JSON.stringify({...enviouSem, corpo: enviouSem.corpo.slice(0,60)}));
+
+/* ---- 42g. guardar no acervo cria o documento da empresa ---- */
+const acervoSem = await page.evaluate(async ()=>{
+  const _a = MGJanela.abrir;
+  let passo = 0;
+  MGJanela.abrir = async o => {
+    passo++;
+    return passo === 1 ? {empresa:'c-1', quando:'0'} : {texto:o.campos[0].valor, acao:'acervo'};
+  };
+  const antes = window.__FIX.documents.length;
+  await mgResumoSemanal();
+  await new Promise(r=>setTimeout(r,350));
+  MGJanela.abrir = _a;
+  const d = window.__FIX.documents.slice(-1)[0];
+  return {antes, depois: window.__FIX.documents.length,
+          titulo:(d||{}).titulo, tipo:(d||{}).tipo, cliente:(d||{}).client_id,
+          caminho:(d||{}).storage_path};
+});
+ok('42g guardar no acervo cria o weekly da empresa',
+   acervoSem.depois === acervoSem.antes + 1 && acervoSem.tipo === 'weekly'
+   && acervoSem.cliente === 'c-1' && /^Resumo da semana · /.test(acervoSem.titulo||'')
+   && /^c-1\/documentos\//.test(acervoSem.caminho||''),
+   JSON.stringify(acervoSem));
+
+/* ---- 42h. o resumo é da equipe, não do cliente ---- */
+const semPapel = await page.evaluate(async ()=>{
+  const antes = ME.role;
+  ME.role = 'client';
+  const cmd = MGCmd.achar('resumosemanal');
+  const podeCliente = !!(cmd && (!cmd.permissao || cmd.permissao()));
+  ME.role = 'equipe';
+  const cmd2 = MGCmd.achar('resumosemanal');
+  const podeEquipe = !!(cmd2 && (!cmd2.permissao || cmd2.permissao()));
+  ME.role = antes;
+  return {podeCliente, podeEquipe};
+});
+ok('42h o resumo é da equipe e não do cliente',
+   !semPapel.podeCliente && semPapel.podeEquipe, JSON.stringify(semPapel));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

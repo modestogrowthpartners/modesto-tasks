@@ -24554,5 +24554,390 @@ window.mgLogoEncolhida = mgLogoEncolhida;
 })();
 </script>
 
+<style>
+/* =====================================================================
+   SEÇÃO · RESUMO SEMANAL · o que foi otimizado e o que foi entregue
+
+   A demanda é: um envio semanal, por empresa, com duas listas curtas.
+   O que a plataforma tem hoje para responder isso:
+
+   • Tarefas executadas → demandas com completed_at dentro da semana.
+     Dado direto, sem interpretação.
+   • Otimizações aplicadas → as anotações marcadas como "Cliente" na
+     semana. São exatamente o que a equipe escreveu que fez, e são o que
+     o cliente já pode ler. Não existe hoje nenhuma outra fonte de
+     "otimização" no banco: nada lê Meta ou Google. Se um dia ler, entra
+     nesta mesma lista sem mudar o resto.
+
+   O texto sai pronto e editável antes de sair. Nada é publicado sem o
+   clique, e empresa sem movimento na semana não recebe resumo vazio.
+   ===================================================================== */
+.mg-sem-previa{white-space:pre-wrap;font-family:var(--font-m,ui-monospace,SFMono-Regular,Menlo,monospace);
+  font-size:12px;line-height:1.6;background:var(--card2);border:1px solid var(--line);
+  border-radius:10px;padding:13px 15px;max-height:320px;overflow:auto;color:var(--text)}
+.mg-sem-lin{display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px}
+.mg-sem-lin:last-child{border-bottom:0}
+.mg-sem-lin .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-sem-lin .qt{color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 auto}
+.mg-sem-lin.vazia{opacity:.5}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · RESUMO SEMANAL
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   1. A semana
+
+   Segunda a domingo, que é como a agência conta a semana. A faixa é
+   fechada no início e aberta no fim, para o domingo 23:59 entrar e a
+   segunda seguinte não.
+   --------------------------------------------------------------------- */
+function mgSemana(atras){
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const desdeSegunda = (hoje.getDay() + 6) % 7;          /* 0 = segunda */
+  const ini = new Date(hoje);
+  ini.setDate(ini.getDate() - desdeSegunda - 7*(atras||0));
+  const fim = new Date(ini);
+  fim.setDate(fim.getDate() + 7);
+  const dm = d => String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+  const ultimo = new Date(fim); ultimo.setDate(ultimo.getDate() - 1);
+  return {ini, fim, iso: ini.toISOString(), isoFim: fim.toISOString(),
+          rotulo: dm(ini) + ' a ' + dm(ultimo)};
+}
+
+/* ---------------------------------------------------------------------
+   2. Os dados
+
+   Uma consulta só de anotações para a semana inteira, e o cruzamento com
+   a empresa é feito aqui, com as demandas que já estão em memória.
+   task_notes não tem client_id, e mandar 400 ids numa consulta seria
+   pior do que filtrar 30 anotações no navegador.
+   --------------------------------------------------------------------- */
+function mgCurto(txt, teto){
+  const linha = String(txt || '').split('\n').map(s=>s.trim()).filter(Boolean)[0] || '';
+  const limpo = linha.replace(/\s+/g,' ').trim();
+  return limpo.length > (teto||200) ? limpo.slice(0, (teto||200) - 1).trimEnd() + '…' : limpo;
+}
+
+async function mgSemanaDados(semana){
+  const [feitas, notas] = await Promise.all([
+    sb.from('tasks')
+      .select('id,client_id,title,completed_at,assignees')
+      .gte('completed_at', semana.iso).lt('completed_at', semana.isoFim)
+      .order('completed_at', {ascending:true}),
+    sb.from('task_notes')
+      .select('id,task_id,body,visibility,created_at,author_name')
+      .gte('created_at', semana.iso).lt('created_at', semana.isoFim)
+      .order('created_at', {ascending:true}),
+  ]);
+  if(feitas.error) throw feitas.error;
+  if(notas.error)  throw notas.error;
+
+  /* De qual empresa é cada anotação. task_notes não guarda a empresa, e
+     amarrar pelas demandas em memória era frágil: demanda que não estava
+     carregada fazia a otimização sumir do resumo sem avisar. Agora a
+     ligação vem do banco, só para as demandas que têm anotação na
+     semana, que são poucas. */
+  const daTarefa = new Map();
+  const ids = [...new Set((notas.data || []).map(n=>n.task_id).filter(Boolean))];
+  if(ids.length){
+    const {data, error} = await sb.from('tasks').select('id,client_id').in('id', ids);
+    if(error){
+      /* o banco recusou: cai para o que está em memória, que cobre a
+         maioria dos casos, em vez de devolver resumo sem otimização */
+      console.warn('[resumo semanal] empresa da anotação pelo banco falhou', error);
+      (typeof TASKS !== 'undefined' ? TASKS : []).forEach(t=>daTarefa.set(t.id, t.client_id));
+    }else{
+      (data || []).forEach(t=>daTarefa.set(t.id, t.client_id));
+    }
+  }
+
+  const por = new Map();
+  const caixa = cid => {
+    if(!por.has(cid)) por.set(cid, {cid, nome: clientName(cid), otimizacoes:[], tarefas:[]});
+    return por.get(cid);
+  };
+
+  (feitas.data || []).forEach(t=>{
+    if(!t.client_id) return;
+    const quem = (t.assignees || []).filter(Boolean).join(', ');
+    caixa(t.client_id).tarefas.push(mgCurto(t.title, 140) + (quem ? ' · ' + quem : ''));
+  });
+
+  /* só a anotação de Cliente vira otimização no resumo: é a que ele já
+     pode ler na demanda, então não conta nada novo para ele */
+  (notas.data || []).forEach(n=>{
+    if((n.visibility || 'public') !== 'public') return;
+    const cid = daTarefa.get(n.task_id);
+    if(!cid) return;
+    const txt = mgCurto(n.body, 200);
+    if(!txt) return;
+    caixa(cid).otimizacoes.push(txt);
+  });
+
+  /* linha repetida na mesma semana vira uma só */
+  por.forEach(c=>{
+    c.otimizacoes = [...new Set(c.otimizacoes)];
+    c.tarefas     = [...new Set(c.tarefas)];
+  });
+
+  return [...por.values()]
+    .filter(c => c.otimizacoes.length || c.tarefas.length)
+    .sort((a,b)=>String(a.nome).localeCompare(String(b.nome), 'pt'));
+}
+
+/* ---------------------------------------------------------------------
+   3. O texto
+   --------------------------------------------------------------------- */
+function mgResumoTexto(c, semana){
+  const L = [];
+  L.push('Resumo da semana · ' + semana.rotulo);
+  L.push(c.nome);
+  L.push('');
+  L.push('OTIMIZAÇÕES (' + c.otimizacoes.length + ')');
+  if(c.otimizacoes.length) c.otimizacoes.forEach(o=>L.push('• ' + o));
+  else L.push('• nada registrado nesta semana');
+  L.push('');
+  L.push('TAREFAS CONCLUÍDAS (' + c.tarefas.length + ')');
+  if(c.tarefas.length) c.tarefas.forEach(t=>L.push('• ' + t));
+  else L.push('• nenhuma concluída nesta semana');
+  return L.join('\n');
+}
+
+function mgResumoHTML(c, semana){
+  const lista = arr => arr.length
+    ? '<ul>' + arr.map(x=>'<li>' + esc(x) + '</li>').join('') + '</ul>'
+    : '<p class="vazio">Nada registrado nesta semana.</p>';
+  return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+    + '<title>Resumo da semana · ' + esc(c.nome) + '</title><style>'
+    + 'body{margin:0;background:#f8f5ef;color:#1a1a18;'
+    +   'font:15px/1.65 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif}'
+    + '.f{max-width:760px;margin:0 auto;padding:44px 34px}'
+    + 'h1{font-size:27px;margin:0 0 4px;font-weight:600}'
+    + '.sub{color:#6d6a61;font-size:13.5px;margin:0 0 30px}'
+    + 'h2{font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:#9a7b3c;'
+    +   'margin:30px 0 10px;font-weight:700}'
+    + 'ul{margin:0;padding-left:20px}li{margin:7px 0}'
+    + '.vazio{color:#8a8271;font-style:italic;margin:0}'
+    + '.rod{margin-top:40px;padding-top:16px;border-top:1px solid #e3ded2;'
+    +   'color:#8a8271;font-size:11.5px;display:flex;justify-content:space-between;gap:14px}'
+    + '</style></head><body><div class="f">'
+    + '<h1>' + esc(c.nome) + '</h1>'
+    + '<p class="sub">Resumo da semana de ' + esc(semana.rotulo) + '</p>'
+    + '<h2>Otimizações aplicadas</h2>' + lista(c.otimizacoes)
+    + '<h2>Tarefas concluídas</h2>'   + lista(c.tarefas)
+    + '<div class="rod"><span>Documento gerado pela plataforma MGP.</span>'
+    +   '<span>' + esc(c.nome) + ' · ' + esc(semana.rotulo) + '</span></div>'
+    + '</div></body></html>';
+}
+
+/* ---------------------------------------------------------------------
+   4. Entrega
+   --------------------------------------------------------------------- */
+async function mgCanalDaEmpresa(cid){
+  const local = (typeof CHANNELS !== 'undefined' && CHANNELS || [])
+    .find(c => c.tipo === 'client' && c.client_id === cid);
+  if(local) return local.id;
+  const {data, error} = await sb.from('channels')
+    .select('id').eq('tipo','client').eq('client_id', cid).limit(1);
+  if(error || !data || !data.length) return null;
+  return data[0].id;
+}
+
+async function mgResumoPublicar(cid, texto){
+  const canal = await mgCanalDaEmpresa(cid);
+  if(!canal) return {ok:false, motivo:'esta empresa ainda não tem canal no MGP Chat'};
+  const {error} = await sb.from('messages').insert({
+    channel_id: canal, author_id: ME.id, author_name: ME.name, body: texto,
+  });
+  if(error) return {ok:false, motivo: error.message || 'o banco recusou'};
+  return {ok:true, canal};
+}
+
+async function mgResumoGuardar(c, semana){
+  const html = mgResumoHTML(c, semana);
+  const arq = new Blob([html], {type:'text/html;charset=utf-8'});
+  const id = (crypto.randomUUID ? crypto.randomUUID()
+                                : Date.now() + '-' + Math.random().toString(16).slice(2));
+  const caminho = c.cid + '/documentos/' + id + '.html';
+  const up = await sb.storage.from('documents')
+    .upload(caminho, arq, {upsert:false, contentType:'text/html;charset=utf-8'});
+  if(up.error) return {ok:false, motivo: up.error.message || 'falha ao subir'};
+  const {error} = await sb.from('documents').insert({
+    client_id: c.cid,
+    titulo: 'Resumo da semana · ' + semana.rotulo,
+    tipo: 'weekly',
+    storage_path: caminho,
+    metadata: {origem:'resumo_semanal', semana: semana.rotulo,
+               otimizacoes: c.otimizacoes.length, tarefas: c.tarefas.length,
+               por: ME ? ME.name : null},
+  });
+  if(error) return {ok:false, motivo: error.message || 'o banco recusou'};
+  return {ok:true, caminho};
+}
+
+async function mgResumoEntregar(c, texto, semana, acao){
+  const passos = [];
+  if(acao === 'canal' || acao === 'ambos'){
+    const r = await mgResumoPublicar(c.cid, texto);
+    passos.push(r.ok ? {ok:true, o:'publicado no canal'} : {ok:false, o:'canal: ' + r.motivo});
+  }
+  if(acao === 'acervo' || acao === 'ambos'){
+    const r = await mgResumoGuardar(c, semana);
+    passos.push(r.ok ? {ok:true, o:'guardado no acervo'} : {ok:false, o:'acervo: ' + r.motivo});
+  }
+  return passos;
+}
+
+/* ---------------------------------------------------------------------
+   5. A janela
+   --------------------------------------------------------------------- */
+async function mgResumoSemanal(){
+  if(typeof isAdmin !== 'function' || !isAdmin()){
+    if(typeof toast === 'function') toast('Só a equipe monta o resumo da semana');
+    return;
+  }
+
+  /* empresa do canal aberto, quando houver */
+  let sugerida = '';
+  try{
+    const c = (typeof MGChat !== 'undefined' && MGChat.canalAtual) ? MGChat.canalAtual() : null;
+    if(c && c.tipo === 'client' && c.client_id) sugerida = c.client_id;
+  }catch(_){}
+
+  const empresas = (typeof CLIENTS !== 'undefined' ? CLIENTS : [])
+    .slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt'));
+
+  const passo1 = await MGJanela.abrir({
+    titulo: 'Resumo da semana', icone: '🗓',
+    texto: 'Monta as otimizações aplicadas e as tarefas concluídas, por empresa.',
+    ok: 'Montar', cancelar: 'Fechar',
+    campos: [
+      {nome:'empresa', tipo:'lista', rotulo:'Empresa', valor: sugerida || '*',
+       opcoes: [{v:'*', r:'Todas as empresas (uma mensagem por canal)'}]
+                .concat(empresas.map(c=>({v:c.id, r:c.nome})))},
+      {nome:'quando', tipo:'lista', rotulo:'Semana', valor:'0',
+       opcoes:[{v:'0', r:'Esta semana'},{v:'1', r:'Semana passada'},{v:'2', r:'Retrasada'}],
+       ajuda:'De segunda a domingo.'},
+    ],
+  });
+  if(!passo1) return;
+
+  const semana = mgSemana(Number(passo1.quando) || 0);
+  let dados;
+  try{ dados = await mgSemanaDados(semana) }
+  catch(e){
+    console.error('[resumo semanal]', e);
+    if(typeof toast === 'function') toast('Não foi possível ler a semana: ' + ((e && e.message) || ''));
+    return;
+  }
+
+  const alvo = passo1.empresa === '*' ? dados : dados.filter(c=>c.cid === passo1.empresa);
+  if(!alvo.length){
+    await MGJanela.abrir({
+      titulo:'Semana sem movimento', icone:'🗓',
+      texto: (passo1.empresa === '*' ? 'Nenhuma empresa' : 'Esta empresa')
+           + ' teve otimização registrada ou tarefa concluída entre ' + semana.rotulo + '.',
+      aviso:'Otimização aqui é a anotação marcada como "Cliente" na demanda. '
+          + 'Se a semana teve trabalho mas nada foi anotado, o resumo não tem o que contar.',
+      ok:'Entendi', cancelar:'Fechar', campos:[],
+    });
+    return;
+  }
+
+  /* uma empresa: o texto sai editável antes de ir.
+     todas: a lista do que vai sair, empresa por empresa. */
+  const uma = alvo.length === 1 ? alvo[0] : null;
+  const campos = [
+    {nome:'acao', tipo:'lista', rotulo:'O que fazer',
+     valor:'canal',
+     opcoes:[{v:'canal',  r:'Publicar no MGP Chat da empresa'},
+             {v:'acervo', r:'Guardar no acervo da empresa'},
+             {v:'ambos',  r:'Publicar e guardar'},
+             {v:'nada',   r:'Só me mostrar, não enviar'}]},
+  ];
+  if(uma){
+    campos.unshift({nome:'texto', tipo:'area', rotulo:'Resumo',
+                    valor: mgResumoTexto(uma, semana),
+                    ajuda:'Pode editar antes de enviar.'});
+  }
+
+  const passo2 = await MGJanela.abrir({
+    titulo: uma ? uma.nome : alvo.length + ' empresas com movimento',
+    icone: '🗓',
+    texto: 'Semana de ' + semana.rotulo + '.',
+    aviso: uma ? null
+         : alvo.map(c=>c.nome + ': ' + c.otimizacoes.length + ' otimização(ões), '
+                    + c.tarefas.length + ' tarefa(s)').join('  ·  '),
+    ok: 'Enviar', cancelar: 'Cancelar',
+    campos,
+  });
+  if(!passo2) return;
+
+  if(passo2.acao === 'nada'){
+    if(uma){
+      try{
+        await navigator.clipboard.writeText(passo2.texto || mgResumoTexto(uma, semana));
+        toast('Resumo copiado');
+      }catch(_){ toast('Resumo montado. Copie do campo acima.') }
+    }else{
+      try{
+        await navigator.clipboard.writeText(alvo.map(c=>mgResumoTexto(c, semana)).join('\n\n\n'));
+        toast('Resumos copiados');
+      }catch(_){ toast('Resumos montados') }
+    }
+    return;
+  }
+
+  let bons = 0;
+  const problemas = [];
+  for(const c of alvo){
+    const texto = (uma && passo2.texto) ? passo2.texto : mgResumoTexto(c, semana);
+    let passos;
+    try{ passos = await mgResumoEntregar(c, texto, semana, passo2.acao) }
+    catch(e){ passos = [{ok:false, o:(e && e.message) || 'erro'}] }
+    if(passos.every(p=>p.ok)) bons++;
+    passos.filter(p=>!p.ok).forEach(p=>problemas.push(c.nome + ': ' + p.o));
+  }
+
+  try{ if(typeof loadDocs === 'function' && passo2.acao !== 'canal') await loadDocs() }catch(_){}
+
+  if(!problemas.length){
+    toast(bons === 1 ? 'Resumo enviado ✓' : bons + ' resumos enviados ✓');
+  }else{
+    await MGJanela.abrir({
+      titulo: bons + ' de ' + alvo.length + ' enviados', icone:'⚠',
+      texto:'O que não saiu:', aviso: problemas.join('  ·  '),
+      ok:'Entendi', cancelar:'Fechar', campos:[],
+    });
+  }
+}
+
+/* ---------------------------------------------------------------------
+   6. Entrada
+   --------------------------------------------------------------------- */
+if(typeof MGCmd !== 'undefined' && MGCmd.registrar){
+  MGCmd.registrar({
+    nome:'resumosemanal', apelidos:['resumo','semanal','semana'], icone:'🗓',
+    descricao:'Otimizações da semana e tarefas concluídas, por empresa, para enviar ao cliente',
+    uso:'', exigeArg:false,
+    permissao: () => typeof isAdmin === 'function' && isAdmin(),
+    executar: mgResumoSemanal,
+  });
+}
+
+window.mgResumoSemanal = mgResumoSemanal;
+window.mgSemana        = mgSemana;
+window.mgSemanaDados   = mgSemanaDados;
+window.mgResumoTexto   = mgResumoTexto;
+window.mgResumoHTML    = mgResumoHTML;
+
+})();
+</script>
+
 </body>
 </html>
