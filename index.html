@@ -17690,6 +17690,14 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
 .mgz-dia::before,.mgz-dia::after{content:"";flex:1;height:1px;background:var(--line)}
 .mgz-dia span{background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px 13px}
 
+/* Gráfico dentro da mensagem. O Pacing Bot manda o link do QuickChart, e
+   antes disso o link aparecia cru no meio do texto. Agora vira a imagem,
+   clicável para abrir em tamanho cheio. */
+.msg-graf{display:block;max-width:min(520px,100%);width:100%;height:auto;
+  margin:8px 0 2px;border:1px solid var(--line);border-radius:11px;background:#fff}
+.msg-graf-erro{display:inline-block;font-size:12px;color:var(--muted);
+  border:1px dashed var(--line2);border-radius:8px;padding:5px 10px;margin:6px 0}
+
 .mgz-m{display:flex;gap:11px;padding:4px 20px;position:relative}
 .mgz-m:hover{background:var(--card2)}
 .mgz-m .bd{min-width:0;flex:1}
@@ -19042,13 +19050,47 @@ function iconeArq(a){
   return '📎';
 }
 /* marcação leve, no espírito do que a caixa de escrita oferece */
+/* Hosts cujo link vira imagem no corpo da mensagem. Lista fechada de
+   propósito: qualquer URL virar <img> deixaria quem escreve carregar
+   conteúdo de onde quisesse dentro do chat. */
+const GRAF_HOSTS = ['quickchart.io', 'image-charts.com'];
+
+/* O esc() escapa "/" e "=", então uma URL não sobrevive a um replace feito
+   depois dele. Por isso as URLs saem antes, viram marcador, e só voltam no
+   fim, já como HTML montado aqui. */
 function corpoHTML(txt){
-  let s = esc(txt||'');
+  const urls = [];
+  const bruto = String(txt||'').replace(/https:\/\/[^\s<>"']+/g, u => {
+    const cauda = (u.match(/[.,;:!?)]+$/) || [''])[0];
+    urls.push(cauda ? u.slice(0, -cauda.length) : u);
+    return '\u0001U' + (urls.length - 1) + '\u0001' + cauda;
+  });
+
+  let s = esc(bruto);
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
   s = s.replace(/(^|\s)\*([^*\n]+)\*/g, '$1<b>$2</b>');
   s = s.replace(/(^|\s)_([^_\n]+)_/g, '$1<i>$2</i>');
   s = s.replace(/(^|\s)~([^~\n]+)~/g, '$1<s>$2</s>');
+  s = s.replace(/\u0001U(\d+)\u0001/g, (_, i) => htmlDoLink(urls[Number(i)]));
   return s;
+}
+
+function htmlDoLink(url){
+  if(!url) return '';
+  let host = '';
+  try{ host = new URL(url).hostname.replace(/^www\./,'') }catch(e){ return esc(url) }
+
+  /* esc() dentro de atributo é seguro: aspas viram &quot; e o parser devolve
+     "/" e "=" ao ler o href, então o endereço continua válido. */
+  const seguro = esc(url);
+
+  if(GRAF_HOSTS.indexOf(host) !== -1){
+    return '<a href="' + seguro + '" target="_blank" rel="noopener noreferrer">'
+      + '<img class="msg-graf" src="' + seguro + '" loading="lazy" alt="Gráfico"'
+      + ' onerror="this.outerHTML=&quot;<span class=\'msg-graf-erro\'>gráfico expirado</span>&quot;">'
+      + '</a>';
+  }
+  return '<a href="' + seguro + '" target="_blank" rel="noopener noreferrer">' + seguro + '</a>';
 }
 function combina(c){
   if(!CH_FILTER) return true;
