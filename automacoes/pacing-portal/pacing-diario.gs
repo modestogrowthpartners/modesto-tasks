@@ -52,7 +52,7 @@ function main() {
     if (cli.so_tarefas) return;
     try {
       var linha = montarCliente(cli, google, chaveMes, fechados, diasNoMes);
-      if (!linha) return;                       // cliente sem conta conectada
+      if (!linha) return;              // sem conta conectada, ou coleta vazia
       publicarPacingNoCanal(linha.texto);
       gravarPacingNoPortal(linha.registro);
     } catch (e) {
@@ -152,17 +152,30 @@ function montarCliente(cli, google, chaveMes, fechados, diasNoMes) {
   for (var d = 0; d < diasNoMes; d++) diario.push(0);
   var avisos = [];
 
+  // Conta quantas fontes realmente responderam. Sem isso, uma coleta que
+  // falhou inteira sairia publicada como gasto zero, que é outra coisa: o
+  // leitor rápido acredita no número e o aviso embaixo não desfaz isso.
+  var fontesOk = 0;
+
   var g = google[cli.rotulo];
   if (temGoogle) {
     if (!g) avisos.push('Google: coleta do dia não chegou ao Drive');
     else if (g.erro) avisos.push('Google: ' + g.erro);
-    else somar(diario, g.dias, chaveMes);
+    else { somar(diario, g.dias, chaveMes); fontesOk++ }
   }
 
   (cli.meta_ads || []).forEach(function (c) {
-    try { somar(diario, gastoMeta(c.id, chaveMes, diasNoMes), chaveMes) }
-    catch (e) { avisos.push('Meta (' + c.nome + '): ' + e) }
+    try {
+      somar(diario, gastoMeta(c.id, chaveMes, diasNoMes), chaveMes);
+      fontesOk++;
+    } catch (e) { avisos.push('Meta (' + c.nome + '): ' + e) }
   });
+
+  if (fontesOk === 0) {
+    Logger.log('PULADO ' + cli.rotulo + ': nenhuma fonte respondeu · ' +
+               avisos.join(' | '));
+    return null;
+  }
 
   var meta = cli.meta_mes && cli.meta_mes.valor ? cli.meta_mes.valor : 0;
   var r = graficoProjecao({

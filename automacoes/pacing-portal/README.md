@@ -50,7 +50,15 @@ sentido. Por isso o script roda de manhã e usa até ontem.
 
 **Falha de coleta não vira gasto zero.** Conta que não respondeu aparece com
 aviso na própria mensagem. Sem isso, uma API fora do ar viraria "o cliente não
-investiu", que é outra coisa.
+investiu", que é outra coisa. E quando *nenhuma* fonte do cliente responde, o
+cliente é pulado: não sai mensagem nenhuma, só uma linha no log. Um pacing
+zerado com um aviso embaixo ainda é lido como zero.
+
+**Um System User por Business Manager.** As contas Meta estão espalhadas em
+cinco BMs (WONDR, Amakha Paris, Alliance Laundry, Meu Rodapé, e as duas da
+Ruminar sem BM). O `META_TOKEN` único só alcança todas se todas estiverem
+compartilhadas com o BM da Modesto como parceiro. Conta fora disso volta erro
+de permissão, cai em aviso, e se for a única fonte do cliente ele é pulado.
 
 **A curva do plano é linear.** A Amakha tem curva semanal no plano
 (20/25/28/21/6%), registrada no `contas.json` mas ainda não aplicada ao
