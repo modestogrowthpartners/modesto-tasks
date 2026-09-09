@@ -124,6 +124,36 @@ function previa() {
   Logger.log(montarPost(janelaDaSemana(), lerGoogleDoDrive()));
 }
 
+/**
+ * Cria o acionador semanal. Rode uma vez, na mao, depois de conferir a
+ * previa(). Ele apaga acionadores anteriores de main() antes de criar o
+ * novo, para nao acumular dois e o relatorio sair em dobro.
+ *
+ * O horario segue o fuso do projeto, entao confirme America/Sao_Paulo em
+ * Configuracoes do projeto antes de rodar. O Apps Script nao garante o
+ * minuto exato: acionador de hora marcada dispara dentro de uma janela
+ * proxima do horario pedido, o que aqui nao faz diferenca.
+ */
+function instalarAcionador() {
+  removerAcionadores();
+  ScriptApp.newTrigger('main')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+    .atHour(16)
+    .nearMinute(0)
+    .create();
+  Logger.log('Acionador criado: main(), sexta as 16h, fuso ' + Session.getScriptTimeZone() + '.');
+}
+
+/** Apaga os acionadores de main(). Use para pausar o envio automatico. */
+function removerAcionadores() {
+  var n = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'main') { ScriptApp.deleteTrigger(t); n++; }
+  });
+  Logger.log(n + ' acionador(es) de main() removido(s).');
+}
+
 // ————————————————————————————————————————————————————————————
 // JANELA
 // ————————————————————————————————————————————————————————————

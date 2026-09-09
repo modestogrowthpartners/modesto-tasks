@@ -40,7 +40,13 @@ busca Meta e MGP Tasks, monta o post e publica. Instalação:
    propriedades de script: `META_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY`,
    `SLACK_TOKEN`.
 3. Rode `previa()` uma vez e confira o texto no log antes de agendar.
-4. Crie o acionador semanal de `main` para sexta, 16h.
+4. Rode `instalarAcionador()` uma vez. Ele cria o acionador semanal de
+   `main` para sexta às 16h e apaga acionadores antigos da mesma função,
+   para o relatório não sair em dobro. Para pausar o envio, rode
+   `removerAcionadores()`.
+5. **Desligue a Routine da rota B**, senão as duas publicam na mesma
+   sexta e o canal recebe o post duplicado. O `main()` não tem trava de
+   duplicidade: ele publica sempre que roda.
 
 Sobre o `META_TOKEN`: use System User do Business Manager, com `ads_read`. Token
 de usuário comum expira e o relatório para de sair numa sexta qualquer, sem aviso.
