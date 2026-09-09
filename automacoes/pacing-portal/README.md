@@ -1,87 +1,96 @@
 # Pacing no portal
 
-Publicação **diária** do pacing no canal `#controle-pacing-diario` do portal
-(id `71608354-2fbf-4edb-a95d-250063ff4498`), uma mensagem por cliente, com o
-gráfico do mês e o ritmo necessário para fechar na verba.
+O pacing diário já existe e já roda: é o **Pacing Bot MGP**, um Apps Script
+vinculado à planilha de metas, que puxa Google e Meta pelo **Windsor.ai**,
+posta no Slack `#controle_pacing_diário` e manda o e-mail para a diretoria,
+todo dia às 8h.
 
-## Como roda todo dia
+Este diretório acrescenta uma terceira saída a ele: o portal.
 
-| Arquivo | Onde roda | Quando |
-|---|---|---|
-| `google-ads-gasto.js` | Google Ads Scripts, dentro do MCC | todo dia, 07:00 |
-| `pacing-diario.gs` | Apps Script (script.google.com) | todo dia, 07:30 |
-| `pacing-portal.gs` | mesmo projeto do Apps Script | biblioteca, não roda sozinho |
+| Arquivo | O que é |
+|---|---|
+| `bot-antigo-portal.gs` | **o que vale hoje.** Cola no projeto do bot e manda a leitura para o portal |
+| `pacing-diario.gs`, `google-ads-gasto.js`, `pacing-portal.gs` | tentativa anterior, um coletor próprio. Ver "Por que não usamos" no fim |
 
-O primeiro coleta o gasto diário do Google Ads e grava um JSON no Drive. O
-segundo lê esse JSON, busca o Meta pela Graph API, junta por cliente, desenha
-o gráfico e publica. O terceiro traz as funções compartilhadas.
+## O que o encaixe faz
 
-### Instalação
+Ele não coleta nem calcula nada. Lê o `results` que o bot já montou e escreve
+em dois lugares:
 
-1. No Google Ads, em **cada um dos dois MCCs** (Modesto Growth Partners e
-   Wondr Experience), crie um script com `google-ads-gasto.js`, ajuste `CONTAS`
-   e `ARQUIVO_SAIDA` conforme os comentários, autorize e agende para as 07:00.
-2. Em script.google.com, crie um projeto com `pacing-diario.gs` **e**
-   `pacing-portal.gs`. Confirme o fuso `America/Sao_Paulo` e cadastre as
-   propriedades `META_TOKEN`, `SUPABASE_URL` e `SUPABASE_KEY`.
-3. Rode `previa()` e confira o texto no log.
-4. Rode `instalarAcionador()` uma vez. Ele apaga acionadores antigos de `main`
-   antes de criar o novo, para o pacing não sair em dobro.
+- canal `#controle-pacing-diario` do portal (id `71608354-2fbf-4edb-a95d-250063ff4498`),
+  uma mensagem por bloco, com gráfico interativo
+- tabela `public.pacing`, que alimenta a tela de Pacing
 
-Use System User do Business Manager no `META_TOKEN`. Token de usuário comum
-expira e o pacing para num dia qualquer, sem aviso.
+O bot segue sendo a única fonte do número. Se este arquivo recalculasse
+qualquer coisa, um dia divergiria do Slack e ninguém saberia em qual acreditar.
 
-## De onde vêm as metas
+## Instalação
 
-Do `contas.json`, em `automacoes/relatorio-semanal/`, lido direto do
-repositório a cada execução. É a fonte única: mudou a verba do mês, edite lá
-e o pacing do dia seguinte já sai certo, sem tocar no script.
+1. No projeto do bot: **Arquivos > + > Script**, nome `portal`, cole
+   `bot-antigo-portal.gs`.
+2. **Configurações do projeto > Propriedades do script**, acrescente
+   `SUPABASE_URL` (`https://eeqaabwsheaiwyhujcqj.supabase.co`) e `SUPABASE_KEY`
+   (service_role). `WINDSOR_API_KEY` e `SLACK_BOT_TOKEN` já estão lá.
+3. No Supabase, uma vez:
+   ```sql
+   create unique index if not exists pacing_conta_dia_uidx
+     on public.pacing (conta, dia);
+   ```
+4. No arquivo do bot, troque o bloco dos cinco atalhos por:
+   ```javascript
+   function atualizarTudo()  { run_({ slack:true,  email:true,  portal:true,  manual:true }); }
+   function atualizarSlack() { run_({ slack:true,  email:false, portal:false, manual:true }); }
+   function enviarEmail()    { run_({ slack:false, email:true,  portal:false, manual:true }); }
+   function rotinaDiaria()   { run_({ slack:true,  email:true,  portal:true,  manual:false }); }
+   function testarTudo()     { run_({ slack:true,  email:true,  portal:true,  manual:false }); }
+   ```
+5. Dentro de `run_`, logo abaixo da linha do e-mail, acrescente:
+   ```javascript
+   if (opts.portal) { try { sendPortal_(results, ctx); msgs.push('Portal atualizado'); } catch (e) { msgs.push('Portal falhou: ' + e.message); Logger.log(e); } }
+   ```
+6. Rode `atualizarPortal()` e confira o canal.
 
-Hoje estão registradas as verbas de setembro de Wondr, Barbie, Amakha,
-Alliance, Meu Rodapé e Ruminar. D&G está sem plano, e sai com o número real,
-sem linha de plano e sem semáforo. Melhor não desenhar plano nenhum do que
-desenhar um plano inventado.
+Não precisa criar gatilho novo. O `rotinaDiaria` das 8h passa a alimentar as
+três saídas.
 
-## Decisões que afetam o número
+## Decisões que afetam o resultado
 
-**O dia de hoje fica de fora da média.** Ele está em curso e sempre parece um
-dia fraco. Incluí-lo puxaria a projeção para baixo todo dia, sempre no mesmo
-sentido. Por isso o script roda de manhã e usa até ontem.
+**URL longa do QuickChart, não a curta.** O portal redesenha o gráfico com
+Chart.js lendo a configuração do parâmetro `c` da URL. A URL curta não carrega
+esse parâmetro, só a imagem pronta. Por isso o portal usa `chartUrlLong_` e o
+Slack continua com `chartUrlShort_`, que é o que ele precisa.
 
-**Falha de coleta não vira gasto zero.** Conta que não respondeu aparece com
-aviso na própria mensagem. Sem isso, uma API fora do ar viraria "o cliente não
-investiu", que é outra coisa. E quando *nenhuma* fonte do cliente responde, o
-cliente é pulado: não sai mensagem nenhuma, só uma linha no log. Um pacing
-zerado com um aviso embaixo ainda é lido como zero.
+**Edita a mensagem do dia, não empilha.** Reexecução no mesmo dia faz PATCH no
+corpo. O canal precisa mostrar o estado de hoje, não o histórico das tentativas
+de hoje. Vira mensagem nova só quando o dia vira.
 
-**Um System User por Business Manager.** As contas Meta estão espalhadas em
-cinco BMs (WONDR, Amakha Paris, Alliance Laundry, Meu Rodapé, e as duas da
-Ruminar sem BM). O `META_TOKEN` único só alcança todas se todas estiverem
-compartilhadas com o BM da Modesto como parceiro. Conta fora disso volta erro
-de permissão, cai em aviso, e se for a única fonte do cliente ele é pulado.
+**Bloco que falha não derruba os outros.** Cada cliente é publicado dentro do
+próprio try. O log diz qual ficou para trás.
 
-**A curva do plano é linear.** A Amakha tem curva semanal no plano
-(20/25/28/21/6%), registrada no `contas.json` mas ainda não aplicada ao
-gráfico. Contra a reta ela pode aparecer acima do plano sem estar.
+**Dabela e Alliance apontam para a mesma empresa nos dois blocos.** O canal
+mostra e-commerce e revendedoras separados, que é como o time opera; a tela de
+Pacing filtra por empresa e junta.
 
-## Destino 2: a tela de Pacing
+## Divergências conhecidas no bot antigo
 
-O portal tem uma tela de Pacing no menu lateral, que lê a tabela `public.pacing`
-e desenha barra por conta e canal, com o traço de onde o gasto deveria estar.
-`pacing-diario.gs` grava nela a cada execução, via `gravarPacingNoPortal`.
+Achadas conferindo o `UNITS` contra a API do Google Ads em 09/09/2026. Não
+foram corrigidas aqui: são do bot, e mexer nelas muda o Slack e o e-mail
+também.
 
-Crie o índice único uma vez, senão cada dia insere uma linha nova em vez de
-corrigir a do dia:
+| O quê | Situação |
+|---|---|
+| Meu Rodapé, Google | `UNITS` usa `805-602-2205`, que parou de gastar em 02/09. A conta viva é `308-486-9797`. Set 1 a 8: R$ 8.496 na antiga contra R$ 33.698 na nova |
+| Wondr, moeda | `cur:'R$'`, mas a conta `415-443-7131` é EUR, fuso Europe/Amsterdam. O valor está certo, o símbolo não |
+| Barbie | não existe no `UNITS`. Conta Google `380-572-9384`, Meta `act_1450012306123467` |
+| Amakha, Meta | `UNITS` tem `3581610182098860` além da `541549713104937`. A segunda não está no `contas.json` |
+| Botoclinic | sem empresa no portal, então vai com `client_id` nulo |
 
-```sql
-create unique index if not exists pacing_conta_dia_uidx
-  on public.pacing (conta, dia);
-```
+## Por que não usamos o coletor próprio
 
-Contrato da tabela e formato de `canais`: veja o cabeçalho de `pacing-portal.gs`.
+`pacing-diario.gs` e `google-ads-gasto.js` foram escritos antes de eu saber que
+o bot existia. Eles montam um segundo pipeline, com Graph API e Google Ads
+Scripts, exigindo um `META_TOKEN` que o bot não precisa porque usa Windsor.
 
-## Enquanto não estiver instalado
-
-O pacing não se atualiza sozinho. Até os acionadores existirem, as mensagens no
-canal são as que foram geradas na mão e vão envelhecendo em silêncio, que é o
-pior tipo de relatório: parece atual e não é.
+Dois pipelines calculando o mesmo número é pior do que nenhum: um dia divergem
+e a discussão vira sobre qual está certo. Ficam no repositório como registro,
+não estão instalados em lugar nenhum e não devem ser.
