@@ -1,96 +1,79 @@
 # Pacing no portal
 
-O Pacing Bot MGP já roda e publica todo dia às 09:40 no Slack, em
-`#controle_pacing_diário`. Isto aqui leva o mesmo pacing para o portal
-(modestopartners.com.br), em dois lugares, e os dois valem a pena por motivos
-diferentes.
+Publicação **diária** do pacing no canal `#controle-pacing-diario` do portal
+(id `71608354-2fbf-4edb-a95d-250063ff4498`), uma mensagem por cliente, com o
+gráfico do mês e o ritmo necessário para fechar na verba.
 
-## Destino 1: o canal (o que foi pedido)
+## Como roda todo dia
 
-Canal de equipe `#controle-pacing-diario`, id `71608354-2fbf-4edb-a95d-250063ff4498`,
-com os seis da equipe dentro. É o espelho do canal do Slack: mesma mensagem,
-mesmo horário.
-
-A marcação é a mesma do Slack (`*negrito*`, `_itálico_`, `` `código` ``), então o
-texto que o bot já monta serve sem conversão. Duas diferenças que valem atenção:
-
-- **Emoji em código não renderiza.** O portal mostra `:large_orange_circle:`
-  como texto literal. Troque por emoji de verdade (🟠 🔴 🟢 ⚠️) antes de mandar.
-- **Gráfico do QuickChart vira link, não imagem.** O corpo da mensagem no portal
-  é texto. Se o gráfico importa, o destino 2 resolve melhor.
-
-## Destino 2: a tabela `pacing` (o que eu recomendo)
-
-O portal **já tem uma tela de Pacing pronta**, no menu lateral, e ela está vazia
-esperando dados. Ela lê `public.tabela pacing` dos últimos 45 dias e desenha, por
-conta e canal, uma barra de quanto foi gasto com um traço vertical em quanto
-deveria ter sido gasto até hoje, mais um mini gráfico dos últimos dias, sem
-depender de serviço externo. Hoje a tabela tem zero linhas, então a tela mostra
-o aviso de vazio.
-
-Ou seja: o trabalho de desenhar já foi feito. Falta o bot gravar.
-
-Uma linha por conta e por dia:
-
-| Coluna | Tipo | Exemplo |
+| Arquivo | Onde roda | Quando |
 |---|---|---|
-| `conta` | text | `Meu Rodapé` |
-| `client_id` | uuid | opcional, liga ao cliente e mostra o nome da empresa |
-| `dia` | date | `2026-09-08` |
-| `mes` | text | `2026-09` |
-| `moeda` | text | `BRL`, `USD`, `EUR` |
-| `dias_fechados` | int | `8` |
-| `dias_no_mes` | int | `30` |
-| `canais` | jsonb | veja abaixo |
-| `receita` | numeric | `941184` |
-| `pedidos` | int | `2201` |
-| `conversoes` | int | para conta de lead, em vez de receita |
-| `roas` | numeric | `6.93` |
-| `roas_piso` | numeric | `4.5` |
+| `google-ads-gasto.js` | Google Ads Scripts, dentro do MCC | todo dia, 07:00 |
+| `pacing-diario.gs` | Apps Script (script.google.com) | todo dia, 07:30 |
+| `pacing-portal.gs` | mesmo projeto do Apps Script | biblioteca, não roda sozinho |
 
-`canais` é um array, um item por plataforma:
+O primeiro coleta o gasto diário do Google Ads e grava um JSON no Drive. O
+segundo lê esse JSON, busca o Meta pela Graph API, junta por cliente, desenha
+o gráfico e publica. O terceiro traz as funções compartilhadas.
 
-```json
-[
-  { "canal": "Google Ads", "investido": 69435, "meta": 162000, "situacao": "ok" },
-  { "canal": "Meta Ads",   "investido": 66311, "meta": 138000,
-    "situacao": "acima", "sugestao_dia": 3983 }
-]
-```
+### Instalação
 
-`situacao` aceita exatamente três valores, e qualquer outra coisa cai em "no ritmo":
+1. No Google Ads, em **cada um dos dois MCCs** (Modesto Growth Partners e
+   Wondr Experience), crie um script com `google-ads-gasto.js`, ajuste `CONTAS`
+   e `ARQUIVO_SAIDA` conforme os comentários, autorize e agende para as 07:00.
+2. Em script.google.com, crie um projeto com `pacing-diario.gs` **e**
+   `pacing-portal.gs`. Confirme o fuso `America/Sao_Paulo` e cadastre as
+   propriedades `META_TOKEN`, `SUPABASE_URL` e `SUPABASE_KEY`.
+3. Rode `previa()` e confira o texto no log.
+4. Rode `instalarAcionador()` uma vez. Ele apaga acionadores antigos de `main`
+   antes de criar o novo, para o pacing não sair em dobro.
 
-| Valor | Como aparece na tela |
-|---|---|
-| `ok` | No ritmo, verde |
-| `abaixo` | Abaixo do ritmo, laranja |
-| `acima` | Gastando rápido, vermelho |
+Use System User do Business Manager no `META_TOKEN`. Token de usuário comum
+expira e o pacing para num dia qualquer, sem aviso.
 
-`sugestao_dia` é opcional. Quando vem, a tela escreve sozinha "reduzir o teto
-para R$ X/dia para fechar o mês na meta", com a seta no sentido certo.
+## De onde vêm as metas
 
-`meta` ausente ou zero é tratado como conta sem meta: mostra o número real, sem
-barra e sem semáforo. É o caso de Wondr e Botoclinic hoje.
+Do `contas.json`, em `automacoes/relatorio-semanal/`, lido direto do
+repositório a cada execução. É a fonte única: mudou a verba do mês, edite lá
+e o pacing do dia seguinte já sai certo, sem tocar no script.
 
-## Como ligar
+Hoje estão registradas as verbas de setembro de Wondr, Barbie, Amakha,
+Alliance, Meu Rodapé e Ruminar. D&G está sem plano, e sai com o número real,
+sem linha de plano e sem semáforo. Melhor não desenhar plano nenhum do que
+desenhar um plano inventado.
 
-Em `pacing-portal.gs` estão as duas funções prontas. Cole no projeto do Pacing
-Bot que já existe e chame depois de montar o texto de cada conta:
+## Decisões que afetam o número
 
-```javascript
-gravarPacingNoPortal(linha);         // alimenta a tela de Pacing
-publicarPacingNoCanal(texto);        // espelha a mensagem no canal
-```
+**O dia de hoje fica de fora da média.** Ele está em curso e sempre parece um
+dia fraco. Incluí-lo puxaria a projeção para baixo todo dia, sempre no mesmo
+sentido. Por isso o script roda de manhã e usa até ontem.
 
-O bot precisa das mesmas propriedades de script que o relatório semanal usa:
-`SUPABASE_URL` e `SUPABASE_KEY`. Se os dois scripts estiverem no mesmo projeto,
-já estão lá.
+**Falha de coleta não vira gasto zero.** Conta que não respondeu aparece com
+aviso na própria mensagem. Sem isso, uma API fora do ar viraria "o cliente não
+investiu", que é outra coisa.
 
-`gravarPacingNoPortal` faz upsert por `conta` + `dia`, então rodar duas vezes no
-mesmo dia corrige a linha em vez de duplicar. Para isso funcionar, crie o índice
-único uma vez:
+**A curva do plano é linear.** A Amakha tem curva semanal no plano
+(20/25/28/21/6%), registrada no `contas.json` mas ainda não aplicada ao
+gráfico. Contra a reta ela pode aparecer acima do plano sem estar.
+
+## Destino 2: a tela de Pacing
+
+O portal tem uma tela de Pacing no menu lateral, que lê a tabela `public.pacing`
+e desenha barra por conta e canal, com o traço de onde o gasto deveria estar.
+`pacing-diario.gs` grava nela a cada execução, via `gravarPacingNoPortal`.
+
+Crie o índice único uma vez, senão cada dia insere uma linha nova em vez de
+corrigir a do dia:
 
 ```sql
 create unique index if not exists pacing_conta_dia_uidx
   on public.pacing (conta, dia);
 ```
+
+Contrato da tabela e formato de `canais`: veja o cabeçalho de `pacing-portal.gs`.
+
+## Enquanto não estiver instalado
+
+O pacing não se atualiza sozinho. Até os acionadores existirem, as mensagens no
+canal são as que foram geradas na mão e vão envelhecendo em silêncio, que é o
+pior tipo de relatório: parece atual e não é.
