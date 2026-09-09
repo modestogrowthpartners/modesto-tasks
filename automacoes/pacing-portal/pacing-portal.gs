@@ -109,30 +109,38 @@ function propriedade(chave) {
 }
 
 /**
- * Gráfico de projeção até o fim do mês: três linhas no acumulado.
+ * Gráfico de pacing do mês: quatro séries no acumulado.
  *
- *   Plano de mídia   reta pontilhada, a verba do mês distribuída por dia
- *   Realizado        linha cheia, só até o último dia FECHADO
- *   Projeção         pontilhada, o ritmo atual estendido até o fim do mês
+ *   Plano            tracejado cinza, a verba do mês distribuída por dia
+ *   Real acumulado   área azul preenchida, só até o último dia FECHADO
+ *   Sem ajuste       pontilhado laranja, o ritmo atual até o fim do mês
+ *   Com ajuste       pontilhado verde, o ritmo necessário para fechar na verba
+ *
+ * A pergunta que o gráfico responde não é "quanto gastei", é "mantendo este
+ * ritmo eu fecho na verba, e se não, quanto por dia preciso passar a gastar".
+ * Por isso a linha verde: ela é a recomendação, não uma projeção.
  *
  * O dia de hoje fica de fora da média de propósito. Ele está em curso e
  * sempre parece um dia fraco, então entra na média puxando a projeção para
  * baixo e faz a conta mentir todo dia, sempre no mesmo sentido.
  *
+ * Sem meta, o gráfico sai com duas séries e sem semáforo. Melhor não desenhar
+ * plano nenhum do que desenhar um plano inventado.
+ *
  * @param {Object} o
  *   o.conta      nome que vai no título
- *   o.diario     array com o gasto de cada dia do mês, índice 0 = dia 1.
- *                Inclua o dia de hoje: ele é desenhado, só não entra na média.
+ *   o.diario     gasto de cada dia do mês, índice 0 = dia 1, incluindo hoje
  *   o.fechados   quantos dias já fecharam (normalmente ontem)
  *   o.diasNoMes  28, 30, 31
- *   o.meta       verba do mês. Zero ou ausente esconde a linha do plano.
+ *   o.meta       verba do mês; 0 ou ausente esconde plano, ajuste e semáforo
  *   o.moeda      'R$', 'US$', '€'
- * @return {Object} { url, realizado, media, projecao, percentualDoPlano }
+ * @return {Object} { url, realizado, media, projecao, ajuste, percentualDoPlano, resumo }
  */
 function graficoProjecao(o) {
   var diasNoMes = o.diasNoMes || 30;
   var fechados = Math.max(1, Math.min(o.fechados || 1, diasNoMes));
   var moeda = o.moeda || 'R$';
+  var restantes = diasNoMes - fechados;
 
   var acumulado = [], soma = 0;
   for (var i = 0; i < o.diario.length; i++) {
@@ -140,79 +148,70 @@ function graficoProjecao(o) {
     acumulado.push(Math.round(soma * 100) / 100);
   }
 
-  var realizadoFechado = acumulado[fechados - 1] || 0;
-  var media = realizadoFechado / fechados;
+  var realizado = acumulado[fechados - 1] || 0;
+  var media = realizado / fechados;
   var projecao = media * diasNoMes;
+  var ajuste = (o.meta && restantes > 0) ? (o.meta - realizado) / restantes : null;
 
-  var rotulos = [], plano = [], real = [], proj = [];
+  function din(v) {
+    return moeda + ' ' + Math.round(v).toLocaleString('pt-BR');
+  }
+
+  var rotulos = [], plano = [], real = [], semAj = [], comAj = [];
   for (var d = 1; d <= diasNoMes; d++) {
-    rotulos.push(String(d));
-    plano.push(o.meta ? Math.round((o.meta / diasNoMes) * d * 100) / 100 : null);
-    real.push(d <= fechados ? acumulado[d - 1] : null);
-    // A projeção começa no último ponto do realizado, para as linhas se
+    rotulos.push(d + '/' + (o.mes || '09'));
+    plano.push(o.meta ? Math.round((o.meta / diasNoMes) * d) : null);
+    real.push(d <= fechados ? Math.round(acumulado[d - 1]) : null);
+    // As projeções começam no último ponto do realizado, para as linhas se
     // encostarem em vez de aparecer um degrau entre elas.
-    proj.push(d < fechados ? null
-      : Math.round((realizadoFechado + media * (d - fechados)) * 100) / 100);
+    semAj.push(d < fechados ? null : Math.round(realizado + media * (d - fechados)));
+    comAj.push((ajuste === null || d < fechados) ? null
+      : Math.round(realizado + ajuste * (d - fechados)));
   }
 
-  var conjuntos = [];
+  var ds = [];
   if (o.meta) {
-    conjuntos.push({ label: 'Plano de mídia', data: plano, borderColor: '#8a8578',
-      borderDash: [4, 4], borderWidth: 2, fill: false, pointRadius: 0 });
+    ds.push({ label: 'Plano · ' + din(o.meta), data: plano, borderColor: '#8a8578',
+      borderDash: [6, 4], borderWidth: 2, fill: false, pointRadius: 0 });
   }
-  conjuntos.push({ label: 'Realizado', data: real, borderColor: '#1a1a18',
-    borderWidth: 3, fill: false, pointRadius: 0 });
-  conjuntos.push({ label: 'Projeção no ritmo', data: proj, borderColor: '#c2a15b',
+  ds.push({ label: 'Real acumulado', data: real, borderColor: '#3b6fd4',
+    backgroundColor: 'rgba(59,111,212,0.18)', borderWidth: 3, fill: true, pointRadius: 0 });
+  ds.push({ label: 'Sem ajuste · ' + din(media) + '/dia', data: semAj, borderColor: '#d98324',
     borderDash: [2, 3], borderWidth: 2, fill: false, pointRadius: 0 });
+  if (ajuste !== null) {
+    ds.push({ label: 'Com ajuste · ' + din(ajuste) + '/dia', data: comAj, borderColor: '#2e9e6b',
+      borderDash: [2, 3], borderWidth: 2, fill: false, pointRadius: 0 });
+  }
 
   var cfg = {
     type: 'line',
-    data: { labels: rotulos, datasets: conjuntos },
+    data: { labels: rotulos, datasets: ds },
     options: {
       plugins: {
-        title: { display: true, text: o.conta + ' · investimento acumulado no mês' },
-        legend: { position: 'bottom' }
-      }
+        title: { display: true, text: o.conta + ' · pacing do mes' },
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
+      },
+      scales: { x: { ticks: { maxTicksLimit: 10 } } }
     }
   };
 
-  return {
-    url: 'https://quickchart.io/chart?w=560&h=300&c=' +
-         encodeURIComponent(JSON.stringify(cfg)),
-    realizado: realizadoFechado,
-    media: media,
-    projecao: projecao,
-    percentualDoPlano: o.meta ? (projecao / o.meta) * 100 : null,
-    resumo: '*Realizado* ' + moeda + ' ' + Math.round(realizadoFechado).toLocaleString('pt-BR') +
-            ' em ' + fechados + ' dias fechados · média ' + moeda + ' ' +
-            Math.round(media).toLocaleString('pt-BR') + '/dia' +
-            (o.meta ? '\n*Projeção no mês* ' + moeda + ' ' +
-              Math.round(projecao).toLocaleString('pt-BR') + ' · ' +
-              Math.round((projecao / o.meta) * 100) + '% do plano' : '')
-  };
-}
+  var pct = o.meta ? (projecao / o.meta) * 100 : null;
+  var linhas = ['*Realizado* ' + din(realizado) + ' em ' + fechados +
+                ' dias fechados · média ' + din(media) + '/dia'];
+  if (o.meta) {
+    var sinal = (pct >= 95 && pct <= 105) ? '🟢' : (pct > 105 ? '🔴' : '🟠');
+    linhas.push('*Plano do mês* ' + din(o.meta) + ' · ritmo ideal ' + din(o.meta / diasNoMes) + '/dia');
+    linhas.push('*Projeção no ritmo atual* ' + din(projecao) + ' · ' + sinal + ' ' +
+                Math.round(pct) + '% do plano');
+    linhas.push('*Para fechar na verba* ' + (ajuste < media ? 'reduzir' : 'subir') +
+                ' para ' + din(ajuste) + '/dia nos ' + restantes + ' dias que faltam');
+  } else {
+    linhas.push('*Plano do mês* não informado. Sem linha de plano e sem semáforo.');
+  }
 
-/**
- * Exemplo do formato, com os números reais do post de 14/08 no Slack.
- * Rode uma vez para ver a tela de Pacing sair do estado vazio.
- */
-function exemploPacing() {
-  gravarPacingNoPortal({
-    conta: 'Meu Rodapé',
-    client_id: '25d38a74-41ec-4354-af16-6d165217be1d',
-    dia: '2026-08-14',
-    mes: '2026-08',
-    moeda: 'BRL',
-    dias_fechados: 13,
-    dias_no_mes: 31,
-    canais: [
-      { canal: 'Google Ads', investido: 69435, meta: 162000, situacao: 'ok' },
-      { canal: 'Meta Ads',   investido: 66311, meta: 138000, situacao: 'acima',
-        sugestao_dia: 3983 }
-    ],
-    receita: 941184,
-    pedidos: 2201,
-    roas: 6.93,
-    roas_piso: 4.5
-  });
+  return {
+    url: 'https://quickchart.io/chart?w=620&h=320&c=' + encodeURIComponent(JSON.stringify(cfg)),
+    realizado: realizado, media: media, projecao: projecao, ajuste: ajuste,
+    percentualDoPlano: pct, resumo: linhas.join('\n')
+  };
 }
