@@ -188,8 +188,12 @@ function graficoProjecao(o) {
     data: { labels: rotulos, datasets: ds },
     options: {
       plugins: {
-        title: { display: true, text: o.conta + ' · pacing do mes' },
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
+        // Fonte grande no título de propósito: o gráfico é lido no meio de um
+        // canal de chat, muitas vezes no celular, onde o padrão do Chart.js
+        // fica pequeno demais para se distinguir do resto da mensagem.
+        title: { display: true, text: o.conta + ' · pacing do mes',
+                 font: { size: 22, weight: 'bold' }, padding: 14 },
+        legend: { position: 'top', labels: { boxWidth: 14, font: { size: 13 } } }
       },
       scales: { x: { ticks: { maxTicksLimit: 10 } } }
     }
