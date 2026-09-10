@@ -2908,8 +2908,12 @@ const peso = await page.evaluate(async ()=>{
     blobs: window.mgLogoCache ? window.mgLogoCache.size : null
   };
 });
+/* A comparação é entre o logo e o card, não contra um número fixo: o caso
+   41 encolhe o logo do cliente antes de chegar aqui, e um teto absoluto
+   reprovaria por causa do vizinho. O que precisa valer é a relação: o logo
+   é muito maior que o card inteiro, logo ele não está lá dentro. */
 ok('52 o card não carrega o logo em base64, e a imagem continua aparecendo',
-   peso.base64Bruto > 20000 && !peso.cardTemBase64
+   peso.base64Bruto > peso.tamanhoDoCard * 3 && !peso.cardTemBase64
    && peso.tamanhoDoCard < 4000
    && peso.imagens > 0 && peso.carregaram === peso.imagens
    && peso.blobs !== null && peso.blobs <= 4,
