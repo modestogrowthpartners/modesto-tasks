@@ -2884,37 +2884,29 @@ ok('51 escolher responsável na janela de nova demanda aparece na tela',
    ===================================================================== */
 
 /* ---- 52. o logo não viaja dentro de cada card ----
-   Medido com as 456 demandas que a conta tem: o quadro levava 7,1 s para
-   desenhar porque cada card carregava o logo inteiro em base64. Este caso
-   guarda o tamanho do card, que é a causa, e não o tempo, que varia com a
-   máquina onde o teste roda. */
+   Medido com as 456 demandas da conta: o quadro levava 7,1 s para desenhar
+   porque cada card carregava o logo inteiro em base64. O caso guarda o
+   TAMANHO do card, que é a causa, e não o tempo, que muda com a máquina.
+   E mede um card só: clonar centenas de demandas aqui não acrescentava
+   nada à afirmação e só deixava a página pesada no fim da suíte. */
 const peso = await page.evaluate(async ()=>{
-  const base = TASKS.find(x=>x.id==='t-1') || TASKS[0];
-  for(let i=0;i<120;i++){
-    window.__FIX.tasks.push(Object.assign({}, base, {
-      id:'peso-'+i, title:'Demanda de carga '+i, parent_id:null, plataformas:[],
-      status:'Não iniciado', position:2000+i}));
-  }
-  await loadTasks(); await showView('board');
-  await new Promise(r=>setTimeout(r,600));
+  await showView('board');
+  await new Promise(r=>setTimeout(r,500));
   const cru = (CLIENTS.find(c=>c.logo_url)||{}).logo_url || '';
-  const um = taskCard(TASKS.find(t=>t.id==='peso-0'), '#000');
+  const alvo = TASKS.find(t=>t.client_id && clientLogo(t.client_id)) || TASKS[0];
+  const um = taskCard(alvo, '#000');
   const imgs = [...document.querySelectorAll('#v-board .card-t img')];
   await Promise.all(imgs.map(i=>i.complete ? null
     : new Promise(res=>{ i.onload=res; i.onerror=res })));
-  const saida = {
+  return {
     base64Bruto: cru.length,
     tamanhoDoCard: um.length,
-    /* o card não pode conter o base64 do logo */
     cardTemBase64: /data:image\/[a-z]+;base64,[A-Za-z0-9+/=]{200,}/.test(um),
     imagens: imgs.length,
     carregaram: imgs.filter(i=>i.naturalWidth > 0).length,
-    /* um blob por logo, e não um por card */
+    /* um blob por imagem distinta, e não um por card */
     blobs: window.mgLogoCache ? window.mgLogoCache.size : null
   };
-  window.__FIX.tasks = window.__FIX.tasks.filter(t=>!/^peso-/.test(t.id));
-  await loadTasks(); render();
-  return saida;
 });
 ok('52 o card não carrega o logo em base64, e a imagem continua aparecendo',
    peso.base64Bruto > 20000 && !peso.cardTemBase64
