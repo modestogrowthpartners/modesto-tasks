@@ -26118,7 +26118,7 @@ body.mg-sem-topo.mg-e-chat .topbar{padding:8px 20px 0}
    grade inteira e a caixa de escrever, que estava colada embaixo por
    margin-top:auto, ia junto. Agora cada lista rola por dentro e as duas
    colunas começam no mesmo lugar. */
-.mg-det-col .subs{max-height:270px;overflow:auto;padding-right:4px}
+.mg-det-col .subs{max-height:430px;overflow:auto;padding-right:4px}
 /* a caixa de escrever gruda no fim do painel: com checklist longa ela
    continuava existindo, só que fora da tela, e era preciso rolar tudo para
    comentar. Grudada, ela está sempre ali, e a lista de anotações rola atrás. */
@@ -26695,6 +26695,21 @@ window.mgPintarMencoes  = mgPintarMencoes;
 .mg-dc-bloco::after{content:'';flex:1;height:1px;background:var(--line)}
 .mg-dc-bloco.plat{color:var(--brass2)}
 
+/* Item de conferência é sim ou não: não leva responsável, prazo nem tempo.
+   Com os três campos cada linha passava de 130px de altura e a lista virava
+   uma janelinha de um item por vez. Responsável e prazo ficam onde foram
+   pedidos, na linha da implementação, e nos itens escritos à mão. */
+.mg-dc-simples .mg-sub-campos{display:none}
+/* e a linha volta a ser uma linha: a regra geral joga o texto para baixo da
+   caixa de marcar, o que faz sentido quando há três campos embaixo e
+   desperdiça altura quando não há nenhum. */
+.mg-dc-simples{align-items:center!important;flex-wrap:nowrap!important;
+  padding:5px 10px!important;gap:9px!important}
+.mg-dc-simples .st{flex:1 1 auto!important;order:2;line-height:1.35}
+.mg-dc-simples input[type=checkbox]{order:1;margin-top:0}
+.mg-dc-simples .dl{order:3;margin-left:8px}
+.mg-det-col .subs{gap:2px}
+
 /* o selo laranja embaixo do nome do card */
 .mg-dc-selo{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;
   letter-spacing:.5px;text-transform:uppercase;background:#E07A1F;color:#fff;
@@ -26930,6 +26945,8 @@ function mgDCCabecalhos(){
   subs.forEach((x, i)=>{
     const linha = linhas[i];
     if(!linha || !x) return;
+    linha.classList.toggle('mg-dc-simples',
+      x.mgBloco === 'dc' || x.mgBloco === 'fim');
     const b = x.mgBloco || 'manual';
     const p = x.mgPlat || '';
     if(b === bloco && p === plat) return;

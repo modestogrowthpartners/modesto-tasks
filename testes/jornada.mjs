@@ -2754,6 +2754,42 @@ ok('50f desligar tudo devolve a lista manual, e continua dando para escrever ite
    && zerou.blocos === 0,
    JSON.stringify(zerou));
 
+/* ---- 50h. a checklist cabe na tela, e não um item por vez ----
+   O primeiro corte que eu fiz limitou a caixa a 270px sem olhar a altura da
+   linha: com os três campos por item, cada linha passava de 130px e a lista
+   virava uma janelinha de UM item. "Rola" não prova nada; o que prova é
+   quantos itens dá para ver sem rolar. */
+const cabe = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-dc');
+  t.plataformas = ['meta'];
+  mgDCSincronizar(t);
+  await openDetail('t-dc');
+  await new Promise(r=>setTimeout(r,480));
+  const cx = document.querySelector('#slide .mg-det-col .subs');
+  if(!cx) return {erro:'sem caixa'};
+  const c = cx.getBoundingClientRect();
+  const linhas = [...cx.querySelectorAll('.sub')];
+  const visiveis = linhas.filter(l=>{
+    const q = l.getBoundingClientRect();
+    return q.top >= c.top - 1 && q.bottom <= c.bottom + 1;
+  }).length;
+  const conferencia = linhas.filter(l=>l.classList.contains('mg-dc-simples'));
+  const alta = conferencia.map(l=>Math.round(l.getBoundingClientRect().height));
+  const impl = linhas.find(l=>!l.classList.contains('mg-dc-simples'));
+  return {itens: linhas.length, visiveis,
+          alturaDaConferencia: alta.length ? Math.max(...alta) : null,
+          /* responsável e prazo continuam onde foram pedidos: na
+             implementação, e em quem for escrito à mão */
+          implTemCampos: !!(impl && impl.querySelector('.mg-sub-campos .rs')),
+          conferenciaSemCampos: conferencia.every(
+            l => getComputedStyle(l.querySelector('.mg-sub-campos')).display === 'none')};
+});
+ok('50h a checklist mostra vários itens de uma vez, e não um por vez',
+   cabe.itens >= 15 && cabe.visiveis >= 8
+   && cabe.alturaDaConferencia !== null && cabe.alturaDaConferencia <= 40
+   && cabe.implTemCampos && cabe.conferenciaSemCampos,
+   JSON.stringify(cabe));
+
 /* ---- 50g. a checklist interna não vai para o cliente ---- */
 const noCliente = await page.evaluate(async ()=>{
   const t = TASKS.find(x=>x.id==='t-dc');
