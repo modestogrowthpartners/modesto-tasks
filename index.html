@@ -231,6 +231,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Desenha no navegador os gráficos que chegam como link do QuickChart, para
+     virarem gráfico de verdade, com tooltip, em vez de imagem parada. Se não
+     carregar, a mensagem cai de volta na imagem e nada quebra. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <style>
 /* ========= CONFIG DE CORES — padrão Modesto ========= */
 :root{
@@ -17693,8 +17697,36 @@ body.mg-e-chat #v-chat{flex:1;height:auto;min-height:0;width:100%;max-width:none
 /* Gráfico dentro da mensagem. O Pacing Bot manda o link do QuickChart, e
    antes disso o link aparecia cru no meio do texto. Agora vira a imagem,
    clicável para abrir em tamanho cheio. */
+/* Título dentro da mensagem. Negrito não basta quando o canal recebe um
+   post por cliente: o nome precisa ser o primeiro ponto de leitura, não
+   mais uma linha em bold no meio do texto. */
+.msg-h{font-weight:700;line-height:1.25;margin:4px 0 7px;letter-spacing:-.2px}
+.msg-h1{font-size:21px;font-family:var(--font-d)}
+.msg-h2{font-size:17px}
+.msg-h3{font-size:15px}
+
 .msg-graf{display:block;max-width:min(520px,100%);width:100%;height:auto;
-  margin:8px 0 2px;border:1px solid var(--line);border-radius:11px;background:#fff}
+  margin:8px 0 2px;border:1px solid var(--line);border-radius:11px;background:#fff;cursor:zoom-in}
+
+/* Gráfico desenhado no navegador, no lugar da imagem. Altura fixa porque
+   canvas responsivo sem altura definida cresce sem parar. */
+.msg-chart{margin:8px 0 2px}
+.msg-chart.viva{max-width:min(560px,100%);height:300px;padding:10px 12px 6px;
+  border:1px solid var(--line);border-radius:12px;background:var(--card)}
+@media(max-width:520px){ .msg-chart.viva{height:250px} }
+
+/* Visor de imagem, na própria página. Abrir em outra guia tira a pessoa da
+   conversa e obriga a voltar para continuar lendo. */
+.mg-visor{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;
+  background:rgba(12,11,9,.86);padding:26px;cursor:zoom-out;backdrop-filter:blur(3px)}
+.mg-visor.on{display:flex;animation:mgFade .16s ease-out}
+.mg-visor img{max-width:100%;max-height:100%;border-radius:12px;background:#fff;
+  box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.mg-visor .fechar{position:absolute;top:16px;right:20px;background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:9px;padding:6px 13px;
+  font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.mg-visor .fechar:hover{background:rgba(255,255,255,.2)}
+@keyframes mgFade{from{opacity:0}to{opacity:1}}
 .msg-graf-erro{display:inline-block;font-size:12px;color:var(--muted);
   border:1px dashed var(--line2);border-radius:8px;padding:5px 10px;margin:6px 0}
 
@@ -19067,6 +19099,11 @@ function corpoHTML(txt){
   });
 
   let s = esc(bruto);
+  /* Título de linha, no padrão markdown. Vem antes das outras marcações
+     porque consome a linha inteira; depois delas, o negrito e o itálico de
+     dentro do título já teriam virado tag e o casamento falharia. */
+  s = s.replace(/^(#{1,3})\s+(.+)$/gm,
+    (_, h, txt) => `<div class="msg-h msg-h${h.length}">${txt}</div>`);
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
   s = s.replace(/(^|\s)\*([^*\n]+)\*/g, '$1<b>$2</b>');
   s = s.replace(/(^|\s)_([^_\n]+)_/g, '$1<i>$2</i>');
@@ -19074,6 +19111,98 @@ function corpoHTML(txt){
   s = s.replace(/\u0001U(\d+)\u0001/g, (_, i) => htmlDoLink(urls[Number(i)]));
   return s;
 }
+
+/* ---------------------------------------------------------------------
+   Visor de imagem e gráfico vivo
+
+   Duas coisas que o chat precisava: abrir imagem sem sair da conversa, e
+   mostrar o gráfico do pacing como gráfico, não como figura.
+   --------------------------------------------------------------------- */
+
+function abrirImagem(src){
+  let v = document.getElementById('mg-visor');
+  if(!v){
+    v = document.createElement('div');
+    v.id = 'mg-visor'; v.className = 'mg-visor';
+    v.innerHTML = '<button class="fechar" onclick="fecharImagem()">Fechar</button><img alt="">';
+    v.onclick = e => { if(e.target === v) fecharImagem() };
+    document.body.appendChild(v);
+  }
+  v.querySelector('img').src = src;
+  v.classList.add('on');
+}
+function fecharImagem(){
+  const v = document.getElementById('mg-visor');
+  if(v){ v.classList.remove('on'); v.querySelector('img').src = '' }
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') fecharImagem() });
+
+/* Troca a imagem do QuickChart por um canvas com os mesmos dados.
+   A configuração já viaja dentro da URL, no parâmetro `c`, então não há
+   segunda fonte de verdade: o Slack lê a imagem, o portal lê o mesmo JSON. */
+function montaGraficos(){
+  if(!window.Chart) return;
+  document.querySelectorAll('.msg-chart:not([data-feito])').forEach(box => {
+    box.setAttribute('data-feito', '1');
+    const img = box.querySelector('img');
+    if(!img) return;
+
+    let cfg;
+    try{
+      const c = new URL(img.src).searchParams.get('c');
+      if(!c) return;
+      cfg = JSON.parse(c);
+    }catch(e){ return }        /* config estranha: fica a imagem */
+    if(!cfg || !cfg.data) return;
+
+    const escuro = document.body.classList.contains('theme-dark');
+    const tinta  = escuro ? '#e8e3d7' : '#1a1a18';
+    const grade  = escuro ? 'rgba(232,227,215,.12)' : 'rgba(26,26,24,.10)';
+
+    cfg.options = cfg.options || {};
+    cfg.options.responsive = true;
+    cfg.options.maintainAspectRatio = false;
+    cfg.options.interaction = { mode: 'index', intersect: false };
+    const p = cfg.options.plugins = cfg.options.plugins || {};
+    if(p.title)  p.title.color  = tinta;
+    if(p.legend) p.legend.labels = Object.assign({ color: tinta }, p.legend.labels || {});
+    p.tooltip = { mode: 'index', intersect: false };
+    cfg.options.scales = cfg.options.scales || {};
+    ['x','y'].forEach(eixo => {
+      const s = cfg.options.scales[eixo] = cfg.options.scales[eixo] || {};
+      s.ticks = Object.assign({ color: tinta }, s.ticks || {});
+      s.grid  = Object.assign({ color: grade }, s.grid || {});
+    });
+
+    const canvas = document.createElement('canvas');
+    img.replaceWith(canvas);
+    box.classList.add('viva');
+    try{
+      new Chart(canvas, cfg);
+    }catch(e){
+      /* Se o desenho falhar, devolve a imagem em vez de deixar um buraco. */
+      canvas.replaceWith(img);
+      box.classList.remove('viva');
+    }
+  });
+}
+
+/* O chat redesenha sozinho a cada mensagem nova, então em vez de chamar
+   montaGraficos em cada ponto de render, observamos a árvore uma vez. */
+(function(){
+  /* montaGraficos troca img por canvas, o que é mais uma mutação. Sem a
+     trava abaixo cada troca agendaria outra passada, de graça. */
+  let pedido = false;
+  const agenda = () => {
+    if(pedido) return;
+    pedido = true;
+    requestAnimationFrame(() => { pedido = false; montaGraficos() });
+  };
+  if(document.readyState !== 'loading') agenda();
+  window.addEventListener('load', agenda);
+  new MutationObserver(agenda).observe(document.documentElement,
+    { childList: true, subtree: true });
+})();
 
 function htmlDoLink(url){
   if(!url) return '';
@@ -19085,10 +19214,14 @@ function htmlDoLink(url){
   const seguro = esc(url);
 
   if(GRAF_HOSTS.indexOf(host) !== -1){
-    return '<a href="' + seguro + '" target="_blank" rel="noopener noreferrer">'
+    /* A imagem entra como base. Se o Chart.js estiver disponível, montaGraficos
+       troca por um canvas com os mesmos dados, aí com tooltip. Sem ele, fica a
+       imagem, que continua servindo. */
+    return '<div class="msg-chart">'
       + '<img class="msg-graf" src="' + seguro + '" loading="lazy" alt="Gráfico"'
-      + ' onerror="this.outerHTML=&quot;<span class=\'msg-graf-erro\'>gráfico expirado</span>&quot;">'
-      + '</a>';
+      + ' onclick="abrirImagem(this.src)"'
+      + ' onerror="this.outerHTML=&quot;<span class=\'msg-graf-erro\'>gráfico indisponível</span>&quot;">'
+      + '</div>';
   }
   return '<a href="' + seguro + '" target="_blank" rel="noopener noreferrer">' + seguro + '</a>';
 }

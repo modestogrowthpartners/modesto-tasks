@@ -1,96 +1,96 @@
 # Pacing no portal
 
-O Pacing Bot MGP já roda e publica todo dia às 09:40 no Slack, em
-`#controle_pacing_diário`. Isto aqui leva o mesmo pacing para o portal
-(modestopartners.com.br), em dois lugares, e os dois valem a pena por motivos
-diferentes.
+O pacing diário já existe e já roda: é o **Pacing Bot MGP**, um Apps Script
+vinculado à planilha de metas, que puxa Google e Meta pelo **Windsor.ai**,
+posta no Slack `#controle_pacing_diário` e manda o e-mail para a diretoria,
+todo dia às 8h.
 
-## Destino 1: o canal (o que foi pedido)
+Este diretório acrescenta uma terceira saída a ele: o portal.
 
-Canal de equipe `#controle-pacing-diario`, id `71608354-2fbf-4edb-a95d-250063ff4498`,
-com os seis da equipe dentro. É o espelho do canal do Slack: mesma mensagem,
-mesmo horário.
-
-A marcação é a mesma do Slack (`*negrito*`, `_itálico_`, `` `código` ``), então o
-texto que o bot já monta serve sem conversão. Duas diferenças que valem atenção:
-
-- **Emoji em código não renderiza.** O portal mostra `:large_orange_circle:`
-  como texto literal. Troque por emoji de verdade (🟠 🔴 🟢 ⚠️) antes de mandar.
-- **Gráfico do QuickChart vira link, não imagem.** O corpo da mensagem no portal
-  é texto. Se o gráfico importa, o destino 2 resolve melhor.
-
-## Destino 2: a tabela `pacing` (o que eu recomendo)
-
-O portal **já tem uma tela de Pacing pronta**, no menu lateral, e ela está vazia
-esperando dados. Ela lê `public.tabela pacing` dos últimos 45 dias e desenha, por
-conta e canal, uma barra de quanto foi gasto com um traço vertical em quanto
-deveria ter sido gasto até hoje, mais um mini gráfico dos últimos dias, sem
-depender de serviço externo. Hoje a tabela tem zero linhas, então a tela mostra
-o aviso de vazio.
-
-Ou seja: o trabalho de desenhar já foi feito. Falta o bot gravar.
-
-Uma linha por conta e por dia:
-
-| Coluna | Tipo | Exemplo |
-|---|---|---|
-| `conta` | text | `Meu Rodapé` |
-| `client_id` | uuid | opcional, liga ao cliente e mostra o nome da empresa |
-| `dia` | date | `2026-09-08` |
-| `mes` | text | `2026-09` |
-| `moeda` | text | `BRL`, `USD`, `EUR` |
-| `dias_fechados` | int | `8` |
-| `dias_no_mes` | int | `30` |
-| `canais` | jsonb | veja abaixo |
-| `receita` | numeric | `941184` |
-| `pedidos` | int | `2201` |
-| `conversoes` | int | para conta de lead, em vez de receita |
-| `roas` | numeric | `6.93` |
-| `roas_piso` | numeric | `4.5` |
-
-`canais` é um array, um item por plataforma:
-
-```json
-[
-  { "canal": "Google Ads", "investido": 69435, "meta": 162000, "situacao": "ok" },
-  { "canal": "Meta Ads",   "investido": 66311, "meta": 138000,
-    "situacao": "acima", "sugestao_dia": 3983 }
-]
-```
-
-`situacao` aceita exatamente três valores, e qualquer outra coisa cai em "no ritmo":
-
-| Valor | Como aparece na tela |
+| Arquivo | O que é |
 |---|---|
-| `ok` | No ritmo, verde |
-| `abaixo` | Abaixo do ritmo, laranja |
-| `acima` | Gastando rápido, vermelho |
+| `bot-antigo-portal.gs` | **o que vale hoje.** Cola no projeto do bot e manda a leitura para o portal |
+| `pacing-diario.gs`, `google-ads-gasto.js`, `pacing-portal.gs` | tentativa anterior, um coletor próprio. Ver "Por que não usamos" no fim |
 
-`sugestao_dia` é opcional. Quando vem, a tela escreve sozinha "reduzir o teto
-para R$ X/dia para fechar o mês na meta", com a seta no sentido certo.
+## O que o encaixe faz
 
-`meta` ausente ou zero é tratado como conta sem meta: mostra o número real, sem
-barra e sem semáforo. É o caso de Wondr e Botoclinic hoje.
+Ele não coleta nem calcula nada. Lê o `results` que o bot já montou e escreve
+em dois lugares:
 
-## Como ligar
+- canal `#controle-pacing-diario` do portal (id `71608354-2fbf-4edb-a95d-250063ff4498`),
+  uma mensagem por bloco, com gráfico interativo
+- tabela `public.pacing`, que alimenta a tela de Pacing
 
-Em `pacing-portal.gs` estão as duas funções prontas. Cole no projeto do Pacing
-Bot que já existe e chame depois de montar o texto de cada conta:
+O bot segue sendo a única fonte do número. Se este arquivo recalculasse
+qualquer coisa, um dia divergiria do Slack e ninguém saberia em qual acreditar.
 
-```javascript
-gravarPacingNoPortal(linha);         // alimenta a tela de Pacing
-publicarPacingNoCanal(texto);        // espelha a mensagem no canal
-```
+## Instalação
 
-O bot precisa das mesmas propriedades de script que o relatório semanal usa:
-`SUPABASE_URL` e `SUPABASE_KEY`. Se os dois scripts estiverem no mesmo projeto,
-já estão lá.
+1. No projeto do bot: **Arquivos > + > Script**, nome `portal`, cole
+   `bot-antigo-portal.gs`.
+2. **Configurações do projeto > Propriedades do script**, acrescente
+   `SUPABASE_URL` (`https://eeqaabwsheaiwyhujcqj.supabase.co`) e `SUPABASE_KEY`
+   (service_role). `WINDSOR_API_KEY` e `SLACK_BOT_TOKEN` já estão lá.
+3. No Supabase, uma vez:
+   ```sql
+   create unique index if not exists pacing_conta_dia_uidx
+     on public.pacing (conta, dia);
+   ```
+4. No arquivo do bot, troque o bloco dos cinco atalhos por:
+   ```javascript
+   function atualizarTudo()  { run_({ slack:true,  email:true,  portal:true,  manual:true }); }
+   function atualizarSlack() { run_({ slack:true,  email:false, portal:false, manual:true }); }
+   function enviarEmail()    { run_({ slack:false, email:true,  portal:false, manual:true }); }
+   function rotinaDiaria()   { run_({ slack:true,  email:true,  portal:true,  manual:false }); }
+   function testarTudo()     { run_({ slack:true,  email:true,  portal:true,  manual:false }); }
+   ```
+5. Dentro de `run_`, logo abaixo da linha do e-mail, acrescente:
+   ```javascript
+   if (opts.portal) { try { sendPortal_(results, ctx); msgs.push('Portal atualizado'); } catch (e) { msgs.push('Portal falhou: ' + e.message); Logger.log(e); } }
+   ```
+6. Rode `atualizarPortal()` e confira o canal.
 
-`gravarPacingNoPortal` faz upsert por `conta` + `dia`, então rodar duas vezes no
-mesmo dia corrige a linha em vez de duplicar. Para isso funcionar, crie o índice
-único uma vez:
+Não precisa criar gatilho novo. O `rotinaDiaria` das 8h passa a alimentar as
+três saídas.
 
-```sql
-create unique index if not exists pacing_conta_dia_uidx
-  on public.pacing (conta, dia);
-```
+## Decisões que afetam o resultado
+
+**URL longa do QuickChart, não a curta.** O portal redesenha o gráfico com
+Chart.js lendo a configuração do parâmetro `c` da URL. A URL curta não carrega
+esse parâmetro, só a imagem pronta. Por isso o portal usa `chartUrlLong_` e o
+Slack continua com `chartUrlShort_`, que é o que ele precisa.
+
+**Edita a mensagem do dia, não empilha.** Reexecução no mesmo dia faz PATCH no
+corpo. O canal precisa mostrar o estado de hoje, não o histórico das tentativas
+de hoje. Vira mensagem nova só quando o dia vira.
+
+**Bloco que falha não derruba os outros.** Cada cliente é publicado dentro do
+próprio try. O log diz qual ficou para trás.
+
+**Dabela e Alliance apontam para a mesma empresa nos dois blocos.** O canal
+mostra e-commerce e revendedoras separados, que é como o time opera; a tela de
+Pacing filtra por empresa e junta.
+
+## Divergências conhecidas no bot antigo
+
+Achadas conferindo o `UNITS` contra a API do Google Ads em 09/09/2026. Não
+foram corrigidas aqui: são do bot, e mexer nelas muda o Slack e o e-mail
+também.
+
+| O quê | Situação |
+|---|---|
+| Meu Rodapé, Google | `UNITS` usa `805-602-2205`, que parou de gastar em 02/09. A conta viva é `308-486-9797`. Set 1 a 8: R$ 8.496 na antiga contra R$ 33.698 na nova |
+| Wondr, moeda | `cur:'R$'`, mas a conta `415-443-7131` é EUR, fuso Europe/Amsterdam. O valor está certo, o símbolo não |
+| Barbie | não existe no `UNITS`. Conta Google `380-572-9384`, Meta `act_1450012306123467` |
+| Amakha, Meta | `UNITS` tem `3581610182098860` além da `541549713104937`. A segunda não está no `contas.json` |
+| Botoclinic | sem empresa no portal, então vai com `client_id` nulo |
+
+## Por que não usamos o coletor próprio
+
+`pacing-diario.gs` e `google-ads-gasto.js` foram escritos antes de eu saber que
+o bot existia. Eles montam um segundo pipeline, com Graph API e Google Ads
+Scripts, exigindo um `META_TOKEN` que o bot não precisa porque usa Windsor.
+
+Dois pipelines calculando o mesmo número é pior do que nenhum: um dia divergem
+e a discussão vira sobre qual está certo. Ficam no repositório como registro,
+não estão instalados em lugar nenhum e não devem ser.

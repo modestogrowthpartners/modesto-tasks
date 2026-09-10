@@ -1,6 +1,6 @@
 {
   "_comentario": "Mapeamento cliente -> contas de midia. Editar aqui quando entrar ou sair conta. O relatorio semanal le este arquivo.",
-  "_atualizado_em": "2026-09-08",
+  "_atualizado_em": "2026-09-09",
   "fuso": "America/Sao_Paulo",
   "slack_channel_id": "C0C0H9AGT8U",
   "slack_channel_nome": "#resumo_otmizações_e_tarefas",
@@ -40,7 +40,13 @@
           "nome": "WONDR B.V.",
           "moeda": "EUR"
         }
-      ]
+      ],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 73536,
+        "moeda": "EUR",
+        "origem": "Plano de Mídia Set/26 (Drive 1pDQAvjn), investimento total todas as plataformas"
+      }
     },
     {
       "rotulo": "Barbie",
@@ -69,7 +75,13 @@
           "nome": "Barbie Experience",
           "moeda": "EUR"
         }
-      ]
+      ],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 65651,
+        "moeda": "EUR",
+        "origem": "Plano de Mídia Set/26 (Drive 1pDQAvjn), investimento total todas as plataformas"
+      }
     },
     {
       "rotulo": "Amakha",
@@ -95,7 +107,20 @@
           "nome": "Amakha#1",
           "moeda": "BRL"
         }
-      ]
+      ],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 70000,
+        "moeda": "BRL",
+        "origem": "Set_2026_Amakha_Plano_de_Midia (Drive 1qQ7ZFBl). Google 36k + Meta 34k",
+        "curva_semanal": [
+          0.2,
+          0.25,
+          0.28,
+          0.21,
+          0.06
+        ]
+      }
     },
     {
       "rotulo": "Alliance",
@@ -115,7 +140,13 @@
           "moeda": "USD"
         }
       ],
-      "tiktok": []
+      "tiktok": [],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 10000,
+        "moeda": "USD",
+        "origem": "Set_26_Alliance_Plano_de_Midia (Drive 1L61r6Rh). Google BR 4k + LATAM 1k + Meta 5k"
+      }
     },
     {
       "rotulo": "Meu Rodapé",
@@ -131,7 +162,7 @@
           "id": "8056022205",
           "nome": "MEU RODAPÉ - ANTIGA",
           "moeda": "BRL",
-          "obs": "legada, so reportar se houver evento"
+          "obs": "Era a conta principal ate agosto (o controle de pacing puxava dela). Em setembro a operacao passou para 3084869797, que so tem gasto a partir de 02/09."
         }
       ],
       "meta_ads": [
@@ -141,7 +172,13 @@
           "moeda": "BRL"
         }
       ],
-      "tiktok": []
+      "tiktok": [],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 315000,
+        "moeda": "BRL",
+        "origem": "Plano_de_Midia_Setembro_2026_Meu_Rodape_v2 (Drive 1N5JTZH2)"
+      }
     },
     {
       "rotulo": "D&G",
@@ -155,7 +192,13 @@
         }
       ],
       "meta_ads": [],
-      "tiktok": []
+      "tiktok": [],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": null,
+        "moeda": "BRL",
+        "origem": "sem plano de midia de setembro no Drive; conta estava 'em implantacao' em agosto"
+      }
     },
     {
       "rotulo": "Dabela",
@@ -164,7 +207,25 @@
       "google_ads": [],
       "meta_ads": [],
       "tiktok": [],
-      "obs": "Conta pequena, sem conta de midia conectada ao Pipeboard. So aparece nas tarefas."
+      "obs": "Contas existem, mas so no Windsor.ai, nao no Pipeboard. Por isso ficam fora do pacing e do BLOCO 1 ate a coleta via Windsor ser ligada.",
+      "windsor": [
+        {
+          "plataforma": "google_ads",
+          "id": "1592264131",
+          "nome": "Dabela Semijoias"
+        },
+        {
+          "plataforma": "meta",
+          "id": "act_1508287609836288",
+          "nome": "Dabela Semijoias"
+        },
+        {
+          "plataforma": "meta",
+          "id": "act_745620844876754",
+          "nome": "Revendedoras Dabela",
+          "obs": "conta separada; decidir se soma ou vira linha propria"
+        }
+      ]
     },
     {
       "rotulo": "Ruminar",
@@ -183,7 +244,13 @@
           "moeda": "BRL"
         }
       ],
-      "tiktok": []
+      "tiktok": [],
+      "meta_mes": {
+        "mes": "2026-09",
+        "valor": 26355,
+        "moeda": "BRL",
+        "origem": "painel de pacing; nao ha plano de midia no Drive"
+      }
     },
     {
       "rotulo": "Botoclinic",
@@ -254,5 +321,6 @@
   "portal": {
     "canal_relatorio": "d40d1fd3-2a32-42da-8bff-f2235a75fc5e",
     "canal_pacing": "71608354-2fbf-4edb-a95d-250063ff4498"
-  }
+  },
+  "_metas": "meta_mes por cliente, lida dos planos de midia no Drive em 09/09/2026. Conferir a cada virada de mes."
 }
