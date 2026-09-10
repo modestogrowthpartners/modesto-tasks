@@ -17,7 +17,7 @@
             priority:'Alta',assignees:['Vinícius','Renato'],assignee_ids:[UID],due:'2026-09-10',recurrence:'none',
             subtasks:[{text:'sub',done:false}],time_spent:120,timer_start:null,position:10,
             created_at:'2026-09-01T10:00:00Z',updated_at:'2026-09-02T10:00:00Z',completed_at:null,
-            created_by:UID2,start_date:null,
+            created_by:UID2,start_date:null,plataformas:[],
             archived:false,urgente:false,anexos:[],project_id:'p-1'}],
     projects:[{id:'p-1',client_id:CID,nome:'Projeto Teste',cor:'#C7871E'}],
     documents:[{id:'d-1',client_id:CID,titulo:'Doc Teste',tipo:'apresentacao',

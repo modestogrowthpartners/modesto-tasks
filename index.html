@@ -26664,5 +26664,433 @@ window.mgPintarMencoes  = mgPintarMencoes;
 })();
 </script>
 
+<style>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · Subtarefas Implementação/Double Check
+
+   Cinco botões de plataforma. Ligar um abre a checklist de implementação e
+   de double check daquela mídia, dentro da própria demanda. Desligar leva
+   os itens embora, com aviso quando algum já foi conferido.
+   ===================================================================== */
+
+.mg-dc-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 10px}
+.mg-dc-cab .tt{font-family:var(--font-d);font-size:15px;font-weight:500;
+  display:flex;align-items:center;gap:8px}
+.mg-dc-cab .cnt{font-size:12px;color:var(--muted);font-weight:400}
+
+.mg-dc-plats{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.mg-dc-plat{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+  background:var(--card);border:1px solid var(--line2);border-radius:999px;
+  padding:6px 13px;color:var(--muted);font-family:inherit;transition:.15s}
+.mg-dc-plat:hover{border-color:var(--brass);color:var(--brass2)}
+.mg-dc-plat .pt{width:7px;height:7px;border-radius:50%;background:var(--line2);flex-shrink:0}
+.mg-dc-plat.on{background:rgba(194,161,91,.14);border-color:var(--brass);color:var(--brass2)}
+.mg-dc-plat.on .pt{background:var(--brass2)}
+.mg-dc-plat[disabled]{opacity:.5;pointer-events:none}
+
+/* cabeçalho de bloco dentro da lista de subtarefas */
+.mg-dc-bloco{font-size:10.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--muted2);margin:14px 0 2px;display:flex;align-items:center;gap:8px}
+.mg-dc-bloco:first-child{margin-top:2px}
+.mg-dc-bloco::after{content:'';flex:1;height:1px;background:var(--line)}
+.mg-dc-bloco.plat{color:var(--brass2)}
+
+/* o selo laranja embaixo do nome do card */
+.mg-dc-selo{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;
+  letter-spacing:.5px;text-transform:uppercase;background:#E07A1F;color:#fff;
+  border-radius:999px;padding:3px 9px;margin-top:6px;white-space:nowrap}
+.mg-dc-selo .p{width:5px;height:5px;border-radius:50%;background:#fff}
+.card-t .mg-dc-selo{margin:6px 0 0}
+#slide .slide-h .mg-dc-selo{margin-top:8px}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · Subtarefas Implementação/Double Check
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   O catálogo
+
+   Fica aqui, em texto, e não no banco: é checklist de processo do time,
+   muda com o time e precisa ir para o ar junto com a tela que a usa. Item
+   novo aparece nas demandas que já têm a plataforma ligada assim que a
+   pessoa reabre o card, sem migração.
+   --------------------------------------------------------------------- */
+const MG_DC_PLATS = [
+  {chave:'meta',      nome:'Meta'},
+  {chave:'google',    nome:'Google'},
+  {chave:'tiktok',    nome:'TikTok'},
+  {chave:'pinterest', nome:'Pinterest'},
+  {chave:'bing',      nome:'Bing'},
+];
+
+const MG_DC_IMPL = ['Implementação da campanha'];
+
+const MG_DC_GERAL = [
+  'Nome da campanha no padrão',
+  'Objetivo e evento de conversão corretos',
+  'Pixel/tag disparando e selecionado na campanha',
+  'Orçamento, tipo (diário ou vitalício) e datas conforme o plano',
+  'Localização, idade e público conforme o briefing',
+  'Página, perfil ou conta de identidade correta',
+  'Criativos no formato certo e sem erro de texto',
+  'Oferta e preço iguais aos da LP',
+  'URL funcionando e UTM preenchida',
+  'Automações revisadas (expansão de público, criativo automático, posicionamento automático)',
+];
+
+const MG_DC_ESPECIFICO = {
+  meta: [
+    'Exclusões aplicadas, se houver',
+    'Melhorias automáticas de criativo revisadas',
+  ],
+  google: [
+    'Rede de Display desmarcada (em Search)',
+    'Local em "Presença", não "Presença ou interesse"',
+    'Palavras-chave e negativas aplicadas',
+    'Recomendações automáticas desligadas ou revisadas',
+  ],
+  tiktok: [
+    'Posicionamento automático inclui apps parceiros (Pangle): manter ou tirar conforme o plano',
+    'Música da biblioteca comercial',
+    'Vídeo 9:16 com texto fora da área dos botões',
+    'Comentários ligados só se houver quem modere',
+  ],
+  pinterest: [
+    'Pins em 2:3',
+    'Palavras-chave, interesses e segmentação expandida conforme o plano',
+    'Título e descrição do Pin preenchidos',
+    'Catálogo sincronizado, se for campanha de catálogo',
+  ],
+  bing: [
+    'Se a campanha veio importada do Google: conferir orçamento, lances, URLs, UTMs, negativas e extensões, que nem sempre vêm iguais',
+    'Importação agendada desligada ou revisada, para não sobrescrever ajustes feitos direto no Microsoft',
+    'Tag UET disparando e vinculada à meta de conversão',
+    'Marcação automática (MSCLKID) ativa',
+    'Local em "pessoas no local", não na opção que inclui interesse',
+    'Parceiros sindicalizados e Microsoft Audience Network ligados só se estiverem no plano',
+    'Recomendações de aplicação automática desligadas ou revisadas',
+    'Palavras-chave e negativas aplicadas',
+  ],
+};
+
+const MG_DC_FINAL = [
+  'Desativar as recomendações de IA',
+  'Campanha Ativada',
+];
+
+const MG_DC_NOME = {};
+MG_DC_PLATS.forEach(p => { MG_DC_NOME[p.chave] = p.nome });
+
+/* ---------------------------------------------------------------------
+   A lista que a demanda deveria ter
+
+   Cada item ganha uma chave estável. É ela que faz o "já conferi" 
+   sobreviver a ligar outra plataforma, e o item novo do catálogo entrar
+   sem duplicar o que já existe.
+   --------------------------------------------------------------------- */
+function mgDCPlanejado(ativas){
+  const lista = [];
+  if(!ativas || !ativas.length) return lista;
+  let n = 0;
+  MG_DC_IMPL.forEach((txt,i)=>lista.push(
+    {chave:'impl:'+i, texto:txt, bloco:'impl', plat:'', ordem:n++}));
+  MG_DC_GERAL.forEach((txt,i)=>lista.push(
+    {chave:'dc:geral:'+i, texto:txt, bloco:'dc', plat:'', ordem:100+i}));
+  MG_DC_PLATS.forEach((p,pi)=>{
+    if(ativas.indexOf(p.chave) < 0) return;
+    (MG_DC_ESPECIFICO[p.chave]||[]).forEach((txt,i)=>lista.push(
+      {chave:'dc:'+p.chave+':'+i, texto:txt, bloco:'dc', plat:p.chave, ordem:200+pi*50+i}));
+  });
+  MG_DC_FINAL.forEach((txt,i)=>lista.push(
+    {chave:'dc:fim:'+i, texto:txt, bloco:'fim', plat:'', ordem:900+i}));
+  return lista;
+}
+
+/* Reescreve as subtarefas automáticas da demanda mantendo o que a pessoa
+   já preencheu. O que ela criou à mão nunca é tocado e continua no fim. */
+function mgDCSincronizar(t){
+  const ativas = (t.plataformas || []).filter(p => MG_DC_NOME[p]);
+  const antigos = new Map();
+  const manuais = [];
+  (t.subtasks || []).forEach(x=>{
+    if(x && x.mgChave) antigos.set(x.mgChave, x);
+    else manuais.push(x);
+  });
+  const autos = mgDCPlanejado(ativas).map(p=>{
+    const velho = antigos.get(p.chave) || {};
+    return {
+      id: velho.id || (p.chave + '-' + Date.now().toString(36)),
+      text: p.texto,                       /* o texto vem sempre do catálogo */
+      done: !!velho.done,
+      data: velho.data || null,
+      resp: velho.resp || null,
+      min:  velho.min  || 0,
+      mgChave: p.chave, mgBloco: p.bloco, mgPlat: p.plat, mgOrdem: p.ordem
+    };
+  });
+  t.subtasks = autos.concat(manuais);
+  return t.subtasks;
+}
+
+/* ---------------------------------------------------------------------
+   O selo laranja
+
+   Aparece quando a implementação foi dada por feita e ainda falta double
+   check. Some quando o double check acaba: selo que nunca sai vira enfeite
+   e ninguém olha mais.
+   --------------------------------------------------------------------- */
+function mgDCEstado(t){
+  const subs = (t && t.subtasks) || [];
+  const impl = subs.filter(x => x && x.mgBloco === 'impl');
+  const check = subs.filter(x => x && (x.mgBloco === 'dc' || x.mgBloco === 'fim'));
+  if(!impl.length) return {aguardando:false, feitos:0, total:check.length};
+  const implOk = impl.every(x => x.done);
+  const faltam = check.filter(x => !x.done).length;
+  return {aguardando: implOk && faltam > 0,
+          feitos: check.length - faltam, total: check.length};
+}
+/* A checklist é do time. Cliente continua vendo as subtarefas que alguém
+   escreveu à mão, como sempre viu, mas não a conferência interna: é
+   procedimento nosso, não entrega dele. */
+function mgDCInterno(){
+  return !(typeof isAdmin === 'function' && isAdmin());
+}
+function mgDCVisiveis(t){
+  const subs = (t && t.subtasks) || [];
+  return mgDCInterno() ? subs.filter(x => !(x && x.mgChave)) : subs;
+}
+function mgDCSeloHTML(t){
+  return mgDCEstado(t).aguardando
+    ? '<span class="mg-dc-selo"><span class="p"></span>Aguardando double check</span>'
+    : '';
+}
+
+/* no card do quadro, embaixo do nome */
+if(typeof taskCard === 'function'){
+  const _tc = taskCard;
+  window.taskCard = taskCard = function(t, cor){
+    let html = _tc(t, cor);
+    const selo = mgDCSeloHTML(t);
+    if(!selo) return html;
+    /* logo depois do bloco do título, que é .tt, no mesmo lugar onde a
+       data de abertura já entra */
+    return html.replace(/(<div class="tt">[\s\S]*?<\/div>)/, '$1' + selo);
+  };
+}
+
+/* e no card aberto */
+function mgDCSeloNoDetalhe(){
+  const linha = document.querySelector('#slide .slide-h .st-line');
+  if(!linha) return;
+  const velho = linha.querySelector('.mg-dc-selo');
+  if(velho) velho.remove();
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  const selo = t ? mgDCSeloHTML(t) : '';
+  if(selo) linha.insertAdjacentHTML('beforeend', selo);
+}
+
+/* ---------------------------------------------------------------------
+   Os botões e os cabeçalhos de bloco
+
+   A lista de subtarefas continua sendo desenhada por renderSubtasks, com
+   os manipuladores por índice que ela já usa. Os cabeçalhos entram depois,
+   como nós soltos entre as linhas: assim a ordem do array e os índices
+   seguem valendo, e a checklist manual continua funcionando igual.
+   --------------------------------------------------------------------- */
+function mgDCBotoesHTML(t){
+  const ativas = t.plataformas || [];
+  const podeMexer = (typeof isAdmin === 'function') ? isAdmin() : false;
+  const est = mgDCEstado(t);
+  const contagem = est.total
+    ? '<span class="cnt">' + est.feitos + '/' + est.total + ' conferidos</span>' : '';
+  const botoes = MG_DC_PLATS.map(p=>{
+    const on = ativas.indexOf(p.chave) >= 0;
+    return '<button class="mg-dc-plat ' + (on ? 'on' : '') + '"'
+      + (podeMexer ? '' : ' disabled')
+      + ' onclick="mgDCAlternar(\'' + escJS(p.chave) + '\')"'
+      + ' title="' + (on ? 'Tirar' : 'Abrir') + ' a checklist de ' + esc(p.nome) + '">'
+      + '<span class="pt"></span>' + esc(p.nome) + '</button>';
+  }).join('');
+  return '<div class="mg-dc-cab"><span class="tt">☑ Subtarefas Implementação/Double Check</span>'
+       + contagem + '</div>'
+       + '<div class="mg-dc-plats">' + botoes + '</div>';
+}
+
+function mgDCCabecalhos(){
+  const cx = document.getElementById('d-subs');
+  if(!cx) return;
+  cx.querySelectorAll('.mg-dc-bloco').forEach(e=>e.remove());
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  if(!t || mgDCInterno()) return;
+  const subs = t.subtasks || [];
+  const linhas = [...cx.children];
+  let bloco = null, plat = null;
+  subs.forEach((x, i)=>{
+    const linha = linhas[i];
+    if(!linha || !x) return;
+    const b = x.mgBloco || 'manual';
+    const p = x.mgPlat || '';
+    if(b === bloco && p === plat) return;
+    bloco = b; plat = p;
+    let rotulo = null, classe = '';
+    if(b === 'impl') rotulo = 'Implementação';
+    else if(b === 'dc' && !p) rotulo = 'Double check e ativação';
+    else if(b === 'dc' && p){ rotulo = MG_DC_NOME[p] || p; classe = ' plat' }
+    else if(b === 'fim') rotulo = 'Para todos';
+    else if(b === 'manual' && i > 0) rotulo = 'Outros itens';
+    if(!rotulo) return;
+    linha.insertAdjacentHTML('beforebegin',
+      '<div class="mg-dc-bloco' + classe + '">' + esc(rotulo) + '</div>');
+  });
+}
+
+/* os botões entram acima da lista, e o título antigo "Subtarefas" sai:
+   quem manda no título agora é o cabeçalho novo */
+function mgDCMontar(){
+  if(mgDCInterno()) return;
+  const cx = document.getElementById('d-subs');
+  if(!cx || cx.previousElementSibling && cx.previousElementSibling.classList.contains('mg-dc-plats')) {
+    mgDCCabecalhos(); return;
+  }
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  if(!t) return;
+  const titulo = cx.previousElementSibling;
+  if(titulo && titulo.classList.contains('sect-t')) titulo.remove();
+  cx.insertAdjacentHTML('beforebegin', mgDCBotoesHTML(t));
+  mgDCCabecalhos();
+}
+
+if(typeof renderSubtasks === 'function'){
+  const _rst = renderSubtasks;
+  window.renderSubtasks = renderSubtasks = function(t){
+    if(!mgDCInterno() || !t) return _rst.apply(this, arguments);
+    const visiveis = mgDCVisiveis(t);
+    if(visiveis.length === (t.subtasks||[]).length) return _rst.apply(this, arguments);
+    /* cópia rasa só para desenhar: os manipuladores por índice da versão de
+       admin não entram aqui, então filtrar não desalinha nada */
+    return _rst.call(this, Object.assign({}, t, {subtasks: visiveis}));
+  };
+}
+
+/* ---------------------------------------------------------------------
+   Ligar e desligar
+   --------------------------------------------------------------------- */
+async function mgDCAlternar(plat){
+  if(typeof isAdmin === 'function' && !isAdmin()) return;
+  const t = _curDetail(); if(!t || !MG_DC_NOME[plat]) return;
+  const ativas = new Set((t.plataformas || []).filter(p => MG_DC_NOME[p]));
+
+  if(ativas.has(plat)){
+    /* desligar leva os itens específicos embora. Se algum já foi conferido,
+       pergunta antes: a conferência é trabalho feito, não rascunho. */
+    const conferidos = (t.subtasks||[]).filter(
+      x => x && x.mgPlat === plat && x.done).length;
+    if(conferidos && !confirm(
+        'Tirar a checklist de ' + MG_DC_NOME[plat] + '?\n\n'
+      + conferidos + ' ' + (conferidos === 1 ? 'item já conferido será apagado.'
+                                             : 'itens já conferidos serão apagados.'))) return;
+    ativas.delete(plat);
+  } else {
+    ativas.add(plat);
+  }
+
+  t.plataformas = MG_DC_PLATS.map(p=>p.chave).filter(c => ativas.has(c));
+  mgDCSincronizar(t);
+
+  const {error} = await sb.from('tasks')
+    .update({plataformas: t.plataformas, subtasks: t.subtasks}).eq('id', t.id);
+  if(error){ toast('Não deu para salvar a checklist'); console.error(error); return }
+
+  if(typeof _skipRefreshUntil !== 'undefined') _skipRefreshUntil = Date.now() + 3000;
+  renderDetailBody();
+  try{ render() }catch(_){}
+  toast(ativas.has(plat)
+    ? 'Checklist de ' + MG_DC_NOME[plat] + ' aberta'
+    : 'Checklist de ' + MG_DC_NOME[plat] + ' removida');
+}
+window.mgDCAlternar = mgDCAlternar;
+
+/* ---------------------------------------------------------------------
+   Ligações
+
+   _reSubs redesenha só o innerHTML de #d-subs, então os cabeçalhos e o
+   selo precisam voltar depois dela. É o que mantém tudo coerente ao
+   marcar um item, sem redesenhar o painel inteiro.
+   --------------------------------------------------------------------- */
+if(typeof _reSubs === 'function'){
+  const _rs = _reSubs;
+  window._reSubs = _reSubs = function(t){
+    const r = _rs.apply(this, arguments);
+    try{ mgDCCabecalhos(); mgDCSeloNoDetalhe(); mgDCAtualizarContagem() }
+    catch(e){ console.warn('[double check]', e) }
+    return r;
+  };
+}
+function mgDCAtualizarContagem(){
+  const cab = document.querySelector('#slide .mg-dc-cab');
+  if(!cab) return;
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  if(!t) return;
+  const est = mgDCEstado(t);
+  let cnt = cab.querySelector('.cnt');
+  if(!est.total){ if(cnt) cnt.remove(); return }
+  if(!cnt){ cnt = document.createElement('span'); cnt.className = 'cnt'; cab.appendChild(cnt) }
+  cnt.textContent = est.feitos + '/' + est.total + ' conferidos';
+}
+
+/* marcar a implementação muda o card no quadro, então o quadro é
+   redesenhado. Só nesse caso: redesenhar a cada item da checklist seria
+   pagar caro por nada. */
+if(typeof toggleSub === 'function'){
+  const _ts = toggleSub;
+  window.toggleSub = toggleSub = function(i){
+    const t = _curDetail();
+    const item = t && t.subtasks && t.subtasks[i];
+    const mexeNoSelo = !!(item && (item.mgBloco === 'impl' || item.mgBloco === 'dc'
+                                   || item.mgBloco === 'fim'));
+    const antes = t ? mgDCEstado(t).aguardando : false;
+    const r = _ts.apply(this, arguments);
+    try{
+      if(mexeNoSelo && t && mgDCEstado(t).aguardando !== antes) render();
+    }catch(e){ console.warn('[double check · selo]', e) }
+    return r;
+  };
+}
+
+if(typeof renderDetailBody === 'function'){
+  const _rd = renderDetailBody;
+  window.renderDetailBody = renderDetailBody = function(){
+    const r = _rd.apply(this, arguments);
+    try{
+      /* o catálogo pode ter crescido desde a última vez que este card foi
+         aberto: sincronizar aqui traz o item novo sem migração */
+      const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+      const cx = document.getElementById('d-subs');
+      if(t && cx && !mgDCInterno() && (t.plataformas||[]).length){
+        const antes = JSON.stringify(t.subtasks || []);
+        mgDCSincronizar(t);
+        if(JSON.stringify(t.subtasks) !== antes){
+          cx.innerHTML = renderSubtasks(t);
+          sb.from('tasks').update({subtasks:t.subtasks}).eq('id', t.id).then(()=>{}, ()=>{});
+        }
+      }
+      mgDCMontar();
+      mgDCSeloNoDetalhe();
+    }catch(e){ console.warn('[double check]', e) }
+    return r;
+  };
+}
+
+/* expostos para os testes */
+window.mgDCEstado      = mgDCEstado;
+window.mgDCSincronizar = mgDCSincronizar;
+window.mgDCPlanejado   = mgDCPlanejado;
+window.MG_DC_PLATS     = MG_DC_PLATS;
+
+})();
+</script>
+
 </body>
 </html>

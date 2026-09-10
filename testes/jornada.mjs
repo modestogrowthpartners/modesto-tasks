@@ -2583,6 +2583,192 @@ ok('49i checklist longa rola por dentro e a anotação continua na tela',
    && layout.dentroDaTela && layout.grudada === 'sticky',
    JSON.stringify(layout));
 
+/* =====================================================================
+   50. Subtarefas Implementação/Double Check
+   ===================================================================== */
+await page.evaluate(async ()=>{
+  window.__FIX.tasks = (window.__FIX.tasks||[]).filter(t=>t.id!=='t-dc');
+  window.__FIX.tasks.push({id:'t-dc', client_id:'c-1', title:'Subir campanha de outubro',
+    description:'', status:'Não iniciado', priority:'Alta',
+    assignees:['Vinícius'], assignee_ids:['u-admin'], due:null, start_date:null,
+    recurrence:'none', subtasks:[{text:'item que eu escrevi à mão', done:false}],
+    plataformas:[], time_spent:0, timer_start:null,
+    position:98, created_at:'2026-09-02T10:00:00Z', updated_at:'2026-09-02T10:00:00Z',
+    completed_at:null, created_by:'u-admin',
+    archived:false, urgente:false, anexos:[], project_id:null});
+  await loadTasks(); render();
+});
+
+/* ---- 50. os cinco botões, dentro do título pedido ---- */
+const botoes = await page.evaluate(async ()=>{
+  await openDetail('t-dc');
+  await new Promise(r=>setTimeout(r,420));
+  const cab = document.querySelector('#slide .mg-dc-cab .tt');
+  const bs = [...document.querySelectorAll('#slide .mg-dc-plat')].map(b=>b.textContent.trim());
+  return {titulo: cab ? cab.textContent.trim() : '', botoes: bs,
+          ligados: [...document.querySelectorAll('#slide .mg-dc-plat.on')].length,
+          /* o campo de escrever item à mão continua ali */
+          manual: !!document.getElementById('d-sub-input')};
+});
+ok('50 os cinco botões aparecem sob o título de Implementação/Double Check',
+   /Subtarefas Implementação\/Double Check/.test(botoes.titulo)
+   && botoes.botoes.join('|') === 'Meta|Google|TikTok|Pinterest|Bing'
+   && botoes.ligados === 0 && botoes.manual,
+   JSON.stringify(botoes));
+
+/* ---- 50b. ligar o Meta abre os blocos na ordem certa ---- */
+const ligouMeta = await page.evaluate(async ()=>{
+  await mgDCAlternar('meta');
+  await new Promise(r=>setTimeout(r,520));
+  const t = TASKS.find(x=>x.id==='t-dc');
+  const blocos = [...document.querySelectorAll('#slide .mg-dc-bloco')].map(e=>e.textContent.trim());
+  const linhas = [...document.querySelectorAll('#slide #d-subs .sub .st')].map(e=>e.textContent.trim());
+  return {plataformas: t.plataformas,
+          blocos,
+          primeiro: linhas[0],
+          geral: linhas.filter(x=>x==='Nome da campanha no padrão').length,
+          meta: linhas.filter(x=>/Exclusões aplicadas/.test(x)).length,
+          fim: linhas.slice(-3),
+          /* o item escrito à mão não pode ter sumido nem mudado de lugar */
+          manualNoFim: linhas[linhas.length-1] === 'item que eu escrevi à mão',
+          total: linhas.length};
+});
+ok('50b ligar Meta abre implementação, geral, específico e "para todos"',
+   ligouMeta.plataformas.join() === 'meta'
+   && ligouMeta.primeiro === 'Implementação da campanha'
+   && ligouMeta.geral === 1 && ligouMeta.meta === 1
+   && ligouMeta.blocos.some(b=>/Implementação/i.test(b))
+   && ligouMeta.blocos.some(b=>/Double check e ativação/i.test(b))
+   && ligouMeta.blocos.some(b=>/^Meta$/.test(b))
+   && ligouMeta.blocos.some(b=>/Para todos/i.test(b))
+   && ligouMeta.fim.includes('Campanha Ativada')
+   && ligouMeta.manualNoFim
+   && ligouMeta.total === 1 + 10 + 2 + 2 + 1,
+   JSON.stringify(ligouMeta));
+
+/* ---- 50c. o selo laranja depende dos dois lados ---- */
+const selo = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-dc');
+  const antes = mgDCEstado(t).aguardando;
+  /* marca a implementação */
+  const i = t.subtasks.findIndex(x=>x.mgBloco==='impl');
+  toggleSub(i);
+  await new Promise(r=>setTimeout(r,320));
+  const noDetalhe = (document.querySelector('#slide .slide-h .mg-dc-selo')||{}).textContent || '';
+  await showView('board');
+  await new Promise(r=>setTimeout(r,420));
+  const card = document.querySelector('.card-t[data-id="t-dc"]');
+  const noCard = card ? (card.querySelector('.mg-dc-selo')||{}).textContent || '' : '';
+  const cor = card && card.querySelector('.mg-dc-selo')
+    ? getComputedStyle(card.querySelector('.mg-dc-selo')).backgroundColor : '';
+  /* conferindo tudo, o selo sai: selo que nunca some ninguém olha */
+  t.subtasks.forEach(x=>{ if(x.mgBloco==='dc'||x.mgBloco==='fim') x.done = true });
+  const depoisDeTudo = mgDCEstado(t).aguardando;
+  return {antes, noDetalhe, noCard, cor, depoisDeTudo};
+});
+ok('50c o selo laranja aparece após a implementação e some quando o check acaba',
+   selo.antes === false
+   && /aguardando double check/i.test(selo.noDetalhe)
+   && /aguardando double check/i.test(selo.noCard)
+   && selo.cor === 'rgb(224, 122, 31)'
+   && selo.depoisDeTudo === false,
+   JSON.stringify(selo));
+
+/* ---- 50d. segunda plataforma não duplica o que é comum ---- */
+const duas = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-dc');
+  t.subtasks.forEach(x=>{ if(x.mgBloco==='dc'||x.mgBloco==='fim') x.done = false });
+  const marcado = t.subtasks.find(x=>x.mgChave==='dc:geral:0');
+  marcado.done = true;                        /* já conferi este */
+  await openDetail('t-dc');
+  await new Promise(r=>setTimeout(r,380));
+  await mgDCAlternar('bing');
+  await new Promise(r=>setTimeout(r,520));
+  const t2 = TASKS.find(x=>x.id==='t-dc');
+  const linhas = t2.subtasks.map(x=>x.text);
+  return {plataformas: t2.plataformas,
+          geral: linhas.filter(x=>x==='Nome da campanha no padrão').length,
+          impl:  linhas.filter(x=>x==='Implementação da campanha').length,
+          fim:   linhas.filter(x=>x==='Campanha Ativada').length,
+          bing:  linhas.filter(x=>/Tag UET/.test(x)).length,
+          meta:  linhas.filter(x=>/Exclusões aplicadas/.test(x)).length,
+          /* o que já estava conferido continua conferido */
+          manteveCheck: !!(t2.subtasks.find(x=>x.mgChave==='dc:geral:0')||{}).done,
+          total: t2.subtasks.length};
+});
+ok('50d ligar a segunda plataforma soma só o específico dela e preserva o check',
+   duas.plataformas.join() === 'meta,bing'
+   && duas.geral === 1 && duas.impl === 1 && duas.fim === 1
+   && duas.bing === 1 && duas.meta === 1
+   && duas.manteveCheck
+   && duas.total === 1 + 10 + 2 + 8 + 2 + 1,
+   JSON.stringify(duas));
+
+/* ---- 50e. desligar leva só o específico, e avisa se tinha check ---- */
+const desligou = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-dc');
+  t.subtasks.find(x=>x.mgChave==='dc:bing:0').done = true;
+  let perguntou = false;
+  const _c = window.confirm;
+  window.confirm = (msg)=>{ perguntou = /Bing/.test(msg) && /1 item já conferido/.test(msg); return true };
+  await mgDCAlternar('bing');
+  await new Promise(r=>setTimeout(r,520));
+  window.confirm = _c;
+  const t2 = TASKS.find(x=>x.id==='t-dc');
+  const linhas = t2.subtasks.map(x=>x.text);
+  return {perguntou, plataformas: t2.plataformas,
+          bing: linhas.filter(x=>/Tag UET/.test(x)).length,
+          geral: linhas.filter(x=>x==='Nome da campanha no padrão').length,
+          meta: linhas.filter(x=>/Exclusões aplicadas/.test(x)).length,
+          manual: linhas.filter(x=>x==='item que eu escrevi à mão').length,
+          total: t2.subtasks.length};
+});
+ok('50e desligar Bing pergunta antes e tira só os itens dele',
+   desligou.perguntou && desligou.plataformas.join() === 'meta'
+   && desligou.bing === 0 && desligou.geral === 1 && desligou.meta === 1
+   && desligou.manual === 1
+   && desligou.total === 1 + 10 + 2 + 2 + 1,
+   JSON.stringify(desligou));
+
+/* ---- 50f. sem plataforma nenhuma, a demanda volta ao que era ---- */
+const zerou = await page.evaluate(async ()=>{
+  const _c = window.confirm; window.confirm = ()=>true;
+  await mgDCAlternar('meta');
+  await new Promise(r=>setTimeout(r,520));
+  window.confirm = _c;
+  const t = TASKS.find(x=>x.id==='t-dc');
+  const cx = document.getElementById('d-subs');
+  /* e dá para escrever item à mão do mesmo jeito */
+  const inp = document.getElementById('d-sub-input');
+  if(inp){ inp.value = 'outro item meu'; addSub(); }
+  await new Promise(r=>setTimeout(r,320));
+  const t2 = TASKS.find(x=>x.id==='t-dc');
+  return {plataformas: t2.plataformas,
+          itens: t2.subtasks.map(x=>x.text),
+          automaticos: t2.subtasks.filter(x=>x.mgChave).length,
+          blocos: cx ? cx.querySelectorAll('.mg-dc-bloco').length : -1};
+});
+ok('50f desligar tudo devolve a lista manual, e continua dando para escrever item',
+   zerou.plataformas.length === 0 && zerou.automaticos === 0
+   && zerou.itens.join('|') === 'item que eu escrevi à mão|outro item meu'
+   && zerou.blocos === 0,
+   JSON.stringify(zerou));
+
+/* ---- 50g. a checklist interna não vai para o cliente ---- */
+const noCliente = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-dc');
+  t.plataformas = ['google'];
+  mgDCSincronizar(t);
+  const _adm = window.isAdmin;
+  window.isAdmin = ()=>false;                 /* olhando com olho de cliente */
+  const html = renderSubtasks(t);
+  window.isAdmin = _adm;
+  return {temInterno: /Rede de Display|Nome da campanha no padrão/.test(html),
+          temManual: /item que eu escrevi à mão/.test(html)};
+});
+ok('50g o cliente não enxerga a conferência interna, só o item escrito à mão',
+   !noCliente.temInterno && noCliente.temManual, JSON.stringify(noCliente));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
