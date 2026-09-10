@@ -2774,10 +2774,13 @@ const cabe = await page.evaluate(async ()=>{
     return q.top >= c.top - 1 && q.bottom <= c.bottom + 1;
   }).length;
   const conferencia = linhas.filter(l=>l.classList.contains('mg-dc-simples'));
-  const alta = conferencia.map(l=>Math.round(l.getBoundingClientRect().height));
+  const alta = conferencia.map(l=>Math.round(l.getBoundingClientRect().height)).sort((x,y)=>x-y);
   const impl = linhas.find(l=>!l.classList.contains('mg-dc-simples'));
+  /* a mediana, e não o maior: item comprido quebra em duas linhas de
+     propósito, e reprovar por causa dele mediria o texto, não a densidade */
   return {itens: linhas.length, visiveis,
-          alturaDaConferencia: alta.length ? Math.max(...alta) : null,
+          alturaTipica: alta.length ? alta[Math.floor(alta.length/2)] : null,
+          alturaMaxima:  alta.length ? alta[alta.length-1] : null,
           /* responsável e prazo continuam onde foram pedidos: na
              implementação, e em quem for escrito à mão */
           implTemCampos: !!(impl && impl.querySelector('.mg-sub-campos .rs')),
@@ -2786,7 +2789,8 @@ const cabe = await page.evaluate(async ()=>{
 });
 ok('50h a checklist mostra vários itens de uma vez, e não um por vez',
    cabe.itens >= 15 && cabe.visiveis >= 8
-   && cabe.alturaDaConferencia !== null && cabe.alturaDaConferencia <= 40
+   && cabe.alturaTipica !== null && cabe.alturaTipica <= 40
+   && cabe.alturaMaxima <= 70          /* duas linhas, nunca as três de antes */
    && cabe.implTemCampos && cabe.conferenciaSemCampos,
    JSON.stringify(cabe));
 
