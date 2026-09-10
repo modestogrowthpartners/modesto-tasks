@@ -53,6 +53,29 @@ qualquer coisa, um dia divergiria do Slack e ninguém saberia em qual acreditar.
 Não precisa criar gatilho novo. O `rotinaDiaria` das 8h passa a alimentar as
 três saídas.
 
+## Se o canal recebe a mensagem e a tela de Pacing continua vazia
+
+Foi o que aconteceu em 09/09/2026: o canal `#controle-pacing-diario` do portal
+tinha as seis mensagens do dia e a tabela `public.pacing` estava sem uma linha.
+
+`sendPortal_` faz as duas coisas em sequência, mensagem primeiro e tabela
+depois, e cada bloco roda dentro do próprio `try`. Mensagem entrando e tabela
+não entrando significa que `portalPacing_` levantou erro. Olhe o log da
+execução: a falha aparece como `Portal, <conta>: supabase 4xx`.
+
+As duas causas prováveis, nesta ordem:
+
+1. **`SUPABASE_KEY` não é a `service_role`.** A tabela tinha RLS ligada e, até
+   10/09/2026, nenhuma policy de escrita. Com chave anônima ou publicável o
+   INSERT voltava 401/403. A migração
+   `20260910080000_mgp_pacing_aceita_escrita_da_equipe.sql` acrescentou as
+   policies de insert, update e delete para quem é da equipe, então uma chave
+   de usuário do time também grava. `service_role` continua sendo o certo para
+   um bot.
+2. **Índice único ausente.** O upsert manda `resolution=merge-duplicates` e
+   depende de um índice único em `(conta, dia)`. Ele existe, com o nome
+   `pacing_conta_dia_key`. Se algum dia sumir, o erro é `42P10`.
+
 ## Decisões que afetam o resultado
 
 **URL longa do QuickChart, não a curta.** O portal redesenha o gráfico com

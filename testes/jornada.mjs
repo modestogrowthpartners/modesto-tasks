@@ -2360,6 +2360,229 @@ const rajada = await page.evaluate(async ()=>{
 ok('48e oito eventos seguidos viram uma recarga só',
    rajada.recargas === 1, JSON.stringify(rajada));
 
+/* =====================================================================
+   49. Datas, autoria, menções e o sino no topo
+
+   Fixture própria: a t-1 passa por quarenta e oito casos antes de chegar
+   aqui e pode ter sido arquivada por qualquer um deles. Caso que depende
+   do estado deixado pelo vizinho quebra por motivo que não é o dele.
+   ===================================================================== */
+await page.evaluate(async ()=>{
+  window.__FIX.tasks = (window.__FIX.tasks||[]).filter(t=>t.id!=='t-aj');
+  window.__FIX.tasks.push({id:'t-aj', client_id:'c-1', title:'Demanda dos ajustes',
+    description:'sem menção nenhuma', status:'Não iniciado', priority:'Alta',
+    assignees:['Vinícius'], assignee_ids:['u-admin'], due:null, start_date:null,
+    recurrence:'none', subtasks:[{text:'sub', done:false}], time_spent:0, timer_start:null,
+    position:99, created_at:'2026-09-01T10:00:00Z', updated_at:'2026-09-01T10:00:00Z',
+    completed_at:null, created_by:'u-colega',
+    archived:false, urgente:false, anexos:[], project_id:null});
+  window.__FIX.task_mentions = [];
+  await loadTasks(); render();
+});
+
+/* ---- 49. início e prazo final no detalhe; abertura sem campo ---- */
+const datas = await page.evaluate(async ()=>{
+  await openDetail('t-aj');
+  await new Promise(r=>setTimeout(r,320));
+  const s = document.getElementById('slide');
+  const rot = [...s.querySelectorAll('.frow .fl')].map(e=>e.textContent.trim());
+  const ini = document.getElementById('d-start');
+  const fim = document.getElementById('d-due');
+  if(ini) ini.value = '2026-09-15';
+  if(fim) fim.value = '2026-09-30';
+  await saveDetail();
+  await new Promise(r=>setTimeout(r,320));
+  const t = TASKS.find(x=>x.id==='t-aj');
+  return {rot, temInicio:!!ini, temFim:!!fim,
+          gravouInicio: t.start_date, gravouFim: t.due,
+          /* a abertura não pode ter campo editável em lugar nenhum */
+          editaAbertura: !!s.querySelector('input[value*="2026-09-01"]')};
+});
+ok('49 início e prazo final são campos, e a abertura não é editável',
+   datas.temInicio && datas.temFim && datas.gravouInicio === '2026-09-15'
+   && datas.gravouFim === '2026-09-30' && !datas.editaAbertura
+   && datas.rot.includes('Início') && datas.rot.includes('Prazo final'),
+   JSON.stringify(datas));
+
+/* ---- 49b. recorrência mensal ---- */
+const mensal = await page.evaluate(async ()=>{
+  const sel = document.getElementById('d-rec');
+  const opts = sel ? [...sel.options].map(o=>o.value) : [];
+  /* 31/01 + 1 mês tem que cair em 28/02, e não em 03/03 */
+  await maybeRecur({id:'t-aj', client_id:'c-1', title:'Recorrente', description:'',
+                    priority:'Média', assignees:[], due:'2027-01-31', recurrence:'monthly'});
+  await new Promise(r=>setTimeout(r,260));
+  const nova = (window.__FIX.tasks||[]).filter(t=>t.title==='Recorrente').pop();
+  return {opts, prazo: nova && nova.due, criou: !!nova};
+});
+ok('49b recorrência tem Mensal, e o mês curto não vira 3 de março',
+   mensal.opts.includes('monthly') && mensal.criou && mensal.prazo === '2027-02-28',
+   JSON.stringify(mensal));
+
+/* ---- 49c. quem abriu aparece no card fechado e no aberto ---- */
+const autoria = await page.evaluate(async ()=>{
+  await showView('board');
+  await new Promise(r=>setTimeout(r,420));
+  const card = document.querySelector('.card-t[data-id="t-aj"]');
+  const fechado = card ? (card.querySelector('.mg-aberta')||{}).textContent || '' : '';
+  await openDetail('t-aj');
+  await new Promise(r=>setTimeout(r,340));
+  const linha = document.querySelector('#slide .slide-h .mg-abriu');
+  return {fechado, aberto: linha ? linha.textContent : '',
+          temFoto: !!(linha && linha.querySelector('.mgu-av'))};
+});
+ok('49c a data de abertura e quem abriu aparecem nos dois estados do card',
+   /Aberta em/.test(autoria.fechado) && /Elias/.test(autoria.fechado)
+   && /Aberta em/.test(autoria.aberto) && /Elias/.test(autoria.aberto)
+   && autoria.temFoto,
+   JSON.stringify(autoria));
+
+/* ---- 49d. cliente fora de responsáveis ---- */
+const semCliente = await page.evaluate(async ()=>{
+  await loadTeam(); buildAssigneeOptions();
+  const equipe = MGU.todos({equipe:true}).map(u=>u.nome);
+  return {opts: ASSIGNEE_OPTS.slice(),
+          time: TEAM.map(u=>u.nome),
+          equipe,
+          /* a Flavia existe no diretório, então o teste prova o filtro
+             e não a ausência do cadastro */
+          conhecida: !!MGU.get('Flavia')};
+});
+ok('49d cliente não entra na lista de responsáveis',
+   semCliente.conhecida
+   && !semCliente.opts.some(n=>/flavia/i.test(n))
+   && !semCliente.time.some(n=>/flavia/i.test(n))
+   && semCliente.opts.some(n=>/vin[íi]cius|elias/i.test(n)),
+   JSON.stringify(semCliente));
+
+/* ---- 49e. o @ abre a lista e insere o nome ---- */
+const arroba = await page.evaluate(async ()=>{
+  await openDetail('t-aj');
+  await new Promise(r=>setTimeout(r,340));
+  const ta = document.getElementById('d-note-input');
+  ta.focus(); ta.value = 'olha isso @el';
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  ta.dispatchEvent(new Event('input', {bubbles:true}));
+  await new Promise(r=>setTimeout(r,160));
+  /* rolar o painel não pode fechar a lista: focar a caixa já rola sozinho,
+     e era isso que matava a lista no mesmo quadro em que ela nascia */
+  const painel = document.querySelector('#slide .slide-b');
+  if(painel){ painel.scrollTop = painel.scrollTop + 30;
+              painel.dispatchEvent(new Event('scroll', {bubbles:true})); }
+  await new Promise(r=>setTimeout(r,120));
+  const cx = document.querySelector('.mg-arroba');
+  const aberta = !!(cx && cx.classList.contains('on'));
+  const nomes = cx ? [...cx.querySelectorAll('.it .nm')].map(e=>e.textContent) : [];
+  const it = cx && cx.querySelector('.it');
+  if(it) it.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+  await new Promise(r=>setTimeout(r,120));
+  const depois = ta.value;
+  window.mgArrobaFechar();
+  return {aberta, nomes, depois,
+          /* eu mesmo não entro na lista: marcar a si próprio não avisa ninguém */
+          temEu: nomes.some(n=>/vin[íi]cius/i.test(n))};
+});
+ok('49e digitar @ abre a lista do time e o clique insere o nome',
+   arroba.aberta && arroba.nomes.some(n=>/Elias/.test(n)) && !arroba.temEu
+   && /@Elias\s$/.test(arroba.depois),
+   JSON.stringify(arroba));
+
+/* ---- 49f. a menção grava e o aviso chega ---- */
+const mencao = await page.evaluate(async ()=>{
+  await openDetail('t-aj');
+  await new Promise(r=>setTimeout(r,340));
+  const ta = document.getElementById('d-note-input');
+  ta.value = '@Elias confere o pixel, por favor';
+  const vis = document.getElementById('d-note-vis'); if(vis) vis.value = 'equipe';
+  await addNote();
+  await new Promise(r=>setTimeout(r,420));
+  const linhas = (window.__FIX.task_mentions||[]);
+  return {gravadas: linhas.length,
+          alvo: linhas[0] && linhas[0].alvo_id,
+          origem: linhas[0] && linhas[0].origem,
+          trecho: linhas[0] && linhas[0].trecho};
+});
+ok('49f marcar alguém na anotação grava a menção para essa pessoa',
+   mencao.gravadas === 1 && mencao.alvo === 'u-colega' && mencao.origem === 'nota'
+   && /pixel/.test(mencao.trecho||''),
+   JSON.stringify(mencao));
+
+const chegou = await page.evaluate(async ()=>{
+  document.querySelectorAll('.mg-aviso').forEach(e=>e.remove());
+  /* um aviso endereçado a outra pessoa não pode aparecer para mim */
+  window.__disparar('task_mentions','INSERT',{id:'me-x', task_id:'t-aj', alvo_id:'u-outro',
+    autor_id:'u-colega', autor_nome:'Elias Braga', trecho:'não é para você', lida:false,
+    created_at:new Date().toISOString()});
+  await new Promise(r=>setTimeout(r,220));
+  const alheio = document.querySelectorAll('.mg-aviso').length;
+
+  window.__disparar('task_mentions','INSERT',{id:'me-1', task_id:'t-aj', alvo_id: ME.id,
+    autor_id:'u-colega', autor_nome:'Elias Braga', trecho:'dá uma olhada nisso', lida:false,
+    created_at:new Date().toISOString()});
+  await new Promise(r=>setTimeout(r,320));
+  const cartao = document.querySelector('.mg-aviso');
+  return {alheio,
+          meu: !!cartao,
+          titulo: cartao ? (cartao.querySelector('.tt')||{}).textContent : '',
+          corpo:  cartao ? (cartao.querySelector('.cp')||{}).textContent : '',
+          noSino: (NOTIFS||[]).some(i=>/marcou você/.test(i.text||''))};
+});
+ok('49g o aviso de menção chega na tela e no sino, e só para quem foi marcado',
+   chegou.alheio === 0 && chegou.meu && /Elias/.test(chegou.titulo)
+   && /marcou você/.test(chegou.titulo) && /olhada/.test(chegou.corpo) && chegou.noSino,
+   JSON.stringify(chegou));
+
+/* ---- 49h. o sino é um só, e fica no topo ---- */
+const sino = await page.evaluate(async ()=>{
+  await showView('board');
+  await new Promise(r=>setTimeout(r,420));
+  updateNotifBadge();
+  const b = document.getElementById('notif-btn');
+  const r = b ? b.getBoundingClientRect() : null;
+  const dock = document.querySelector('.mg-dock');
+  return {temTopo: !!b,
+          rotulo: b ? b.textContent.replace(/\s+/g,' ').trim() : '',
+          acimaDoMeio: !!(r && r.top < window.innerHeight/2),
+          sinoNaBarra: !!(dock && /mgTocarNotifs/.test(dock.innerHTML)),
+          sinosNaBarra: dock ? (dock.innerHTML.match(/🔔/g)||[]).length : 0};
+});
+ok('49h o sino fica no topo com rótulo, e sai da barra de baixo',
+   sino.temTopo && /Avisos/.test(sino.rotulo) && sino.acimaDoMeio
+   && !sino.sinoNaBarra && sino.sinosNaBarra === 0,
+   JSON.stringify(sino));
+
+/* ---- 49i. checklist longa não empurra a caixa de anotação ---- */
+const layout = await page.evaluate(async ()=>{
+  const t = TASKS.find(x=>x.id==='t-aj');
+  const guarda = t.subtasks;
+  t.subtasks = Array.from({length:24}, (_,i)=>({text:'item '+(i+1), done:false}));
+  await openDetail('t-aj');
+  await new Promise(r=>setTimeout(r,420));
+  const subs = document.querySelector('#slide .mg-det-col .subs');
+  const form = document.querySelector('#slide .note-form');
+  const notas = document.querySelector('#slide #d-notes');
+  const corpo = document.querySelector('#slide .slide-b');
+  const r = form ? form.getBoundingClientRect() : null;
+  const rn = notas ? notas.getBoundingClientRect() : null;
+  const saida = {
+    subsRola: !!(subs && subs.scrollHeight > subs.clientHeight + 4),
+    /* a caixa de escrever tem que ficar logo abaixo das anotações,
+       não lá no fim da coluna */
+    distancia: (r && rn) ? Math.round(r.top - rn.bottom) : null,
+    /* e tem que estar na tela com o painel no topo, sem rolar nada:
+       era isso que faltava quando a checklist ficava longa */
+    dentroDaTela: !!(r && r.top < window.innerHeight && r.bottom > 0),
+    grudada: form ? getComputedStyle(form).position : null,
+    rolagemDoCorpo: corpo ? Math.round(corpo.scrollHeight - corpo.clientHeight) : null
+  };
+  t.subtasks = guarda;
+  return saida;
+});
+ok('49i checklist longa rola por dentro e a anotação continua na tela',
+   layout.subsRola && layout.distancia !== null && layout.distancia < 60
+   && layout.dentroDaTela && layout.grudada === 'sticky',
+   JSON.stringify(layout));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

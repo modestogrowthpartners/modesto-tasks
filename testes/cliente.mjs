@@ -89,20 +89,28 @@ const doc = await page.evaluate(()=>({
 }));
 ok('5  documentos da empresa', doc.n === 1 && doc.titulo === 'Doc Teste', JSON.stringify(doc));
 
-/* ---- 6. barra de baixo do cliente: dois destinos, sem Kronos ---- */
+/* ---- 6. barra de baixo do cliente: dois destinos, sem Kronos e sem sino ----
+   O sino saiu da barra e passou a viver no topo, para o cliente também: era
+   ter dois que fazia ninguém enxergar nenhum. */
 const dock = await page.evaluate(()=>{
   if(typeof mgDock === 'function') mgDock();
+  if(typeof updateNotifBadge === 'function') updateNotifBadge();
   const d = document.getElementById('mg-dock');
   const itens = [...d.querySelectorAll('#mg-dock-itens button')].map(b=>b.textContent.trim());
+  const topo = document.getElementById('notif-btn');
+  const r = topo ? topo.getBoundingClientRect() : null;
   return {itens,
-          navegacao: itens.filter(t=>!/^🔔/.test(t)),
-          sino: itens.some(t=>/^🔔/.test(t)),
+          navegacao: itens.filter(t=>!/🔔/.test(t)),
+          sinoNaBarra: itens.some(t=>/🔔/.test(t)),
+          sinoNoTopo: !!(r && r.width > 0 && r.height > 0 && r.top < window.innerHeight/2),
+          rotuloDoSino: topo ? topo.textContent.replace(/\s+/g,' ').trim() : '',
           kronos: !!document.getElementById('mg-kronos-b'),
           menuDaEquipe: !!document.getElementById('mg-menu-b')};
 });
-ok('6  barra com Início, MGP Chat e sino, sem Kronos',
+ok('6  barra com Início e MGP Chat, sem Kronos; o sino fica no topo',
    dock.navegacao.length === 2 && /Início/.test(dock.navegacao[0]) && /MGP Chat/.test(dock.navegacao[1])
-   && dock.sino && !dock.kronos && !dock.menuDaEquipe, JSON.stringify(dock));
+   && !dock.sinoNaBarra && dock.sinoNoTopo && /Avisos/.test(dock.rotuloDoSino)
+   && !dock.kronos && !dock.menuDaEquipe, JSON.stringify(dock));
 
 /* ---- 7. o cliente não alcança as telas da equipe ---- */
 const barrado = await page.evaluate(async ()=>{

@@ -1225,7 +1225,10 @@ async function loadTasks(){
   TASKS=data||[];
 }
 let TEAM=[]; let ASSIGNEE_OPTS=[]; let _selAssignees=[];
-async function loadTeam(){ if(!isAdmin()){TEAM=[];return} const {data}=await sb.from('profiles').select('id,nome,role'); TEAM=data||[]; }
+async function loadTeam(){ if(!isAdmin()){TEAM=[];return}
+  /* só quem é do time vira responsável: cliente com login não entra */
+  const {data}=await sb.from('profiles').select('id,nome,role').in('role',['admin','equipe']);
+  TEAM=data||[]; }
 function firstName(n){return (n||'').trim().split(/\s+/)[0];}
 function buildAssigneeOptions(){
   const m=new Map();
@@ -1501,7 +1504,7 @@ function taskCard(t,accent){
     <div class="tt">${esc(t.title)}</div>
     <div class="card-meta">
       <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${mgUrlImagem(clientLogo(t.client_id))}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
-      ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${t.recurrence==='daily'?'Diária':'Semanal'}</span>`:''}
+      ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${({daily:'Diária',weekly:'Semanal',monthly:'Mensal'})[t.recurrence]||'Semanal'}</span>`:''}
       ${(t.subtasks&&t.subtasks.length)?(()=>{const d=t.subtasks.filter(x=>x.done).length,tt=t.subtasks.length;return `<span class="sub-prog ${d===tt?'full':''}">☑ ${d}/${tt}</span>`;})():''}
     </div>
     <div class="card-foot">
@@ -1667,9 +1670,10 @@ function renderDetailBody(){
       <div class="frow"><span class="fl">Status</span>${statusField}</div>
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
       <div class="frow" style="align-items:flex-start"><span class="fl">Responsáveis</span>${admin?`<div id="asg-pick">${assigneePickerHTML()}</div>`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
-      <div class="frow"><span class="fl">Prazo</span>${admin?`<input class="fld" type="date" id="d-due" value="${t.due||''}">`:`<span>${t.due?fmtDate(t.due):'—'}</span>`}</div>
+      <div class="frow"><span class="fl">Início</span>${admin?`<input class="fld" type="date" id="d-start" value="${t.start_date||''}">`:`<span>${t.start_date?fmtDate(t.start_date):'—'}</span>`}</div>
+      <div class="frow"><span class="fl">Prazo final</span>${admin?`<input class="fld" type="date" id="d-due" value="${t.due||''}">`:`<span>${t.due?fmtDate(t.due):'—'}</span>`}</div>
       ${t.completed_at?`<div class="frow"><span class="fl">Concluída em</span><span style="color:var(--st-fin);font-weight:600">✓ ${new Date(t.completed_at).toLocaleDateString('pt-BR')}</span></div>`:''}
-      <div class="frow"><span class="fl">Recorrência</span>${admin?`<select class="fld" id="d-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal']].map(([v,l])=>`<option value="${v}" ${t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select>`:`<span>${({none:'—',daily:'Diária',weekly:'Semanal'}[t.recurrence||'none'])}</span>`}</div>
+      <div class="frow"><span class="fl">Recorrência</span>${admin?`<select class="fld" id="d-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal'],['monthly','Mensal']].map(([v,l])=>`<option value="${v}" ${t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select>`:`<span>${({none:'—',daily:'Diária',weekly:'Semanal',monthly:'Mensal'}[t.recurrence||'none'])||'—'}</span>`}</div>
       ${admin?`<div style="margin-top:10px"><div class="fl" style="margin-bottom:6px">Descrição</div><textarea class="fld" id="d-desc" placeholder="Descreva com o máximo de detalhes: contexto, objetivo, links, passos e critérios de conclusão…" style="min-height:150px;line-height:1.6">${esc(t.description)}</textarea></div>`
               :(t.description?`<div style="margin-top:14px"><div class="fl" style="margin-bottom:6px">Descrição</div><div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap">${esc(t.description)}</div></div>`:'')}
       ${(()=>{const e=estimateFor(t);return e?`<div style="display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);border-radius:10px;padding:10px 13px"><span style="font-size:15px">📊</span><span>Estimativa automática: <b style="color:var(--text)">~${fmtDur(e.sec)}</b> · com base em ${e.n} demanda(s) parecida(s)</span></div>`:''})()}
@@ -1750,6 +1754,7 @@ async function saveDetail(){
     status:$('d-status').value,
     priority:$('d-prio').value,
     assignees:[..._selAssignees],
+    start_date:($('d-start')||{}).value||null,
     due:$('d-due').value||null,
     recurrence:$('d-rec').value,
     description:$('d-desc').value,
@@ -1789,14 +1794,27 @@ async function changeStatus(t,status){
    ===================================================================== */
 async function maybeRecur(t){
   if(!t.recurrence||t.recurrence==='none')return;
-  const base=t.due?new Date(t.due):new Date();
-  base.setDate(base.getDate()+(t.recurrence==='weekly'?7:1));
-  const nextDue=base.toISOString().slice(0,10);
+  const base=t.due?new Date(t.due+'T12:00:00'):new Date();
+  /* setMonth cuida sozinho do mês curto: 31/01 + 1 mês cai em 03/03, então
+     a gente prende no último dia do mês de destino. */
+  if(t.recurrence==='monthly'){
+    const dia=base.getDate(), alvo=new Date(base.getTime());
+    alvo.setDate(1); alvo.setMonth(alvo.getMonth()+1);
+    const ultimo=new Date(alvo.getFullYear(), alvo.getMonth()+1, 0).getDate();
+    alvo.setDate(Math.min(dia, ultimo));
+    base.setTime(alvo.getTime());
+  } else {
+    base.setDate(base.getDate()+(t.recurrence==='weekly'?7:1));
+  }
+  /* montado a partir das partes locais: toISOString converte para UTC e,
+     num fuso à frente, devolveria o dia anterior */
+  const nextDue=base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')
+               +'-'+String(base.getDate()).padStart(2,'0');
   await sb.from('tasks').insert({
     client_id:t.client_id,title:t.title,description:t.description,status:'Não iniciado',
     priority:t.priority,assignees:t.assignees,due:nextDue,recurrence:t.recurrence,
   });
-  toast('♻︎ Próxima recorrência criada ('+(t.recurrence==='weekly'?'+7 dias':'+1 dia')+')');
+  toast('♻︎ Próxima recorrência criada ('+({daily:'+1 dia',weekly:'+7 dias',monthly:'+1 mês'}[t.recurrence]||'+1 dia')+')');
 }
 
 /* =====================================================================
@@ -1815,9 +1833,10 @@ function openTaskModal(id=null,status=null){
       <div><label>Status</label><select class="fld" id="m-status">${COLS.map(c=>`<option ${((t&&t.status)||status||'Não iniciado')===c.key?'selected':''}>${c.key}</option>`).join('')}</select></div>
       <div><label>Prioridade</label><select class="fld" id="m-prio">${['Alta','Média','Baixa'].map(p=>`<option ${t&&t.priority===p?'selected':(!t&&p==='Média'?'selected':'')}>${p}</option>`).join('')}</select></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div><label>Prazo</label><input class="fld" type="date" id="m-due" value="${t?(t.due||''):''}"></div>
-      <div><label>Recorrência</label><select class="fld" id="m-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal']].map(([v,l])=>`<option value="${v}" ${t&&t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div><label>Início</label><input class="fld" type="date" id="m-start" value="${t?(t.start_date||''):''}"></div>
+      <div><label>Prazo final</label><input class="fld" type="date" id="m-due" value="${t?(t.due||''):''}"></div>
+      <div><label>Recorrência</label><select class="fld" id="m-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal'],['monthly','Mensal']].map(([v,l])=>`<option value="${v}" ${t&&t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select></div>
     </div>
     <label>Responsáveis</label><div id="asg-pick">${assigneePickerHTML()}</div>
     <label>Descrição</label><textarea class="fld" id="m-desc" placeholder="Detalhes…">${t?esc(t.description):''}</textarea>
@@ -1833,6 +1852,7 @@ async function saveTask(id){
     client_id:$('m-client').value,
     status:$('m-status').value,
     priority:$('m-prio').value,
+    start_date:($('m-start')||{}).value||null,
     due:$('m-due').value||null,
     recurrence:$('m-rec').value,
     assignees:[..._selAssignees],
@@ -26020,6 +26040,626 @@ if(typeof boot === 'function'){
   const _boot = boot;
   boot = async function(){ const r = await _boot.apply(this, arguments); mgVivoLigar(); return r };
 }
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · datas, autoria, menções e o sino no topo
+
+   Sete ajustes pedidos de uma vez. O que muda de comportamento, e por quê,
+   está comentado no bloco de script abaixo.
+   ===================================================================== */
+
+/* --- quem abriu, ao lado de quando abriu --- */
+.mg-abriu{display:block;font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+.mg-abriu b{color:var(--text);font-weight:600}
+.mg-abriu .mgu-av{vertical-align:-4px;margin-right:5px}
+
+/* --- lista do @ --- */
+.mg-arroba{position:fixed;z-index:120;min-width:210px;max-width:280px;max-height:236px;overflow:auto;
+  background:var(--card);border:1px solid var(--line2);border-radius:11px;padding:5px;
+  box-shadow:0 18px 44px -12px rgba(0,0,0,.34);display:none}
+.mg-arroba.on{display:block}
+.mg-arroba .it{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+  cursor:pointer;font-size:13px}
+.mg-arroba .it.sel,.mg-arroba .it:hover{background:rgba(194,161,91,.14)}
+.mg-arroba .it .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-arroba .vazio{padding:9px 10px;font-size:12px;color:var(--muted)}
+
+/* --- o @ escrito aparece marcado na anotação já salva --- */
+.mg-mencao{background:rgba(194,161,91,.20);color:var(--brass2);border-radius:5px;
+  padding:0 4px;font-weight:600}
+.mg-mencao.eu{background:rgba(194,161,91,.42);color:var(--ink2)}
+
+/* --- o topo volta a existir, só para o sino ---
+   A barra de cima inteira estava escondida desde que a de baixo virou a
+   única (body.mg-sem-topo). O sino continuava lá dentro, invisível, e por
+   isso o único que se via era o da barra preta. Em vez de trazer a barra
+   de volta com tudo, ela reaparece como uma faixa fina que carrega só o
+   sino, alinhado à direita. */
+body.mg-sem-topo .topbar{display:flex!important;background:transparent;
+  border-bottom:0;padding:12px 24px 0;min-height:0;gap:0}
+body.mg-sem-topo .topbar > *{display:none!important}
+body.mg-sem-topo .topbar .spacer{display:block!important;flex:1}
+body.mg-sem-topo .topbar #notif-btn{display:inline-flex!important}
+body.mg-sem-topo .content{padding-top:14px}
+/* o painel de avisos volta a sair de baixo do sino, e não de cima da barra */
+body.mg-sem-topo #notif-panel{top:60px;bottom:auto;right:24px}
+@media(max-width:760px){
+  body.mg-sem-topo #notif-panel{top:56px;bottom:auto;left:12px;right:12px;width:auto}
+}
+/* no chat a faixa fica mais rente: o conteúdo vai de ponta a ponta e cada
+   pixel de altura sai da conversa. O sino continua ali, que é onde o
+   cliente passa o dia. */
+body.mg-sem-topo.mg-e-chat .topbar{padding:8px 20px 0}
+
+/* --- sino grande no topo, e nenhum sino na barra de baixo --- */
+.topbar #notif-btn{position:relative;display:inline-flex;align-items:center;gap:7px;
+  font-size:17px;line-height:1;padding:9px 13px;border-radius:11px}
+.topbar #notif-btn .mg-sino-rot{font-size:12.5px;font-weight:600;letter-spacing:.2px}
+.topbar #notif-btn.tem{border-color:var(--brass);background:rgba(194,161,91,.12);color:var(--brass2)}
+.topbar #notif-badge{position:static;min-width:19px;height:19px;padding:0 6px;border-radius:10px;
+  background:var(--danger);color:#fff;font-size:11px;font-weight:700;
+  display:inline-grid;place-items:center}
+@keyframes mgSinoBate{
+  0%,100%{transform:rotate(0)}
+  15%{transform:rotate(-14deg)}35%{transform:rotate(11deg)}
+  55%{transform:rotate(-7deg)}75%{transform:rotate(4deg)}
+}
+.topbar #notif-btn.bate .mg-sino-ic{display:inline-block;transform-origin:50% 12%;
+  animation:mgSinoBate .75s ease-in-out 2}
+@media(max-width:860px){.topbar #notif-btn .mg-sino-rot{display:none}}
+@media (prefers-reduced-motion:reduce){.topbar #notif-btn.bate .mg-sino-ic{animation:none}}
+
+/* --- muita subtarefa não empurra mais a caixa de anotação para o rodapé ---
+   As duas colunas cresciam livres, então uma checklist longa esticava a
+   grade inteira e a caixa de escrever, que estava colada embaixo por
+   margin-top:auto, ia junto. Agora cada lista rola por dentro e as duas
+   colunas começam no mesmo lugar. */
+.mg-det-col .subs{max-height:270px;overflow:auto;padding-right:4px}
+/* a caixa de escrever gruda no fim do painel: com checklist longa ela
+   continuava existindo, só que fora da tela, e era preciso rolar tudo para
+   comentar. Grudada, ela está sempre ali, e a lista de anotações rola atrás. */
+.mg-det-col .note-form{margin-top:14px;position:sticky;bottom:0;z-index:2;
+  background:var(--paper);padding:10px 0 2px;
+  box-shadow:0 -10px 16px -12px rgba(0,0,0,.28)}
+.mg-det-col .timebox{margin-top:14px}
+.mg-det-grade{align-items:start}
+@media(max-width:960px){
+  .mg-det-col .subs{max-height:none;overflow:visible}
+  .mg-det-col .note-form{position:static;box-shadow:none}
+}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · datas, autoria, menções e o sino no topo
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   1. Quem abriu o card, ao lado de quando abriu
+
+   `created_at` e `created_by` já existiam e o banco preenche os dois
+   sozinho. Faltava mostrar o segundo. A data de abertura continua sendo
+   só leitura em qualquer tela: quem edita data agora edita `start_date`
+   e `due`, que são outra coisa.
+   --------------------------------------------------------------------- */
+function mgQuemAbriu(t){
+  if(!t || !t.created_by) return null;
+  try{
+    if(typeof MGU === 'undefined' || !MGU.get) return null;
+    return MGU.get(t.created_by) || null;
+  }catch(_){ return null }
+}
+
+function mgAberturaHTML(t, opc){
+  if(!t || !t.created_at) return '';
+  const o = opc || {};
+  const d = new Date(t.created_at);
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const data = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
+  const quanto = dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : 'há ' + dias + ' dias';
+  const u = mgQuemAbriu(t);
+  let porQuem = '';
+  if(u){
+    /* o avatar do MGU já vem escapado: não passa por esc() de novo */
+    const foto = (o.foto && MGU.avatar)
+      ? MGU.avatar(u, {tam:16, forma:'redondo', titulo:u.nome}) : '';
+    porQuem = ' · por ' + foto + '<b>' + esc(u.primeiro || u.nome) + '</b>';
+  }
+  const classe = o.classe || 'mg-aberta';
+  return '<span class="' + classe + '">Aberta em <b>' + data + '</b> · ' + quanto + porQuem + '</span>';
+}
+
+/* o card fechado passa a trazer o nome junto */
+if(typeof mgAbertaEm === 'function'){
+  window.mgAbertaEm = mgAbertaEm = function(t){ return mgAberturaHTML(t, {foto:false}) };
+}
+
+/* e o card aberto passa a trazer a mesma linha, que antes não tinha */
+function mgAberturaNoDetalhe(){
+  const linha = document.querySelector('#slide .slide-h .st-line');
+  if(!linha || linha.querySelector('.mg-abriu')) return;
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === DETAIL_ID);
+  const html = mgAberturaHTML(t, {foto:true, classe:'mg-abriu'});
+  if(html) linha.insertAdjacentHTML('beforeend', html);
+}
+
+/* ---------------------------------------------------------------------
+   2. Menção com @
+
+   Quem pode ser marcado é só o time. Cliente não entra nem na lista nem
+   no aviso: a anotação pública dele vira mensagem no MGP Chat, que é
+   outro caminho.
+   --------------------------------------------------------------------- */
+function mgTime(){
+  try{
+    if(typeof MGU === 'undefined' || !MGU.todos) return [];
+    return MGU.todos({equipe:true}).filter(u => u.nome);
+  }catch(_){ return [] }
+}
+function mgSemAcento(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+/* @fulano -> pessoa. Casa pelo primeiro nome, que é como o time se
+   chama, e cai para o nome inteiro quando o primeiro não basta. */
+function mgLerMencoes(texto){
+  const time = mgTime();
+  if(!time.length) return [];
+  const achados = new Map();
+  const arrobas = String(texto||'').match(/@([\p{L}][\p{L}0-9._-]*)/gu) || [];
+  arrobas.forEach(a=>{
+    const alvo = mgSemAcento(a.slice(1));
+    if(alvo.length < 2) return;
+    const u = time.find(x => mgSemAcento(x.primeiro) === alvo)
+           || time.find(x => mgSemAcento(x.nome).replace(/\s+/g,'') === alvo)
+           || time.find(x => mgSemAcento(x.primeiro).startsWith(alvo) && alvo.length >= 3);
+    if(u && !achados.has(u.id)) achados.set(u.id, u);
+  });
+  return [...achados.values()];
+}
+window.mgLerMencoes = mgLerMencoes;
+
+/* --- a listinha que aparece ao digitar @ --- */
+let mgArrobaCx = null, mgArrobaAlvo = null, mgArrobaLista = [], mgArrobaSel = 0;
+
+function mgArrobaCaixa(){
+  if(mgArrobaCx && mgArrobaCx.isConnected) return mgArrobaCx;
+  mgArrobaCx = document.createElement('div');
+  mgArrobaCx.className = 'mg-arroba';
+  document.body.appendChild(mgArrobaCx);
+  return mgArrobaCx;
+}
+function mgArrobaFechar(){
+  const c = mgArrobaCx;
+  if(c) c.classList.remove('on');
+  mgArrobaAlvo = null; mgArrobaLista = []; mgArrobaSel = 0;
+}
+/* o pedaço que está sendo digitado, do @ até o cursor */
+function mgArrobaTermo(el){
+  const antes = el.value.slice(0, el.selectionStart);
+  const m = antes.match(/(?:^|[\s(\[])@([\p{L}0-9._-]*)$/u);
+  return m ? m[1] : null;
+}
+function mgArrobaDesenhar(){
+  const c = mgArrobaCaixa();
+  if(!mgArrobaLista.length){
+    c.innerHTML = '<div class="vazio">Ninguém do time com esse nome.</div>';
+    return;
+  }
+  c.innerHTML = mgArrobaLista.map((u,i)=>{
+    const av = (typeof MGU !== 'undefined' && MGU.avatar)
+      ? MGU.avatar(u, {tam:22, forma:'redondo'}) : '';
+    return '<div class="it ' + (i===mgArrobaSel?'sel':'') + '" data-i="' + i + '">'
+         + av + '<span class="nm">' + esc(u.nome) + '</span></div>';
+  }).join('');
+}
+function mgArrobaPosicionar(){
+  const c = mgArrobaCx, el = mgArrobaAlvo;
+  if(!c || !el || !c.classList.contains('on')) return;
+  const r = el.getBoundingClientRect();
+  if(r.bottom < 0 || r.top > window.innerHeight){ mgArrobaFechar(); return }
+  const cabeEmbaixo = (window.innerHeight - r.bottom) > 130;
+  c.style.left = Math.round(Math.min(r.left, window.innerWidth - 290)) + 'px';
+  c.style.top  = cabeEmbaixo
+    ? Math.round(r.bottom + 6) + 'px'
+    : Math.round(Math.max(8, r.top - Math.min(236, 6 + 40*mgArrobaLista.length))) + 'px';
+}
+function mgArrobaAbrir(el, termo){
+  const time = mgTime().filter(u => !(typeof ME !== 'undefined' && ME && u.id === ME.id));
+  const t = mgSemAcento(termo);
+  mgArrobaLista = (t ? time.filter(u => mgSemAcento(u.nome).includes(t)) : time).slice(0, 8);
+  mgArrobaAlvo = el;
+  mgArrobaSel = 0;
+  const c = mgArrobaCaixa();
+  mgArrobaDesenhar();
+  c.classList.add('on');
+  /* abre embaixo da caixa; se não couber, abre em cima */
+  mgArrobaPosicionar();
+}
+function mgArrobaEscolher(i){
+  const el = mgArrobaAlvo, u = mgArrobaLista[i];
+  if(!el || !u) return;
+  const fim = el.selectionStart;
+  const antes = el.value.slice(0, fim);
+  const m = antes.match(/@([\p{L}0-9._-]*)$/u);
+  if(!m){ mgArrobaFechar(); return }
+  const inicio = fim - m[0].length;
+  const nome = '@' + String(u.primeiro || u.nome).trim().split(/\s+/)[0] + ' ';
+  el.value = el.value.slice(0, inicio) + nome + el.value.slice(fim);
+  const pos = inicio + nome.length;
+  el.setSelectionRange(pos, pos);
+  el.focus();
+  mgArrobaFechar();
+}
+
+/* uma escuta só, no documento: qualquer caixa de texto de demanda serve,
+   inclusive as que ainda vão ser desenhadas */
+function mgCaixaDeMencao(el){
+  if(!el || el.tagName !== 'TEXTAREA') return false;
+  return ['d-desc','d-note-input','m-desc'].indexOf(el.id) >= 0;
+}
+document.addEventListener('input', e=>{
+  const el = e.target;
+  if(!mgCaixaDeMencao(el)) return mgArrobaFechar();
+  const termo = mgArrobaTermo(el);
+  if(termo === null) return mgArrobaFechar();
+  mgArrobaAbrir(el, termo);
+});
+document.addEventListener('keydown', e=>{
+  if(!mgArrobaCx || !mgArrobaCx.classList.contains('on')) return;
+  if(e.target !== mgArrobaAlvo) return;
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    if(!mgArrobaLista.length) return;
+    mgArrobaSel = (mgArrobaSel + (e.key === 'ArrowDown' ? 1 : -1) + mgArrobaLista.length) % mgArrobaLista.length;
+    mgArrobaDesenhar();
+    return;
+  }
+  if(e.key === 'Enter' || e.key === 'Tab'){
+    if(!mgArrobaLista.length) return;
+    e.preventDefault();
+    mgArrobaEscolher(mgArrobaSel);
+    return;
+  }
+  if(e.key === 'Escape'){ e.preventDefault(); mgArrobaFechar() }
+}, true);
+document.addEventListener('mousedown', e=>{
+  if(mgArrobaCx && mgArrobaCx.contains(e.target)){
+    const it = e.target.closest('.it');
+    if(it){ e.preventDefault(); mgArrobaEscolher(Number(it.dataset.i)) }
+    return;
+  }
+  if(e.target !== mgArrobaAlvo) mgArrobaFechar();
+});
+/* rolar acompanha a caixa em vez de fechar a lista: focar a caixa de texto
+   já rola o painel sozinho, e fechar aqui matava a lista no mesmo quadro em
+   que ela nascia */
+window.addEventListener('scroll', mgArrobaPosicionar, true);
+window.addEventListener('resize', mgArrobaPosicionar);
+
+/* --- gravar as menções --- */
+async function mgGravarMencoes(taskId, texto, origem, noteId){
+  if(typeof ME === 'undefined' || !ME || !ME.id) return 0;
+  const gente = mgLerMencoes(texto).filter(u => u.id !== ME.id);
+  if(!gente.length) return 0;
+  const trecho = String(texto||'').replace(/\s+/g,' ').trim().slice(0, 180);
+  const linhas = gente.map(u=>({
+    task_id: taskId, note_id: noteId || null, origem: origem || 'nota',
+    autor_id: ME.id, autor_nome: ME.name, alvo_id: u.id, trecho
+  }));
+  try{
+    const {error} = await sb.from('task_mentions').insert(linhas);
+    if(error){ console.warn('[menção]', error); return 0 }
+  }catch(e){ console.warn('[menção]', e); return 0 }
+  toast(gente.length === 1
+    ? '@' + (gente[0].primeiro || gente[0].nome) + ' foi avisado'
+    : gente.length + ' pessoas foram avisadas');
+  return gente.length;
+}
+
+/* anotação: o texto some da caixa quando a original roda, então ele é
+   guardado antes */
+if(typeof addNote === 'function'){
+  const _an = addNote;
+  window.addNote = addNote = async function(){
+    const inp = document.getElementById('d-note-input');
+    const texto = inp ? inp.value : '';
+    const id = DETAIL_ID;
+    const antes = (typeof _notes !== 'undefined' && _notes) ? _notes.length : 0;
+    const r = await _an.apply(this, arguments);
+    try{
+      if(texto && mgLerMencoes(texto).length){
+        const nova = (typeof _notes !== 'undefined' && _notes && _notes.length > antes)
+          ? _notes[_notes.length - 1] : null;
+        await mgGravarMencoes(id, texto, 'nota', nova && nova.id);
+      }
+    }catch(e){ console.warn('[menção · nota]', e) }
+    return r;
+  };
+}
+
+/* descrição: só avisa quem passou a estar citado agora, senão cada
+   salvamento reavisaria as mesmas pessoas */
+if(typeof saveDetail === 'function'){
+  const _sd = saveDetail;
+  window.saveDetail = saveDetail = async function(){
+    const id = DETAIL_ID;
+    const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === id);
+    const antes = t ? new Set(mgLerMencoes(t.description || '').map(u=>u.id)) : new Set();
+    const campo = document.getElementById('d-desc');
+    const depois = campo ? mgLerMencoes(campo.value) : [];
+    const novos = depois.filter(u => !antes.has(u.id));
+    const r = await _sd.apply(this, arguments);
+    try{
+      if(novos.length){
+        const so = novos.map(u => '@' + (u.primeiro || u.nome)).join(' ');
+        await mgGravarMencoes(id, so, 'descricao', null);
+      }
+    }catch(e){ console.warn('[menção · descrição]', e) }
+    return r;
+  };
+}
+
+/* a janela de nova demanda também marca: a descrição dela é o primeiro
+   lugar onde alguém escreve "@fulano, cuida disso" */
+if(typeof saveTask === 'function'){
+  const _sv = saveTask;
+  window.saveTask = saveTask = async function(id){
+    const campo = document.getElementById('m-desc');
+    const texto = campo ? campo.value : '';
+    const t = id ? (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === id) : null;
+    const antes = t ? new Set(mgLerMencoes(t.description || '').map(u=>u.id)) : new Set();
+    const titulo = (document.getElementById('m-title')||{}).value || '';
+    const empresa = (document.getElementById('m-client')||{}).value || '';
+    const novos = mgLerMencoes(texto).filter(u => !antes.has(u.id));
+    const r = await _sv.apply(this, arguments);
+    try{
+      if(!novos.length) return r;
+      /* na criação o id só existe depois: a original insere sem devolver a
+         linha, então a demanda é reencontrada pelo título e pela empresa */
+      let alvo = id;
+      if(!alvo){
+        const cand = (typeof TASKS !== 'undefined' && TASKS || [])
+          .filter(x => x.title === titulo.trim() && String(x.client_id) === String(empresa))
+          .sort((a,b)=> String(b.created_at||'').localeCompare(String(a.created_at||'')));
+        alvo = cand[0] && cand[0].id;
+      }
+      if(alvo) await mgGravarMencoes(alvo, novos.map(u=>'@'+(u.primeiro||u.nome)).join(' '),
+                                     'descricao', null);
+    }catch(e){ console.warn('[menção · nova demanda]', e) }
+    return r;
+  };
+}
+
+/* --- a menção aparece marcada no texto já salvo --- */
+function mgPintarMencoes(){
+  const eu = (typeof ME !== 'undefined' && ME) ? mgSemAcento((ME.name||'').split(' ')[0]) : '';
+  document.querySelectorAll('#slide .note .nb:not([data-mg-arroba])').forEach(el=>{
+    el.setAttribute('data-mg-arroba','1');
+    if(el.textContent.indexOf('@') < 0) return;
+    /* texto com link fica como está: o @ de um endereço dentro de um href
+       viraria marcação e quebraria o link */
+    if(el.querySelector('a')) return;
+    el.innerHTML = el.innerHTML.replace(/@([\p{L}][\p{L}0-9._-]*)/gu, (todo, nome)=>{
+      const meu = eu && mgSemAcento(nome) === eu;
+      return '<span class="mg-mencao ' + (meu ? 'eu' : '') + '">' + todo + '</span>';
+    });
+  });
+}
+
+/* ---------------------------------------------------------------------
+   3. O aviso de menção: na hora, e no sino
+   --------------------------------------------------------------------- */
+let MG_MENCOES = [];
+
+async function mgCarregarMencoes(){
+  if(typeof ME === 'undefined' || !ME || !ME.id) return;
+  try{
+    const {data, error} = await sb.from('task_mentions')
+      .select('*').eq('alvo_id', ME.id)
+      .order('created_at', {ascending:false}).limit(40);
+    if(error) return;
+    MG_MENCOES = data || [];
+  }catch(_){}
+}
+
+function mgAvisarMencao(m){
+  const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === m.task_id);
+  const quem = m.autor_nome || 'Alguém';
+  let retrato = '';
+  try{
+    if(typeof MGU !== 'undefined' && MGU.avatar)
+      retrato = MGU.avatar({id:m.autor_id, nome:quem}, {tam:34, forma:'quadrado', classe:'av'});
+  }catch(_){}
+  if(typeof mgAvisoNaTela === 'function'){
+    mgAvisoNaTela({
+      avatar: retrato,
+      iniciais: quem.slice(0,1).toUpperCase(),
+      titulo: quem + ' marcou você',
+      corpo: m.trecho || '',
+      onde: t ? t.title : 'numa demanda',
+      aoClicar: ()=>{ try{ openDetail(m.task_id) }catch(_){} }
+    });
+  }
+  if(typeof mgAvisoDoNavegador === 'function')
+    mgAvisoDoNavegador(quem + ' marcou você', (t ? t.title + ' · ' : '') + (m.trecho||''));
+}
+
+let mgCanalMencoes = null;
+function mgLigarMencoes(){
+  if(mgCanalMencoes || typeof ME === 'undefined' || !ME || !ME.id) return;
+  try{
+    mgCanalMencoes = sb.channel('mgp-mencoes')
+      .on('postgres_changes',
+          {event:'INSERT', schema:'public', table:'task_mentions', filter:'alvo_id=eq.' + ME.id},
+          p=>{
+            try{
+              MG_MENCOES.unshift(p.new);
+              mgAvisarMencao(p.new);
+              if(typeof buildNotifs === 'function') buildNotifs();
+              if(typeof updateNotifBadge === 'function') updateNotifBadge();
+            }catch(e){ console.warn('[menção · aviso]', e) }
+          })
+      .subscribe();
+  }catch(e){ console.warn('[menção · canal]', e) }
+}
+
+/* o sino passa a listar menção junto com o resto */
+if(typeof buildNotifs === 'function'){
+  const _bn = buildNotifs;
+  window.buildNotifs = buildNotifs = function(){
+    const r = _bn.apply(this, arguments);
+    try{
+      if(!Array.isArray(NOTIFS) || typeof ME === 'undefined' || !ME) return r;
+      const visto = localStorage.getItem('mgp_notif_seen') || '';
+      MG_MENCOES.forEach(m=>{
+        const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === m.task_id);
+        NOTIFS.push({
+          ts: m.created_at, icon:'📣', taskId: m.task_id,
+          text: '<b>' + esc(m.autor_nome || 'Alguém') + '</b> marcou você em '
+              + esc(t ? t.title : 'uma demanda'),
+          unread: !m.lida && (!visto || new Date(m.created_at) > new Date(visto))
+        });
+      });
+      NOTIFS.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+    }catch(e){ console.warn('[menção · sino]', e) }
+    return r;
+  };
+}
+
+/* abrir o sino marca as menções como lidas */
+if(typeof toggleNotifs === 'function'){
+  const _tn = toggleNotifs;
+  window.toggleNotifs = toggleNotifs = async function(e){
+    const r = await _tn.apply(this, arguments);
+    try{
+      const abrindo = document.getElementById('notif-panel');
+      if(abrindo && abrindo.classList.contains('on')){
+        const naoLidas = MG_MENCOES.filter(m => !m.lida).map(m => m.id);
+        if(naoLidas.length){
+          MG_MENCOES.forEach(m => { m.lida = true });
+          sb.from('task_mentions').update({lida:true}).in('id', naoLidas).then(()=>{}, ()=>{});
+        }
+      }
+    }catch(_){}
+    return r;
+  };
+}
+
+/* ---------------------------------------------------------------------
+   4. O sino sai da barra preta e vira botão de verdade no topo
+
+   Ele já existia no topo, mas era um ícone pequeno sem rótulo, do mesmo
+   tamanho dos outros, e a cópia dele na barra de baixo era a que se via.
+   Fica uma só, em cima, com o número ao lado do ícone.
+   --------------------------------------------------------------------- */
+function mgSinoNoTopo(){
+  const b = document.getElementById('notif-btn');
+  if(!b) return;
+  if(!b.querySelector('.mg-sino-ic')){
+    const badge = document.getElementById('notif-badge');
+    b.innerHTML = '<span class="mg-sino-ic">🔔</span><span class="mg-sino-rot">Avisos</span>';
+    if(badge) b.appendChild(badge);
+    else b.insertAdjacentHTML('beforeend',
+      '<span class="notif-badge" id="notif-badge" style="display:none">0</span>');
+  }
+  const n = (typeof NOTIFS !== 'undefined' && NOTIFS)
+    ? NOTIFS.filter(i => i.unread).length : 0;
+  const tinha = b.classList.contains('tem');
+  b.classList.toggle('tem', n > 0);
+  if(n > 0 && !tinha){
+    b.classList.remove('bate');
+    void b.offsetWidth;              /* reinicia a animação */
+    b.classList.add('bate');
+    setTimeout(()=>b.classList.remove('bate'), 1700);
+  }
+}
+if(typeof updateNotifBadge === 'function'){
+  const _ub = updateNotifBadge;
+  window.updateNotifBadge = updateNotifBadge = function(){
+    const r = _ub.apply(this, arguments);
+    try{ mgSinoNoTopo() }catch(e){ console.warn('[sino]', e) }
+    return r;
+  };
+}
+
+/* e some da barra de baixo: ter dois sinos era o que fazia o de cima
+   passar despercebido */
+if(typeof mgDockItens === 'function'){
+  const _di = mgDockItens;
+  window.mgDockItens = mgDockItens = function(){
+    let html = '';
+    try{ html = _di.apply(this, arguments) || '' }catch(_){ return '' }
+    /* tira só o botão do sino, pelo onclick que é dele */
+    return html.replace(/<button onclick="mgTocarNotifs\(event\)"[\s\S]*?<\/button>/g, '');
+  };
+}
+
+/* ---------------------------------------------------------------------
+   5. Cliente não aparece em "Responsáveis"
+
+   A lista nasce de duas fontes: o time carregado do banco e os nomes que
+   já estão gravados nas demandas. A primeira agora só traz equipe; a
+   segunda passa a descartar quem o diretório reconhece como cliente.
+   --------------------------------------------------------------------- */
+if(typeof buildAssigneeOptions === 'function'){
+  const _bo = buildAssigneeOptions;
+  window.buildAssigneeOptions = buildAssigneeOptions = function(){
+    const r = _bo.apply(this, arguments);
+    try{
+      if(typeof ASSIGNEE_OPTS === 'undefined' || !Array.isArray(ASSIGNEE_OPTS)) return r;
+      if(typeof MGU === 'undefined' || !MGU.get) return r;
+      ASSIGNEE_OPTS = ASSIGNEE_OPTS.filter(n=>{
+        const u = MGU.get(n);
+        /* nome que o diretório não conhece continua na lista: é o caso do
+           time antigo, sem cadastro, que ainda responde por demanda */
+        return !(u && u.ehCliente);
+      });
+    }catch(e){ console.warn('[responsáveis]', e) }
+    return r;
+  };
+}
+
+/* ---------------------------------------------------------------------
+   6. Ligações
+   --------------------------------------------------------------------- */
+if(typeof renderDetailBody === 'function'){
+  const _rd = renderDetailBody;
+  window.renderDetailBody = renderDetailBody = function(){
+    const r = _rd.apply(this, arguments);
+    try{ mgAberturaNoDetalhe() }catch(e){ console.warn('[abertura]', e) }
+    try{ mgPintarMencoes() }catch(e){ console.warn('[menção · pintar]', e) }
+    return r;
+  };
+}
+
+function mgDemandasArrancar(){
+  if(typeof ME === 'undefined' || !ME || !ME.id) return false;
+  mgLigarMencoes();
+  mgCarregarMencoes().then(()=>{
+    try{ buildNotifs(); updateNotifBadge() }catch(_){}
+  });
+  try{ mgSinoNoTopo() }catch(_){}
+  return !!mgCanalMencoes;
+}
+(function procurar(n){
+  if(mgDemandasArrancar()) return;
+  if(n > 75) return;                      /* ~30 s e desiste */
+  setTimeout(()=>procurar(n+1), 400);
+})(0);
+
+/* expostos para os testes */
+window.mgAberturaHTML   = mgAberturaHTML;
+window.mgGravarMencoes  = mgGravarMencoes;
+window.mgCarregarMencoes= mgCarregarMencoes;
+window.mgSinoNoTopo     = mgSinoNoTopo;
+window.mgArrobaFechar   = mgArrobaFechar;
+window.mgArrobaPosicionar = mgArrobaPosicionar;
+window.mgPintarMencoes  = mgPintarMencoes;
 
 })();
 </script>

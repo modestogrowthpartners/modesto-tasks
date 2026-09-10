@@ -17,6 +17,7 @@
             priority:'Alta',assignees:['Vinícius','Renato'],assignee_ids:[UID],due:'2026-09-10',recurrence:'none',
             subtasks:[{text:'sub',done:false}],time_spent:120,timer_start:null,position:10,
             created_at:'2026-09-01T10:00:00Z',updated_at:'2026-09-02T10:00:00Z',completed_at:null,
+            created_by:UID2,start_date:null,
             archived:false,urgente:false,anexos:[],project_id:'p-1'}],
     projects:[{id:'p-1',client_id:CID,nome:'Projeto Teste',cor:'#C7871E'}],
     documents:[{id:'d-1',client_id:CID,titulo:'Doc Teste',tipo:'apresentacao',
@@ -33,6 +34,7 @@
     task_notes:[{id:'n-1', task_id:'t-1', author_id:UID2, author_name:'Elias Braga',
                  body:'ajustei as mensagens do bot', visibility:'public', anexos:[],
                  created_at:'2026-09-02T11:00:00Z'}],
+    task_mentions:[],
     briefings:[],
     media_plans:[{id:'mp-1', client_id:CID, plano:{verba_total:50000}, atualizado_em:'2026-09-01T10:00:00Z'}],
     pacing:[
@@ -109,8 +111,12 @@
     const filtros=[];
     const api={};
     const passa=r=>filtros.every(([c,v])=>String(r[c])===String(v));
-    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','is','in']
+    ['select','order','limit','range','not','or','contains','overlaps','match','ilike','like','is']
       .forEach(m=>api[m]=()=>api);
+    /* `in` de verdade: era um no-op, então o filtro por papel do loadTeam
+       passava batido e o teste não provava nada */
+    api.in=(c,vs)=>{ const S=new Set((vs||[]).map(String));
+      rows=rows.filter(r=>S.has(String(r[c]))); return api };
     api.eq=(c,v)=>{ filtros.push([c,v]); return api };
     /* gt e gte de verdade: sem eles o sync incremental do app devolvia a
        tabela inteira e o teste não provava nada */
@@ -158,6 +164,12 @@
       const cfg = (typeof f==='object' && f) ? f : {};
       if(cfg.table && cfg.table!==tabela) return;
       if(cfg.event && cfg.event!=='*' && cfg.event!==evento) return;
+      /* filter:'coluna=eq.valor' era ignorado, e por isso um aviso de
+         outra pessoa chegava em todo mundo dentro do teste */
+      if(cfg.filter && linha){
+        const m = String(cfg.filter).match(/^([\w.]+)=eq\.(.*)$/);
+        if(m && String(linha[m[1]]) !== m[2]) return;
+      }
       const cb = (typeof g==='function') ? g : (typeof f==='function' ? f : null);
       if(cb) cb({eventType:evento, new:evento==='DELETE'?null:linha, old:evento==='DELETE'?linha:null});
     }));

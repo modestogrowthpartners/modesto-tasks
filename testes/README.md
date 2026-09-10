@@ -3,10 +3,17 @@
 Playwright com um Supabase dublê. Sem rede, sem banco real.
 
 ```
-node testes/jornada.mjs     # 23 casos de ponta a ponta
-node testes/regressao.mjs <arquivo.html> > snap.json   # retrato das 14 telas
-node testes/xss.mjs <arquivo.html>                     # injeção por nome e por avatar
+node testes/jornada.mjs                    # jornada de ponta a ponta
+node testes/cliente.mjs                    # o que o cliente vê e o que não vê
+node testes/regressao.mjs /caminho/absoluto/index.html > snap.json   # retrato das 14 telas
+node testes/xss.mjs       /caminho/absoluto/index.html               # injeção por nome e por avatar
 ```
+
+O `regressao` e o `xss` abrem o arquivo por `file://`, então o caminho
+precisa ser **absoluto**. Com caminho relativo o Playwright tenta
+`file://undefined/` e o erro que aparece (`ERR_INVALID_URL`) não diz que o
+problema é esse. O `jornada` e o `cliente` servem por HTTP e não precisam
+de argumento.
 
 ## `stub.js`
 
