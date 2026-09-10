@@ -64,8 +64,9 @@ ponte até a rota A estar no ar, e confira o resultado nas primeiras semanas.
 **Otimizações da semana.** O que o time mexeu nas contas de mídia,
 puxado do histórico de alterações de cada plataforma.
 
-**Tarefas da semana.** O que andou no MGP Tasks, puxado do Supabase
-(`eeqaabwsheaiwyhujcqj`).
+**Tarefas da semana.** Só o que foi **concluído dentro da semana**, puxado do
+Supabase (`eeqaabwsheaiwyhujcqj`): o número de cards concluídos por cliente e,
+abaixo, a lista deles. Tarefa aberta não entra.
 
 Nos dois blocos os clientes aparecem sempre na mesma ordem, a mesma do
 `contas.json`: Wondr, Barbie, Amakha, Alliance, Meu Rodapé, D&G, Dabela,
