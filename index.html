@@ -1147,11 +1147,14 @@ function assigneePickerHTML(){
 }
 function toggleAssignee(n){const i=_selAssignees.findIndex(x=>x.toLowerCase()===n.toLowerCase());
   if(i>=0)_selAssignees.splice(i,1);else _selAssignees.push(n);
-  const el=$('asg-pick');if(el)el.innerHTML=assigneePickerHTML();}
+  /* todos os seletores da tela, e não "o primeiro com este id": a janela de
+     nova demanda e o painel de detalhe desenham um cada, e o do painel vem
+     antes no documento */
+  document.querySelectorAll('.mg-resp-host').forEach(el=>{el.innerHTML=assigneePickerHTML()});}
 function addCustomAssignee(){const n=prompt('Nome do responsável:');if(n&&n.trim()){const v=n.trim();
   if(!_selAssignees.some(x=>x.toLowerCase()===v.toLowerCase()))_selAssignees.push(v);
   if(!ASSIGNEE_OPTS.some(x=>x.toLowerCase()===v.toLowerCase()))ASSIGNEE_OPTS.push(v);
-  const el=$('asg-pick');if(el)el.innerHTML=assigneePickerHTML();}}
+  document.querySelectorAll('.mg-resp-host').forEach(el=>{el.innerHTML=assigneePickerHTML()});}}
 /* estimativa automática de tempo por semelhança de título */
 const STOP=new Set('de da do das dos para por com no na nos nas em ao dos que uma um the of and to in for'.split(' '));
 function tokz(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>2&&!STOP.has(w));}
@@ -1669,7 +1672,7 @@ function renderDetailBody(){
     <div class="slide-b">
       <div class="frow"><span class="fl">Status</span>${statusField}</div>
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
-      <div class="frow" style="align-items:flex-start"><span class="fl">Responsáveis</span>${admin?`<div id="asg-pick">${assigneePickerHTML()}</div>`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
+      <div class="frow" style="align-items:flex-start"><span class="fl">Responsáveis</span>${admin?`<div class="mg-resp-host">${assigneePickerHTML()}</div>`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
       <div class="frow"><span class="fl">Início</span>${admin?`<input class="fld" type="date" id="d-start" value="${t.start_date||''}">`:`<span>${t.start_date?fmtDate(t.start_date):'—'}</span>`}</div>
       <div class="frow"><span class="fl">Prazo final</span>${admin?`<input class="fld" type="date" id="d-due" value="${t.due||''}">`:`<span>${t.due?fmtDate(t.due):'—'}</span>`}</div>
       ${t.completed_at?`<div class="frow"><span class="fl">Concluída em</span><span style="color:var(--st-fin);font-weight:600">✓ ${new Date(t.completed_at).toLocaleDateString('pt-BR')}</span></div>`:''}
@@ -1838,7 +1841,7 @@ function openTaskModal(id=null,status=null){
       <div><label>Prazo final</label><input class="fld" type="date" id="m-due" value="${t?(t.due||''):''}"></div>
       <div><label>Recorrência</label><select class="fld" id="m-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal'],['monthly','Mensal']].map(([v,l])=>`<option value="${v}" ${t&&t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select></div>
     </div>
-    <label>Responsáveis</label><div id="asg-pick">${assigneePickerHTML()}</div>
+    <label>Responsáveis</label><div class="mg-resp-host">${assigneePickerHTML()}</div>
     <label>Descrição</label><textarea class="fld" id="m-desc" placeholder="Detalhes…">${t?esc(t.description):''}</textarea>
     <div class="modal-actions">
       <button class="btn-save" onclick="saveTask(${t?`'${escJS(t.id)}'`:'null'})">${t?'Salvar':'Criar demanda'}</button>
@@ -9129,13 +9132,41 @@ function mgMinhaTarefa(t){
   const _bt = boot;
   boot = async function(){ const r = await _bt(); MG_FOTO_TASKS = mgFotoTasks(); return r };
 })();
-/* preferência liga/desliga */
+/* preferência liga/desliga
+
+   Esta declaração apagava, em silêncio, a mgAlternarSom(v) de cima e o
+   embrulho que redesenhava as Configurações. Declaração de função é
+   içada e vale quando o bloco de script é lido, então a última lida
+   ganhava, e ela não recebia argumento.
+
+   O estrago era visível: os dois botões das Configurações chamam
+   mgAlternarSom('on') e mgAlternarSom('off'), o valor era ignorado e a
+   função apenas invertia o que estivesse valendo. Pedir "Ligado" com o
+   som ligado desligava. E como MG_SOM_KEY nunca era gravado,
+   mgSomLigado() ficava preso no mesmo valor e o botão marcado nunca
+   mudava de lado.
+
+   Agora é uma função só, que aceita o valor pedido, alterna quando vem
+   sem valor, e mantém as duas guardas em dia: MG_SOM_KEY, que é quem o
+   aviso do chat consulta, e PREFS.som, que é quem o aviso de demanda
+   consulta. Elas se contradiziam desde que a segunda nasceu. */
 if(typeof PREFS==='object' && PREFS && PREFS.som===undefined){ PREFS.som='on'; }
-function mgAlternarSom(){
-  PREFS.som = (PREFS.som==='off') ? 'on' : 'off';
+function mgAlternarSom(v){
+  const alvo = (v === 'on' || v === 'off')
+    ? v
+    : ((typeof PREFS==='object' && PREFS && PREFS.som==='off') ? 'on' : 'off');
+
+  if(typeof PREFS==='object' && PREFS) PREFS.som = alvo;
   if(typeof savePrefs==='function') savePrefs();
-  if(PREFS.som==='on') mgSom('nova');
-  toast(PREFS.som==='on' ? 'Som das demandas ligado' : 'Som das demandas desligado');
+  try{ localStorage.setItem(MG_SOM_KEY, alvo) }catch(_){}
+  document.querySelectorAll('[data-som-op]').forEach(b=>
+    b.classList.toggle('on', b.getAttribute('data-som-op') === alvo));
+  try{ if(document.getElementById('mg-cfg')
+        && document.getElementById('mg-cfg').classList.contains('on')
+        && typeof mgDesenhaPref === 'function') mgDesenhaPref() }catch(_){}
+
+  if(alvo === 'on' && typeof mgSom === 'function') mgSom('nova');
+  toast(alvo === 'on' ? 'Som dos avisos ligado' : 'Som dos avisos desligado');
 }
 
 </script>
@@ -27105,6 +27136,408 @@ window.mgDCEstado      = mgDCEstado;
 window.mgDCSincronizar = mgDCSincronizar;
 window.mgDCPlanejado   = mgDCPlanejado;
 window.MG_DC_PLATS     = MG_DC_PLATS;
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · seletor de responsáveis
+
+   O defeito: a janela de nova demanda e o painel de detalhe desenhavam,
+   os dois, uma div com id="asg-pick". getElementById devolve o primeiro do
+   documento, e o painel vem antes da janela no HTML. Clicar num nome na
+   janela redesenhava o picker escondido do painel: o nome entrava na
+   lista, e a tela não mudava. Só acontecia depois de abrir uma demanda
+   alguma vez na sessão, que é o caminho de todo dia.
+
+   A correção não depende mais de id nenhum, e a lista de nomes vira um
+   seletor que abre, com foto e busca.
+   ===================================================================== */
+
+.mg-resp{position:relative;min-width:0}
+.mg-resp-btn{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:var(--card);border:1px solid var(--line);border-radius:9px;
+  padding:7px 11px;font-family:inherit;font-size:13.5px;color:var(--text);
+  cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.mg-resp-btn:hover{border-color:var(--brass)}
+.mg-resp-btn.aberto{border-color:var(--brass);box-shadow:0 0 0 3px rgba(194,161,91,.14)}
+.mg-resp-btn .lista{flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.mg-resp-btn .vazio{color:var(--muted2)}
+.mg-resp-btn .seta{color:var(--muted2);font-size:11px;flex-shrink:0}
+.mg-resp-eti{display:inline-flex;align-items:center;gap:5px;background:rgba(194,161,91,.16);
+  color:var(--brass2);border-radius:999px;padding:2px 9px 2px 3px;font-size:12px;font-weight:600;
+  max-width:100%}
+.mg-resp-eti .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-resp-eti .mgu-av{flex-shrink:0}
+
+.mg-resp-lista{position:fixed;z-index:130;width:268px;max-height:308px;overflow:auto;
+  background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:6px;
+  box-shadow:0 22px 52px -14px rgba(0,0,0,.38);display:none}
+.mg-resp-lista.on{display:block}
+.mg-resp-lista .busca{width:100%;background:var(--card2);border:1px solid var(--line2);
+  border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13px;color:var(--text);
+  margin-bottom:5px}
+.mg-resp-lista .busca:focus{outline:none;border-color:var(--brass)}
+.mg-resp-lista .it{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+  cursor:pointer;font-size:13.5px}
+.mg-resp-lista .it:hover{background:var(--card2)}
+.mg-resp-lista .it.on{background:rgba(194,161,91,.14);color:var(--brass2);font-weight:600}
+.mg-resp-lista .it .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-resp-lista .it .ck{width:15px;text-align:center;color:var(--brass2);flex-shrink:0}
+.mg-resp-lista .it:not(.on) .ck{opacity:0}
+.mg-resp-lista .nada{padding:10px;font-size:12.5px;color:var(--muted);text-align:center}
+.mg-resp-lista .outro{width:100%;margin-top:4px;background:none;border:1px dashed var(--line2);
+  border-radius:8px;padding:7px;font-family:inherit;font-size:12.5px;font-weight:600;
+  color:var(--muted);cursor:pointer}
+.mg-resp-lista .outro:hover{border-color:var(--brass);color:var(--brass2)}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · DEMANDAS · seletor de responsáveis
+   ===================================================================== */
+(function(){
+
+function mgRespSel(){
+  return (typeof _selAssignees !== 'undefined' && _selAssignees) ? _selAssignees : [];
+}
+function mgRespOpts(){
+  return (typeof ASSIGNEE_OPTS !== 'undefined' && ASSIGNEE_OPTS) ? ASSIGNEE_OPTS : [];
+}
+function mgRespMarcado(n){
+  return mgRespSel().some(x => String(x).toLowerCase() === String(n).toLowerCase());
+}
+function mgRespFoto(n, tam){
+  try{
+    if(typeof MGU !== 'undefined' && MGU.avatar) return MGU.avatar(n, {tam: tam || 20, titulo: n});
+  }catch(_){}
+  return '';
+}
+
+/* O botão. Não leva id: era o id repetido que quebrava tudo. */
+function mgRespEtiquetasHTML(){
+  const sel = mgRespSel();
+  return sel.length
+    ? sel.map(n => '<span class="mg-resp-eti">' + mgRespFoto(n, 18)
+                 + '<span class="nm">' + esc(n) + '</span></span>').join('')
+    : '<span class="vazio">Escolher responsáveis</span>';
+}
+function mgRespBotaoHTML(){
+  return '<div class="mg-resp" data-mg-resp>'
+       + '<button type="button" class="mg-resp-btn" onclick="mgRespAbrir(event)">'
+       + '<span class="lista">' + mgRespEtiquetasHTML() + '</span><span class="seta">▾</span>'
+       + '</button></div>';
+}
+
+/* Uma lista só, no body, para os dois lugares que usam o seletor. */
+let mgRespCx = null, mgRespDono = null, mgRespFiltro = '';
+
+function mgRespCaixa(){
+  if(mgRespCx && mgRespCx.isConnected) return mgRespCx;
+  mgRespCx = document.createElement('div');
+  mgRespCx.className = 'mg-resp-lista';
+  document.body.appendChild(mgRespCx);
+  return mgRespCx;
+}
+function mgRespFechar(){
+  if(mgRespCx) mgRespCx.classList.remove('on');
+  document.querySelectorAll('.mg-resp-btn.aberto').forEach(b=>b.classList.remove('aberto'));
+  mgRespDono = null; mgRespFiltro = '';
+}
+function mgRespDesenharLista(){
+  const c = mgRespCaixa();
+  const f = mgRespFiltro.toLowerCase();
+  const gente = mgRespOpts().filter(n => !f || String(n).toLowerCase().includes(f));
+  const itens = gente.length
+    ? gente.map(n => '<div class="it ' + (mgRespMarcado(n) ? 'on' : '') + '"'
+        + ' onmousedown="event.preventDefault();mgRespEscolher(\'' + escJS(n) + '\')">'
+        + mgRespFoto(n, 22) + '<span class="nm">' + esc(n) + '</span>'
+        + '<span class="ck">✓</span></div>').join('')
+    : '<div class="nada">Ninguém com esse nome.</div>';
+  c.innerHTML =
+      '<input class="busca" placeholder="Buscar pessoa…" value="' + esc(mgRespFiltro) + '"'
+    + ' oninput="mgRespBuscar(this.value)" onkeydown="if(event.key===\'Escape\')mgRespFechar()">'
+    + itens
+    + '<button type="button" class="outro" onmousedown="event.preventDefault();mgRespOutro()">'
+    + '+ outro nome</button>';
+}
+function mgRespPosicionar(){
+  const c = mgRespCx, dono = mgRespDono;
+  if(!c || !dono || !c.classList.contains('on')) return;
+  if(!dono.isConnected){ mgRespFechar(); return }
+  const r = dono.getBoundingClientRect();
+  if(r.bottom < 0 || r.top > window.innerHeight){ mgRespFechar(); return }
+  const alt = Math.min(308, c.scrollHeight || 308);
+  const cabe = (window.innerHeight - r.bottom) > alt + 12;
+  c.style.left = Math.round(Math.min(Math.max(8, r.left), window.innerWidth - 278)) + 'px';
+  c.style.top  = cabe ? Math.round(r.bottom + 6) + 'px'
+                      : Math.round(Math.max(8, r.top - alt - 6)) + 'px';
+  c.style.width = Math.round(Math.max(268, Math.min(360, r.width))) + 'px';
+}
+function mgRespAbrir(e){
+  if(e){ e.preventDefault(); e.stopPropagation() }
+  const botao = e && e.currentTarget;
+  if(!botao) return;
+  if(mgRespDono === botao){ mgRespFechar(); return }
+  mgRespFechar();
+  mgRespDono = botao;
+  botao.classList.add('aberto');
+  mgRespFiltro = '';
+  const c = mgRespCaixa();
+  mgRespDesenharLista();
+  c.classList.add('on');
+  mgRespPosicionar();
+  const busca = c.querySelector('.busca'); if(busca) busca.focus();
+}
+function mgRespBuscar(v){ mgRespFiltro = v || ''; mgRespDesenharLista();
+  const b = mgRespCx && mgRespCx.querySelector('.busca');
+  if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length) }
+  mgRespPosicionar(); }
+
+/* Redesenha TODOS os seletores da tela, e não o primeiro que aparecer.
+   É aqui que o defeito morre: nada depende mais de getElementById.
+
+   E só o miolo é reescrito, nunca o botão inteiro. Trocar o nó do botão
+   deixaria mgRespDono apontando para um elemento fora do documento, e a
+   lista fecharia no primeiro clique. Foi o que aconteceu na primeira
+   versão disto: eu repeti, aqui dentro, o mesmo erro que estava
+   corrigindo, escolhendo "o primeiro botão do documento" para reancorar. */
+function mgRespRedesenhar(){
+  document.querySelectorAll('[data-mg-resp] .mg-resp-btn .lista').forEach(el=>{
+    el.innerHTML = mgRespEtiquetasHTML();
+  });
+  if(mgRespCx && mgRespCx.classList.contains('on')){
+    mgRespDesenharLista();
+    mgRespPosicionar();
+  }
+}
+function mgRespEscolher(n){
+  if(typeof toggleAssignee === 'function') toggleAssignee(n);
+  else {
+    const i = mgRespSel().findIndex(x => String(x).toLowerCase() === String(n).toLowerCase());
+    if(i >= 0) _selAssignees.splice(i,1); else _selAssignees.push(n);
+    mgRespRedesenhar();
+  }
+}
+function mgRespOutro(){
+  const n = prompt('Nome do responsável:');
+  if(!n || !n.trim()) return;
+  const v = n.trim();
+  if(!mgRespMarcado(v)) _selAssignees.push(v);
+  if(!mgRespOpts().some(x => String(x).toLowerCase() === v.toLowerCase())) ASSIGNEE_OPTS.push(v);
+  mgRespRedesenhar();
+}
+
+/* ---- troca a lista de etiquetas antiga pelo seletor ---- */
+if(typeof assigneePickerHTML === 'function'){
+  window.assigneePickerHTML = assigneePickerHTML = function(){ return mgRespBotaoHTML() };
+}
+if(typeof toggleAssignee === 'function'){
+  const _ta = toggleAssignee;
+  window.toggleAssignee = toggleAssignee = function(n){
+    const sel = mgRespSel();
+    const i = sel.findIndex(x => String(x).toLowerCase() === String(n).toLowerCase());
+    if(i >= 0) sel.splice(i,1); else sel.push(n);
+    mgRespRedesenhar();
+    /* a original também mexia no array e redesenhava pelo id: fica de fora
+       de propósito, senão o nome entrava e saía na mesma volta */
+  };
+}
+if(typeof addCustomAssignee === 'function'){
+  window.addCustomAssignee = addCustomAssignee = mgRespOutro;
+}
+
+/* Na fase de captura, de propósito. Escolher um nome redesenha a lista, e
+   isso troca o nó que foi clicado. Se este teste rodasse depois, ele
+   perguntaria "o clique foi dentro da lista?" a um elemento que já saiu do
+   documento, a resposta seria não, e a lista fecharia sozinha a cada nome
+   marcado. Na captura o DOM ainda está inteiro. */
+document.addEventListener('mousedown', e=>{
+  if(!mgRespCx || !mgRespCx.classList.contains('on')) return;
+  if(mgRespCx.contains(e.target)) return;
+  if(e.target.closest && e.target.closest('.mg-resp-btn')) return;
+  mgRespFechar();
+}, true);
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && mgRespCx && mgRespCx.classList.contains('on')) mgRespFechar();
+});
+window.addEventListener('scroll', mgRespPosicionar, true);
+window.addEventListener('resize', mgRespPosicionar);
+
+/* fechar a janela ou o painel fecha a lista junto */
+['closeDetail','openTaskModal'].forEach(nome=>{
+  if(typeof window[nome] !== 'function') return;
+  const _f = window[nome];
+  window[nome] = function(){ mgRespFechar(); return _f.apply(this, arguments) };
+});
+
+window.mgRespAbrir      = mgRespAbrir;
+window.mgRespFechar     = mgRespFechar;
+window.mgRespBuscar     = mgRespBuscar;
+window.mgRespEscolher   = mgRespEscolher;
+window.mgRespOutro      = mgRespOutro;
+window.mgRespRedesenhar = mgRespRedesenhar;
+window.mgRespBotaoHTML  = mgRespBotaoHTML;
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · PLATAFORMA · peso do quadro e resposta ao toque
+
+   1) O logo da empresa deixa de viajar dentro de cada card
+   2) Botão responde ao ser pressionado
+   ===================================================================== */
+
+/* ---------- 2. o botão afunda quando pressionado ----------
+   Sem isso o clique não dá retorno nenhum: a pessoa clica, nada muda até a
+   ação terminar, e ela clica de novo. O afundamento é curto de propósito,
+   para confirmar o toque sem atrasar a leitura. */
+@media (prefers-reduced-motion: no-preference){
+  button, .btn, .btn-p, .btn-save, .btn-del, .btn-x, .mini-btn, .icon-btn,
+  .timer-btn, .portal-link, .asg-chip, .mg-resp-btn, .mg-dc-plat, .mg-bf-b,
+  .mg-atalho, .nav-i, .cbadge.acao{
+    transition:transform .10s cubic-bezier(.2,.7,.4,1),
+               box-shadow .12s ease, background .15s ease, border-color .15s ease;
+  }
+  button:active, .btn:active, .btn-p:active, .btn-save:active, .btn-del:active,
+  .btn-x:active, .mini-btn:active, .icon-btn:active, .timer-btn:active,
+  .portal-link:active, .asg-chip:active, .mg-resp-btn:active, .mg-dc-plat:active,
+  .mg-bf-b:active, .mg-atalho:active{
+    transform:scale(.962);
+    box-shadow:inset 0 2px 5px rgba(20,19,17,.18);
+  }
+  /* os grandes afundam um pouco menos, senão o movimento fica exagerado */
+  .btn-save:active, .btn-p:active, .mg-bf-b:active{transform:scale(.978)}
+  /* e o que já tem animação própria fica de fora, para não brigar */
+  .mg-pula:active, .mg-gato:active{transform:none;box-shadow:none}
+}
+/* o cursor diz que dá para clicar, o que nem todo botão daqui dizia */
+button:not([disabled]), .btn, .btn-p, .mini-btn, .icon-btn{cursor:pointer}
+button[disabled]{cursor:default}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · PLATAFORMA · peso do quadro
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   O logo da empresa sai de dentro do card
+
+   Medido com as 456 demandas que a conta tem hoje: desenhar o quadro
+   levava 7,1 s. A causa não era laço nem consulta, era tamanho de texto.
+   Cada card trazia o logo inteiro em base64 no src da imagem, e os logos
+   vão de 10 KB a 68 KB. Com 456 cards, o HTML montado passava de 200 MB
+   por desenho, e ainda era validado por expressão regular card a card.
+
+   A troca: o base64 vira um endereço blob, uma vez por logo, e o card
+   passa a levar uns 50 caracteres no lugar de dezenas de milhares. O
+   navegador guarda os bytes uma vez só e reusa em todas as imagens.
+   --------------------------------------------------------------------- */
+const MG_LOGO_CACHE = new Map();     /* data URI -> blob: */
+
+function mgLogoCurto(uri){
+  const t = String(uri || '');
+  if(!t || t.slice(0,5) !== 'data:') return t;   /* já é endereço curto */
+  const guardado = MG_LOGO_CACHE.get(t);
+  if(guardado) return guardado;
+  try{
+    const virgula = t.indexOf(',');
+    const cabeca  = t.slice(0, virgula);
+    const tipo    = (cabeca.match(/^data:([^;,]+)/) || [,'image/png'])[1];
+    if(!/;base64$/i.test(cabeca)) return t;       /* não é base64: deixa como está */
+    const cru = atob(t.slice(virgula + 1));
+    const bytes = new Uint8Array(cru.length);
+    for(let i = 0; i < cru.length; i++) bytes[i] = cru.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], {type: tipo}));
+    MG_LOGO_CACHE.set(t, url);
+    return url;
+  }catch(e){
+    /* base64 quebrado não pode derrubar o quadro: devolve o original e o
+       navegador que decida se exibe */
+    console.warn('[logo]', e);
+    return t;
+  }
+}
+
+/* Trocar o logo de uma empresa deixa o endereço antigo para trás. Ele é
+   devolvido ao navegador, senão a memória cresceria a cada troca. */
+function mgLogoEsquecer(uri){
+  const url = MG_LOGO_CACHE.get(String(uri || ''));
+  if(!url) return;
+  try{ URL.revokeObjectURL(url) }catch(_){}
+  MG_LOGO_CACHE.delete(String(uri || ''));
+}
+function mgLogoEsquecerTudo(){
+  MG_LOGO_CACHE.forEach(url=>{ try{ URL.revokeObjectURL(url) }catch(_){} });
+  MG_LOGO_CACHE.clear();
+}
+
+/* Todos os sete lugares que chamam clientLogo desenham <img src>. Nenhum
+   precisa dos bytes, então a troca vale para todos de uma vez. Quem
+   precisa do base64 de verdade, como o painel de peso e limpeza, lê
+   c.logo_url direto e não passa por aqui. */
+if(typeof clientLogo === 'function'){
+  const _cl = clientLogo;
+  window.clientLogo = clientLogo = function(id){
+    return mgLogoCurto(_cl.apply(this, arguments));
+  };
+}
+
+/* empresa recarregada pode ter logo novo: o cache antigo perde a razão */
+if(typeof loadClients === 'function'){
+  const _lc = loadClients;
+  window.loadClients = loadClients = async function(){
+    const antes = (typeof CLIENTS !== 'undefined' && CLIENTS)
+      ? CLIENTS.map(c => c.logo_url).filter(Boolean) : [];
+    const r = await _lc.apply(this, arguments);
+    try{
+      const agora = new Set((CLIENTS || []).map(c => c.logo_url).filter(Boolean));
+      antes.forEach(u => { if(!agora.has(u)) mgLogoEsquecer(u) });
+    }catch(e){ console.warn('[logo]', e) }
+    return r;
+  };
+}
+
+/* ---------------------------------------------------------------------
+   A foto das pessoas segue o mesmo caminho
+
+   O avatar do time pesa de 6 a 11 KB em base64, e o MGU o escreve inteiro
+   dentro de cada <img> que desenha: um por mensagem no chat, um por
+   responsável no quadro, um por linha nas listas de gente. Encurtar na
+   origem, logo depois de carregar o diretório, resolve todos os pontos de
+   uma vez, porque daí em diante `u.avatar` já é curto.
+
+   Quem grava foto nova continua lendo o arquivo escolhido e mandando o
+   base64 para o banco: nada aqui volta para o Supabase. */
+function mgEncurtarFotos(){
+  try{
+    if(typeof MGU === 'undefined' || !MGU.todos) return 0;
+    let n = 0;
+    MGU.todos().forEach(u=>{
+      if(u && typeof u.avatar === 'string' && u.avatar.slice(0,5) === 'data:'){
+        u.avatar = mgLogoCurto(u.avatar); n++;
+      }
+    });
+    return n;
+  }catch(e){ console.warn('[foto]', e); return 0 }
+}
+if(typeof MGU !== 'undefined' && MGU.carregar){
+  const _carregar = MGU.carregar;
+  MGU.carregar = async function(){
+    const r = await _carregar.apply(this, arguments);
+    mgEncurtarFotos();
+    return r;
+  };
+  mgEncurtarFotos();               /* o diretório pode já estar carregado */
+}
+window.mgEncurtarFotos    = mgEncurtarFotos;
+window.mgLogoCurto        = mgLogoCurto;
+window.mgLogoEsquecer     = mgLogoEsquecer;
+window.mgLogoEsquecerTudo = mgLogoEsquecerTudo;
+window.mgLogoCache        = MG_LOGO_CACHE;
 
 })();
 </script>

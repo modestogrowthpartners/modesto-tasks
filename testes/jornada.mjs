@@ -2809,6 +2809,164 @@ const noCliente = await page.evaluate(async ()=>{
 ok('50g o cliente não enxerga a conferência interna, só o item escrito à mão',
    !noCliente.temInterno && noCliente.temManual, JSON.stringify(noCliente));
 
+/* =====================================================================
+   51. Seletor de responsáveis
+   ===================================================================== */
+
+/* ---- 51. o nome escolhido aparece escolhido ----
+   O defeito vinha de dois nós com id="asg-pick", um no painel de detalhe e
+   outro na janela de nova demanda. getElementById devolve o primeiro do
+   documento, e o do painel vem antes. Clicar na janela redesenhava o
+   picker escondido: o nome entrava na lista e a tela não mudava. Só
+   aparecia depois de abrir uma demanda alguma vez, que é o caminho de
+   todo dia, e por isso o caso passa por ali antes. */
+const seletor = await page.evaluate(async ()=>{
+  const abrir = async (raiz)=>{
+    const b = raiz.querySelector('.mg-resp-btn'); if(!b) return null;
+    b.click(); await new Promise(r=>setTimeout(r,220));
+    return document.querySelector('.mg-resp-lista.on');
+  };
+  const marcar = async (nome)=>{
+    const lista = document.querySelector('.mg-resp-lista.on'); if(!lista) return false;
+    const it = [...lista.querySelectorAll('.it')].find(e=>new RegExp(nome).test(e.textContent));
+    if(!it) return false;
+    it.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
+    await new Promise(r=>setTimeout(r,220));
+    return true;
+  };
+
+  await openDetail('t-aj'); await new Promise(r=>setTimeout(r,380));
+  closeDetail(); await new Promise(r=>setTimeout(r,200));
+  _selAssignees = [];
+  openTaskModal(); await new Promise(r=>setTimeout(r,320));
+  const modal = document.getElementById('tmodal-c');
+
+  const lista = await abrir(modal);
+  const nomes = lista ? [...lista.querySelectorAll('.it .nm')].map(e=>e.textContent) : [];
+  await marcar('Elias');
+  await marcar('Everton');
+  const btn = modal.querySelector('.mg-resp-btn');
+  const saida = {
+    abriu: !!lista, nomes,
+    etiquetas: [...btn.querySelectorAll('.mg-resp-eti .nm')].map(e=>e.textContent),
+    marcados: [...document.querySelectorAll('.mg-resp-lista .it.on .nm')].map(e=>e.textContent),
+    array: _selAssignees.slice(),
+    /* a lista não pode fechar sozinha a cada nome marcado */
+    continuaAberta: !!document.querySelector('.mg-resp-lista.on'),
+    idRepetido: document.querySelectorAll('[id="asg-pick"]').length,
+    clienteNaLista: nomes.some(n=>/flavia/i.test(n))
+  };
+  await marcar('Elias');                     /* desmarcar volta atrás */
+  saida.depoisDeTirar = [...modal.querySelector('.mg-resp-btn')
+    .querySelectorAll('.mg-resp-eti .nm')].map(e=>e.textContent);
+  mgRespBuscar('ever'); await new Promise(r=>setTimeout(r,180));
+  saida.busca = [...document.querySelectorAll('.mg-resp-lista .it .nm')].map(e=>e.textContent);
+  mgRespFechar();
+  saida.fechou = !document.querySelector('.mg-resp-lista.on');
+  document.getElementById('tmodal').classList.remove('on');
+  return saida;
+});
+ok('51 escolher responsável na janela de nova demanda aparece na tela',
+   seletor.abriu
+   && seletor.etiquetas.join() === 'Elias,Everton'
+   && seletor.marcados.join() === 'Elias,Everton'
+   && seletor.array.join() === 'Elias,Everton'
+   && seletor.continuaAberta
+   && seletor.depoisDeTirar.join() === 'Everton'
+   && seletor.busca.join() === 'Everton'
+   && seletor.fechou
+   && seletor.idRepetido === 0
+   && !seletor.clienteNaLista,
+   JSON.stringify(seletor));
+
+/* =====================================================================
+   52. Varredura: peso do quadro, som e resposta ao toque
+   ===================================================================== */
+
+/* ---- 52. o logo não viaja dentro de cada card ----
+   Medido com as 456 demandas que a conta tem: o quadro levava 7,1 s para
+   desenhar porque cada card carregava o logo inteiro em base64. Este caso
+   guarda o tamanho do card, que é a causa, e não o tempo, que varia com a
+   máquina onde o teste roda. */
+const peso = await page.evaluate(async ()=>{
+  const base = TASKS.find(x=>x.id==='t-1') || TASKS[0];
+  for(let i=0;i<120;i++){
+    window.__FIX.tasks.push(Object.assign({}, base, {
+      id:'peso-'+i, title:'Demanda de carga '+i, parent_id:null, plataformas:[],
+      status:'Não iniciado', position:2000+i}));
+  }
+  await loadTasks(); await showView('board');
+  await new Promise(r=>setTimeout(r,600));
+  const cru = (CLIENTS.find(c=>c.logo_url)||{}).logo_url || '';
+  const um = taskCard(TASKS.find(t=>t.id==='peso-0'), '#000');
+  const imgs = [...document.querySelectorAll('#v-board .card-t img')];
+  await Promise.all(imgs.map(i=>i.complete ? null
+    : new Promise(res=>{ i.onload=res; i.onerror=res })));
+  const saida = {
+    base64Bruto: cru.length,
+    tamanhoDoCard: um.length,
+    /* o card não pode conter o base64 do logo */
+    cardTemBase64: /data:image\/[a-z]+;base64,[A-Za-z0-9+/=]{200,}/.test(um),
+    imagens: imgs.length,
+    carregaram: imgs.filter(i=>i.naturalWidth > 0).length,
+    /* um blob por logo, e não um por card */
+    blobs: window.mgLogoCache ? window.mgLogoCache.size : null
+  };
+  window.__FIX.tasks = window.__FIX.tasks.filter(t=>!/^peso-/.test(t.id));
+  await loadTasks(); render();
+  return saida;
+});
+ok('52 o card não carrega o logo em base64, e a imagem continua aparecendo',
+   peso.base64Bruto > 20000 && !peso.cardTemBase64
+   && peso.tamanhoDoCard < 4000
+   && peso.imagens > 0 && peso.carregaram === peso.imagens
+   && peso.blobs !== null && peso.blobs <= 4,
+   JSON.stringify(peso));
+
+/* ---- 52b. o som faz o que o botão diz ----
+   Havia duas mgAlternarSom no arquivo. A segunda, sem argumento, apagava a
+   primeira: os botões das Configurações mandavam 'on' ou 'off', o valor era
+   jogado fora e a função só invertia. Pedir "Ligado" desligava. */
+const som = await page.evaluate(async ()=>{
+  const ler = ()=>({guardado: localStorage.getItem(MG_SOM_KEY),
+                    pref: (typeof PREFS==='object'&&PREFS)?PREFS.som:null,
+                    ligado: mgSomLigado()});
+  localStorage.setItem(MG_SOM_KEY,'on'); if(typeof PREFS==='object') PREFS.som='on';
+  mgAlternarSom('on');   const pedindoLigado = ler();
+  mgAlternarSom('off');  const pedindoDesligado = ler();
+  mgAlternarSom('on');   const voltando = ler();
+  mgAlternarSom();       const semValor = ler();      /* sem valor, alterna */
+  return {aceitaValor: mgAlternarSom.length >= 1,
+          pedindoLigado, pedindoDesligado, voltando, semValor};
+});
+ok('52b pedir Ligado liga e pedir Desligado desliga, nas duas guardas',
+   som.aceitaValor
+   && som.pedindoLigado.ligado === true  && som.pedindoLigado.pref === 'on'
+   && som.pedindoDesligado.ligado === false && som.pedindoDesligado.pref === 'off'
+   && som.voltando.ligado === true
+   && som.semValor.ligado === false,
+   JSON.stringify(som));
+
+/* ---- 52c. o botão afunda ao ser pressionado ---- */
+const toque = await page.evaluate(async ()=>{
+  await showView('board'); await new Promise(r=>setTimeout(r,420));
+  const b = document.querySelector('.btn-p, .icon-btn, .mini-btn, button');
+  if(!b) return {erro:'sem botão'};
+  const parado = getComputedStyle(b).transform;
+  const regra = [...document.styleSheets].some(f=>{
+    try{ return [...f.cssRules].some(r =>
+      r.selectorText && /:active/.test(r.selectorText)
+      && r.style && /scale/.test(r.style.transform || '')) }
+    catch(e){ return false }
+  });
+  const temTransicao = /transform/.test(getComputedStyle(b).transitionProperty);
+  return {parado, regraDeAperto: regra, temTransicao};
+});
+ok('52c botão tem transição e afunda quando pressionado',
+   toque.regraDeAperto && toque.temTransicao
+   && (toque.parado === 'none' || /matrix\(1, 0, 0, 1, 0, 0\)/.test(toque.parado)),
+   JSON.stringify(toque));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
