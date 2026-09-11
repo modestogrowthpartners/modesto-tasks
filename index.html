@@ -10921,7 +10921,12 @@ body .slide{width:min(1080px,96vw)}
 .mg-det-col{min-width:0;display:flex;flex-direction:column}
 .mg-det-col > .sect-t:first-child{margin-top:0}
 .mg-det-col .subs{margin-bottom:12px}
-.mg-det-col .notes{max-height:300px;overflow:auto;margin-bottom:12px}
+/* Sem rolagem própria. Duas caixas rolando dentro de um painel que também
+   rola é o que faz a roda do mouse parecer emperrada: ela move a de dentro,
+   para no fim dela, e só então empurra a de fora. E uma anotação comprida
+   ficava espremida numa janela de 300px, cortada em cima e embaixo.
+   A rolagem passa a ser uma só, a do painel. */
+.mg-det-col .notes{margin-bottom:12px}
 .mg-det-col .timebox{margin-top:auto}
 .mg-det-col .note-form{margin-top:auto}
 .mg-det-col .note-form textarea{min-height:96px}
@@ -10992,8 +10997,10 @@ function mgDetalheEmColunas(){
   if(tempo)      esq.appendChild(tempo);
 
   if(tituloNotas) dir.appendChild(tituloNotas);
-  dir.appendChild(notas);
+  /* escrever vem antes de ler: a caixa fica logo abaixo do título e a lista
+     embaixo dela, para não ser preciso atravessar as anotações para comentar */
   if(formNota)    dir.appendChild(formNota);
+  dir.appendChild(notas);
 
   grade.appendChild(esq); grade.appendChild(dir);
   corpo.appendChild(grade);
@@ -26149,17 +26156,20 @@ body.mg-sem-topo.mg-e-chat .topbar{padding:8px 20px 0}
    grade inteira e a caixa de escrever, que estava colada embaixo por
    margin-top:auto, ia junto. Agora cada lista rola por dentro e as duas
    colunas começam no mesmo lugar. */
-.mg-det-col .subs{max-height:430px;overflow:auto;padding-right:4px}
-/* a caixa de escrever gruda no fim do painel: com checklist longa ela
-   continuava existindo, só que fora da tela, e era preciso rolar tudo para
-   comentar. Grudada, ela está sempre ali, e a lista de anotações rola atrás. */
-.mg-det-col .note-form{margin-top:14px;position:sticky;bottom:0;z-index:2;
-  background:var(--paper);padding:10px 0 2px;
-  box-shadow:0 -10px 16px -12px rgba(0,0,0,.28)}
+.mg-det-col .subs{padding-right:4px}
+/* A caixa de escrever sobe para o alto da coluna, logo abaixo do título
+   Anotações, e a lista fica embaixo dela.
+
+   Ela já esteve grudada no fim do painel, e era pior: sem rolagem própria na
+   lista, a caixa passava a boiar no meio das anotações, com um pedaço de
+   anotação acima e outro abaixo dela. Ancorada no alto ela não cobre nada,
+   está sempre no mesmo lugar, e ninguém precisa rolar a lista inteira para
+   escrever, que era a queixa original. */
+.mg-det-col .note-form{margin:0 0 14px;padding:0 0 14px;
+  border-bottom:1px solid var(--line)}
 .mg-det-col .timebox{margin-top:14px}
 .mg-det-grade{align-items:start}
 @media(max-width:960px){
-  .mg-det-col .subs{max-height:none;overflow:visible}
   .mg-det-col .note-form{position:static;box-shadow:none}
 }
 </style>

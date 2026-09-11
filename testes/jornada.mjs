@@ -2551,36 +2551,50 @@ ok('49h o sino fica no topo com rótulo, e sai da barra de baixo',
    && !sino.sinoNaBarra && sino.sinosNaBarra === 0,
    JSON.stringify(sino));
 
-/* ---- 49i. checklist longa não empurra a caixa de anotação ---- */
+/* ---- 49i. uma rolagem só, e escrever vem antes de ler ----
+   Já esteve pior de duas formas, e as duas apareceram na tela de quem usa:
+   primeiro a caixa de escrever ficava colada no fim da coluna e uma
+   checklist de vinte itens a empurrava para fora da tela; depois, com a
+   caixa grudada no rodapé e a lista de anotações sem rolagem própria, ela
+   passou a boiar no meio das anotações, com texto acima e abaixo dela.
+   O que vale agora: o painel é a única coisa que rola, e a caixa de
+   escrever fica no alto da coluna, antes da lista. */
 const layout = await page.evaluate(async ()=>{
   const t = TASKS.find(x=>x.id==='t-aj');
   const guarda = t.subtasks;
   t.subtasks = Array.from({length:24}, (_,i)=>({text:'item '+(i+1), done:false}));
   await openDetail('t-aj');
-  await new Promise(r=>setTimeout(r,420));
-  const subs = document.querySelector('#slide .mg-det-col .subs');
-  const form = document.querySelector('#slide .note-form');
-  const notas = document.querySelector('#slide #d-notes');
-  const corpo = document.querySelector('#slide .slide-b');
-  const r = form ? form.getBoundingClientRect() : null;
-  const rn = notas ? notas.getBoundingClientRect() : null;
+  await new Promise(r=>setTimeout(r,480));
+
+  const rolantes = [];
+  document.querySelectorAll('#slide *').forEach(e=>{
+    const st = getComputedStyle(e);
+    if((st.overflowY === 'auto' || st.overflowY === 'scroll')
+       && e.scrollHeight > e.clientHeight + 4){
+      rolantes.push((e.id ? '#'+e.id : '.') + String(e.className).split(' ')[0]);
+    }
+  });
+
+  const col   = document.querySelector('#slide .mg-det-grade .mg-det-col:last-child');
+  const form  = col ? col.querySelector('.note-form') : null;
+  const notas = col ? col.querySelector('#d-notes') : null;
   const saida = {
-    subsRola: !!(subs && subs.scrollHeight > subs.clientHeight + 4),
-    /* a caixa de escrever tem que ficar logo abaixo das anotações,
-       não lá no fim da coluna */
-    distancia: (r && rn) ? Math.round(r.top - rn.bottom) : null,
-    /* e tem que estar na tela com o painel no topo, sem rolar nada:
-       era isso que faltava quando a checklist ficava longa */
-    dentroDaTela: !!(r && r.top < window.innerHeight && r.bottom > 0),
-    grudada: form ? getComputedStyle(form).position : null,
-    rolagemDoCorpo: corpo ? Math.round(corpo.scrollHeight - corpo.clientHeight) : null
+    rolantes,
+    /* a caixa vem ANTES da lista na ordem do documento */
+    escreverAntesDeLer: !!(form && notas &&
+      (form.compareDocumentPosition(notas) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    posicao: form ? getComputedStyle(form).position : null,
+    /* e não cobre anotação nenhuma */
+    cobreAnotacao: !!(form && notas &&
+      form.getBoundingClientRect().bottom > notas.getBoundingClientRect().top + 2)
   };
   t.subtasks = guarda;
   return saida;
 });
-ok('49i checklist longa rola por dentro e a anotação continua na tela',
-   layout.subsRola && layout.distancia !== null && layout.distancia < 60
-   && layout.dentroDaTela && layout.grudada === 'sticky',
+ok('49i o painel tem uma rolagem só, e a caixa de escrever vem antes da lista',
+   layout.rolantes.length === 1 && /slide-b/.test(layout.rolantes[0])
+   && layout.escreverAntesDeLer && layout.posicao === 'static'
+   && !layout.cobreAnotacao,
    JSON.stringify(layout));
 
 /* =====================================================================
@@ -2767,18 +2781,13 @@ const cabe = await page.evaluate(async ()=>{
   await new Promise(r=>setTimeout(r,480));
   const cx = document.querySelector('#slide .mg-det-col .subs');
   if(!cx) return {erro:'sem caixa'};
-  const c = cx.getBoundingClientRect();
   const linhas = [...cx.querySelectorAll('.sub')];
-  const visiveis = linhas.filter(l=>{
-    const q = l.getBoundingClientRect();
-    return q.top >= c.top - 1 && q.bottom <= c.bottom + 1;
-  }).length;
   const conferencia = linhas.filter(l=>l.classList.contains('mg-dc-simples'));
   const alta = conferencia.map(l=>Math.round(l.getBoundingClientRect().height)).sort((x,y)=>x-y);
   const impl = linhas.find(l=>!l.classList.contains('mg-dc-simples'));
   /* a mediana, e não o maior: item comprido quebra em duas linhas de
      propósito, e reprovar por causa dele mediria o texto, não a densidade */
-  return {itens: linhas.length, visiveis,
+  return {itens: linhas.length,
           alturaTipica: alta.length ? alta[Math.floor(alta.length/2)] : null,
           alturaMaxima:  alta.length ? alta[alta.length-1] : null,
           /* responsável e prazo continuam onde foram pedidos: na
@@ -2787,8 +2796,13 @@ const cabe = await page.evaluate(async ()=>{
           conferenciaSemCampos: conferencia.every(
             l => getComputedStyle(l.querySelector('.mg-sub-campos')).display === 'none')};
 });
-ok('50h a checklist mostra vários itens de uma vez, e não um por vez',
-   cabe.itens >= 15 && cabe.visiveis >= 8
+/* A contagem de itens visíveis saiu: a checklist não tem mais janela
+   própria, então "visível dentro da caixa" passou a ser sempre tudo e a
+   afirmação não provava mais nada. O que continua valendo, e é a causa do
+   problema original, é a altura da linha: com os três campos por item ela
+   passava de 130px. */
+ok('50h o item de conferência é uma linha, e não um bloco de três campos',
+   cabe.itens >= 15
    && cabe.alturaTipica !== null && cabe.alturaTipica <= 40
    && cabe.alturaMaxima <= 70          /* duas linhas, nunca as três de antes */
    && cabe.implTemCampos && cabe.conferenciaSemCampos,
