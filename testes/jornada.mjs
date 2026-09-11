@@ -1909,133 +1909,148 @@ ok('45 o Kronos é um gato de pixel, com cor herdada no traço',
    && marcaKronos.proporcao === '20x17',
    JSON.stringify(marcaKronos));
 
-/* ---- 45b. o gato atravessa a barra, e some quando não deve andar ---- */
-const passeio = await page.evaluate(async ()=>{
+/* ---- 45b. o gato senta na barra, e some quando não deve aparecer ----
+   Ele parou de atravessar a tela. Atravessar chamava atenção na hora
+   errada e passava por cima dos botões; agora ele fica sentado na quina
+   da barra, e o que dá vida são as manhas de bicho parado. */
+const sentado = await page.evaluate(async ()=>{
   const r = {};
   /* A barra é escondida por !important enquanto as boas-vindas estão
      abertas, e mgEstadoDaTela repõe a classe a cada 700 ms. O que este
-     caso testa é "dada uma barra em cena, o gato anda sobre ela", então
-     forçamos a barra a aparecer em vez de brigar com o ciclo. */
-  const barra = document.querySelector('.mg-dock');
-  if(barra) barra.style.setProperty('display', 'inline-flex', 'important');
-  document.body.classList.remove('mg-sem-anim');
-  await new Promise(x=>setTimeout(x,200));
-  r.temBarra = (document.querySelector('.mg-dock') || {getClientRects:()=>[]}).getClientRects().length > 0;
-  r.podeAndar = mgGatoPodeAndar();
-  mgGatoPassear();
-  await new Promise(x=>setTimeout(x,250));
-  const g = document.querySelector('.mg-gato-anda');
-  r.apareceu = !!g;
-  /* ele mora no body de propósito: a barra é overflow-x:auto e recortaria
-     um filho posicionado acima dela */
-  r.noBody   = !!(g && g.parentElement === document.body);
-  r.fixo     = !!g && getComputedStyle(g).position === 'fixed';
-  r.semClique = !!g && getComputedStyle(g).pointerEvents === 'none';
-  r.quatroPoses = !!g && [0,1,2,3].every(i => !!g.querySelector('.p' + i));
-  r.temTempo  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-gato-tempo')));
-  r.temPasso  = !!(g && /\ds$/.test(g.style.getPropertyValue('--mg-passo')));
+     caso testa é "dada uma barra em cena, o gato senta nela". */
+  document.body.classList.remove('mg-sem-dock');
+  document.querySelectorAll('.mg-boas, .mg-tour').forEach(e=>e.remove());
+  const dock = document.getElementById('mg-dock');
+  if(dock) dock.style.setProperty('display','flex','important');
+  await new Promise(x=>setTimeout(x,120));
 
-  /* com as animações desligadas ele não sai do lugar */
-  if(g) g.remove();
+  r.podeAparecer = mgGatoPodeAparecer();
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(x=>setTimeout(x,200));
+  const g = document.querySelector('.mg-gato-sen');
+  r.apareceu = !!g;
+  if(g){
+    const q = g.getBoundingClientRect(), b = dock.getBoundingClientRect();
+    /* sentado EM CIMA da borda da barra, não flutuando longe dela */
+    r.encostadoNaBarra = Math.abs(q.bottom - b.top) < 8;
+    r.dentroDaBarra = q.left >= b.left - 2 && q.right <= b.right + 2;
+    r.parado = getComputedStyle(g).position === 'fixed';
+    /* e recebe clique, ao contrário do que atravessava */
+    r.recebeClique = getComputedStyle(g).pointerEvents !== 'none';
+  }
+
+  /* com "Animações: desligado" ele não entra em cena */
   document.body.classList.add('mg-sem-anim');
-  r.respeitaPreferencia = !mgGatoPodeAndar();
-  mgGatoPassear();
+  r.respeitaPreferencia = !mgGatoPodeAparecer();
+  mgGatoSumir(); mgGatoSentar();
   await new Promise(x=>setTimeout(x,150));
-  r.ficouQuieto = !document.querySelector('.mg-gato-anda');
+  r.ficouQuieto = !document.querySelector('.mg-gato-sen');
   document.body.classList.remove('mg-sem-anim');
   return r;
 });
-ok('45b o gato atravessa a barra e obedece a preferência de animação',
-   passeio.temBarra && passeio.podeAndar && passeio.apareceu
-   && passeio.noBody && passeio.fixo && passeio.semClique
-   && passeio.quatroPoses && passeio.temTempo && passeio.temPasso
-   && passeio.respeitaPreferencia && passeio.ficouQuieto,
-   JSON.stringify(passeio));
+ok('45b o gato senta na borda da barra e obedece a preferência de animação',
+   sentado.podeAparecer && sentado.apareceu && sentado.encostadoNaBarra
+   && sentado.dentroDaBarra && sentado.parado && sentado.recebeClique
+   && sentado.respeitaPreferencia && sentado.ficouQuieto,
+   JSON.stringify(sentado));
 
-/* ---- 45c. o gato de perfil tem as duas poses de pata, e só elas mudam ---- */
-const gatoLado = await page.evaluate(()=>{
+/* ---- 45c. o desenho tem cabeça, corpo, patinha e rabo ---- */
+const desenho = await page.evaluate(()=>{
   const d = document.createElement('div');
-  d.innerHTML = mgGatoDePerfil(18);
+  d.innerHTML = mgGatoSentadoSVG(26);
   const svg = d.querySelector('svg');
-  const poses = [0,1,2,3].map(i =>
-    [...svg.querySelectorAll('.p' + i + ' rect')].map(r=>r.getAttribute('x')).join(','));
-  /* a mesma linha do corpo em todas as poses: só as patas mudam */
-  const alturaDasPatas = [...svg.querySelectorAll('[class^="p"] rect')]
-    .map(r=>r.getAttribute('y'));
-  return {caixa: svg.getAttribute('viewBox'),
-          corpo: svg.querySelectorAll(':scope > rect').length,
-          poses, todasDiferentes: new Set(poses).size === 4,
-          umaLinhaSo: new Set(alturaDasPatas).size === 1};
-});
-ok('45c o gato de perfil tem quatro poses de pata, e só elas mudam',
-   gatoLado.caixa === '0 0 11 7' && gatoLado.corpo === 45
-   && gatoLado.todasDiferentes && gatoLado.umaLinhaSo
-   && gatoLado.poses[0] === '1,3,6,8' && gatoLado.poses[3] === '2,7',
-   JSON.stringify(gatoLado));
-
-/* ---- 45d. trocar de aba é o que chama o gato ---- */
-const naTroca = await page.evaluate(async ()=>{
-  const barra = document.querySelector('.mg-dock');
-  if(barra) barra.style.setProperty('display', 'inline-flex', 'important');
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  mgFecharLupa && mgFecharLupa();
-  /* a suíte trocou de aba dezenas de vezes até aqui, então a pausa entre
-     passadas já está correndo. Zeramos para medir a troca desta vez. */
-  mgGatoZerarPausa();
-
-  /* a pausa mínima existe para clique rápido não enfileirar gato */
-  showView('calendar'); await new Promise(r=>setTimeout(r,300));
-  showView('board');    await new Promise(r=>setTimeout(r,700));
-  const veioNaPrimeira = !!document.querySelector('.mg-gato-anda');
-
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  showView('list'); await new Promise(r=>setTimeout(r,700));
-  const veioNaSegunda = !!document.querySelector('.mg-gato-anda');
-
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  return {veioNaPrimeira, respeitouAPausa: !veioNaSegunda};
-});
-ok('45d o gato aparece ao trocar de aba, com pausa entre uma e outra',
-   naTroca.veioNaPrimeira && naTroca.respeitouAPausa, JSON.stringify(naTroca));
-
-/* ---- 45e. ele atravessa de verdade, e é desenhado ----
-   Dois defeitos que só aparecem medindo, e que passaram batido antes:
-   translateX(100%) media a largura do PRÓPRIO gato e não a da barra,
-   então ele andava 100 px no tempo de atravessar a tela inteira; e a
-   barra é overflow-x:auto, o que recortava um filho posicionado fora
-   dela, deixando o bicho invisível mesmo estando lá. */
-const travessia = await page.evaluate(async ()=>{
-  const barra = document.querySelector('.mg-dock');
-  barra.style.setProperty('display', 'inline-flex', 'important');
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  mgGatoZerarPausa(); mgGatoPassear();
-  await new Promise(r=>setTimeout(r,300));
-
-  const onde = ()=>{
-    const g = document.querySelector('.mg-gato-anda');
-    if(!g) return null;
-    const r = g.getBoundingClientRect();
-    return {x:r.left, y:r.top, w:r.width,
-            pintado: document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) !== null};
-  };
-  const a1 = onde();
-  await new Promise(r=>setTimeout(r,1500));
-  const a2 = onde();
-  if(!a1 || !a2) return {erro:'sumiu no meio'};
-
-  const larguraBarra = barra.getBoundingClientRect().width;
+  const rabos = [...d.querySelectorAll('[class^="rabo"]')];
   return {
-    andou: Math.round(a2.x - a1.x),
-    porSegundo: Math.round((a2.x - a1.x) / 1.5),
-    larguraBarra: Math.round(larguraBarra),
-    pintado: a2.pintado,
-    acimaDaBarra: a2.y + 18 <= Math.round(barra.getBoundingClientRect().top) + 2,
+    caixa: svg.getAttribute('viewBox'),
+    semSuavizar: svg.getAttribute('shape-rendering') === 'crispEdges',
+    temCabeca: !!d.querySelector('.cabeca'),
+    temOlhos: d.querySelectorAll('.olhos rect').length,
+    temPata: !!d.querySelector('.pata'),
+    /* duas posições de rabo, que alternam em degrau */
+    posesDeRabo: rabos.length,
+    /* o rabo é grupo próprio para se mexer sozinho, e não pixel solto */
+    rabosTemPixel: rabos.every(g => g.querySelectorAll('rect').length > 0)
   };
 });
-ok('45e o gato atravessa a barra de verdade, e é desenhado na tela',
-   travessia.andou > 40 && travessia.porSegundo > 25 && travessia.porSegundo < 80
-   && travessia.pintado && travessia.acimaDaBarra,
-   JSON.stringify(travessia));
+ok('45c o gato sentado tem cabeça, dois olhos, patinha e duas poses de rabo',
+   desenho.caixa === '0 0 11 12' && desenho.semSuavizar
+   && desenho.temCabeca && desenho.temOlhos === 2 && desenho.temPata
+   && desenho.posesDeRabo === 2 && desenho.rabosTemPixel,
+   JSON.stringify(desenho));
+
+/* ---- 45d. as manhas: lamber a patinha e o mortal ---- */
+const manhas = await page.evaluate(async ()=>{
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(r=>setTimeout(r,200));
+  const g = document.querySelector('.mg-gato-sen');
+  if(!g) return {erro:'sem gato'};
+  const vistas = new Set();
+  /* chama a manha várias vezes: ela sorteia entre lamber e dar o mortal,
+     e o mortal é raro de propósito */
+  for(let i=0;i<40 && vistas.size < 2;i++){
+    mgGatoManha();
+    if(g.classList.contains('lambendo')) vistas.add('lambendo');
+    if(g.classList.contains('mortal'))   vistas.add('mortal');
+    g.classList.remove('lambendo','mortal');
+  }
+  /* e a classe sai sozinha no fim, senão a manha só aconteceria uma vez */
+  mgGatoManha();
+  const logo = g.classList.contains('lambendo') || g.classList.contains('mortal');
+  await new Promise(r=>setTimeout(r,1800));
+  const depois = g.classList.contains('lambendo') || g.classList.contains('mortal');
+  return {manhas: [...vistas].sort(), comecou: logo, terminou: !depois};
+});
+ok('45d o gato lambe a patinha e dá o mortal, e a manha termina sozinha',
+   manhas.manhas && manhas.manhas.join() === 'lambendo,mortal'
+   && manhas.comecou && manhas.terminou,
+   JSON.stringify(manhas));
+
+/* ---- 45e. tocar nele faz ele ronronar ---- */
+const ronrom = await page.evaluate(async ()=>{
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(r=>setTimeout(r,200));
+  const g = document.querySelector('.mg-gato-sen');
+  if(!g) return {erro:'sem gato'};
+  g.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,150));
+  const bolha = document.querySelector('.mg-gato-ron');
+  const r = {
+    ronronou: g.classList.contains('ronronando'),
+    bolha: bolha ? bolha.textContent : null,
+    /* de olho fechado enquanto ronrona */
+    olhoFechado: (()=>{ const o=g.querySelector('.olhos');
+      return o ? /scaleY\(0?\.14\)|matrix\(1, 0, 0, 0.14/.test(getComputedStyle(o).transform)
+                 || getComputedStyle(o).animationName === 'none' : false })(),
+    /* e sem som: barulho que ninguém pediu é barulho que se desliga */
+    semAudio: !g.querySelector('audio')
+  };
+  await new Promise(x=>setTimeout(x,2100));
+  r.parouDeRonronar = !g.classList.contains('ronronando');
+  return r;
+});
+ok('45e tocar no gato faz ele ronronar, sem som, e ele para sozinho',
+   ronrom.ronronou && ronrom.bolha === 'prrr' && ronrom.olhoFechado
+   && ronrom.semAudio && ronrom.parouDeRonronar,
+   JSON.stringify(ronrom));
+
+/* ---- 45f. o gato é da casa: cliente não vê ---- */
+const gatoSoEquipe = await page.evaluate(async ()=>{
+  const _adm = window.isAdmin;
+  window.isAdmin = ()=>false;
+  const podeComoCliente = mgGatoPodeAparecer();
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(r=>setTimeout(r,180));
+  const apareceuComoCliente = !!document.querySelector('.mg-gato-sen');
+  window.isAdmin = _adm;
+  mgGatoSentar();
+  await new Promise(r=>setTimeout(r,180));
+  return {podeComoCliente, apareceuComoCliente,
+          voltaComEquipe: !!document.querySelector('.mg-gato-sen')};
+});
+ok('45f cliente não vê o gato, e a equipe continua vendo',
+   !gatoSoEquipe.podeComoCliente && !gatoSoEquipe.apareceuComoCliente
+   && gatoSoEquipe.voltaComEquipe,
+   JSON.stringify(gatoSoEquipe));
 
 
 /* =====================================================================
@@ -2248,26 +2263,6 @@ ok('47b clicar no gato faz ele pular, e o pulo pode se repetir',
    pulaAoClicar.um && pulaAoClicar.um.classe && pulaAoClicar.um.anim === 'mgPulo'
    && pulaAoClicar.limpou && pulaAoClicar.dois.classe && pulaAoClicar.dois.anim === 'mgPulo',
    JSON.stringify(pulo));
-
-/* ---- 47c. o gato que atravessa a barra não pula ao ser clicado ----
-   ele é pointer-events:none de propósito, para não roubar o clique dos
-   botões da barra por onde passa */
-const naoPula = await page.evaluate(async ()=>{
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  mgGatoZerarPausa(); mgGatoPassear();
-  await new Promise(r=>setTimeout(r,250));
-  const g = document.querySelector('.mg-gato-anda svg');
-  if(!g) return {erro:'sem gato andando'};
-  g.dispatchEvent(new MouseEvent('click', {bubbles:true}));
-  await new Promise(r=>setTimeout(r,100));
-  const r = {pulou: g.classList.contains('mg-pula'),
-             semClique: getComputedStyle(g.closest('.mg-gato-anda')).pointerEvents === 'none'};
-  document.querySelectorAll('.mg-gato-anda').forEach(e=>e.remove());
-  return r;
-});
-ok('47c o gato que atravessa a barra não pula nem rouba o clique',
-   !naoPula.pulou && naoPula.semClique, JSON.stringify(naoPula));
-
 
 /* =====================================================================
    48 — mudança de um chega em todo mundo na hora
