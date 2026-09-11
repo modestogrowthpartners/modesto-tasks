@@ -2977,6 +2977,65 @@ ok('52c botão tem transição e afunda quando pressionado',
    && (toque.parado === 'none' || /matrix\(1, 0, 0, 1, 0, 0\)/.test(toque.parado)),
    JSON.stringify(toque));
 
+/* =====================================================================
+   53. Marcar gente com @ no MGP Chat
+   ===================================================================== */
+const chatArroba = await page.evaluate(async ()=>{
+  await showView('chat'); await new Promise(r=>setTimeout(r,900));
+  const ta = document.getElementById('mgz-in');
+  if(!ta) return {erro:'sem caixa do chat'};
+
+  ta.focus(); ta.value = 'bom dia @el';
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,260));
+  const lista = document.querySelector('.mg-arroba.on');
+  const nomes = lista ? [...lista.querySelectorAll('.it .nm')].map(e=>e.textContent) : [];
+
+  /* Enter com a lista aberta escolhe o nome; não envia a mensagem.
+     preventDefault sozinho não resolvia: o Enter seguia até a caixa e
+     mandava "bom dia @el" pela metade. */
+  const ev = new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});
+  ta.dispatchEvent(ev);
+  await new Promise(r=>setTimeout(r,260));
+  const depoisDoEnter = (document.getElementById('mgz-in')||{}).value;
+  const listaFechou = !document.querySelector('.mg-arroba.on');
+
+  /* e a mensagem enviada sai com o nome marcado */
+  const meu = ME.name.split(' ')[0];
+  window.__FIX.messages.push({id:'m-arroba', channel_id:'ch-1',
+    author_id:'u-colega', author_name:'Elias Braga',
+    body:'@'+meu+' confere com contato@empresa.com.br e veja '
+       + 'https://modestopartners.com.br isso é *urgente*',
+    kind:'user', created_at:new Date().toISOString(),
+    reply_to:null, reactions:{}, anexos:[]});
+  await MGChat.abrir('ch-1');
+  await new Promise(r=>setTimeout(r,800));
+  const bolha = document.querySelector('.mgz-m[data-id="m-arroba"] .tx');
+  const saida = {
+    abriu: !!lista, nomes, depoisDoEnter, listaFechou,
+    marcas: bolha ? [...bolha.querySelectorAll('.mgz-arroba')].map(e=>e.textContent) : [],
+    meuDestaque: !!(bolha && bolha.querySelector('.mgz-arroba.eu')),
+    /* endereço de e-mail não vira marcação, e o resto da mensagem continua */
+    emailIntacto: !!(bolha && /contato@empresa/.test(bolha.textContent)
+                     && !/>@empresa</.test(bolha.innerHTML)),
+    negrito: !!(bolha && bolha.querySelector('b')),
+    link: !!(bolha && bolha.querySelector('a[href]'))
+  };
+  window.__FIX.messages = window.__FIX.messages.filter(m=>m.id !== 'm-arroba');
+  if(window.mgArrobaFechar) window.mgArrobaFechar();
+  return saida;
+});
+ok('53 o @ do MGP Chat abre a lista, completa com Enter e marca o nome na mensagem',
+   chatArroba.abriu
+   && chatArroba.nomes.some(n=>/Elias/.test(n))
+   && /@Elias\s$/.test(chatArroba.depoisDoEnter || '')
+   && chatArroba.listaFechou
+   && chatArroba.marcas.length === 1
+   && chatArroba.meuDestaque
+   && chatArroba.emailIntacto && chatArroba.negrito && chatArroba.link,
+   JSON.stringify(chatArroba));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

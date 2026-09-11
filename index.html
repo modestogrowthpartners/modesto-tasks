@@ -26301,6 +26301,9 @@ function mgArrobaDesenhar(){
 function mgArrobaPosicionar(){
   const c = mgArrobaCx, el = mgArrobaAlvo;
   if(!c || !el || !c.classList.contains('on')) return;
+  /* a caixa de escrever do chat é redesenhada o tempo todo. Se o nó dono
+     saiu do documento, a lista ficaria presa na tela sem dono. */
+  if(!el.isConnected){ mgArrobaFechar(); return }
   const r = el.getBoundingClientRect();
   if(r.bottom < 0 || r.top > window.innerHeight){ mgArrobaFechar(); return }
   const cabeEmbaixo = (window.innerHeight - r.bottom) > 130;
@@ -26341,7 +26344,11 @@ function mgArrobaEscolher(i){
    inclusive as que ainda vão ser desenhadas */
 function mgCaixaDeMencao(el){
   if(!el || el.tagName !== 'TEXTAREA') return false;
-  return ['d-desc','d-note-input','m-desc'].indexOf(el.id) >= 0;
+  /* as três da demanda mais as duas do MGP Chat, a da conversa e a da
+     thread. A lista mora aqui e não em outra seção de propósito: esta
+     função é privada, e quem tentar estendê-la de fora não altera nada
+     nem recebe erro. */
+  return ['d-desc','d-note-input','m-desc','mgz-in','mgz-in-th'].indexOf(el.id) >= 0;
 }
 document.addEventListener('input', e=>{
   const el = e.target;
@@ -26350,11 +26357,25 @@ document.addEventListener('input', e=>{
   if(termo === null) return mgArrobaFechar();
   mgArrobaAbrir(el, termo);
 });
+/* Na captura, e cortando a propagação.
+
+   preventDefault sozinho não bastava: ele impede a ação padrão da tecla,
+   não os outros ouvintes. No MGP Chat o Enter continuava chegando na caixa
+   e ENVIAVA a mensagem com o "@el" pela metade, enquanto a lista de nomes
+   estava aberta esperando a escolha. Parar a propagação aqui, antes de o
+   evento chegar ao alvo, é o que faz o Enter significar "escolhe este
+   nome" enquanto a lista está aberta, e voltar a significar "envia" assim
+   que ela fecha. */
+function mgArrobaCortar(e){
+  e.preventDefault();
+  e.stopPropagation();
+  if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+}
 document.addEventListener('keydown', e=>{
   if(!mgArrobaCx || !mgArrobaCx.classList.contains('on')) return;
   if(e.target !== mgArrobaAlvo) return;
   if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
-    e.preventDefault();
+    mgArrobaCortar(e);
     if(!mgArrobaLista.length) return;
     mgArrobaSel = (mgArrobaSel + (e.key === 'ArrowDown' ? 1 : -1) + mgArrobaLista.length) % mgArrobaLista.length;
     mgArrobaDesenhar();
@@ -26362,11 +26383,11 @@ document.addEventListener('keydown', e=>{
   }
   if(e.key === 'Enter' || e.key === 'Tab'){
     if(!mgArrobaLista.length) return;
-    e.preventDefault();
+    mgArrobaCortar(e);
     mgArrobaEscolher(mgArrobaSel);
     return;
   }
-  if(e.key === 'Escape'){ e.preventDefault(); mgArrobaFechar() }
+  if(e.key === 'Escape'){ mgArrobaCortar(e); mgArrobaFechar() }
 }, true);
 document.addEventListener('mousedown', e=>{
   if(mgArrobaCx && mgArrobaCx.contains(e.target)){
@@ -27548,6 +27569,157 @@ window.mgLogoCurto        = mgLogoCurto;
 window.mgLogoEsquecer     = mgLogoEsquecer;
 window.mgLogoEsquecerTudo = mgLogoEsquecerTudo;
 window.mgLogoCache        = MG_LOGO_CACHE;
+
+})();
+</script>
+
+<style>
+/* =====================================================================
+   SEÇÃO · MGP CHAT · marcar gente com @
+
+   A lista de nomes já existia na demanda, na descrição e na anotação.
+   Faltava no lugar onde a conversa acontece de verdade.
+   ===================================================================== */
+
+/* O nome marcado na mensagem enviada. Quem foi marcado vê o próprio nome
+   mais forte: numa conversa cheia é isso que faz a pessoa parar e ler. */
+.mgz-arroba{background:rgba(194,161,91,.20);color:var(--brass2);
+  border-radius:5px;padding:0 4px;font-weight:600;white-space:nowrap}
+.mgz-arroba.eu{background:rgba(194,161,91,.42);color:var(--ink2)}
+.theme-dark .mgz-arroba.eu{color:#1b1a17}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · MGP CHAT · marcar gente com @
+   ===================================================================== */
+(function(){
+
+/* ---------------------------------------------------------------------
+   1. A lista abre também na caixa do chat
+
+   mgCaixaDeMencao dizia em quais caixas o @ vale. Ela nasceu com as três
+   da demanda; a do chat e a da thread entram agora.
+   --------------------------------------------------------------------- */
+if(typeof mgCaixaDeMencao === 'function'){
+  const _cm = mgCaixaDeMencao;
+  window.mgCaixaDeMencao = mgCaixaDeMencao = function(el){
+    if(el && el.tagName === 'TEXTAREA'
+       && (el.id === 'mgz-in' || el.id === 'mgz-in-th')) return true;
+    return _cm.apply(this, arguments);
+  };
+}
+
+/* ---------------------------------------------------------------------
+   2. O nome aparece marcado na mensagem
+
+   Só marca quem o diretório reconhece como gente do time. Sem essa
+   condição, "contato@empresa.com" viraria uma marcação de "@empresa",
+   e endereço de e-mail é coisa que se escreve o dia inteiro no chat.
+   --------------------------------------------------------------------- */
+function mgzQuemEh(nome){
+  try{
+    if(typeof MGU === 'undefined' || !MGU.todos) return null;
+    const alvo = MGU.norm ? MGU.norm(nome) : String(nome).toLowerCase();
+    const gente = MGU.todos({equipe:true});
+    return gente.find(u => (MGU.norm ? MGU.norm(u.primeiro) : '') === alvo)
+        || gente.find(u => (MGU.norm ? MGU.norm(u.nome).replace(/\s+/g,'') : '') === alvo)
+        || null;
+  }catch(_){ return null }
+}
+
+function mgzMarcarArrobas(s){
+  return String(s).replace(/@([\p{L}][\p{L}0-9._-]*)/gu, (todo, nome)=>{
+    const u = mgzQuemEh(nome);
+    if(!u) return todo;                       /* não é do time: fica texto */
+    const eu = (typeof ME !== 'undefined' && ME && u.id === ME.id);
+    return '<span class="mgz-arroba' + (eu ? ' eu' : '') + '"'
+         + ' title="' + esc(u.nome) + '">' + todo + '</span>';
+  });
+}
+
+/* A marcação acontece no DOM, depois que o chat desenha, e não dentro de
+   corpoHTML.
+
+   Por dois motivos. corpoHTML é privada do módulo MGChat e não sai de lá:
+   embrulhar por fora não pega nada, e pior, não reclama. E percorrer NÓS DE
+   TEXTO é mais seguro do que mexer na string pronta, porque nunca encosta
+   em atributo: o @ de um href ou de um title fica intacto por construção. */
+function mgzMarcarNaTela(raiz){
+  const alvo = raiz || document;
+  alvo.querySelectorAll('.mgz-m .tx:not([data-mgz-arroba])').forEach(cx=>{
+    cx.setAttribute('data-mgz-arroba','1');
+    if(cx.textContent.indexOf('@') < 0) return;
+    const andarilho = document.createTreeWalker(cx, NodeFilter.SHOW_TEXT, {
+      acceptNode(no){
+        /* dentro de link, código ou de uma marcação já feita, não mexe */
+        return no.parentElement.closest('a, code, .mgz-arroba')
+          ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const nos = [];
+    for(let n = andarilho.nextNode(); n; n = andarilho.nextNode()){
+      if(n.nodeValue.indexOf('@') >= 0) nos.push(n);
+    }
+    nos.forEach(no=>{
+      const marcado = mgzMarcarArrobas(esc(no.nodeValue));
+      if(marcado === esc(no.nodeValue)) return;      /* nada do time citado */
+      const molde = document.createElement('span');
+      molde.innerHTML = marcado;
+      no.parentNode.replaceChild(molde, no);
+      while(molde.firstChild) molde.parentNode.insertBefore(molde.firstChild, molde);
+      molde.remove();
+    });
+  });
+}
+
+/* Quem avisa que o chat redesenhou é o próprio DOM.
+
+   Embrulhar MGChat.desenhar não serve: o módulo chama a desenhar() interna
+   dele em quase todo caminho, e a propriedade pública fica intocada. O
+   observador pega qualquer redesenho, tenha vindo de onde tiver vindo. */
+let mgzArrobaRelogio = null;
+function mgzArrobaAgendar(){
+  if(mgzArrobaRelogio) return;
+  mgzArrobaRelogio = setTimeout(()=>{
+    mgzArrobaRelogio = null;
+    try{ mgzMarcarNaTela() }catch(e){ console.warn('[chat · @]', e) }
+  }, 60);
+}
+(function observar(n){
+  const alvo = document.getElementById('v-chat');
+  if(!alvo){ if(n < 75) setTimeout(()=>observar(n+1), 400); return }
+  new MutationObserver(mgzArrobaAgendar).observe(alvo, {childList:true, subtree:true});
+  mgzArrobaAgendar();
+})(0);
+
+/* ---------------------------------------------------------------------
+   3. Ser marcado pesa mais do que uma mensagem qualquer
+
+   O aviso de mensagem nova já existia e chega para todo mundo do canal.
+   Quando o texto marca você pelo nome, o cartão diz isso no título: numa
+   conversa movimentada é a diferença entre ler agora e ler depois.
+   --------------------------------------------------------------------- */
+if(typeof mgChegouMensagem === 'function'){
+  const _cm = mgChegouMensagem;
+  window.mgChegouMensagem = mgChegouMensagem = function(m){
+    try{
+      if(m && m.body && typeof ME !== 'undefined' && ME){
+        const meu = (String(m.body).match(/@([\p{L}][\p{L}0-9._-]*)/gu) || [])
+          .some(a => { const u = mgzQuemEh(a.slice(1)); return u && u.id === ME.id });
+        if(meu){
+          const copia = Object.assign({}, m);
+          copia.author_name = (m.author_name || 'Alguém') + ' marcou você';
+          return _cm.call(this, copia);
+        }
+      }
+    }catch(e){ console.warn('[chat · @ aviso]', e) }
+    return _cm.apply(this, arguments);
+  };
+}
+
+window.mgzMarcarArrobas = mgzMarcarArrobas;
+window.mgzMarcarNaTela  = mgzMarcarNaTela;
+window.mgzQuemEh        = mgzQuemEh;
 
 })();
 </script>
