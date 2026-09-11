@@ -22,6 +22,42 @@ boa vontade do modelo:
    "criei a demanda" não pode ser inventado: quem relata o resultado é o
    banco.
 
+### Ler as conversas da plataforma
+
+A pessoa liga isto no painel do Kronos, no botão 💬 do topo. Ligado, o
+front manda `contexto.ler_conversas: true` e a função monta um
+**panorama** antes da primeira chamada ao modelo: o histórico recente de
+cada conversa que aquela pessoa pode ver, agrupado por canal, do canal
+mais ativo para o menos ativo.
+
+O que ele NÃO é, e é bom não prometer o contrário: não é "todas as
+mensagens já enviadas na plataforma". Isso estoura a janela do modelo e o
+custo de cada pergunta. Os tetos estão no topo de `panoramaDasConversas`:
+14 mensagens por canal, 220 no total, 22 mil caracteres, 320 caracteres
+por mensagem. O que ficar de fora sai pela ferramenta `varrer_conversas`,
+que procura em todas as conversas visíveis por termo, autor, canal e
+período, sem precisar do id do canal.
+
+Três coisas seguram o risco:
+
+- **Alcance.** A consulta roda com o token de quem perguntou, então a
+  policy `can_see_channel` decide o que entra. Equipe vê canal de time e
+  de cliente; cliente vê o da própria empresa; conversa direta só aparece
+  para quem está dentro dela. "Ler tudo" nunca inclui a direta alheia.
+- **Fronteira.** O panorama entra na instrução dentro de um bloco marcado
+  como conteúdo escrito por pessoas, com a regra explícita de que é dado
+  e não ordem. Sem isso, qualquer um poderia escrever uma instrução numa
+  mensagem de canal e ela chegaria ao modelo como se fosse do usuário.
+- **Execução.** Continua valendo a regra 2: nada é criado sem a pessoa
+  confirmar na tela.
+
+Ainda não medido: o custo por pergunta com a opção ligada. O panorama é
+reenviado a cada volta do laço de ferramentas (até 6), então o candidato
+óbvio a otimização é marcar a instrução com `cache_control`. Não foi
+feito porque sem `ANTHROPIC_API_KEY` não há como testar se a chamada
+continua válida, e quebrar o Kronos inteiro por uma economia não medida é
+mau negócio.
+
 ### Segredos
 
 | Segredo | Obrigatório | Para quê |

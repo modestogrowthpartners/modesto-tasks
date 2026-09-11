@@ -21519,6 +21519,11 @@ async function mgCarregarNaoLidas(){
 .mgk-topo button{background:none;border:1px solid var(--line2);border-radius:8px;width:28px;height:28px;
   color:var(--muted);font-size:13px;font-family:inherit;flex-shrink:0}
 .mgk-topo button:hover{border-color:var(--brass);color:var(--brass2)}
+/* o interruptor de contexto precisa dizer, só pela cor, se o Kronos está
+   lendo as conversas ou não: é a diferença entre ele saber e ele chutar */
+.mgk-topo button.ctx{font-size:13px;filter:grayscale(1);opacity:.55}
+.mgk-topo button.ctx.on{filter:none;opacity:1;border-color:var(--brass);
+  background:color-mix(in srgb, var(--brass) 16%, transparent)}
 
 .mgk-corpo{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
 .mgk-b{max-width:88%;font-size:13.5px;line-height:1.6;border-radius:13px;padding:9px 12px;
@@ -21813,10 +21818,20 @@ let motivoTxt = '';
 let carregado = false;
 const ACOES = new Map();
 
+/* Ler as conversas é uma escolha, não um padrão. Ligado, o Kronos começa
+   cada pergunta já com o histórico recente do MGP Chat em mãos, montado no
+   servidor sob as permissões de quem perguntou. Fica por navegador porque
+   é preferência de uso, não configuração da conta. */
+const MGK_CTX_KEY = 'mg-kronos-contexto';
+let lerConversas = (function(){
+  try{ return localStorage.getItem(MGK_CTX_KEY) === 'on' }catch(_){ return false }
+})();
+
 const SUGESTOES = [
   'Quais demandas estão em aberto?',
   'Resuma minha semana',
   'Quem é o responsável pelas entregas de hoje?',
+  'O que ficou pendente nas conversas do chat?',
 ];
 
 /* ---------------------------------------------------------------------
@@ -21868,6 +21883,7 @@ function contexto(){
     }
   }catch(_){}
   c.tela = (typeof VIEW !== 'undefined') ? VIEW : '';
+  if(lerConversas) c.ler_conversas = true;
   return c;
 }
 function conversa(){
@@ -21924,6 +21940,7 @@ function montar(){
   painel.innerHTML =
       '<div class="mgk-topo"><span class="av">' + mgGato(21) + '</span>'
     + '<span class="tx"><b>Kronos</b><span id="mgk-sub">Claude, dentro do MGP</span></span>'
+    + '<button id="mgk-ctx" class="ctx" onclick="MGKronos.alternarContexto()"></button>'
     + '<button title="Apagar a conversa" onclick="MGKronos.limpar()">🧹</button>'
     + '<button title="Minimizar" onclick="MGKronos.fechar()">—</button></div>'
     + '<div class="mgk-corpo" id="mgk-corpo"></div>'
@@ -21931,10 +21948,39 @@ function montar(){
       + '<textarea id="mgk-in" rows="1" placeholder="Pergunte ou peça alguma coisa"'
       + ' onkeydown="MGKronos.tecla(event)" oninput="MGKronos.digitou(this)"></textarea>'
       + '<button id="mgk-env" onclick="MGKronos.enviar()" title="Enviar" disabled>➤</button>'
-    + '</div><div class="mgk-nota">Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
+    + '</div><div class="mgk-nota" id="mgk-nota">Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
     + 'e nada é criado sem você confirmar.</div></div>';
   document.body.appendChild(painel);
   pintarBolha();
+  pintarContexto();
+}
+function pintarContexto(){
+  const b = document.getElementById('mgk-ctx');
+  if(!b) return;
+  b.classList.toggle('on', lerConversas);
+  b.textContent = '💬';
+  b.title = lerConversas
+    ? 'Lendo as conversas: o Kronos já chega com o histórico recente do MGP Chat. Clique para desligar.'
+    : 'Ler as conversas do MGP Chat, para o Kronos já ter contexto antes de você perguntar.';
+  b.setAttribute('aria-pressed', lerConversas ? 'true' : 'false');
+  const nota = document.getElementById('mgk-nota');
+  if(nota){
+    nota.textContent = lerConversas
+      ? 'Lendo as conversas do MGP Chat. Ele enxerga só o que você já enxerga, '
+        + 'conversa direta de outra pessoa nunca entra, e nada é criado sem você confirmar.'
+      : 'Movido a Claude, no servidor. Ele lê só o que você já pode ler, '
+        + 'e nada é criado sem você confirmar.';
+  }
+}
+function alternarContexto(){
+  lerConversas = !lerConversas;
+  try{ localStorage.setItem(MGK_CTX_KEY, lerConversas ? 'on' : 'off') }catch(_){}
+  pintarContexto();
+  if(typeof toast === 'function'){
+    toast(lerConversas
+      ? 'Kronos vai ler as conversas do MGP Chat'
+      : 'Kronos parou de ler as conversas');
+  }
 }
 function pintarBolha(){
   const b = document.getElementById('mg-kronos-b');
@@ -22253,7 +22299,9 @@ return {
   abrir, fechar, alternar, enviar, tecla, digitou, sugestao, limpar,
   perguntar, pedirNoChat, noCanal, sobreMensagem, sobrePessoa,
   confirmar, cancelar, ligado, motivo,
+  alternarContexto,
   pintarBotao: pintarBolha,
+  get lendoConversas(){ return lerConversas },
   get estado(){ return estado },
 };
 })();

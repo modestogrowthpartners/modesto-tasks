@@ -303,6 +303,9 @@
        falta de chave e falha na execução. */
     functions:{ invoke:(nome,opc)=>{
       const corpo=(opc&&opc.body)||{};
+      /* o teste precisa ver o que o front mandou, não só o que voltou:
+         é assim que se prova que a opção de ler as conversas viaja */
+      window.__KRONOS_ULTIMO=corpo;
       const modo=window.__KRONOS_MODO||'texto';
       if(modo==='sem_chave') return Promise.resolve({data:{ok:false,codigo:'sem_chave',
         erro:'O Kronos ainda não tem chave de IA configurada. Um administrador precisa definir o segredo ANTHROPIC_API_KEY no projeto Supabase.'},error:null});

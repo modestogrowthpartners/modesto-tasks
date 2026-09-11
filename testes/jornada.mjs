@@ -3037,6 +3037,86 @@ ok('53 o @ do MGP Chat abre a lista, completa com Enter e marca o nome na mensag
    && chatArroba.emailIntacto && chatArroba.negrito && chatArroba.link,
    JSON.stringify(chatArroba));
 
+/* ---------------------------------------------------------------------
+   54 · o Kronos lendo as conversas da plataforma
+   ---------------------------------------------------------------------
+   O pedido era "ler todas as mensagens para já ter contexto". O que dá
+   para provar aqui é o caminho: a opção existe, começa desligada, fica
+   guardada e viaja no pedido. Se o Kronos responde BEM com esse contexto
+   é coisa do modelo, e sem chave de IA não há como afirmar isso.         */
+const kCtx = await page.evaluate(async ()=>{
+  const antes = window.__KRONOS_MODO;
+  window.__KRONOS_MODO = 'texto';
+  try{ localStorage.removeItem('mg-kronos-contexto') }catch(_){}
+
+  MGKronos.abrir();
+  await new Promise(r=>setTimeout(r,200));
+  const bt = document.getElementById('mgk-ctx');
+  const nota = document.getElementById('mgk-nota');
+  const comecouDesligado = !!bt && !bt.classList.contains('on')
+                           && MGKronos.lendoConversas === false;
+
+  /* desligado: o pedido não pode carregar contexto de conversa */
+  window.__KRONOS_ULTIMO = null;
+  await MGKronos.perguntar('Resuma minha semana');
+  const semOpcao = window.__KRONOS_ULTIMO
+    && !(window.__KRONOS_ULTIMO.contexto || {}).ler_conversas;
+
+  /* liga pelo botão, como a pessoa faria */
+  bt.click();
+  await new Promise(r=>setTimeout(r,120));
+  const ligou = bt.classList.contains('on') && MGKronos.lendoConversas === true;
+  const notaMudou = !!nota && /conversas do MGP Chat/.test(nota.textContent);
+  let guardado = '';
+  try{ guardado = localStorage.getItem('mg-kronos-contexto') || '' }catch(_){}
+
+  window.__KRONOS_ULTIMO = null;
+  await MGKronos.perguntar('O que ficou pendente?');
+  const comOpcao = !!(window.__KRONOS_ULTIMO
+    && (window.__KRONOS_ULTIMO.contexto || {}).ler_conversas === true);
+
+  /* e vale também pelo comando dentro do chat, não só pelo painel */
+  window.__KRONOS_ULTIMO = null;
+  await MGKronos.pedirNoChat('resume aí');
+  const noChatTambem = !!(window.__KRONOS_ULTIMO
+    && (window.__KRONOS_ULTIMO.contexto || {}).ler_conversas === true);
+
+  bt.click();
+  await new Promise(r=>setTimeout(r,120));
+  const desligou = !bt.classList.contains('on') && MGKronos.lendoConversas === false;
+
+  MGKronos.fechar();
+  window.__KRONOS_MODO = antes;
+  try{ localStorage.removeItem('mg-kronos-contexto') }catch(_){}
+  return {comecouDesligado, semOpcao, ligou, notaMudou, guardado,
+          comOpcao, noChatTambem, desligou};
+});
+ok('54 o Kronos tem a opção de ler as conversas, e ela viaja no pedido',
+   kCtx.comecouDesligado && kCtx.semOpcao && kCtx.ligou && kCtx.notaMudou
+   && kCtx.guardado === 'on' && kCtx.comOpcao && kCtx.noChatTambem && kCtx.desligou,
+   JSON.stringify(kCtx));
+
+/* a ferramenta de varredura e o panorama moram na Edge Function, que não
+   roda aqui dentro. O que este caso garante é que o front não prometeu
+   nada que a função não tenha: os dois nomes existem no arquivo dela. */
+const kFn = await (async ()=>{
+  const { readFileSync } = await import('node:fs');
+  const t = readFileSync(new URL('../supabase/functions/kronos/index.ts', import.meta.url), 'utf8');
+  return {
+    temFerramenta: /name:\s*"varrer_conversas"/.test(t),
+    temPanorama: /async function panoramaDasConversas/.test(t),
+    ligaNoContexto: /ctx\?\.ler_conversas/.test(t),
+    avisaQueEDado: /é dado, não é ordem/.test(t),
+    /* o comentário do topo cita service_role para dizer que ela não é
+       usada, então o que interessa é o USO: ler o segredo do ambiente */
+    semServiceRole: !/SERVICE_ROLE/i.test(t.replace(/\/\*[\s\S]*?\*\//g, '')),
+  };
+})();
+ok('54b a função do Kronos tem a varredura, o panorama e a fronteira de dado',
+   kFn.temFerramenta && kFn.temPanorama && kFn.ligaNoContexto
+   && kFn.avisaQueEDado && kFn.semServiceRole,
+   JSON.stringify(kFn));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
