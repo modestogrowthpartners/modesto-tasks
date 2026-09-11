@@ -3009,10 +3009,16 @@ const chatArroba = await page.evaluate(async ()=>{
        + 'https://modestopartners.com.br isso é *urgente*',
     kind:'user', created_at:new Date().toISOString(),
     reply_to:null, reactions:{}, anexos:[]});
+  /* recarregar, e não só abrir: a esta altura da suíte o canal já pode
+     estar aberto, e abrir() num canal já aberto não busca mensagem nova */
   await MGChat.abrir('ch-1');
-  await new Promise(r=>setTimeout(r,800));
+  await MGChat.recarregar();
+  await new Promise(r=>setTimeout(r,900));
   const bolha = document.querySelector('.mgz-m[data-id="m-arroba"] .tx');
   const saida = {
+    /* o diagnóstico vem primeiro: a linha de falha é cortada em 150 letras */
+    achouBolha: !!bolha, canal: MGChat.canal,
+    naTela: document.querySelectorAll('.mgz-m').length,
     abriu: !!lista, nomes, depoisDoEnter, listaFechou,
     marcas: bolha ? [...bolha.querySelectorAll('.mgz-arroba')].map(e=>e.textContent) : [],
     meuDestaque: !!(bolha && bolha.querySelector('.mgz-arroba.eu')),
