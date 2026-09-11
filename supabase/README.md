@@ -58,6 +58,31 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._mgp_diretorio_com_data_de_entrada` | "membro desde" com data real, e canais em comum |
 | `..._mgp_responsaveis_por_id` | vínculo de responsável por id, e o rename que não órfã mais as demandas |
 | `..._mgp_perfil_do_lucas` | o Lucas tinha login desde julho e nunca teve perfil |
+| `..._mgp_nps_pesquisas_cip_mgpr` | a tabela `mgp_pesquisas`, que guarda Pré-Discovery, Client Discovery e Revisão de Parceria |
+
+## `mgp_pesquisas`
+
+Uma tabela para os três questionários, com `tipo` separando
+`pre_discovery`, `client_discovery` e `mgpr`. O que muda entre eles é o
+questionário, não o ciclo de vida, e três tabelas iguais seriam três vezes
+a mesma RLS para manter.
+
+Duas garantias que não dependem da tela:
+
+1. **A coluna `interno` nunca chega ao cliente.** A leitura da Modesto
+   (continuidade do discovery, atenções, hipóteses) mora nela, e a policy
+   de select do cliente devolve a linha inteira — por isso a segunda
+   garantia existe.
+
+2. **O cliente só responde.** A RLS decide a linha, não a coluna. Um
+   gatilho `before update` devolve `client_id`, `tipo`, `rodada`,
+   `interno`, `proxima_em` e as datas ao valor antigo quando quem grava
+   não é da equipe. Ele corrige em vez de recusar: o que importa é que a
+   resposta entre.
+
+O cálculo do MGPI não está no banco. Ele é feito na tela, a partir das
+chaves do jsonb, do mesmo jeito que a planilha faz a partir das células —
+e está coberto por `testes/nps.mjs`.
 
 ## Pendências
 

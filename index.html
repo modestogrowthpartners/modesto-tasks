@@ -27724,5 +27724,1481 @@ window.mgzQuemEh        = mgzQuemEh;
 })();
 </script>
 
+
+<style>
+/* =====================================================================
+   SEÇÃO · MGP NPS · estilo
+   ===================================================================== */
+#v-nps{padding:0}
+.mgn{max-width:1120px;margin:0 auto;padding:24px 22px 120px;display:flex;flex-direction:column;gap:22px}
+.mgn-topo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mgn-topo h1{font-family:var(--font-d);font-size:24px;font-weight:500;flex:1;min-width:180px}
+.mgn-topo select{background:var(--card);border:1px solid var(--line2);border-radius:10px;
+  padding:9px 13px;font-family:inherit;font-size:13.5px;color:var(--text);min-width:190px}
+.mgn-topo .quando{font-size:12px;color:var(--muted2)}
+
+.mgn-bloco{background:var(--card);border:1px solid var(--line2);border-radius:16px;overflow:hidden}
+.mgn-bloco > header{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
+.mgn-bloco > header h2{font-family:var(--font-d);font-size:16px;font-weight:500;flex:1}
+.mgn-bloco > header .n{font-size:11.5px;font-weight:600;color:var(--muted);
+  background:var(--card2);border-radius:20px;padding:3px 11px}
+.mgn-vazio{padding:24px 20px;font-size:13px;color:var(--muted);line-height:1.65}
+.mgn-vazio b{color:var(--text)}
+.mgn-corpo{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+
+.mgn-tab{width:100%;border-collapse:collapse;font-size:13px}
+.mgn-tab th,.mgn-tab td{text-align:left;padding:10px 20px;border-bottom:1px solid var(--line);vertical-align:top}
+.mgn-tab th{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2)}
+.mgn-tab td.n,.mgn-tab th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mgn-tab tr:last-child td{border-bottom:0}
+.mgn-tab tr.clicavel{cursor:pointer}
+.mgn-tab tr.clicavel:hover td{background:var(--card2)}
+
+.mgn-num{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px}
+.mgn-n{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:16px 18px}
+.mgn-n span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--muted2);margin-bottom:7px}
+.mgn-n b{font-size:26px;font-weight:600;font-family:var(--font-d);letter-spacing:-.3px;display:block}
+.mgn-n .pe{display:block;font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:400;
+  letter-spacing:0;text-transform:none}
+.mgn-n.verde b{color:#2E9E6B} .mgn-n.amarelo b{color:#C7871E} .mgn-n.vermelho b{color:var(--danger)}
+
+/* barra de cada pilar */
+.mgn-pilar{display:flex;align-items:center;gap:14px;font-size:13px}
+.mgn-pilar .rot{flex:1;min-width:0}
+.mgn-pilar .bar{width:180px;height:8px;border-radius:5px;background:var(--line);overflow:hidden;flex:none}
+.mgn-pilar .bar i{display:block;height:100%;border-radius:5px;background:#2E9E6B}
+.mgn-pilar .bar i.baixo{background:#D95D39}
+.mgn-pilar .v{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;flex:none}
+.mgn-alerta{font-size:12.5px;line-height:1.6;color:var(--muted);padding:9px 12px;border-radius:10px;
+  background:rgba(217,93,57,.08);border:1px solid rgba(217,93,57,.25)}
+.mgn-alerta.ok{background:rgba(46,158,107,.07);border-color:rgba(46,158,107,.22)}
+
+.mgn-farol{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+  border-radius:20px;padding:3px 11px;letter-spacing:.3px}
+.mgn-farol.verde{background:rgba(46,158,107,.14);color:#2E9E6B}
+.mgn-farol.amarelo{background:rgba(199,135,30,.16);color:#C7871E}
+.mgn-farol.vermelho{background:rgba(208,31,69,.13);color:var(--danger)}
+.mgn-farol.cinza{background:var(--card2);color:var(--muted2)}
+
+/* ---- formulário ---- */
+.mgn-form{max-width:940px;margin:0 auto;padding:22px 20px 140px;display:flex;flex-direction:column;gap:20px}
+.mgn-cab{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.mgn-cab h1{font-family:var(--font-d);font-size:25px;font-weight:500;margin-bottom:6px}
+.mgn-cab p{font-size:13.5px;color:var(--muted);line-height:1.65;max-width:640px}
+.mgn-cab .voltar{background:var(--card);border:1px solid var(--line2);border-radius:10px;
+  padding:8px 14px;font-size:13px;color:var(--text);cursor:pointer;font-family:inherit}
+.mgn-cab .voltar:hover{background:var(--card2)}
+
+.mgn-abas{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.mgn-abas button{background:var(--card);border:1px solid var(--line2);border-radius:20px;
+  padding:7px 15px;font-size:12.5px;font-family:inherit;color:var(--muted);cursor:pointer;white-space:nowrap}
+.mgn-abas button.on{background:var(--brass);border-color:var(--brass);color:#fff;font-weight:600}
+.mgn-abas button .ok{color:#2E9E6B;font-weight:700;margin-left:5px}
+.mgn-abas button.on .ok{color:#fff}
+
+.mgn-p{padding:16px 0;border-bottom:1px solid var(--line)}
+.mgn-p:last-child{border-bottom:0}
+.mgn-p > label{display:block;font-size:13.5px;font-weight:600;margin-bottom:4px;line-height:1.5}
+.mgn-p .ajuda{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:10px}
+.mgn-p .opc{font-size:11px;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px}
+.mgn-p textarea,.mgn-p input[type=text],.mgn-p input[type=date],.mgn-p select{
+  width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:11px;
+  padding:11px 13px;font-family:inherit;font-size:13.5px;color:var(--text);resize:vertical}
+.mgn-p textarea{min-height:78px;line-height:1.6}
+.mgn-p textarea:focus,.mgn-p input:focus,.mgn-p select:focus{outline:none;border-color:var(--brass)}
+
+.mgn-notas{display:flex;gap:6px;flex-wrap:wrap}
+.mgn-notas button{width:42px;height:42px;border-radius:11px;border:1px solid var(--line2);
+  background:var(--bg);font-family:inherit;font-size:14px;color:var(--muted);cursor:pointer;
+  font-variant-numeric:tabular-nums}
+.mgn-notas button:hover{border-color:var(--brass)}
+.mgn-notas button.on{background:var(--brass);border-color:var(--brass);color:#fff;font-weight:700}
+.mgn-escala{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted2);
+  margin-top:7px;max-width:530px}
+
+.mgn-multi{display:flex;gap:8px;flex-wrap:wrap}
+.mgn-multi button{background:var(--bg);border:1px solid var(--line2);border-radius:20px;
+  padding:8px 15px;font-size:13px;font-family:inherit;color:var(--muted);cursor:pointer}
+.mgn-multi button.on{background:rgba(46,158,107,.12);border-color:#2E9E6B;color:#2E9E6B;font-weight:600}
+
+.mgn-gente{display:flex;flex-direction:column;gap:9px}
+.mgn-gente .lin{display:grid;grid-template-columns:1fr 1fr 1.4fr 110px 1fr 34px;gap:7px}
+.mgn-gente .lin input,.mgn-gente .lin select{width:100%;background:var(--bg);border:1px solid var(--line2);
+  border-radius:9px;padding:9px 10px;font-family:inherit;font-size:12.5px;color:var(--text)}
+.mgn-gente .lin .x{background:none;border:1px solid var(--line2);border-radius:9px;color:var(--muted2);
+  cursor:pointer;font-size:15px}
+.mgn-gente .lin .x:hover{color:var(--danger);border-color:var(--danger)}
+
+.mgn-anexos{display:flex;flex-direction:column;gap:8px}
+.mgn-anexo{display:flex;align-items:center;gap:10px;font-size:12.5px;background:var(--bg);
+  border:1px solid var(--line2);border-radius:10px;padding:9px 12px}
+.mgn-anexo .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgn-anexo .x{background:none;border:0;color:var(--muted2);cursor:pointer;font-size:15px}
+.mgn-up{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px dashed var(--line2);
+  border-radius:11px;padding:10px 16px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
+.mgn-up:hover{border-color:var(--brass);color:var(--text)}
+
+.mgn-btn2{background:var(--card2);color:var(--text);border:1px solid var(--line2);border-radius:9px;
+  padding:9px 15px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.mgn-btn2:hover{border-color:var(--brass);color:var(--brass2)}
+.mgn-acoes{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mgn-rodape{position:sticky;bottom:0;background:var(--card);border:1px solid var(--line2);
+  border-radius:14px;padding:13px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  box-shadow:0 -6px 20px rgba(0,0,0,.07)}
+.mgn-rodape .cont{flex:1;font-size:12.5px;color:var(--muted);min-width:140px}
+.mgn-rodape .btn-p{padding:10px 22px}
+
+.mgn-recap{display:flex;flex-direction:column;gap:12px}
+.mgn-recap .it{background:var(--bg);border:1px solid var(--line2);border-radius:12px;padding:13px 15px}
+.mgn-recap .it b{display:block;font-size:12.5px;margin-bottom:5px}
+.mgn-recap .it span{font-size:13px;color:var(--muted);line-height:1.65;white-space:pre-wrap}
+
+/* ---- snapshot do cliente ---- */
+.mgn-snap{max-width:780px;margin:0 auto;padding:26px 20px 140px;display:flex;flex-direction:column;gap:18px}
+.mgn-snap .hero{background:var(--card);border:1px solid var(--line2);border-radius:18px;padding:26px 26px}
+.mgn-snap .hero h1{font-family:var(--font-d);font-size:23px;font-weight:500;margin-bottom:8px;line-height:1.35}
+.mgn-snap .hero p{font-size:13.5px;color:var(--muted);line-height:1.7}
+.mgn-snap .it{background:var(--card);border:1px solid var(--line2);border-radius:15px;padding:19px 22px}
+.mgn-snap .it h3{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--muted2);margin-bottom:9px}
+.mgn-snap .it p{font-size:13.5px;line-height:1.75;white-space:pre-wrap}
+.mgn-snap .acoes{display:flex;gap:10px;flex-wrap:wrap}
+
+@media(max-width:640px){
+  .mgn{padding:16px 13px 120px}
+  .mgn-form,.mgn-snap{padding:16px 13px 140px}
+  .mgn-tab th,.mgn-tab td{padding:9px 13px}
+  .mgn-tab .oculta-cel{display:none}
+  .mgn-pilar .bar{width:96px}
+  .mgn-gente .lin{grid-template-columns:1fr 1fr;}
+  .mgn-gente .lin .x{grid-column:2;justify-self:end;width:40px}
+  .mgn-notas button{width:36px;height:36px;font-size:13px}
+}
+
+/* Impressão: o cliente salva o retorno dele em PDF pelo próprio navegador.
+   Esconder "tudo menos o .content" não serve, porque o .content é neto do
+   <body>: a regra apagaria o ancestral dele junto. Por isso tudo fica
+   invisível e só a subárvore do retorno volta a aparecer. */
+@media print{
+  html,body{height:auto !important;overflow:visible !important;background:#fff !important}
+  .main,.content,.view{overflow:visible !important;height:auto !important}
+  body *{visibility:hidden}
+  .mgn-snap,.mgn-snap *{visibility:visible}
+  .mgn-snap{position:absolute;left:0;top:0;width:100%;padding:0;max-width:none}
+  .mgn-snap .acoes{display:none !important}
+  .mgn-snap .hero,.mgn-snap .it{border:1px solid #ddd;break-inside:avoid;box-shadow:none}
+}
+</style>
+
+<script>
+/* =====================================================================
+   SEÇÃO · MGP NPS · Pré-Discovery, Client Discovery e Revisão de Parceria
+
+   Três planilhas viraram uma aba. O que elas tinham em comum era o ciclo:
+   a Modesto envia, o cliente responde, a Modesto lê um resumo. O que
+   mudava era só o questionário. Então o questionário é dado, e o resto é
+   um mecanismo só.
+
+   O que a reunião pediu e está aqui:
+
+     · o Client Discovery abre com o que o cliente já respondeu no
+       Pré-Discovery, para ele lembrar do que disse semanas atrás em vez
+       de responder de novo (aba "O que você já nos contou");
+     · o cliente anexa material junto da resposta;
+     · ao terminar, ele recebe na hora um retorno com os destaques, os
+       compromissos da Modesto e a data da próxima revisão — e consegue
+       salvar isso em PDF pelo próprio navegador;
+     · a Modesto lê um painel, não as respostas cruas: pilares, MGPI,
+       farol, alertas e a ação recomendada;
+     · a revisão de 60 dias cobra ponto a ponto o que foi levantado no
+       discovery, com responsável por item.
+
+   O cálculo é o mesmo da planilha `Modesto_CIP_MGPR_V1`, célula por
+   célula: pilar é média das perguntas dele, MGPI é a média dos pilares
+   que existem, e as faixas de classificação e de farol são as de lá.
+
+   Duas escolhas que fogem da planilha, de propósito:
+
+     · "NPS" na planilha é a nota crua de um cliente. Nota de um
+       respondente não é NPS; NPS é %promotores − %detratores de uma
+       carteira. A tela mostra a nota como nota, e calcula o NPS de
+       verdade só na visão geral, onde ele significa alguma coisa.
+     · os compromissos do retorno ao cliente eram três frases fixas.
+       Aqui eles saem dos pilares que ele mesmo pontuou baixo, que foi o
+       ajuste pedido na reunião ("talvez a gente tenha que ver algum
+       detalhe pra pôr de retorno pra ele"). Sem pilar baixo, ficam as
+       três frases originais.
+   ===================================================================== */
+(function(){
+  if(typeof NAV === 'undefined' || typeof sb === 'undefined') return;
+
+  /* ===================================================================
+     1. Os três questionários
+     =================================================================== */
+  const TEMAS = ['Estratégia','IA','Growth','CRM','Branding','Dados'];
+
+  const FORMS = {
+
+    pre_discovery: {
+      tipo:'pre_discovery',
+      nome:'Pré-Discovery',
+      titulo:'Pré-Discovery',
+      chamada:'Queremos qualificar a oportunidade antes do diagnóstico. '
+            + 'Não é um discovery profundo: respostas curtas bastam.',
+      tempo:'5 a 10 minutos',
+      quando:'Antes do diagnóstico',
+      abas:[
+        {id:'unica', titulo:'Pré-Discovery', perguntas:[
+          {id:'pd_objetivo',     rot:'Objetivo do negócio',
+           ajuda:'Qual é o principal objetivo de negócio para os próximos 6 a 12 meses?'},
+          {id:'pd_modelo',       rot:'Modelo de negócio',
+           ajuda:'A operação é majoritariamente e-commerce, geração de leads, varejo físico ou um modelo misto?'},
+          {id:'pd_investimento', rot:'Investimento em mídia',
+           ajuda:'Qual é o investimento mensal aproximado em mídia/aquisição hoje? Existe previsão de mudança?'},
+          {id:'pd_fee',          rot:'Faixa de investimento na parceria',
+           ajuda:'Já existe uma faixa de investimento (fee) alinhada para a parceria com a Modesto, ou isso ainda será definido na proposta?'},
+          {id:'pd_canais',       rot:'Canais',
+           ajuda:'Quais canais de aquisição e mídia são utilizados atualmente?'},
+          {id:'pd_dor',          rot:'Principal dor',
+           ajuda:'Qual é hoje a principal dor ou desafio relacionado a crescimento/performance?'},
+          {id:'pd_mensuracao',   rot:'Mensuração',
+           ajuda:'Como acompanham vendas, CAC, ROAS, margem, LTV e/ou outros indicadores?'},
+          {id:'pd_crm',          rot:'CRM / dados',
+           ajuda:'Possuem CRM, analytics, BI ou outra estrutura de dados? Qual?'},
+          {id:'pd_stakeholders', rot:'Stakeholders',
+           ajuda:'Quem participa da decisão, quem será nosso principal contato e quem aprova?'},
+          {id:'pd_urgencia',     rot:'Urgência',
+           ajuda:'Existe alguma urgência, lançamento, sazonalidade ou meta que determine o início?'},
+          {id:'pd_escopo',       rot:'Escopo percebido',
+           ajuda:'Em poucas palavras, o que esperam que a Modesto resolva?'},
+          {id:'pd_contexto',     rot:'Contexto adicional',
+           ajuda:'Existe alguma informação importante que deveríamos saber antes de elaborar o diagnóstico?'},
+        ]},
+      ],
+    },
+
+    client_discovery: {
+      tipo:'client_discovery',
+      nome:'Client Discovery',
+      titulo:'Client Discovery',
+      chamada:'Queremos conhecer o negócio por trás dos números. Respostas curtas são suficientes; '
+            + 'onde não souber, deixe em branco. Antes do kickoff, isso permite que a Modesto chegue '
+            + 'preparada para discutir crescimento já no primeiro encontro.',
+      tempo:'15 a 20 minutos',
+      quando:'Depois do contrato, antes do kickoff',
+      abas:[
+        {id:'recap', titulo:'O que você já nos contou', recap:'pre_discovery',
+         nota:'Isto é o que você respondeu no Pré-Discovery. Só releia; se algo mudou, conte na primeira pergunta da aba seguinte.'},
+        {id:'negocio', titulo:'Negócio', perguntas:[
+          {id:'cd_mudancas',    rot:'Mudanças recentes',
+           ajuda:'Existe alguma mudança relevante no negócio que não apareceu no diagnóstico?'},
+          {id:'cd_produtos',    rot:'Produtos e categorias',
+           ajuda:'Quais são hoje os principais produtos/categorias e suas prioridades estratégicas?'},
+          {id:'cd_proximos',    rot:'Próximos passos',
+           ajuda:'Existe alguma mudança prevista nos próximos 6 a 12 meses (lançamento, expansão, reposicionamento)?'},
+          {id:'cd_sazonalidade',rot:'Sazonalidade',
+           ajuda:'Há sazonalidades ou eventos importantes que devemos considerar?'},
+        ]},
+        {id:'economics', titulo:'Economics e funil', perguntas:[
+          {id:'cd_economics',    rot:'Premissas econômicas',
+           ajuda:'Quais premissas econômicas devemos considerar? Ex.: margem, ticket, CAC máximo, payback, LTV.'},
+          {id:'cd_funil',        rot:'Funil',
+           ajuda:'Como funciona o funil do primeiro contato até a venda? Onde percebem maior perda ou gargalo?'},
+          {id:'cd_reconciliacao',rot:'Reconciliação de números',
+           ajuda:'Existem diferenças entre faturamento, receita líquida e receita considerada nos relatórios de mídia?'},
+          {id:'cd_indicadores',  rot:'Indicadores de liderança',
+           ajuda:'Quais indicadores realmente orientam as decisões da liderança?'},
+          {id:'cd_sucesso',      rot:'Critério de sucesso',
+           ajuda:'Como vocês saberão, daqui a 6 a 12 meses, que esta parceria foi bem-sucedida?'},
+        ]},
+        {id:'mercado', titulo:'Cliente e mercado', perguntas:[
+          {id:'cd_cliente_prio',  rot:'Cliente prioritário',
+           ajuda:'Quem é hoje o cliente prioritário para crescimento? Existe algum público que NÃO devemos priorizar?'},
+          {id:'cd_motivo_compra', rot:'Motivo de compra',
+           ajuda:'Quais são os principais motivos de compra e objeções?'},
+          {id:'cd_concorrencia',  rot:'Concorrência',
+           ajuda:'Quais são os 3 principais concorrentes e o que mudou no mercado recentemente?'},
+          {id:'cd_referencia',    rot:'Referência de inspiração', opcional:true,
+           ajuda:'Existe uma marca, mesmo fora do seu segmento, que vocês admiram pela forma de se comunicar ou crescer? Por quê?'},
+        ]},
+        {id:'oferta', titulo:'Oferta e regras', perguntas:[
+          {id:'cd_ofertas',      rot:'Prioridades de oferta',
+           ajuda:'Quais produtos/ofertas devem receber prioridade?'},
+          {id:'cd_volume_margem',rot:'Volume x margem',
+           ajuda:'Qual produto/categoria tem hoje maior volume de vendas? E qual tem maior margem?'},
+          {id:'cd_nao_escalar',  rot:'Não escalar',
+           ajuda:'Existe algum produto/oferta que não devemos escalar? Por quê?'},
+          {id:'cd_regras',       rot:'Regras comerciais',
+           ajuda:'Existem regras comerciais importantes? Ex.: margem, descontos, frete, estoque, regiões ou canais.'},
+          {id:'cd_fidelizacao',  rot:'Fidelização',
+           ajuda:'Existe clube, fidelidade, indicação, comunidade ou intenção de criar?'},
+          {id:'cd_restricoes',   rot:'Restrições operacionais',
+           ajuda:'Há restrições de estoque, produção, logística, atendimento ou capacidade?'},
+        ]},
+        {id:'historico', titulo:'Histórico e testes', perguntas:[
+          {id:'cd_funcionou',     rot:'O que funcionou',
+           ajuda:'Quais estratégias, campanhas ou testes já tiveram bom resultado?'},
+          {id:'cd_nao_funcionou', rot:'O que não funcionou',
+           ajuda:'Quais testes ou abordagens não funcionaram? Existe algo que não deve ser repetido?'},
+          {id:'cd_aprendizados',  rot:'Aprendizados',
+           ajuda:'Quais aprendizados do histórico são importantes para nossa equipe?'},
+          {id:'cd_materiais',     rot:'Materiais históricos',
+           ajuda:'Existem relatórios, bases ou dashboards históricos que devemos incorporar?'},
+          {id:'cd_anterior',      rot:'Experiência anterior',
+           ajuda:'Há algo sobre a experiência com a agência ou fornecedor anterior — o que funcionou, o que não funcionou, por que a mudança aconteceu — que ainda não foi coberto e devemos saber?'},
+        ]},
+        {id:'dados', titulo:'Dados e governança', perguntas:[
+          {id:'cd_fonte',       rot:'Fonte oficial de dados',
+           ajuda:'Quais fontes de dados são a referência oficial para cada KPI?'},
+          {id:'cd_sistemas',    rot:'Sistemas em uso',
+           ajuda:'Quais sistemas e plataformas são usados hoje (e-commerce, CRM, analytics, BI)? Precisaremos de acesso a algum deles?'},
+          {id:'cd_tracking',    rot:'Limitações de tracking',
+           ajuda:'Existe alguma limitação de tracking, atribuição ou qualidade dos dados?'},
+          {id:'cd_aprovacao',   rot:'Governança de aprovação',
+           ajuda:'Quem aprova campanhas, criativos, ofertas e mudanças relevantes?'},
+          {id:'cd_prazo_stake', rot:'Prazo e stakeholders',
+           ajuda:'Qual é o prazo usual de aprovação e quem são os stakeholders críticos?'},
+        ]},
+        {id:'parceria', titulo:'Parceria com a Modesto', perguntas:[
+          {id:'cd_expectativas',       rot:'Expectativas do dia a dia',
+           ajuda:'Além dos objetivos já definidos, o que esperam da Modesto no dia a dia?'},
+          {id:'cd_parceria_excelente', rot:'Parceria excelente',
+           ajuda:'O que seria uma parceria excelente para vocês?'},
+          {id:'cd_postura',            rot:'Postura esperada',
+           ajuda:'Que tipo de postura esperam da Modesto no dia a dia?'},
+          {id:'cd_preocupacoes',       rot:'Experiências anteriores',
+           ajuda:'Existe alguma preocupação ou experiência anterior que devemos considerar?'},
+          {id:'cd_feedback',           rot:'Feedback direto',
+           ajuda:'Existe algo que esperam que a Modesto questione ou provoque, mesmo que seja desconfortável?'},
+          {id:'cd_extraordinario',     rot:'Resultado extraordinário x decepcionante',
+           ajuda:'O que seria um resultado extraordinário desta parceria em 12 meses? E o que seria decepcionante?'},
+          {id:'cd_ponto_cego',         rot:'Ponto cego',
+           ajuda:'O que não perguntamos e que precisamos saber antes de começar?'},
+        ]},
+        {id:'pessoas', titulo:'Pessoas', perguntas:[
+          {id:'cd_pessoas', rot:'Quem participa do projeto', tipo:'pessoas',
+           ajuda:'Nome, cargo, responsabilidade no projeto e se a pessoa decide ou aprova.'},
+        ]},
+      ],
+    },
+
+    mgpr: {
+      tipo:'mgpr',
+      nome:'Revisão de Parceria',
+      titulo:'Revisão de Parceria',
+      chamada:'Mais do que medir satisfação, esta revisão busca entender como você percebe a Modesto '
+            + 'como parceira estratégica. Assim que você concluir, recebe de volta os destaques da '
+            + 'sua avaliação e os nossos compromissos para o próximo ciclo.',
+      tempo:'3 a 5 minutos',
+      quando:'60 dias após o início, e a cada trimestre',
+      abas:[
+        {id:'confianca', titulo:'Confiança', perguntas:[
+          {id:'confianca_recomendacoes', tipo:'nota',
+           rot:'Quanto você confia nas recomendações estratégicas da Modesto?'},
+          {id:'confianca_seguranca', tipo:'nota',
+           rot:'Você sente segurança nas decisões sugeridas pela nossa equipe?'},
+        ]},
+        {id:'valor', titulo:'Valor estratégico', perguntas:[
+          {id:'valor_entende', tipo:'nota',
+           rot:'A Modesto entende seu negócio e seus objetivos?'},
+          {id:'valor_percepcao', tipo:'lista', rot:'Hoje você percebe a Modesto como:',
+           opcoes:['Fornecedora de execução','Parceira de performance','Parceira estratégica de crescimento']},
+        ]},
+        {id:'execucao', titulo:'Excelência na execução', perguntas:[
+          {id:'exec_comunicacao', tipo:'nota', rot:'Comunicação'},
+          {id:'exec_organizacao', tipo:'nota', rot:'Organização'},
+          {id:'exec_prazos',      tipo:'nota', rot:'Cumprimento de prazos'},
+          {id:'exec_proatividade',tipo:'nota', rot:'Proatividade'},
+        ]},
+        {id:'impacto', titulo:'Impacto nos resultados', perguntas:[
+          {id:'impacto_evolucao', tipo:'nota',
+           rot:'Você percebe evolução dos resultados desde o início da parceria ou da última revisão?'},
+        ]},
+        {id:'futuro', titulo:'Futuro da parceria', perguntas:[
+          {id:'futuro_potencial', tipo:'nota',
+           rot:'Você sente que a parceria tem potencial de evoluir e gerar ainda mais valor nos próximos meses?'},
+          {id:'temas', tipo:'multi', rot:'Em quais temas poderíamos gerar ainda mais valor?', opcoes:TEMAS},
+          {id:'temas_outro', tipo:'curto', rot:'Outro tema', opcional:true,
+           ajuda:'Se houver algum tema fora da lista acima.'},
+        ]},
+        {id:'continuidade', titulo:'Continuidade do discovery', perguntas:[
+          {id:'continuidade_endereca', tipo:'lista',
+           rot:'As prioridades identificadas no início da parceria (Pré-Discovery e Client Discovery) estão sendo endereçadas pela Modesto?',
+           opcoes:['Sim, integralmente','Em parte','Não']},
+          {id:'continuidade_pendencia',
+           rot:'Há algo levantado no início da parceria que ainda não recebeu atenção?'},
+        ]},
+        {id:'nps', titulo:'Recomendação', perguntas:[
+          {id:'nps_nota', tipo:'nota',
+           rot:'Em uma escala de 0 a 10, o quanto você recomendaria a Modesto?'},
+          {id:'nps_motivo', rot:'Qual foi o principal motivo da sua nota?'},
+        ]},
+      ],
+    },
+  };
+
+  /* Os itens que a revisão de 60 dias cobra, e de onde cada um sai. É o
+     depara da aba 04_Continuidade_Discovery: a coluna "situação no início"
+     deixa de ser copiada na mão e passa a vir da resposta do cliente. */
+  const CONTINUIDADE = [
+    {id:'dor',       item:'Principal dor / desafio',              origem:'pre_discovery',    campo:'pd_dor',       resp:'Customer Success'},
+    {id:'objetivo',  item:'Objetivo principal 6–12 meses',        origem:'pre_discovery',    campo:'pd_objetivo',  resp:'Account Manager'},
+    {id:'meta',      item:'Meta/piso de ROAS, CAC ou margem',     origem:'client_discovery', campo:'cd_economics', resp:'Estratégia'},
+    {id:'restricao', item:'Restrição operacional relevante',      origem:'client_discovery', campo:'cd_restricoes',resp:'Customer Success'},
+    {id:'postura',   item:'Postura/expectativa de relacionamento',origem:'client_discovery', campo:'cd_postura',   resp:'Account Manager'},
+  ];
+  const SITUACOES = ['Não avaliado','Endereçado','Em andamento','Não endereçado','Não se aplica'];
+
+  /* ===================================================================
+     2. O cálculo — o mesmo da planilha, célula por célula
+     =================================================================== */
+  function num(v){
+    if(v === '' || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  function media(l){
+    const v = l.filter(x => x != null);
+    return v.length ? v.reduce((a,b)=>a+b, 0) / v.length : null;
+  }
+  /* AVERAGE do Excel ignora célula vazia. Aqui também: pilar respondido
+     pela metade vale a metade respondida, e pilar vazio não entra no MGPI. */
+  function pilares(r){
+    r = r || {};
+    const n = k => num(r[k]);
+    return [
+      {id:'confianca', rot:'Confiança',
+       v: media([n('confianca_recomendacoes'), n('confianca_seguranca')]),
+       forte:'Confiança na condução estratégica.',
+       fraco:'Reforçar transparência e comunicação sobre decisões estratégicas.',
+       alerta:'Cliente com baixa confiança nas recomendações — priorizar contato humano e reforço de transparência.'},
+      {id:'valor', rot:'Valor estratégico',
+       v: media([n('valor_entende')]),
+       forte:'Entendimento do seu negócio e objetivos.',
+       fraco:'Ampliar benchmarks de mercado e discussões consultivas.',
+       alerta:'Cliente não percebe a Modesto como parceira estratégica — ampliar benchmarking e discussões consultivas.'},
+      {id:'execucao', rot:'Excelência na execução',
+       v: media([n('exec_comunicacao'), n('exec_organizacao'), n('exec_prazos'), n('exec_proatividade')]),
+       forte:'Excelência na execução (comunicação, prazos e organização).',
+       fraco:'Revisar processos, prazos e cadência de comunicação.',
+       alerta:'Falhas de execução percebidas — revisar processos, SLAs e comunicação.'},
+      {id:'impacto', rot:'Impacto nos resultados',
+       v: media([n('impacto_evolucao')]),
+       forte:'Evolução percebida nos resultados.',
+       fraco:'Reforçar a apresentação de resultados e indicadores.',
+       alerta:'Cliente não percebe evolução de resultados — reforçar apresentação de indicadores de impacto.'},
+      {id:'futuro', rot:'Futuro da parceria',
+       v: media([n('futuro_potencial')]),
+       forte:'Potencial de evolução da parceria.',
+       fraco:'Explorar novos temas e frentes de valor para os próximos meses.',
+       alerta:'Cliente vê pouco potencial de evolução — realizar reunião executiva para alinhar expectativas.'},
+    ];
+  }
+  function mgpi(r){ return media(pilares(r).map(p => p.v)) }
+
+  function classificacao(m){
+    if(m == null) return null;
+    if(m >= 9.5) return '💎 Platinum Partnership';
+    if(m >= 8.8) return '🥇 Gold Partnership';
+    if(m >= 8)   return '🥈 Silver Partnership';
+    if(m >= 7)   return '🟠 Bronze Partnership';
+    return '🔴 Recovery Partnership';
+  }
+  function farol(m){
+    if(m == null) return {k:'cinza', rot:'sem revisão'};
+    if(m >= 8) return {k:'verde',    rot:'Verde'};
+    if(m >= 7) return {k:'amarelo',  rot:'Amarelo'};
+    return       {k:'vermelho', rot:'Vermelho'};
+  }
+  function acaoRecomendada(m){
+    if(m == null) return '';
+    if(m >= 9.5) return 'Sugerir programa de indicação, convite para eventos e participação em cases.';
+    if(m >= 8.8) return 'Reforçar pontos fortes e sugerir pequenas evoluções.';
+    if(m >= 8)   return 'Gerar recomendações específicas por pilar.';
+    if(m >= 7)   return 'Criar CAP prioritário e agendar reunião do Customer Success.';
+    return 'Alerta para contato humano em até 48 horas.';
+  }
+  function temasDe(r){
+    const l = ((r && r.temas) || []).slice();
+    const outro = String((r && r.temas_outro) || '').trim();
+    if(outro) l.push(outro);
+    return l;
+  }
+  /* NPS de verdade: %promotores − %detratores. Só faz sentido sobre uma
+     carteira. A nota de um cliente sozinho é nota, e é assim que aparece. */
+  function npsCarteira(notas){
+    const l = notas.map(num).filter(v => v != null);
+    if(!l.length) return null;
+    const p = l.filter(v => v >= 9).length;
+    const d = l.filter(v => v <= 6).length;
+    return Math.round(100 * (p - d) / l.length);
+  }
+  function nota1(v){ return v == null ? '—' : v.toFixed(1).replace('.', ',') }
+  function nota2(v){ return v == null ? '—' : v.toFixed(2).replace('.', ',') }
+
+  function mesAno(d){
+    if(!d) return null;
+    try{
+      return d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'}).replace(/^./, c=>c.toUpperCase());
+    }catch(e){ return null }
+  }
+  function proximaRevisao(p){
+    if(p && p.proxima_em) return new Date(p.proxima_em + 'T12:00:00');
+    const base = (p && (p.respondido_em || p.enviado_em)) ? new Date(p.respondido_em || p.enviado_em) : null;
+    if(!base || isNaN(base)) return null;
+    const d = new Date(base.getTime());
+    d.setMonth(d.getMonth() + 3);
+    return d;
+  }
+
+  /* O retorno que o cliente recebe. Sem nota e sem classificação: o pedido
+     foi explícito, e a classificação é linguagem interna. */
+  function snapshot(p, nomeCliente, nomePessoa){
+    const r  = p.respostas || {};
+    const pl = pilares(r);
+    const respondeu = pl.some(x => x.v != null);
+    const fortes = pl.filter(x => x.v != null && x.v >= 8).map(x => x.forte);
+    const fracos = pl.filter(x => x.v != null && x.v <  8);
+    const temas  = temasDe(r);
+
+    /* Compromisso calibrado pelo que ele mesmo pontuou baixo. Sem pilar
+       baixo, ficam as três frases padrão da planilha. */
+    const compromisso = fracos.length
+      ? fracos.slice(0, 3).map(x => '✓ ' + x.fraco)
+      : ['✓ Compartilhar benchmarking e boas práticas de mercado no próximo ciclo.',
+         '✓ Revisar nossa agenda de reuniões executivas com você.',
+         '✓ Incorporar este feedback ao nosso plano de melhoria contínua.'];
+
+    const prox = proximaRevisao(p);
+    return {
+      saudacao: 'Obrigado' + (nomePessoa ? ', ' + nomePessoa : '') + ', por participar da nossa Revisão de Parceria.',
+      linha: 'Sua opinião é fundamental para continuarmos evoluindo juntos'
+           + (nomeCliente ? ', ' + nomeCliente : '') + '.',
+      fortes: fortes.length ? fortes.join('\n')
+        : (respondeu ? 'Nesta rodada nenhum pilar ficou acima de 8. Vamos tratar isso como prioridade.'
+                     : 'Assim que suas respostas forem processadas, você verá os destaques aqui.'),
+      oportunidades: fracos.length ? fracos.map(x => x.fraco).join('\n')
+        : (respondeu ? 'Nenhuma oportunidade crítica apontada nesta rodada.' : '—'),
+      temas: temas.length ? temas.join(' · ') : 'Nenhum tema específico apontado nesta rodada.',
+      compromisso: compromisso.join('\n'),
+      proxima: prox ? ('Próxima revisão prevista: ' + mesAno(prox))
+                    : 'Próxima revisão prevista: em aproximadamente 3 meses.',
+    };
+  }
+
+  /* ===================================================================
+     3. Dados
+     =================================================================== */
+  let LISTA   = [];      /* todas as pesquisas que esta pessoa enxerga */
+  let LIDO    = false;
+  let ERRO    = null;
+  let CLI     = null;    /* empresa escolhida no painel da equipe       */
+  let FORM    = null;    /* {pesquisa, aba, salvando} enquanto responde  */
+  let SNAP    = null;    /* pesquisa cujo retorno está aberto            */
+
+  function semTabela(m){
+    return /relation .*mgp_pesquisas|does not exist|schema cache|could not find the table/i.test(String(m||''));
+  }
+  async function carregar(){
+    ERRO = null;
+    try{
+      const {data, error} = await sb.from('mgp_pesquisas').select('*')
+        .order('client_id').order('tipo').order('rodada', {ascending:false});
+      if(error) throw error;
+      LISTA = data || [];
+    }catch(e){
+      const m = (e && e.message) || 'não foi possível ler';
+      ERRO = semTabela(m) ? 'tabela' : m;
+      LISTA = [];
+    }finally{
+      LIDO = true;
+    }
+  }
+  function doCliente(cid, tipo){
+    return LISTA.filter(p => p.client_id === cid && (!tipo || p.tipo === tipo))
+                .sort((a,b) => b.rodada - a.rodada);
+  }
+  function ultima(cid, tipo){ return doCliente(cid, tipo)[0] || null }
+  function respondidas(cid, tipo){ return doCliente(cid, tipo).filter(p => p.status === 'respondido') }
+
+  async function salvar(id, campos){
+    const {data, error} = await sb.from('mgp_pesquisas').update(campos).eq('id', id).select().single();
+    if(error) throw error;
+    const i = LISTA.findIndex(p => p.id === id);
+    if(i >= 0) LISTA[i] = data; else LISTA.push(data);
+    return data;
+  }
+  async function enviar(cid, tipo){
+    const anterior = ultima(cid, tipo);
+    const rodada = anterior ? anterior.rodada + 1 : 1;
+    const linha = {
+      client_id: cid, tipo, rodada, status:'enviado',
+      respostas:{}, anexos:[], interno:{},
+      criado_por: (typeof ME !== 'undefined' && ME) ? ME.id : null,
+    };
+    if(tipo === 'mgpr'){
+      const d = new Date(); d.setMonth(d.getMonth() + 3);
+      linha.proxima_em = d.toISOString().slice(0, 10);
+      linha.interno = {continuidade: continuidadeInicial(cid)};
+    }
+    const {data, error} = await sb.from('mgp_pesquisas').insert(linha).select().single();
+    if(error) throw error;
+    LISTA.push(data);
+    return data;
+  }
+  /* A coluna "situação no início" da aba 04 deixa de ser copiada na mão:
+     ela é lida do Pré-Discovery e do Client Discovery que já estão no banco. */
+  function continuidadeInicial(cid){
+    return CONTINUIDADE.map(c => {
+      const fonte = ultima(cid, c.origem);
+      const txt = fonte && fonte.respostas ? String(fonte.respostas[c.campo] || '').trim() : '';
+      return {id:c.id, item:c.item, origem:c.origem, inicio:txt,
+              situacao:'Não avaliado', comentario:'', responsavel:c.resp};
+    });
+  }
+
+  /* ===================================================================
+     4. O formulário — um só, para os três questionários
+     =================================================================== */
+  function specDe(p){ return FORMS[p.tipo] || FORMS.mgpr }
+
+  function perguntasDe(spec){
+    return spec.abas.reduce((l, a) => l.concat(a.perguntas || []), []);
+  }
+  function respondidasNaAba(aba, r){
+    const ps = (aba.perguntas || []).filter(p => !p.opcional);
+    if(!ps.length) return {feitas:0, total:0};
+    const feitas = ps.filter(p => preenchida(r[p.id])).length;
+    return {feitas, total:ps.length};
+  }
+  function preenchida(v){
+    if(v == null) return false;
+    if(Array.isArray(v)) return v.length > 0;
+    return String(v).trim() !== '';
+  }
+
+  function campoHTML(q, r){
+    const v = r[q.id];
+    const rot = '<label for="mgn-' + esc(q.id) + '">' + esc(q.rot)
+      + (q.opcional ? ' <span class="opc">opcional</span>' : '') + '</label>';
+    const ajuda = q.ajuda ? '<div class="ajuda">' + esc(q.ajuda) + '</div>' : '';
+    const set = "mgNpsSet('" + escJS(q.id) + "', this.value)";
+
+    let corpo;
+    if(q.tipo === 'nota'){
+      const atual = num(v);
+      corpo = '<div class="mgn-notas">'
+        + Array.from({length:11}, (_, i) =>
+            '<button type="button" class="' + (atual === i ? 'on' : '') + '"'
+            + ' onclick="mgNpsSet(\'' + escJS(q.id) + '\', ' + i + ')">' + i + '</button>').join('')
+        + '</div><div class="mgn-escala"><span>0 · nada</span><span>10 · totalmente</span></div>';
+    }else if(q.tipo === 'lista'){
+      corpo = '<select id="mgn-' + esc(q.id) + '" onchange="' + set + '">'
+        + '<option value="">Selecione</option>'
+        + (q.opcoes || []).map(o => '<option value="' + esc(o) + '"'
+            + (String(v || '') === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('')
+        + '</select>';
+    }else if(q.tipo === 'multi'){
+      const marcados = Array.isArray(v) ? v.map(String) : [];
+      corpo = '<div class="mgn-multi">'
+        + (q.opcoes || []).map(o => '<button type="button" class="' + (marcados.includes(o) ? 'on' : '') + '"'
+            + ' onclick="mgNpsMulti(\'' + escJS(q.id) + '\', \'' + escJS(o) + '\')">'
+            + (marcados.includes(o) ? '✓ ' : '') + esc(o) + '</button>').join('')
+        + '</div>';
+    }else if(q.tipo === 'curto'){
+      corpo = '<input type="text" id="mgn-' + esc(q.id) + '" value="' + esc(v || '') + '"'
+        + ' oninput="' + set + '" maxlength="200">';
+    }else if(q.tipo === 'pessoas'){
+      corpo = pessoasHTML(Array.isArray(v) ? v : []);
+    }else{
+      corpo = '<textarea id="mgn-' + esc(q.id) + '" oninput="' + set + '"'
+        + ' placeholder="Resposta curta já ajuda">' + esc(v || '') + '</textarea>';
+    }
+    return '<div class="mgn-p">' + rot + ajuda + corpo + '</div>';
+  }
+
+  function pessoasHTML(l){
+    const linha = (p, i) =>
+      '<div class="lin">'
+      + '<input type="text" placeholder="Nome"  value="' + esc(p.nome  || '') + '" oninput="mgNpsPessoa(' + i + ',\'nome\',this.value)">'
+      + '<input type="text" placeholder="Cargo" value="' + esc(p.cargo || '') + '" oninput="mgNpsPessoa(' + i + ',\'cargo\',this.value)">'
+      + '<input type="text" placeholder="Responsabilidade no projeto" value="' + esc(p.resp || '') + '" oninput="mgNpsPessoa(' + i + ',\'resp\',this.value)">'
+      + '<select onchange="mgNpsPessoa(' + i + ',\'decide\',this.value)">'
+        + ['','Aprova','Consulta','Executa'].map(o => '<option value="' + esc(o) + '"'
+            + (String(p.decide || '') === o ? ' selected' : '') + '>' + esc(o || 'Papel') + '</option>').join('')
+        + '</select>'
+      + '<input type="text" placeholder="E-mail" value="' + esc(p.contato || '') + '" oninput="mgNpsPessoa(' + i + ',\'contato\',this.value)">'
+      + '<button type="button" class="x" title="Remover" onclick="mgNpsPessoaFora(' + i + ')">×</button>'
+      + '</div>';
+    return '<div class="mgn-gente">'
+      + (l.length ? l.map(linha).join('') : '')
+      + '<button type="button" class="mgn-up" onclick="mgNpsPessoaNova()">＋ Adicionar pessoa</button>'
+      + '</div>';
+  }
+
+  function anexosHTML(p){
+    const l = p.anexos || [];
+    return '<div class="mgn-p"><label>Materiais</label>'
+      + '<div class="ajuda">Se houver relatórios, dashboards, planilhas ou apresentações que ajudem, '
+      + 'envie junto. Nada aqui é obrigatório.</div>'
+      + '<div class="mgn-anexos">'
+      + l.map((a, i) => '<div class="mgn-anexo"><span>📎</span>'
+          + '<span class="nm">' + esc(a.nome || 'arquivo') + '</span>'
+          + '<button type="button" class="x" title="Remover" onclick="mgNpsAnexoFora(' + i + ')">×</button></div>').join('')
+      + '</div>'
+      + '<label class="mgn-up" style="margin-top:' + (l.length ? '10px' : '0') + '">⬆ Anexar arquivo'
+      + '<input type="file" multiple hidden onchange="mgNpsAnexar(this)"></label>'
+      + '</div>';
+  }
+
+  function recapHTML(aba, p){
+    const fonte = ultima(p.client_id, aba.recap);
+    const spec  = FORMS[aba.recap];
+    if(!fonte || fonte.status !== 'respondido'){
+      return '<div class="mgn-vazio" style="padding:20px 0">'
+        + 'Ainda não temos um ' + esc(spec.nome) + ' respondido por aqui. '
+        + 'Siga para as próximas abas normalmente.</div>';
+    }
+    const r = fonte.respostas || {};
+    const itens = perguntasDe(spec).filter(q => preenchida(r[q.id]));
+    if(!itens.length){
+      return '<div class="mgn-vazio" style="padding:20px 0">'
+        + 'O ' + esc(spec.nome) + ' foi enviado, mas ficou sem respostas.</div>';
+    }
+    return '<div class="ajuda" style="margin-bottom:14px">' + esc(aba.nota || '') + '</div>'
+      + '<div class="mgn-recap">'
+      + itens.map(q => '<div class="it"><b>' + esc(q.rot) + '</b><span>'
+          + esc(valorTexto(r[q.id])) + '</span></div>').join('')
+      + '</div>';
+  }
+  function valorTexto(v){
+    if(Array.isArray(v)){
+      if(!v.length) return '—';
+      if(typeof v[0] === 'object'){
+        return v.map(p => [p.nome, p.cargo, p.resp, p.decide, p.contato]
+          .filter(Boolean).join(' · ')).join('\n');
+      }
+      return v.join(' · ');
+    }
+    return String(v == null ? '' : v);
+  }
+
+  function formHTML(){
+    const p = FORM.pesquisa;
+    const spec = specDe(p);
+    const r = p.respostas || {};
+    const aba = spec.abas.find(a => a.id === FORM.aba) || spec.abas[0];
+    const bloqueado = FORM.somenteLeitura;
+
+    const abas = '<div class="mgn-abas">' + spec.abas.map(a=>{
+      const c = a.recap ? null : respondidasNaAba(a, r);
+      const completa = c && c.total && c.feitas === c.total;
+      return '<button class="' + (a.id === aba.id ? 'on' : '') + '"'
+        + ' onclick="mgNpsAba(\'' + escJS(a.id) + '\')">' + esc(a.titulo)
+        + (completa ? '<span class="ok">✓</span>' : '') + '</button>';
+    }).join('') + '</div>';
+
+    const miolo = aba.recap
+      ? recapHTML(aba, p)
+      : (aba.perguntas || []).map(q => campoHTML(q, r)).join('')
+        + (aba.id === spec.abas[spec.abas.length - 1].id ? anexosHTML(p) : '');
+
+    const todas = perguntasDe(spec).filter(q => !q.opcional);
+    const feitas = todas.filter(q => preenchida(r[q.id])).length;
+    const falta = todas.length - feitas;
+
+    const rodape = bloqueado ? ''
+      : '<div class="mgn-rodape">'
+        + '<span class="cont">' + feitas + ' de ' + todas.length + ' perguntas respondidas'
+        + (falta ? ' · dá para enviar mesmo assim' : '') + '</span>'
+        + '<button class="mgn-btn2" onclick="mgNpsFechar()">Sair sem enviar</button>'
+        + '<button class="btn-p" onclick="mgNpsEnviarResposta()"'
+        + (FORM.salvando ? ' disabled' : '') + '>'
+        + (FORM.salvando ? 'enviando…' : 'Enviar respostas') + '</button>'
+        + '</div>';
+
+    return '<div class="mgn-form">'
+      + '<div class="mgn-cab"><div style="flex:1;min-width:220px">'
+        + '<h1>' + esc(spec.titulo) + '</h1>'
+        + '<p>' + esc(spec.chamada) + '</p>'
+        + '<p style="margin-top:8px;font-size:12.5px;color:var(--muted2)">Tempo estimado: '
+        + esc(spec.tempo) + ' · ' + esc(spec.quando)
+        + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</p>'
+        + '</div>'
+        + '<button class="voltar" onclick="mgNpsFechar()">← Voltar</button></div>'
+      + abas
+      + '<div class="mgn-bloco"><div class="mgn-corpo" style="gap:0">' + miolo + '</div></div>'
+      + (bloqueado
+          ? '<div class="mgn-vazio">Esta pesquisa já foi respondida. As respostas ficam como registro.</div>'
+          : '')
+      + rodape
+      + '</div>';
+  }
+
+  /* ---- edição ---- */
+  function mexer(fn){
+    if(!FORM || FORM.somenteLeitura) return;
+    FORM.pesquisa.respostas = FORM.pesquisa.respostas || {};
+    fn(FORM.pesquisa.respostas);
+    FORM.sujo = true;
+  }
+  window.mgNpsSet = function(id, v){
+    mexer(r => { r[id] = v });
+    /* nota e lista precisam repintar; texto não, senão o cursor pula */
+    const q = FORM ? perguntasDe(specDe(FORM.pesquisa)).find(x => x.id === id) : null;
+    if(q && (q.tipo === 'nota')) desenhar();
+  };
+  window.mgNpsMulti = function(id, o){
+    mexer(r => {
+      const l = Array.isArray(r[id]) ? r[id].slice() : [];
+      const i = l.indexOf(o);
+      if(i >= 0) l.splice(i, 1); else l.push(o);
+      r[id] = l;
+    });
+    desenhar();
+  };
+  window.mgNpsAba = function(id){ if(FORM){ FORM.aba = id; desenhar() } };
+  function pessoas(){
+    const r = FORM.pesquisa.respostas || {};
+    return Array.isArray(r.cd_pessoas) ? r.cd_pessoas.slice() : [];
+  }
+  window.mgNpsPessoa = function(i, campo, v){
+    mexer(r => {
+      const l = Array.isArray(r.cd_pessoas) ? r.cd_pessoas.slice() : [];
+      if(!l[i]) return;
+      l[i] = Object.assign({}, l[i], {[campo]: v});
+      r.cd_pessoas = l;
+    });
+  };
+  window.mgNpsPessoaNova = function(){
+    mexer(r => { r.cd_pessoas = pessoas().concat([{nome:'',cargo:'',resp:'',decide:'',contato:''}]) });
+    desenhar();
+  };
+  window.mgNpsPessoaFora = function(i){
+    mexer(r => { const l = pessoas(); l.splice(i, 1); r.cd_pessoas = l });
+    desenhar();
+  };
+  window.mgNpsAnexoFora = function(i){
+    if(!FORM || FORM.somenteLeitura) return;
+    const l = (FORM.pesquisa.anexos || []).slice();
+    l.splice(i, 1);
+    FORM.pesquisa.anexos = l; FORM.sujo = true;
+    desenhar();
+  };
+  window.mgNpsAnexar = async function(input){
+    if(!FORM || !input.files || !input.files.length) return;
+    const p = FORM.pesquisa;
+    const arquivos = Array.from(input.files);
+    input.value = '';
+    for(const f of arquivos){
+      if(f.size > 25 * 1024 * 1024){ toast('“' + f.name + '” passa de 25 MB'); continue }
+      const ext = (f.name.split('.').pop() || 'bin').toLowerCase().slice(0, 8);
+      const id  = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
+      const path = p.client_id + '/pesquisas/' + id + '.' + ext;
+      try{
+        const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
+        if(up.error) throw up.error;
+        p.anexos = (p.anexos || []).concat([{nome:f.name, path, tamanho:f.size}]);
+        FORM.sujo = true;
+        desenhar();
+      }catch(e){
+        toast('Não foi possível anexar “' + f.name + '”: ' + ((e && e.message) || ''));
+      }
+    }
+  };
+  window.mgNpsFechar = function(){
+    if(FORM && FORM.sujo && !FORM.somenteLeitura
+       && !confirm('Sair sem enviar? O que você digitou não fica salvo.')) return;
+    FORM = null; desenhar();
+  };
+  window.mgNpsEnviarResposta = async function(){
+    if(!FORM || FORM.salvando) return;
+    const p = FORM.pesquisa;
+    FORM.salvando = true; desenhar();
+    try{
+      const salvo = await salvar(p.id, {
+        respostas: p.respostas || {},
+        anexos: p.anexos || [],
+        status: 'respondido',
+        respondido_em: new Date().toISOString(),
+      });
+      FORM = null;
+      SNAP = (salvo.tipo === 'mgpr') ? salvo : null;
+      if(!SNAP) toast('Respostas enviadas. Obrigado!');
+      desenhar();
+    }catch(e){
+      FORM.salvando = false;
+      toast('Não foi possível enviar: ' + ((e && e.message) || ''));
+      desenhar();
+    }
+  };
+
+  /* ===================================================================
+     5. O retorno ao cliente
+     =================================================================== */
+  function snapshotHTML(p){
+    const nomeEmp = (typeof clientName === 'function') ? clientName(p.client_id) : '';
+    const pessoa  = (typeof ME !== 'undefined' && ME && ME.name) ? String(ME.name).split(' ')[0] : '';
+    const s = snapshot(p, nomeEmp, (typeof isAdmin === 'function' && isAdmin()) ? '' : pessoa);
+    const it = (t, c) => '<div class="it"><h3>' + esc(t) + '</h3><p>' + esc(c) + '</p></div>';
+
+    return '<div class="mgn-snap">'
+      + '<div class="hero"><h1>' + esc(s.saudacao) + '</h1><p>' + esc(s.linha) + '</p></div>'
+      + it('Principais pontos fortes percebidos', s.fortes)
+      + it('Oportunidades identificadas', s.oportunidades)
+      + it('Temas que você destacou para gerar mais valor', s.temas)
+      + it('Nosso compromisso', s.compromisso)
+      + it('Próxima revisão', s.proxima)
+      + '<div class="acoes">'
+        + '<button class="btn-p" onclick="window.print()">Salvar em PDF</button>'
+        + '<button class="mgn-btn2" onclick="mgNpsFecharSnap()">Voltar</button>'
+      + '</div>'
+      + '</div>';
+  }
+  window.mgNpsFecharSnap = function(){ SNAP = null; desenhar() };
+  window.mgNpsVerRetorno = function(id){
+    SNAP = LISTA.find(p => p.id === id) || null;
+    desenhar();
+  };
+
+  /* ===================================================================
+     6. A tela da equipe
+     =================================================================== */
+  function empresas(){
+    return (typeof CLIENTS !== 'undefined' ? CLIENTS : []).slice()
+      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt'));
+  }
+
+  function visaoGeralHTML(){
+    const emp = empresas();
+    const notas = [];
+    const linhas = emp.map(c=>{
+      const p = respondidas(c.id, 'mgpr')[0] || null;
+      const m = p ? mgpi(p.respostas) : null;
+      const f = farol(m);
+      const n = p ? num((p.respostas || {}).nps_nota) : null;
+      if(n != null) notas.push(n);
+      const prox = p ? proximaRevisao(p) : null;
+      const pend = doCliente(c.id).filter(x => x.status === 'enviado');
+      return '<tr class="clicavel" onclick="mgNpsCliente(\'' + escJS(c.id) + '\')">'
+        + '<td><b>' + esc(c.nome) + '</b>'
+        + (pend.length ? '<br><span style="font-size:11.5px;color:var(--muted2)">'
+            + pend.length + ' pesquisa' + (pend.length > 1 ? 's' : '') + ' aguardando resposta</span>' : '')
+        + '</td>'
+        + '<td class="n">' + esc(nota2(m)) + '</td>'
+        + '<td class="n oculta-cel">' + (n == null ? '—' : n) + '</td>'
+        + '<td><span class="mgn-farol ' + f.k + '">' + esc(f.rot) + '</span></td>'
+        + '<td class="n oculta-cel">' + esc(p ? ('rodada ' + p.rodada) : '—') + '</td>'
+        + '<td class="n oculta-cel">' + esc(prox ? mesAno(prox) : '—') + '</td>'
+        + '</tr>';
+    }).join('');
+
+    const nps = npsCarteira(notas);
+    const medias = emp.map(c=>{
+      const p = respondidas(c.id, 'mgpr')[0];
+      return p ? mgpi(p.respostas) : null;
+    }).filter(v => v != null);
+
+    const cartao = (rot, val, pe, cls) =>
+      '<div class="mgn-n ' + (cls || '') + '"><span>' + esc(rot) + '</span><b>' + esc(val) + '</b>'
+      + (pe ? '<span class="pe">' + esc(pe) + '</span>' : '') + '</div>';
+
+    const vermelhos = emp.filter(c=>{
+      const p = respondidas(c.id, 'mgpr')[0];
+      const m = p ? mgpi(p.respostas) : null;
+      return m != null && m < 7;
+    }).length;
+
+    return '<div class="mgn-num">'
+        + cartao('NPS da carteira', nps == null ? '—' : String(nps),
+            notas.length ? notas.length + ' respondente' + (notas.length > 1 ? 's' : '') : 'sem respostas ainda',
+            nps == null ? '' : (nps >= 50 ? 'verde' : nps >= 0 ? 'amarelo' : 'vermelho'))
+        + cartao('MGPI médio', nota2(media(medias)),
+            medias.length ? medias.length + ' empresa' + (medias.length > 1 ? 's' : '') + ' com revisão' : 'sem revisão respondida')
+        + cartao('Em recuperação', String(vermelhos),
+            'MGPI abaixo de 7', vermelhos ? 'vermelho' : '')
+        + cartao('Empresas', String(emp.length), 'na carteira')
+      + '</div>'
+      + '<section class="mgn-bloco"><header><h2>Por empresa</h2>'
+        + '<span class="n">' + emp.length + '</span></header>'
+        + (emp.length
+            ? '<table class="mgn-tab"><thead><tr><th>Empresa</th><th class="n">MGPI</th>'
+              + '<th class="n oculta-cel">Nota NPS</th><th>Farol</th>'
+              + '<th class="n oculta-cel">Revisão</th><th class="n oculta-cel">Próxima</th></tr></thead>'
+              + '<tbody>' + linhas + '</tbody></table>'
+            : '<div class="mgn-vazio">Nenhuma empresa cadastrada ainda.</div>')
+      + '</section>';
+  }
+
+  function pesquisaLinhaHTML(p){
+    const spec = specDe(p);
+    const quando = p.status === 'respondido'
+      ? (p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—')
+      : (p.enviado_em ? new Date(p.enviado_em).toLocaleDateString('pt-BR') : '—');
+    const acao = p.status === 'respondido'
+      ? '<button class="mgn-btn2" onclick="mgNpsAbrir(\'' + escJS(p.id) + '\', 1)">ver respostas</button>'
+        + (p.tipo === 'mgpr'
+            ? ' <button class="mgn-btn2" onclick="mgNpsVerRetorno(\'' + escJS(p.id) + '\')">ver retorno</button>'
+            : '')
+      : '<span style="color:var(--muted2);font-size:12.5px">aguardando o cliente</span>';
+    return '<tr><td><b>' + esc(spec.nome) + '</b>'
+      + (p.rodada > 1 ? ' <span style="color:var(--muted2)">· rodada ' + p.rodada + '</span>' : '') + '</td>'
+      + '<td>' + esc(p.status === 'respondido' ? 'respondida' : 'enviada') + '</td>'
+      + '<td class="n oculta-cel">' + esc(quando) + '</td>'
+      + '<td class="n">' + acao + '</td></tr>';
+  }
+
+  function pilaresHTML(p){
+    const pl = pilares(p.respostas);
+    const m  = mgpi(p.respostas);
+    const f  = farol(m);
+    const n  = num((p.respostas || {}).nps_nota);
+    const r  = p.respostas || {};
+
+    const cartao = (rot, val, pe, cls) =>
+      '<div class="mgn-n ' + (cls || '') + '"><span>' + esc(rot) + '</span><b>' + esc(val) + '</b>'
+      + (pe ? '<span class="pe">' + esc(pe) + '</span>' : '') + '</div>';
+
+    const barras = pl.map(x=>{
+      const pc = x.v == null ? 0 : Math.round(10 * x.v);
+      return '<div class="mgn-pilar"><span class="rot">' + esc(x.rot) + '</span>'
+        + '<span class="bar"><i class="' + (x.v != null && x.v < 8 ? 'baixo' : '')
+        + '" style="width:' + pc + '%"></i></span>'
+        + '<span class="v">' + esc(nota1(x.v)) + '</span></div>';
+    }).join('');
+
+    const alertas = pl.filter(x => x.v != null).map(x =>
+      x.v < 8
+        ? '<div class="mgn-alerta">⚠️ ' + esc(x.rot) + ' — ' + esc(x.alerta) + '</div>'
+        : '<div class="mgn-alerta ok">✔ ' + esc(x.rot) + ' — sem alerta.</div>').join('');
+
+    const percepcao = String(r.valor_percepcao || '').trim();
+    const temas = temasDe(r);
+
+    return '<div class="mgn-num">'
+        + cartao('MGPI', nota2(m), classificacao(m) || 'sem respostas', f.k === 'cinza' ? '' : f.k)
+        + cartao('Farol', f.rot, 'faixa da planilha CIP', f.k === 'cinza' ? '' : f.k)
+        + cartao('Nota NPS', n == null ? '—' : String(n),
+            n == null ? '' : (n >= 9 ? 'promotor' : n <= 6 ? 'detrator' : 'neutro'),
+            n == null ? '' : (n >= 9 ? 'verde' : n <= 6 ? 'vermelho' : 'amarelo'))
+        + cartao('Percepção', percepcao || '—', 'como ele nos vê hoje')
+      + '</div>'
+      + '<section class="mgn-bloco"><header><h2>Pilares</h2></header>'
+        + '<div class="mgn-corpo">' + barras + '</div></section>'
+      + '<section class="mgn-bloco"><header><h2>Alertas automáticos</h2></header>'
+        + '<div class="mgn-corpo">' + (alertas || '<span class="mgn-vazio">Sem respostas nesta rodada.</span>')
+        + (m != null ? '<div class="mgn-alerta ok" style="background:var(--card2);border-color:var(--line2)">'
+            + '<b>Ação recomendada:</b> ' + esc(acaoRecomendada(m)) + '</div>' : '')
+        + '</div></section>'
+      + (temas.length || r.nps_motivo || r.continuidade_pendencia
+          ? '<section class="mgn-bloco"><header><h2>Nas palavras do cliente</h2></header>'
+            + '<table class="mgn-tab"><tbody>'
+            + (temas.length ? '<tr><td><b>Temas de interesse</b></td><td>' + esc(temas.join(' · ')) + '</td></tr>' : '')
+            + (r.continuidade_endereca ? '<tr><td><b>Discovery endereçado</b></td><td>'
+                + esc(r.continuidade_endereca) + '</td></tr>' : '')
+            + (r.continuidade_pendencia ? '<tr><td><b>Pendência apontada</b></td><td>'
+                + esc(r.continuidade_pendencia) + '</td></tr>' : '')
+            + (r.nps_motivo ? '<tr><td><b>Motivo da nota</b></td><td>' + esc(r.nps_motivo) + '</td></tr>' : '')
+            + '</tbody></table></section>'
+          : '');
+  }
+
+  function continuidadeHTML(p){
+    const l = (p.interno && p.interno.continuidade) || [];
+    if(!l.length){
+      return '<section class="mgn-bloco"><header><h2>Continuidade do discovery</h2></header>'
+        + '<div class="mgn-vazio">Esta revisão não trouxe itens do discovery. '
+        + 'Isso acontece quando o Pré-Discovery e o Client Discovery ainda não foram respondidos '
+        + 'quando a revisão foi enviada.</div></section>';
+    }
+    return '<section class="mgn-bloco"><header><h2>Continuidade do discovery</h2>'
+      + '<span class="n">uso interno</span></header>'
+      + '<table class="mgn-tab"><thead><tr><th>Item levantado</th>'
+      + '<th class="oculta-cel">Situação no início</th><th>Status aos 60 dias</th>'
+      + '<th class="oculta-cel">Responsável</th></tr></thead><tbody>'
+      + l.map((c, i) => '<tr>'
+          + '<td><b>' + esc(c.item) + '</b><br><span style="font-size:11.5px;color:var(--muted2)">'
+            + esc(FORMS[c.origem] ? FORMS[c.origem].nome : c.origem) + '</span></td>'
+          + '<td class="oculta-cel" style="max-width:280px;white-space:pre-wrap">'
+            + esc(c.inicio || '— não respondido no discovery') + '</td>'
+          + '<td><select onchange="mgNpsContinuidade(' + i + ',\'situacao\',this.value)"'
+            + ' style="background:var(--bg);border:1px solid var(--line2);border-radius:9px;'
+            + 'padding:7px 9px;font-family:inherit;font-size:12.5px;color:var(--text)">'
+            + SITUACOES.map(s => '<option value="' + esc(s) + '"'
+                + (String(c.situacao || '') === s ? ' selected' : '') + '>' + esc(s) + '</option>').join('')
+            + '</select></td>'
+          + '<td class="oculta-cel">' + esc(c.responsavel || '—') + '</td>'
+          + '</tr>').join('')
+      + '</tbody></table></section>';
+  }
+  window.mgNpsContinuidade = async function(i, campo, v){
+    const p = LISTA.find(x => x.id === PAINEL_ID); if(!p) return;
+    const l = ((p.interno && p.interno.continuidade) || []).slice();
+    if(!l[i]) return;
+    l[i] = Object.assign({}, l[i], {[campo]: v});
+    const interno = Object.assign({}, p.interno || {}, {continuidade:l});
+    try{ await salvar(p.id, {interno}); desenhar() }
+    catch(e){ toast('Não foi possível salvar: ' + ((e && e.message) || '')) }
+  };
+
+  function historicoHTML(cid){
+    const l = respondidas(cid, 'mgpr').slice().sort((a, b) => a.rodada - b.rodada);
+    if(l.length < 1) return '';
+    return '<section class="mgn-bloco"><header><h2>Histórico do MGPI</h2>'
+      + '<span class="n">' + l.length + '</span></header>'
+      + '<table class="mgn-tab"><thead><tr><th>Rodada</th><th class="n oculta-cel">Data</th>'
+      + '<th class="n">MGPI</th><th class="n oculta-cel">Nota NPS</th><th>Farol</th>'
+      + '<th class="n">Variação</th></tr></thead><tbody>'
+      + l.map((p, i)=>{
+          const m = mgpi(p.respostas);
+          const ant = i > 0 ? mgpi(l[i-1].respostas) : null;
+          const dif = (m != null && ant != null) ? m - ant : null;
+          const f = farol(m);
+          return '<tr><td>' + p.rodada + 'ª</td>'
+            + '<td class="n oculta-cel">'
+              + esc(p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—') + '</td>'
+            + '<td class="n">' + esc(nota2(m)) + '</td>'
+            + '<td class="n oculta-cel">' + esc(String(num((p.respostas||{}).nps_nota) ?? '—')) + '</td>'
+            + '<td><span class="mgn-farol ' + f.k + '">' + esc(f.rot) + '</span></td>'
+            + '<td class="n" style="color:' + (dif == null ? 'var(--muted2)' : dif >= 0 ? '#2E9E6B' : 'var(--danger)') + '">'
+              + (dif == null ? '—' : (dif >= 0 ? '+' : '') + nota2(dif)) + '</td></tr>';
+        }).join('')
+      + '</tbody></table></section>';
+  }
+
+  let PAINEL_ID = null;   /* revisão exibida no painel */
+
+  function painelHTML(cid){
+    const emp = empresas().find(c => c.id === cid);
+    const todas = doCliente(cid);
+    const mgprs = respondidas(cid, 'mgpr');
+    const atual = mgprs[0] || null;
+    PAINEL_ID = atual ? atual.id : null;
+
+    const enviar = tipo => {
+      const ja = ultima(cid, tipo);
+      const rot = ja ? (tipo === 'mgpr' ? 'Nova revisão' : 'Reenviar ' + FORMS[tipo].nome)
+                     : 'Enviar ' + FORMS[tipo].nome;
+      return '<button class="' + (tipo === 'mgpr' ? 'btn-p' : 'mgn-btn2') + '"'
+        + ' onclick="mgNpsEnviarPesquisa(\'' + escJS(tipo) + '\')">' + esc(rot) + '</button>';
+    };
+
+    return '<section class="mgn-bloco"><header><h2>Pesquisas de ' + esc(emp ? emp.nome : 'esta empresa') + '</h2>'
+        + '<span class="n">' + todas.length + '</span></header>'
+        + (todas.length
+            ? '<table class="mgn-tab"><tbody>' + todas.map(pesquisaLinhaHTML).join('') + '</tbody></table>'
+            : '<div class="mgn-vazio">Nenhuma pesquisa enviada a esta empresa ainda. '
+              + 'O caminho é Pré-Discovery antes do diagnóstico, Client Discovery depois do contrato '
+              + 'e a Revisão de Parceria 60 dias depois do início da operação.</div>')
+        + '<div class="mgn-corpo"><div class="mgn-acoes">'
+          + enviar('pre_discovery') + enviar('client_discovery') + enviar('mgpr')
+        + '</div></div>'
+      + '</section>'
+      + (atual
+          ? pilaresHTML(atual) + continuidadeHTML(atual) + historicoHTML(cid)
+          : '<div class="mgn-bloco"><div class="mgn-vazio">'
+            + '<b>Nenhuma Revisão de Parceria respondida ainda.</b><br>'
+            + 'O painel com MGPI, farol e alertas aparece assim que a primeira revisão voltar preenchida.'
+            + '</div></div>');
+  }
+
+  window.mgNpsCliente = function(cid){ CLI = cid || null; desenhar() };
+  window.mgNpsEnviarPesquisa = async function(tipo){
+    if(!CLI) return;
+    const ja = ultima(CLI, tipo);
+    if(ja && ja.status === 'enviado'
+       && !confirm('Já existe um ' + FORMS[tipo].nome + ' aguardando resposta desta empresa.\n\n'
+                 + 'Enviar outro assim mesmo?')) return;
+    try{
+      await enviar(CLI, tipo);
+      toast(FORMS[tipo].nome + ' enviado. O cliente vê na página de Início dele.');
+      desenhar();
+    }catch(e){ toast('Não foi possível enviar: ' + ((e && e.message) || '')) }
+  };
+  window.mgNpsAbrir = function(id, somenteLeitura){
+    const p = LISTA.find(x => x.id === id); if(!p) return;
+    FORM = {
+      pesquisa: JSON.parse(JSON.stringify(p)),
+      aba: specDe(p).abas[0].id,
+      somenteLeitura: !!somenteLeitura || p.status === 'respondido',
+      sujo:false, salvando:false,
+    };
+    desenhar();
+  };
+
+  /* ===================================================================
+     7. A tela da equipe, montada
+     =================================================================== */
+  function equipeHTML(){
+    const emp = empresas();
+    const seletor = '<select onchange="mgNpsCliente(this.value)">'
+      + '<option value="">Visão geral da carteira</option>'
+      + emp.map(c => '<option value="' + esc(c.id) + '"' + (c.id === CLI ? ' selected' : '') + '>'
+          + esc(c.nome) + '</option>').join('')
+      + '</select>';
+
+    let miolo;
+    if(ERRO === 'tabela'){
+      miolo = '<div class="mgn-bloco"><div class="mgn-vazio">'
+        + '<b>A tabela <code>mgp_pesquisas</code> ainda não existe neste banco.</b><br>'
+        + 'A migração <code>20260911060000_mgp_nps_pesquisas_cip_mgpr.sql</code> está no repositório '
+        + 'e precisa ser aplicada no projeto do Supabase. Até lá, esta aba não tem o que mostrar — '
+        + 'e é melhor dizer isso do que exibir tela vazia como se fosse falta de dado.'
+        + '</div></div>';
+    }else if(ERRO){
+      miolo = '<div class="mgn-bloco"><div class="mgn-vazio">'
+        + '<b>Não foi possível ler as pesquisas.</b><br>' + esc(ERRO) + '</div></div>';
+    }else if(!LIDO){
+      miolo = '<div class="mgn-bloco"><div class="mgn-vazio">'
+        + '<span class="mg-pontinhos">carregando</span></div></div>';
+    }else{
+      miolo = CLI ? painelHTML(CLI) : visaoGeralHTML();
+    }
+
+    return '<div class="mgn">'
+      + '<div class="mgn-topo"><h1>MGP NPS</h1>' + seletor + '</div>'
+      + (CLI ? '<div class="mgn-topo" style="margin:-10px 0 0">'
+              + '<button class="mgn-btn2" onclick="mgNpsCliente(\'\')">← Visão geral</button></div>' : '')
+      + miolo
+      + '</div>';
+  }
+
+  /* ===================================================================
+     8. O que o cliente vê
+     =================================================================== */
+  function minhaEmpresa(){
+    return (typeof ME !== 'undefined' && ME) ? ME.client_id : null;
+  }
+  function minhasPesquisas(){
+    const cid = minhaEmpresa();
+    if(!cid) return [];
+    return LISTA.filter(p => p.client_id === cid && p.status !== 'rascunho')
+      .sort((a, b) => new Date(b.enviado_em) - new Date(a.enviado_em));
+  }
+
+  /* O bloco que entra na página de Início do cliente. Ele não substitui
+     nada do portal: é acrescentado depois que o portal se desenha. */
+  function blocoClienteHTML(){
+    const l = minhasPesquisas();
+    if(!l.length) return '';
+    const pend = l.filter(p => p.status === 'enviado');
+    const item = p => {
+      const spec = specDe(p);
+      const resp = p.status === 'respondido';
+      return '<button class="mgp-doc" onclick="mgNps' + (resp ? 'Resposta' : 'Responder')
+        + '(\'' + escJS(p.id) + '\')">'
+        + '<span class="ic" style="background:rgba(199,135,30,.16);color:#C7871E">'
+          + (resp ? '✓' : '✎') + '</span>'
+        + '<span class="tx"><b>' + esc(spec.titulo)
+          + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</b>'
+        + '<span>' + esc(resp
+            ? 'respondido' + (p.respondido_em ? ' em ' + new Date(p.respondido_em).toLocaleDateString('pt-BR') : '')
+            : spec.tempo + ' · ' + spec.chamada.slice(0, 90) + '…') + '</span></span>'
+        + '<span class="abrir">' + (resp ? 'ver retorno' : 'responder') + '</span></button>';
+    };
+    return '<section class="mgp-bloco mgn-pesquisas">'
+      + '<header><span class="ic" style="background:rgba(199,135,30,.16);color:#C7871E">◈</span>'
+      + '<h2>Pesquisas</h2>'
+      + '<span class="n">' + (pend.length || l.length) + '</span></header>'
+      + '<div class="corpo">' + l.map(item).join('') + '</div>'
+      + '</section>';
+  }
+  window.mgNpsResponder = function(id){
+    const p = LISTA.find(x => x.id === id); if(!p) return;
+    FORM = {pesquisa: JSON.parse(JSON.stringify(p)), aba: specDe(p).abas[0].id,
+            somenteLeitura: p.status === 'respondido', sujo:false, salvando:false};
+    SNAP = null;
+    desenhar();
+  };
+  window.mgNpsResposta = function(id){
+    const p = LISTA.find(x => x.id === id); if(!p) return;
+    if(p.tipo === 'mgpr'){ SNAP = p; FORM = null }
+    else window.mgNpsResponder(id);
+    desenhar();
+  };
+
+  /* ===================================================================
+     9. Desenhar
+     =================================================================== */
+  function desenhar(){
+    const admin = (typeof isAdmin === 'function') && isAdmin();
+
+    /* o cliente responde dentro da própria página de Início: sem tela
+       nova, sem navegação, sem disputa com o redirecionamento do portal */
+    if(!admin){
+      const alvo = document.getElementById('v-portal');
+      if(!alvo) return;
+      if(FORM || SNAP){ alvo.innerHTML = FORM ? formHTML() : snapshotHTML(SNAP); return }
+      /* render() alcança a função interna do módulo do portal; o bloco das
+         pesquisas volta sozinho, pelo observador logo abaixo */
+      if(typeof render === 'function') render();
+      return;
+    }
+
+    const el = document.getElementById('v-nps'); if(!el) return;
+    try{
+      el.innerHTML = FORM ? formHTML() : SNAP ? snapshotHTML(SNAP) : equipeHTML();
+    }catch(e){
+      console.error('[nps]', e);
+      el.innerHTML = '<div class="mgn"><div class="mgn-bloco"><div class="mgn-vazio">'
+        + 'Não foi possível montar esta tela agora.</div></div></div>';
+    }
+  }
+  window.renderNps = desenhar;
+
+  /* ===================================================================
+     10. Entra na plataforma
+     =================================================================== */
+  const cont = document.querySelector('.content');
+  if(cont && !document.getElementById('v-nps')){
+    const d = document.createElement('div');
+    d.className = 'view'; d.id = 'v-nps';
+    cont.appendChild(d);
+  }
+  if(!NAV.some(n => n.v === 'nps')){
+    const i = NAV.findIndex(n => n.v === 'reports');
+    NAV.splice(i < 0 ? NAV.length : i + 1, 0,
+      {v:'nps', ic:'◍', label:'MGP NPS', admin:true});
+  }
+
+  let primeiraLeitura = false;
+  async function abrirTela(){
+    if(!primeiraLeitura){ primeiraLeitura = true; await carregar() }
+    desenhar();
+  }
+
+  const _sv = showView;
+  showView = function(v){
+    if(v === 'nps'){
+      if(typeof isAdmin === 'function' && !isAdmin()) return _sv('portal');
+      VIEW = 'nps';
+      document.querySelectorAll('.nav-i').forEach(b => b.classList.toggle('on', b.dataset.v === 'nps'));
+      document.querySelectorAll('.content > .view').forEach(el => el.classList.remove('on'));
+      const el = document.getElementById('v-nps'); if(el) el.classList.add('on');
+      const t = document.getElementById('view-title'); if(t) t.textContent = 'MGP NPS';
+      document.body.classList.remove('mg-tasks', 'mg-e-chat');
+      document.body.classList.add('mg-sem-tarefas');
+      abrirTela();
+      if(typeof mgDock === 'function'){ try{ mgDock() }catch(e){} }
+      return;
+    }
+    /* sair da aba limpa o que estava aberto, senão voltar traz o formulário */
+    if(VIEW === 'nps'){ FORM = null; SNAP = null }
+    return _sv(v);
+  };
+  const _rd = render;
+  render = function(){
+    if(VIEW === 'nps') return desenhar();
+    return _rd();
+  };
+
+  /* a vitrine do Início e o menu lateral */
+  if(typeof mgAtalhos === 'function'){
+    const _a = mgAtalhos;
+    mgAtalhos = function(){
+      const l = _a();
+      if(typeof isAdmin === 'function' && !isAdmin()) return l;
+      if(l.some(a => a.v === 'nps')) return l;
+      return l.concat([{v:'nps', ic:'◍', label:'MGP NPS',
+                        ds:'Discovery, revisão de parceria e farol de cada cliente'}]);
+    };
+  }
+  if(typeof MG_TONS === 'object' && MG_TONS){
+    MG_TONS.nps = {tom:'#C7871E', chip:'rgba(199,135,30,.15)', borda:'rgba(199,135,30,.45)',
+                   fraco:'rgba(199,135,30,.09)', sombra:'rgba(199,135,30,.34)'};
+  }
+  /* a SEÇÃO · SHELL · a plataforma passa a ter quatro módulos poda do menu
+     lateral tudo que não estiver na lista dela; 'nps' precisa entrar lá */
+  if(typeof buildNav === 'function'){
+    const _b = buildNav;
+    buildNav = function(){
+      const r = _b();
+      try{
+        const nav = document.getElementById('nav');
+        if(nav && typeof isAdmin === 'function' && isAdmin()
+           && !nav.querySelector('.nav-i[data-v="nps"]')){
+          const n = NAV.find(x => x.v === 'nps');
+          if(n){
+            const b = document.createElement('button');
+            b.className = 'nav-i' + (VIEW === 'nps' ? ' on' : '');
+            b.dataset.v = 'nps'; b.title = n.label;
+            b.onclick = () => showView('nps');
+            b.innerHTML = '<span class="ic">' + n.ic + '</span><span class="lb">' + esc(n.label) + '</span>';
+            nav.appendChild(b);
+          }
+        }
+      }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------- o bloco do cliente na página de Início ----------
+
+     Envolver `renderPortal` não funciona: o módulo do portal chama a
+     própria função interna, não `window.renderPortal`, então o wrapper
+     ficaria de fora justamente nos redesenhos que importam. Quem manda
+     aqui é o DOM: a cada redesenho da página o bloco é recolocado.       */
+  function ajustarPortal(){
+    if(typeof isAdmin === 'function' && isAdmin()) return;
+    const alvo = document.getElementById('v-portal'); if(!alvo) return;
+
+    /* com formulário ou retorno aberto, a página é deles: se o portal se
+       redesenhou por baixo, devolve o que o cliente estava preenchendo */
+    if(FORM || SNAP){
+      if(!alvo.querySelector('.mgn-form, .mgn-snap')){
+        alvo.innerHTML = FORM ? formHTML() : snapshotHTML(SNAP);
+      }
+      return;
+    }
+    const cx = alvo.querySelector('.mgp-portal'); if(!cx) return;
+    if(cx.querySelector('.mgn-pesquisas')) return;
+    if(!primeiraLeitura){ primeiraLeitura = true; carregar().then(ajustarPortal); return }
+    let html = '';
+    try{ html = blocoClienteHTML() }catch(e){ console.warn('[nps · portal]', e); return }
+    if(!html) return;
+    /* entra logo abaixo do cabeçalho: pesquisa pendente é a primeira coisa
+       que o cliente precisa ver, não a última */
+    const no = document.createElement('div');
+    no.innerHTML = html;
+    const sec = no.firstElementChild; if(!sec) return;
+    const cab = cx.querySelector('.mgp-cab');
+    if(cab) cab.after(sec); else cx.prepend(sec);
+  }
+  (function observar(n){
+    const alvo = document.getElementById('v-portal');
+    if(!alvo){ if(n < 75) setTimeout(()=>observar(n + 1), 400); return }
+    let pendente = false;
+    const agir = ()=>{
+      if(pendente) return;
+      pendente = true;
+      setTimeout(()=>{ pendente = false; try{ ajustarPortal() }catch(e){ console.warn('[nps · portal]', e) } }, 60);
+    };
+    new MutationObserver(agir).observe(alvo, {childList:true, subtree:true});
+    agir();
+  })(0);
+
+  /* ---------- tempo real ---------- */
+  (function ligar(n){
+    if(typeof ME === 'undefined' || !ME || !ME.id){
+      if(n < 75) setTimeout(()=>ligar(n + 1), 400);
+      return;
+    }
+    try{
+      sb.channel('mgp-nps')
+        .on('postgres_changes', {event:'*', schema:'public', table:'mgp_pesquisas'}, async ()=>{
+          if(!primeiraLeitura) return;
+          await carregar();
+          if(typeof isAdmin === 'function' && !isAdmin()) ajustarPortal();
+          else if(VIEW === 'nps') desenhar();
+        })
+        .subscribe();
+    }catch(e){ console.warn('[nps · ao vivo]', e) }
+  })(0);
+
+  try{ if(typeof buildNav === 'function') buildNav() }catch(e){}
+})();
+</script>
+
 </body>
 </html>
