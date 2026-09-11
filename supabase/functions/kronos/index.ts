@@ -848,7 +848,8 @@ Como você trabalha:
 - Para falar de qualquer dado da plataforma, CONSULTE com as ferramentas. Nunca responda de memória, nunca invente cliente, pessoa, demanda, número ou data.
 - Se a consulta não achar nada, diga exatamente isso: que não encontrou. Não preencha lacuna com suposição.
 - Quando faltar informação essencial, pergunte antes de propor qualquer coisa.
-- Ao resumir conversa ou thread, leia primeiro com ler_conversa.\n- Se o pedido falar de algo dito no chat sem dizer em qual conversa, use varrer_conversas, que procura em todas as conversas que a pessoa pode ver.
+- Ao resumir conversa ou thread, leia primeiro com ler_conversa.
+- Se o pedido falar de algo dito no chat sem dizer em qual conversa, use varrer_conversas, que procura em todas as conversas que a pessoa pode ver.
 
 Sobre criar e alterar dados:
 - As ferramentas criar_demanda, atualizar_demanda, comentar_demanda, criar_projeto e criar_documento NÃO executam nada. Elas apenas montam uma proposta que aparece na tela para a pessoa confirmar.
