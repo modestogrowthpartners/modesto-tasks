@@ -40,10 +40,15 @@ var CONTAS = [
 var ARQUIVO_SAIDA = 'relatorio-semanal-google-mgp.json';
 // var ARQUIVO_SAIDA = 'relatorio-semanal-google-wondr.json';
 
-/** Tipos que contam como otimização. Criativo entra separado, agregado. */
+/** Tipos que contam como otimização. Criativo entra separado, agregado.
+ *
+ *  Não existe CAMPAIGN_BIDDING_STRATEGY neste enum: a consulta inteira volta
+ *  BAD_ENUM_CONSTANT, e nenhuma conta é coletada. Mudança de estratégia de
+ *  lance já chega como CAMPAIGN, com targetRoas, targetSpend ou
+ *  targetImpressionShare dentro de changed_fields. */
 var TIPOS_MATERIAIS = [
   'CAMPAIGN', 'CAMPAIGN_BUDGET', 'AD_GROUP',
-  'CAMPAIGN_CRITERION', 'AD_GROUP_CRITERION', 'CAMPAIGN_BIDDING_STRATEGY'
+  'CAMPAIGN_CRITERION', 'AD_GROUP_CRITERION'
 ];
 var TIPOS_CRIATIVO = ['AD', 'AD_GROUP_AD', 'ASSET'];
 

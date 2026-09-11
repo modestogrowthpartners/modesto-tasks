@@ -120,7 +120,7 @@ WHERE change_event.change_date_time >= '<segunda> 00:00:00'
   AND change_event.change_date_time <= '<sexta> 16:00:00'
   AND change_event.change_resource_type IN
       ('CAMPAIGN','CAMPAIGN_BUDGET','AD_GROUP','CAMPAIGN_CRITERION',
-       'AD_GROUP_CRITERION','CAMPAIGN_BIDDING_STRATEGY')
+       'AD_GROUP_CRITERION')
 ORDER BY change_event.change_date_time DESC
 LIMIT 200
 ```
@@ -128,6 +128,11 @@ LIMIT 200
 `old_resource` e `new_resource` só vêm preenchidos quando pedidos no SELECT, e são
 o que permite dizer "R$ 400 para R$ 520" em vez de "orçamento alterado".
 `amountMicros` divide por 1.000.000.
+
+Não existe `CAMPAIGN_BIDDING_STRATEGY` neste enum. Ele esteve nesta lista até
+11/09/2026 e derrubava a consulta inteira com `BAD_ENUM_CONSTANT`, em todas as
+contas de uma vez. Mudança de estratégia de lance já vem como `CAMPAIGN`, com
+`targetRoas`, `targetSpend` ou `targetImpressionShare` em `changed_fields`.
 
 Criativo (`AD`, `AD_GROUP_AD`, `ASSET`) fica fora do filtro acima porque uma única
 troca de anúncio gera dezenas de eventos e afoga o resto. Para contar criativo,
