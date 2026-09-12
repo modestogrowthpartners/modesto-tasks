@@ -236,12 +236,42 @@ ok('16 o alerta sai só no pilar abaixo de 8',
    painel.alertas.filter(a=>a.startsWith('⚠️')).length===1
    && painel.alertas.some(a=>/⚠️ Excelência/.test(a)), JSON.stringify(painel.alertas));
 
+/* ---- as respostas do cliente, na tela da equipe ---- */
+const resp = await page.evaluate(()=>{
+  const sec = document.getElementById('mgn-respostas');
+  return {
+    existe: !!sec,
+    abas: [...(sec ? sec.querySelectorAll('.mgn-abas button') : [])].map(b=>b.textContent.trim()),
+    ativa: (sec ? (sec.querySelector('.mgn-abas button.on')||{}).textContent : '' ) || '',
+    texto: sec ? sec.textContent : '',
+  };
+});
+ok('18 as respostas do cliente aparecem no painel da equipe, sem abrir o formulário',
+   resp.existe && resp.abas.length === 3
+   && /Revis\u00e3o de Parceria/.test(resp.ativa), JSON.stringify({abas:resp.abas, ativa:resp.ativa}));
+
+ok('19 o bloco mostra pergunta e resposta, e marca o que ficou em branco',
+   /Time presente, mas prazo escorrega/.test(resp.texto)
+   && /IA/.test(resp.texto)
+   && /n\u00e3o respondida/.test(resp.texto), resp.texto.slice(0, 200));
+
+const trocou = await page.evaluate(()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
+  mgNpsLer(p.id);
+  const sec = document.getElementById('mgn-respostas');
+  return {ativa:(sec.querySelector('.mgn-abas button.on')||{}).textContent, texto:sec.textContent};
+});
+ok('20 trocar de aba mostra as respostas daquela pesquisa',
+   /Pr\u00e9-Discovery/.test(trocou.ativa)
+   && /CAC subindo e margem caindo no retargeting/.test(trocou.texto),
+   JSON.stringify({ativa:trocou.ativa}));
+
 const carteira = await page.evaluate(()=>{
   mgNpsCliente('');
   const car = [...document.querySelectorAll('#v-nps .mgn-n b')].map(b=>b.textContent);
   return {car, farol:(document.querySelector('#v-nps .mgn-tab .mgn-farol')||{}).textContent};
 });
-ok('17 a visão geral calcula o NPS de verdade, não a nota crua',
+ok('21 a visão geral calcula o NPS de verdade, não a nota crua',
    carteira.car[0]==='100' && carteira.car[1]==='8,20' && carteira.farol==='Verde',
    JSON.stringify(carteira));
 
@@ -250,10 +280,10 @@ ok('17 a visão geral calcula o NPS de verdade, não a nota crua',
    ===================================================================== */
 await entrar('cliente');
 const barrado = await page.evaluate(()=>{ showView('nps'); return VIEW });
-ok('18 o cliente não entra na aba da equipe', barrado==='portal', barrado);
+ok('22 o cliente não entra na aba da equipe', barrado==='portal', barrado);
 
 const menuDele = await page.evaluate(()=>mgNavItens().map(n=>n.v));
-ok('19 a aba não aparece no menu do cliente', !menuDele.includes('nps'), JSON.stringify(menuDele));
+ok('23 a aba não aparece no menu do cliente', !menuDele.includes('nps'), JSON.stringify(menuDele));
 
 /* ---- saída ---- */
 await browser.close(); srv.close();

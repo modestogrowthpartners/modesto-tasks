@@ -28737,7 +28737,7 @@ window.mgzQuemEh        = mgzQuemEh;
       ? (p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—')
       : (p.enviado_em ? new Date(p.enviado_em).toLocaleDateString('pt-BR') : '—');
     const acao = p.status === 'respondido'
-      ? '<button class="mgn-btn2" onclick="mgNpsAbrir(\'' + escJS(p.id) + '\', 1)">ver respostas</button>'
+      ? '<button class="mgn-btn2" onclick="mgNpsLer(\'' + escJS(p.id) + '\')">ler respostas</button>'
         + (p.tipo === 'mgpr'
             ? ' <button class="mgn-btn2" onclick="mgNpsVerRetorno(\'' + escJS(p.id) + '\')">ver retorno</button>'
             : '')
@@ -28867,7 +28867,99 @@ window.mgzQuemEh        = mgzQuemEh;
       + '</tbody></table></section>';
   }
 
-  let PAINEL_ID = null;   /* revisão exibida no painel */
+  let PAINEL_ID = null;   /* revisão exibida no painel   */
+  let LENDO_ID  = null;   /* pesquisa aberta no bloco de respostas */
+
+  /* ---------------------------------------------------------------------
+     As respostas, na tela da equipe
+
+     Elas existiam só atrás de um botão que abria o formulário em modo de
+     leitura. Quem abre o painel de um cliente quer ler o que ele escreveu
+     sem sair do lugar, então o bloco vive aqui, com uma aba por pesquisa
+     respondida. Continua sendo aba interna: o cliente não alcança esta
+     tela, e o retorno que ele recebe é outro.
+     --------------------------------------------------------------------- */
+  function respostasHTML(cid){
+    const feitas = doCliente(cid).filter(p => p.status === 'respondido')
+      .sort((a, b) => new Date(b.respondido_em || b.enviado_em) - new Date(a.respondido_em || a.enviado_em));
+    if(!feitas.length){
+      return '<section class="mgn-bloco"><header><h2>Respostas do cliente</h2></header>'
+        + '<div class="mgn-vazio">Nenhuma pesquisa respondida ainda. '
+        + 'Quando o cliente enviar, as respostas aparecem aqui, sem precisar abrir o formulário.'
+        + '</div></section>';
+    }
+    const atual = feitas.find(p => p.id === LENDO_ID) || feitas[0];
+    const spec  = specDe(atual);
+    const r     = atual.respostas || {};
+
+    const abas = '<div class="mgn-abas" style="padding:14px 20px 0">' + feitas.map(p=>{
+      const s = specDe(p);
+      return '<button class="' + (p.id === atual.id ? 'on' : '') + '"'
+        + ' onclick="mgNpsLer(\'' + escJS(p.id) + '\')">' + esc(s.nome)
+        + (p.rodada > 1 ? ' · ' + p.rodada + 'ª' : '') + '</button>';
+    }).join('') + '</div>';
+
+    /* uma seção por aba do questionário, na ordem em que ele foi respondido.
+       Pergunta sem resposta aparece como não respondida, em vez de sumir: a
+       ausência também é informação para quem vai para o kickoff. */
+    const secoes = spec.abas.filter(a => !a.recap).map(a=>{
+      const linhas = (a.perguntas || []).map(q=>{
+        const v = r[q.id];
+        const txt = preenchida(v) ? valorTexto(v) : null;
+        return '<tr><td style="width:38%"><b>' + esc(q.rot) + '</b>'
+          + (q.opcional ? ' <span class="opc">opcional</span>' : '') + '</td>'
+          + '<td style="white-space:pre-wrap">'
+          + (txt == null
+              ? '<span style="color:var(--muted2)">não respondida</span>'
+              : esc(txt))
+          + '</td></tr>';
+      }).join('');
+      return '<div style="padding:0 0 6px"><div style="padding:14px 20px 6px;font-size:10.5px;'
+        + 'font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2)">'
+        + esc(a.titulo) + '</div>'
+        + '<table class="mgn-tab"><tbody>' + linhas + '</tbody></table></div>';
+    }).join('');
+
+    const anexos = (atual.anexos || []).length
+      ? '<div style="padding:14px 20px"><div style="font-size:10.5px;font-weight:700;'
+        + 'letter-spacing:.6px;text-transform:uppercase;color:var(--muted2);margin-bottom:8px">'
+        + 'Materiais enviados</div><div class="mgn-anexos">'
+        + atual.anexos.map((x, i) => '<div class="mgn-anexo"><span>📎</span>'
+            + '<span class="nm">' + esc(x.nome || 'arquivo') + '</span>'
+            + '<button class="mgn-btn2" style="padding:5px 11px;font-size:12px"'
+            + ' onclick="mgNpsBaixar(\'' + escJS(atual.id) + '\', ' + i + ')">abrir</button></div>').join('')
+        + '</div></div>'
+      : '';
+
+    const quando = atual.respondido_em
+      ? new Date(atual.respondido_em).toLocaleDateString('pt-BR') : '—';
+
+    return '<section class="mgn-bloco" id="mgn-respostas">'
+      + '<header><h2>Respostas do cliente</h2>'
+      + '<span class="n">respondida em ' + esc(quando) + '</span></header>'
+      + abas + secoes + anexos
+      + '</section>';
+  }
+
+  window.mgNpsLer = function(id){
+    LENDO_ID = id || null;
+    desenhar();
+    try{
+      const el = document.getElementById('mgn-respostas');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }catch(e){}
+  };
+
+  /* o anexo vive no bucket privado; abre por URL assinada, como os documentos */
+  window.mgNpsBaixar = async function(id, i){
+    const p = LISTA.find(x => x.id === id); if(!p) return;
+    const a = (p.anexos || [])[i]; if(!a || !a.path) return;
+    try{
+      const {data, error} = await sb.storage.from('documents').createSignedUrl(a.path, 120);
+      if(error) throw error;
+      window.open(data.signedUrl, '_blank', 'noopener');
+    }catch(e){ toast('Não foi possível abrir o anexo: ' + ((e && e.message) || '')) }
+  };
 
   function painelHTML(cid){
     const emp = empresas().find(c => c.id === cid);
@@ -28895,6 +28987,7 @@ window.mgzQuemEh        = mgzQuemEh;
           + enviar('pre_discovery') + enviar('client_discovery') + enviar('mgpr')
         + '</div></div>'
       + '</section>'
+      + respostasHTML(cid)
       + (atual
           ? pilaresHTML(atual) + continuidadeHTML(atual) + historicoHTML(cid)
           : '<div class="mgn-bloco"><div class="mgn-vazio">'
@@ -28903,7 +28996,7 @@ window.mgzQuemEh        = mgzQuemEh;
             + '</div></div>');
   }
 
-  window.mgNpsCliente = function(cid){ CLI = cid || null; desenhar() };
+  window.mgNpsCliente = function(cid){ CLI = cid || null; LENDO_ID = null; desenhar() };
   window.mgNpsEnviarPesquisa = async function(tipo){
     if(!CLI) return;
     const ja = ultima(CLI, tipo);
