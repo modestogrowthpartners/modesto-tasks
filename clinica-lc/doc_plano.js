@@ -54,7 +54,7 @@ C.push(U.table(
   [
     ["Prazo de código pronto", "12 semanas"],
     ["Prazo até app publicado nas duas lojas", "14 semanas"],
-    ["Custo de plataforma para a Bytech no build", "R$ 7.548 (3 meses)"],
+    ["Custo de plataforma para a Bytech no build", "R$ 5.868 (3 meses)"],
     ["Custo que fica com a Clínica LC (contas de loja)", "R$ 694 no primeiro ano"],
     ["Custo mensal a partir do 4º mês", "R$ 703 (infraestrutura + 1 assinatura de IA)"],
     ["Esforço estimado", "≈ 600 horas (2 devs × 25 h/semana × 12 semanas)"],
@@ -330,13 +330,15 @@ C.push(h3("Qual plano assinar"));
 C.push(U.table(
   ["Configuração", "Custo mensal", "Avaliação"],
   [
-    ["2 × Max 5x", "US$ 200 · R$ 1.120", "Funciona, mas o teto de uso costuma ser atingido em sessões longas de refatoração de backend"],
-    ["1 × Max 20x + 1 × Max 5x", "US$ 300 · R$ 1.680", "RECOMENDADO. O 20x fica com quem faz migração, RLS e refatoração pesada"],
-    ["2 × Max 20x", "US$ 400 · R$ 2.240", "Confortável. Só se justifica se o cronograma apertar"],
+    ["2 × Max 5x", "US$ 200 · R$ 1.120", "CONFIGURAÇÃO ADOTADA. É o orçamento deste plano"],
+    ["1 × Max 20x + 1 × Max 5x", "US$ 300 · R$ 1.680", "Rota de escape. Subir só a conta de quem faz migração, RLS e refatoração pesada"],
+    ["2 × Max 20x", "US$ 400 · R$ 2.240", "Só se o cronograma apertar de verdade"],
   ], [34, 24, 42]
 ));
 C.push(spacer(120));
-C.push(p("Começar pela configuração recomendada e subir apenas se houver bloqueio real. A diferença entre a opção econômica e a recomendada ao longo de 3 meses é de R$ 1.680, irrelevante diante do custo de uma semana perdida.", { italics: true }));
+C.push(p("O plano trabalha com duas contas Max 5x. O ponto de atenção é conhecido: o teto de uso do 5x costuma ser atingido em sessões longas de refatoração de backend, normalmente nas semanas 3 e 7, quando o schema muda. Se isso acontecer, subir UMA das contas para 20x custa R$ 560 a mais por mês e resolve, sem mexer no cronograma.", { italics: true }));
+C.push(spacer(100));
+C.push(p("Regra prática: se qualquer um dos dois perder mais de meio dia de trabalho por limite de uso, sobe a conta no mês seguinte. Meio dia parado custa mais que os R$ 560.", { italics: true }));
 C.push(pageBreak());
 
 /* ============ 9. CUSTOS ============ */
@@ -359,12 +361,12 @@ C.push(h3("B · Build, 3 meses, custo da Bytech"));
 C.push(U.table(
   ["Item", "Mês 1", "Mês 2", "Mês 3", "Total"],
   [
-    ["Claude Max (1 × 20x + 1 × 5x)", "R$ 1.680", "R$ 1.680", "R$ 1.680", "R$ 5.040"],
+    ["Claude Max (2 × 5x)", "R$ 1.120", "R$ 1.120", "R$ 1.120", "R$ 3.360"],
     ["Banco de dados gerenciado", "R$ 0", "R$ 140", "R$ 140", "R$ 280"],
     ["Serviço de build iOS e Android", "R$ 0", "R$ 1.114", "R$ 1.114", "R$ 2.228"],
     ["Repositório e CI", "R$ 0", "R$ 0", "R$ 0", "R$ 0"],
     ["Monitoramento de erro", "R$ 0", "R$ 0", "R$ 0", "R$ 0"],
-    ["Total", "R$ 1.680", "R$ 2.934", "R$ 2.934", "R$ 7.548"],
+    ["Total", "R$ 1.120", "R$ 2.374", "R$ 2.374", "R$ 5.868"],
   ], [32, 17, 17, 17, 17], { numeric: true }
 ));
 C.push(spacer(100));
@@ -393,9 +395,9 @@ C.push(U.table(
   ["Item", "Valor"],
   [
     ["Domínio, pago no início", "R$ 40"],
-    ["Build, 3 meses (seção B)", "R$ 7.548"],
+    ["Build, 3 meses (seção B)", "R$ 5.868"],
     ["Operação, 9 meses × R$ 703 (seção C)", "R$ 6.327"],
-    ["Total", "R$ 13.915"],
+    ["Total", "R$ 12.235"],
   ], [62, 38]
 ));
 C.push(spacer(140));
@@ -437,7 +439,7 @@ C.push(U.table(
     ["Pessoas", "2", "Definido pelo sócio"],
     ["Dedicação realista", "25 h por semana por pessoa", "Premissa de dedicação parcial. Ajustar se for integral"],
     ["Esforço total", "600 horas", "12 × 2 × 25"],
-    ["Custo direto de plataforma", "R$ 7.548", "Seção 9B"],
+    ["Custo direto de plataforma", "R$ 5.868", "Seção 9B"],
   ], [30, 22, 48]
 ));
 C.push(spacer(140));
@@ -456,14 +458,14 @@ C.push(U.table(
   ["Linha", "Valor"],
   [
     ["Honorário", "R$ 89.000"],
-    ["(–) Custo de plataforma no build", "R$ 7.548"],
-    ["Margem bruta do projeto", "R$ 81.452"],
-    ["Por pessoa, em 3 meses", "R$ 40.726"],
-    ["Por pessoa, por mês (antes de imposto)", "R$ 13.575"],
+    ["(–) Custo de plataforma no build", "R$ 5.868"],
+    ["Margem bruta do projeto", "R$ 83.132"],
+    ["Por pessoa, em 3 meses", "R$ 41.566"],
+    ["Por pessoa, por mês (antes de imposto)", "R$ 13.855"],
   ], [62, 38]
 ));
 C.push(spacer(100));
-C.push(p("Considerando Simples Nacional na faixa inicial, o líquido por pessoa fica na casa de R$ 12.000 a R$ 12.700 por mês para 25 horas semanais. É um patamar justo para o perfil de trabalho, sem ser agressivo.", { italics: true }));
+C.push(p("Considerando Simples Nacional na faixa inicial, o líquido por pessoa fica na casa de R$ 12.300 a R$ 13.000 por mês para 25 horas semanais. É um patamar justo para o perfil de trabalho, sem ser agressivo.", { italics: true }));
 C.push(spacer(140));
 C.push(h3("A parte mais importante: a sustentação"));
 C.push(p("O contrato de projeto é receita que acontece uma vez. O contrato de sustentação é o que faz este cliente valer a pena no horizonte de dois anos."));
@@ -481,7 +483,7 @@ C.push(p("A mensalidade cobre: hospedagem e banco, monitoramento, correção de 
 C.push(spacer(140));
 C.push(h3("Como apresentar em 15/09"));
 C.push(bulletKV("Não abrir com o número.", "Abrir com o protótipo navegável. A cliente precisa tocar no app antes de ouvir o valor."));
-C.push(bulletKV("Mostrar o custo de plataforma primeiro.", "R$ 694 uma vez para ela, R$ 7.548 que a Bytech gasta nos três meses de construção e R$ 703 por mês depois que o app entra no ar. Isso estabelece que somos transparentes e faz o honorário parecer o que de fato é: trabalho, não intermediação."));
+C.push(bulletKV("Mostrar o custo de plataforma primeiro.", "R$ 694 uma vez para ela, R$ 5.868 que a Bytech gasta nos três meses de construção e R$ 703 por mês depois que o app entra no ar. Isso estabelece que somos transparentes e faz o honorário parecer o que de fato é: trabalho, não intermediação."));
 C.push(bulletKV("Apresentar projeto e sustentação juntos.", "R$ 89.000 mais R$ 2.900 por mês. Separar os dois gera a conversa de 'depois a gente vê a manutenção', que nunca acontece."));
 C.push(bulletKV("Oferecer a fase de discovery como porta de entrada.", "Se houver hesitação, propor 2 semanas de escopo fechado, arquitetura e design por R$ 12.000, abatidos do total se o projeto seguir. Reduz o risco percebido e filtra cliente que não vai fechar."));
 C.push(bulletKV("Não dar desconto na primeira reunião.", "Se pedirem, tirar escopo em vez de baixar preço. Ranking e painel avançado são os candidatos naturais."));
