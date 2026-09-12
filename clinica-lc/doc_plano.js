@@ -30,7 +30,7 @@ C.push(U.table(
     ["Origem", "Reunião de 11/09/2026 (20 min) · participantes: Financeiro Clínica LC, Vinicius Reis, Kevyn Machado"],
     ["Apresentação", "Terça-feira, 15/09/2026, 14h00"],
     ["Equipe prevista", "2 desenvolvedores assistidos por Claude Max"],
-    ["Classificação", "USO INTERNO — contém margem, custo e estratégia de preço"],
+    ["Classificação", "USO INTERNO: contém margem, custo e estratégia de preço"],
   ],
   [26, 74]
 ));
@@ -39,7 +39,7 @@ C.push(pageBreak());
 /* ============ 1. SUMÁRIO EXECUTIVO ============ */
 C.push(modesto.eyebrow("Seção 1"));
 C.push(modesto.sectionTitle("Sumário executivo"));
-C.push(p("A Clínica LC quer um aplicativo que transforme o protocolo médico em rotina diária acompanhada. Hoje o médico prescreve por e-mail e agenda pelo Google Calendar, a comunicação acontece em grupos de WhatsApp e o agendamento depende de uma recepcionista que só atende em horário comercial — enquanto o paciente, majoritariamente mulher, 35+, alto poder aquisitivo e agenda cheia, responde fora desse horário."));
+C.push(p("A Clínica LC quer um aplicativo que transforme o protocolo médico em rotina diária acompanhada. Hoje o médico prescreve por e-mail e agenda pelo Google Calendar, a comunicação acontece em grupos de WhatsApp e o agendamento depende de uma recepcionista que só atende em horário comercial, enquanto o paciente, majoritariamente mulher, 35+, alto poder aquisitivo e agenda cheia, responde fora desse horário."));
 C.push(p("O aplicativo resolve três coisas ao mesmo tempo: tira o agendamento do gargalo humano, transforma o protocolo em checklist com lembrete, e dá à clínica um ativo de percepção de valor coerente com um serviço high ticket."));
 C.push(spacer(60));
 C.push(h3("Veredito sobre o prazo"));
@@ -74,7 +74,7 @@ C.push(modesto.eyebrow("Seção 2"));
 C.push(modesto.sectionTitle("Escopo derivado da reunião"));
 C.push(p("Tudo abaixo saiu literalmente do que foi dito na reunião de 11/09. A coluna de prioridade é nossa recomendação, não algo já acordado com o cliente."));
 C.push(spacer(80));
-C.push(h3("Bloco A · MVP — entra nas 12 semanas"));
+C.push(h3("Bloco A · MVP, entra nas 12 semanas"));
 C.push(U.table(
   ["Funcionalidade", "O que foi dito na reunião", "Complexidade"],
   [
@@ -94,18 +94,18 @@ C.push(U.table(
   [30, 52, 18]
 ));
 C.push(spacer(140));
-C.push(h3("Bloco B · Fase 2 — depois do lançamento"));
+C.push(h3("Bloco B · Fase 2, depois do lançamento"));
 C.push(bulletKV("Integração com o sistema de agenda atual da clínica.", "Depende de descobrir qual é o sistema e se ele expõe API. No MVP o app tem agenda própria."));
-C.push(bulletKV("Histórico completo de exames com laudo.", "A própria cliente apontou que isso vive no prontuário e só o médico acessa. No MVP o app mostra um resumo de resultados que o profissional libera explicitamente — não é prontuário eletrônico."));
+C.push(bulletKV("Histórico completo de exames com laudo.", "A própria cliente apontou que isso vive no prontuário e só o médico acessa. No MVP o app mostra um resumo de resultados que o profissional libera explicitamente, não é prontuário eletrônico."));
 C.push(bulletKV("E-mails automáticos de ciclo de vida.", "Foi pedido ('quanto mais lembrarem da gente, melhor'), mas push resolve 80% do objetivo com custo e complexidade menores. Entra depois."));
 C.push(bulletKV("WhatsApp Cloud API com disparo automático.", "No MVP o app abre a conversa por link. Automação real exige número verificado, templates aprovados e custo por conversa."));
 C.push(bulletKV("Automação de Instagram Direct.", "Discutido na reunião e descartado pela própria cliente: o app é só para pacientes da Clínica LC."));
 C.push(spacer(140));
-C.push(h3("Bloco C · Fora de escopo — precisa estar escrito na proposta"));
+C.push(h3("Bloco C · Fora de escopo, precisa estar escrito na proposta"));
 C.push(bullet("Prontuário eletrônico, prescrição com assinatura digital e qualquer coisa que exija certificação SBIS/CFM."));
 C.push(bullet("Telemedicina, videochamada ou consulta remota."));
 C.push(bullet("Pagamento, cobrança ou emissão de nota dentro do app."));
-C.push(bullet("Gestão de tráfego pago e CRM — ficou combinado indicar um parceiro."));
+C.push(bullet("Gestão de tráfego pago e CRM, ficou combinado indicar um parceiro."));
 C.push(bullet("Reforma do site institucional (mencionado como possibilidade, não contratado)."));
 C.push(pageBreak());
 
@@ -120,7 +120,7 @@ C.push(U.table(
   [
     ["App iOS e Android", "React Native + Expo (TypeScript)", "Uma base de código para as duas lojas. O protótipo já está em React, então o design system é reaproveitado quase direto."],
     ["Build e publicação", "EAS Build / Submit / Update", "Compila o binário iOS na nuvem, sem precisar de Mac. EAS Update permite corrigir bug de JS sem passar por revisão de loja."],
-    ["Banco de dados", "PostgreSQL gerenciado (Supabase), região São Paulo", "Relacional, que é o que este domínio pede. Dado de saúde permanece em território nacional — argumento comercial e de LGPD."],
+    ["Banco de dados", "PostgreSQL gerenciado (Supabase), região São Paulo", "Relacional, que é o que este domínio pede. Dado de saúde permanece em território nacional, argumento comercial e de LGPD."],
     ["Autenticação", "Supabase Auth (e-mail e senha + magic link)", "Integra nativamente com as políticas de acesso do banco."],
     ["Autorização", "Row Level Security no Postgres", "A regra 'paciente só vê o próprio dado' vive no banco, não no app. Um bug no aplicativo não vaza dado de outro paciente."],
     ["Arquivos (exames, fotos)", "Supabase Storage com URL assinada e expiração", "Arquivo de saúde nunca fica em URL pública."],
@@ -214,7 +214,7 @@ C.push(U.table(
 ));
 C.push(spacer(140));
 C.push(callout("Duas decisões de modelagem que evitam retrabalho",
-  "Primeira: adesão é calculada uma vez por dia e gravada em adherence_daily, em vez de ser recalculada a cada abertura de tela. Sem isso, a tela de evolução fica lenta já no terceiro mês de uso. Segunda: exam_results guarda resultado em pares chave-valor e não como PDF anexado, porque foi pedido gráfico de 'como o paciente chegou e como ele está' — e não se faz gráfico a partir de PDF."));
+  "Primeira: adesão é calculada uma vez por dia e gravada em adherence_daily, em vez de ser recalculada a cada abertura de tela. Sem isso, a tela de evolução fica lenta já no terceiro mês de uso. Segunda: exam_results guarda resultado em pares chave-valor e não como PDF anexado, porque foi pedido gráfico de 'como o paciente chegou e como ele está', e não se faz gráfico a partir de PDF."));
 C.push(pageBreak());
 
 /* ============ 5. SEGURANÇA E LGPD ============ */
@@ -224,10 +224,10 @@ C.push(p("Este é o ponto em que um app de clínica difere de qualquer outro app
 C.push(spacer(80));
 C.push(h3("Papéis"));
 C.push(bulletKV("Clínica LC é a controladora.", "Ela decide a finalidade do tratamento e precisa nomear um encarregado (DPO), ainda que seja alguém da própria equipe."));
-C.push(bulletKV("Modesto Growth é a operadora.", "Trata dado em nome da clínica. Isso exige um contrato de operador anexo ao contrato principal — não é opcional e protege os dois lados."));
+C.push(bulletKV("Modesto Growth é a operadora.", "Trata dado em nome da clínica. Isso exige um contrato de operador anexo ao contrato principal, não é opcional e protege os dois lados."));
 C.push(spacer(120));
 C.push(h3("Base legal"));
-C.push(p("Para o dado clínico, a base é a tutela da saúde em procedimento realizado por profissionais de saúde (Art. 11, II, 'f'), que dispensa consentimento. Para tudo que não é assistencial — ranking, notificação motivacional, e-mail — a base é consentimento específico e destacado, que o paciente pode revogar sem perder acesso ao app."));
+C.push(p("Para o dado clínico, a base é a tutela da saúde em procedimento realizado por profissionais de saúde (Art. 11, II, 'f'), que dispensa consentimento. Para tudo que não é assistencial (ranking, notificação motivacional, e-mail) a base é consentimento específico e destacado, que o paciente pode revogar sem perder acesso ao app."));
 C.push(spacer(80));
 C.push(callout("Atenção ao ranking",
   "Ranking de adesão ao tratamento entre pacientes é, na prática, divulgação de informação de saúde para terceiros. Só é defensável com três travas simultâneas: participação por opt-in explícito, exibição sempre anônima para os demais, e possibilidade de sair a qualquer momento. O protótipo já foi construído assim e isso precisa continuar até a versão final."));
@@ -237,7 +237,7 @@ C.push(bullet("RLS ativo em todas as tabelas, sem exceção, com teste automatiz
 C.push(bullet("Criptografia em trânsito (TLS) e em repouso, padrão da plataforma."));
 C.push(bullet("Arquivo de exame só por URL assinada com expiração curta. Nunca bucket público."));
 C.push(bullet("audit_log imutável registrando cada acesso a dado de saúde por profissional."));
-C.push(bullet("Exclusão de conta dentro do app — exigência formal da Apple (Guideline 5.1.1) e direito do titular pela LGPD."));
+C.push(bullet("Exclusão de conta dentro do app, exigência formal da Apple (Guideline 5.1.1) e direito do titular pela LGPD."));
 C.push(bullet("Exportação dos próprios dados em formato legível, pelo mesmo motivo."));
 C.push(bullet("Política de retenção definida por escrito: quanto tempo o dado fica após o fim do protocolo."));
 C.push(bullet("Dados hospedados em região brasileira."));
@@ -280,13 +280,13 @@ C.push(U.table(
 ));
 C.push(spacer(140));
 C.push(callout("Ação de semana zero",
-  "Abrir as duas contas e solicitar o D-U-N-S no primeiro dia útil após a assinatura, antes de escrever a primeira linha de código. É a tarefa de menor esforço e maior risco de cronograma do projeto inteiro — e depende da clínica, não de nós."));
+  "Abrir as duas contas e solicitar o D-U-N-S no primeiro dia útil após a assinatura, antes de escrever a primeira linha de código. É a tarefa de menor esforço e maior risco de cronograma do projeto inteiro, e depende da clínica, não de nós."));
 C.push(pageBreak());
 
 /* ============ 7. CRONOGRAMA ============ */
 C.push(modesto.eyebrow("Seção 7"));
 C.push(modesto.sectionTitle("Cronograma de 12 semanas"));
-C.push(p("Duas trilhas paralelas. Dev A cuida do cliente (app e painel), Dev B cuida do servidor (banco, regras, funções). O contrato entre as duas trilhas — tipos TypeScript e schema do banco — é fechado na semana 1 e vira a única fonte de verdade."));
+C.push(p("Duas trilhas paralelas. Dev A cuida do cliente (app e painel), Dev B cuida do servidor (banco, regras, funções). O contrato entre as duas trilhas (tipos TypeScript e schema do banco) é fechado na semana 1 e vira a única fonte de verdade."));
 C.push(spacer(80));
 C.push(U.table(
   ["Semana", "Dev A · Cliente", "Dev B · Servidor", "Entrega verificável"],
@@ -308,7 +308,7 @@ C.push(spacer(140));
 C.push(h3("Marcos de pagamento sugeridos"));
 C.push(bulletKV("30% na assinatura.", "Cobre o custo de plataforma dos três meses e o risco inicial."));
 C.push(bulletKV("30% na semana 8, na entrega do beta fechado.", "É o momento em que a clínica toca o app funcionando pela primeira vez. Amarrar pagamento a esse marco protege as duas partes."));
-C.push(bulletKV("40% na publicação nas lojas.", "Não em 'código pronto' — em app disponível para download."));
+C.push(bulletKV("40% na publicação nas lojas.", "Não em 'código pronto', e sim em app disponível para download."));
 C.push(spacer(120));
 C.push(callout("O que derruba este cronograma",
   "Em ordem de probabilidade: atraso na emissão do D-U-N-S; a clínica não fechar a identidade visual e o nome até a semana 2; descobrir na semana 7 que a integração com a agenda atual era obrigatória; e pedidos de escopo novo durante o build. Os quatro se neutralizam com escopo assinado e uma reunião quinzenal de acompanhamento de 30 minutos."));
@@ -336,7 +336,7 @@ C.push(U.table(
   ], [34, 24, 42]
 ));
 C.push(spacer(120));
-C.push(p("Começar pela configuração recomendada e subir apenas se houver bloqueio real. A diferença entre a opção econômica e a recomendada ao longo de 3 meses é de R$ 1.680 — irrelevante diante do custo de uma semana perdida.", { italics: true }));
+C.push(p("Começar pela configuração recomendada e subir apenas se houver bloqueio real. A diferença entre a opção econômica e a recomendada ao longo de 3 meses é de R$ 1.680, irrelevante diante do custo de uma semana perdida.", { italics: true }));
 C.push(pageBreak());
 
 /* ============ 9. CUSTOS ============ */
@@ -344,7 +344,7 @@ C.push(modesto.eyebrow("Seção 9"));
 C.push(modesto.sectionTitle("Custos"));
 C.push(p("Todos os valores em dólar foram convertidos a R$ 5,60. A cotação à vista em 12/09/2026 era de aproximadamente R$ 5,17; a diferença cobre o spread do cartão internacional e o IOF. Preços de plataforma consultados em setembro de 2026 e sujeitos a reajuste dos fornecedores."));
 C.push(spacer(100));
-C.push(h3("A · Setup, pagamento único — fica com a Clínica LC"));
+C.push(h3("A · Setup, pagamento único, fica com a Clínica LC"));
 C.push(U.table(
   ["Item", "Valor em USD", "Valor em BRL", "Recorrência"],
   [
@@ -355,7 +355,7 @@ C.push(U.table(
   ], [40, 20, 20, 20], { numeric: false }
 ));
 C.push(spacer(140));
-C.push(h3("B · Build, 3 meses — custo da Modesto"));
+C.push(h3("B · Build, 3 meses, custo da Modesto"));
 C.push(U.table(
   ["Item", "Mês 1", "Mês 2", "Mês 3", "Total"],
   [
@@ -475,7 +475,7 @@ C.push(U.table(
   ], [62, 38]
 ));
 C.push(spacer(100));
-C.push(p("A mensalidade cobre: hospedagem e banco, monitoramento, correção de defeito, atualização obrigatória de SDK das lojas (que acontece todo ano e não é negociável), suporte à equipe da clínica e uma evolução pequena por mês. Contrato mínimo de 12 meses, reajuste anual por índice. Deixar claro que sem sustentação o app para de funcionar em algum momento — não por má-fé, mas porque Apple e Google forçam atualização de SDK periodicamente.", { italics: true }));
+C.push(p("A mensalidade cobre: hospedagem e banco, monitoramento, correção de defeito, atualização obrigatória de SDK das lojas (que acontece todo ano e não é negociável), suporte à equipe da clínica e uma evolução pequena por mês. Contrato mínimo de 12 meses, reajuste anual por índice. Deixar claro que sem sustentação o app para de funcionar em algum momento, não por má-fé, mas porque Apple e Google forçam atualização de SDK periodicamente.", { italics: true }));
 C.push(spacer(140));
 C.push(h3("Como apresentar em 15/09"));
 C.push(bulletKV("Não abrir com o número.", "Abrir com o protótipo navegável. A cliente precisa tocar no app antes de ouvir o valor."));
