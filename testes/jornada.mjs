@@ -1954,28 +1954,46 @@ ok('45b o gato senta na borda da barra e obedece a preferência de animação',
    && sentado.respeitaPreferencia && sentado.ficouQuieto,
    JSON.stringify(sentado));
 
-/* ---- 45c. o desenho tem cabeça, corpo, patinha e rabo ---- */
+/* ---- 45c. o desenho tem as três silhuetas na mesma grade ----
+   Grade única é o que impede o bicho de pular de tamanho ao trocar de
+   pose, e por isso a caixa é a mesma para sentado, andando e deitado. */
 const desenho = await page.evaluate(()=>{
   const d = document.createElement('div');
-  d.innerHTML = mgGatoSentadoSVG(26);
+  d.innerHTML = mgGatoDesenho(26);
   const svg = d.querySelector('svg');
   const rabos = [...d.querySelectorAll('[class^="rabo"]')];
+  const quadros = sel => [...d.querySelectorAll(sel)];
+  const and = quadros('.mg-g-and > g'), dei = quadros('.mg-g-dei > g');
+  const pixels = g => [...g.querySelectorAll('rect')]
+    .map(r => r.getAttribute('x') + ',' + r.getAttribute('y')).sort().join(' ');
   return {
     caixa: svg.getAttribute('viewBox'),
     semSuavizar: svg.getAttribute('shape-rendering') === 'crispEdges',
     temCabeca: !!d.querySelector('.cabeca'),
     temOlhos: d.querySelectorAll('.olhos rect').length,
     temPata: !!d.querySelector('.pata'),
-    /* duas posições de rabo, que alternam em degrau */
     posesDeRabo: rabos.length,
     /* o rabo é grupo próprio para se mexer sozinho, e não pixel solto */
-    rabosTemPixel: rabos.every(g => g.querySelectorAll('rect').length > 0)
+    rabosTemPixel: rabos.every(g => g.querySelectorAll('rect').length > 0),
+    passadas: and.length,
+    respiros: dei.length,
+    /* quadro de passada que repete outro é quadro desperdiçado: a
+       passada tem que ser quatro desenhos DIFERENTES */
+    passadasDistintas: new Set(and.map(pixels)).size,
+    respirosDistintos: new Set(dei.map(pixels)).size,
+    /* todo mundo pisa na mesma linha de chão, senão o gato afunda ou
+       flutua ao trocar de pose */
+    chaoIgual: new Set([d.querySelector('.mg-g-sen'), and[0], dei[0]].map(g =>
+      Math.max(...[...g.querySelectorAll('rect')].map(r => +r.getAttribute('y'))))).size === 1,
   };
 });
-ok('45c o gato sentado tem cabeça, dois olhos, patinha e duas poses de rabo',
-   desenho.caixa === '0 0 11 12' && desenho.semSuavizar
+ok('45c as três silhuetas dividem a grade, o chão e têm quadros distintos',
+   desenho.caixa === '0 0 16 12' && desenho.semSuavizar
    && desenho.temCabeca && desenho.temOlhos === 2 && desenho.temPata
-   && desenho.posesDeRabo === 2 && desenho.rabosTemPixel,
+   && desenho.posesDeRabo === 2 && desenho.rabosTemPixel
+   && desenho.passadas === 4 && desenho.passadasDistintas === 4
+   && desenho.respiros === 2 && desenho.respirosDistintos === 2
+   && desenho.chaoIgual,
    JSON.stringify(desenho));
 
 /* ---- 45d. as manhas: lamber a patinha e o mortal ---- */
@@ -1987,14 +2005,21 @@ const manhas = await page.evaluate(async ()=>{
   const vistas = new Set();
   /* chama a manha várias vezes: ela sorteia entre lamber e dar o mortal,
      e o mortal é raro de propósito */
-  for(let i=0;i<40 && vistas.size < 2;i++){
+  for(let i=0;i<120 && vistas.size < 2;i++){
+    /* a rotina agora também sorteia passear e deitar, e nesses estados
+       ela sai por outro caminho. Zerar antes de cada tentativa é o que
+       mantém este caso medindo SÓ as manhas de gato parado. */
+    g.classList.remove('andando','deitado','lambendo','mortal');
     mgGatoManha();
     if(g.classList.contains('lambendo')) vistas.add('lambendo');
     if(g.classList.contains('mortal'))   vistas.add('mortal');
-    g.classList.remove('lambendo','mortal');
   }
   /* e a classe sai sozinha no fim, senão a manha só aconteceria uma vez */
-  mgGatoManha();
+  for(let i=0;i<30;i++){
+    g.classList.remove('andando','deitado','lambendo','mortal');
+    mgGatoManha();
+    if(g.classList.contains('lambendo') || g.classList.contains('mortal')) break;
+  }
   const logo = g.classList.contains('lambendo') || g.classList.contains('mortal');
   await new Promise(r=>setTimeout(r,1800));
   const depois = g.classList.contains('lambendo') || g.classList.contains('mortal');
@@ -2051,6 +2076,119 @@ ok('45f cliente não vê o gato, e a equipe continua vendo',
    !gatoSoEquipe.podeComoCliente && !gatoSoEquipe.apareceuComoCliente
    && gatoSoEquipe.voltaComEquipe,
    JSON.stringify(gatoSoEquipe));
+
+/* ---- 45g. ele anda de verdade pela barra ----
+   Três coisas separadas, e as três importam. Que ele SAIA do lugar, que
+   a passada troque de quadro um por vez, e que virar de direção não
+   passe pela largura zero. A terceira é a que quebra sozinha: se
+   deslocamento e espelho morassem no mesmo elemento, a transição
+   interpolaria os dois juntos e o gato encolheria até sumir a cada
+   mudança de rumo. */
+const passeio = await page.evaluate(async ()=>{
+  document.body.classList.remove('mg-sem-dock');
+  const t = document.getElementById('tour'); if(t) t.classList.remove('on');
+  document.querySelectorAll('.mg-boas, .mg-tour').forEach(e=>e.remove());
+  const dock = document.getElementById('mg-dock');
+  if(dock) dock.style.setProperty('display','flex','important');
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(r=>setTimeout(r,200));
+  const g = document.querySelector('.mg-gato-sen');
+  if(!g) return {erro:'sem gato'};
+  const vira = g.querySelector('.mg-gato-vira');
+  const naTela = ()=> Math.round(g.getBoundingClientRect().left);
+
+  /* vai até a ponta direita */
+  mgGatoAndarAte(0);
+  await new Promise(r=>setTimeout(r,900));
+  const partiu = naTela();
+  mgGatoAndarAte(mgGatoOnde().limite);
+  await new Promise(r=>setTimeout(r,120));
+  const andandoAgora = g.classList.contains('andando');
+  const olhaDireita = getComputedStyle(vira).transform;
+
+  /* a largura nunca pode encolher no meio da virada */
+  let larguraMinima = g.getBoundingClientRect().width;
+  const quadros = new Set();
+  for(let i=0;i<14;i++){
+    await new Promise(r=>setTimeout(r,90));
+    larguraMinima = Math.min(larguraMinima, g.getBoundingClientRect().width);
+    quadros.add([...g.querySelectorAll('.a0,.a1,.a2,.a3')]
+      .map(e=>getComputedStyle(e).opacity === '1' ? '1' : '0').join(''));
+  }
+  const meio = naTela();
+
+  /* agora para o outro lado, para provar que ele espelha */
+  mgGatoAndarAte(0);
+  await new Promise(r=>setTimeout(r,260));
+  larguraMinima = Math.min(larguraMinima, g.getBoundingClientRect().width);
+  const olhaEsquerda = getComputedStyle(vira).transform;
+
+  mgGatoCongelar();
+  const larguraFinal = g.getBoundingClientRect().width;
+  return {
+    andouParaFrente: meio > partiu + 20,
+    andandoAgora,
+    /* um quadro por vez, e mais de um quadro ao longo do trecho */
+    quadros: [...quadros],
+    umQuadroPorVez: [...quadros].every(q => q.split('1').length === 2),
+    variouQuadro: [...quadros].length > 1,
+    olhaDireita, olhaEsquerda,
+    /* matrix(-1,...) é o espelho; a largura não some no caminho */
+    espelhou: /matrix\(\s*-1/.test(olhaEsquerda) && !/matrix\(\s*-1/.test(olhaDireita),
+    larguraMinima: Math.round(larguraMinima), larguraFinal: Math.round(larguraFinal),
+    parouAoCongelar: !g.classList.contains('andando'),
+  };
+});
+ok('45g o gato anda pela barra, troca um quadro por vez e vira sem sumir',
+   passeio.andouParaFrente && passeio.andandoAgora
+   && passeio.umQuadroPorVez && passeio.variouQuadro && passeio.espelhou
+   && passeio.larguraMinima >= passeio.larguraFinal - 1
+   && passeio.parouAoCongelar,
+   JSON.stringify(passeio));
+
+/* ---- 45h. ele deita, respira e vira de um lado para o outro ---- */
+const deitada = await page.evaluate(async ()=>{
+  mgGatoSumir(); mgGatoSentar();
+  await new Promise(r=>setTimeout(r,200));
+  const g = document.querySelector('.mg-gato-sen');
+  if(!g) return {erro:'sem gato'};
+  const vira = g.querySelector('.mg-gato-vira');
+  const visivel = sel => getComputedStyle(g.querySelector(sel)).display !== 'none';
+
+  mgGatoDeitar();
+  await new Promise(r=>setTimeout(r,150));
+  const deitou = g.classList.contains('deitado');
+  const trocouSilhueta = visivel('.mg-g-dei') && !visivel('.mg-g-sen') && !visivel('.mg-g-and');
+
+  /* respira: os dois quadros aparecem ao longo do tempo, um por vez */
+  const respiros = new Set();
+  for(let i=0;i<10;i++){
+    await new Promise(r=>setTimeout(r,320));
+    respiros.add([...g.querySelectorAll('.d0,.d1')]
+      .map(e=>getComputedStyle(e).opacity === '1' ? '1' : '0').join(''));
+  }
+
+  /* deitado, a rotina só vira de lado ou levanta. Nas duas ele continua
+     com uma silhueta válida, e nunca fica preso andando. */
+  const lados = new Set([getComputedStyle(vira).transform]);
+  let levantou = false;
+  for(let i=0;i<40;i++){
+    if(!g.classList.contains('deitado')){ levantou = true; break }
+    mgGatoManha();
+    await new Promise(r=>setTimeout(r,20));
+    lados.add(getComputedStyle(vira).transform);
+  }
+  g.classList.remove('deitado');
+  return {deitou, trocouSilhueta, respiros: [...respiros],
+          umPorVez: [...respiros].every(q => q === '10' || q === '01'),
+          variouRespiro: [...respiros].length > 1,
+          virouDeLado: lados.size > 1, levantou};
+});
+ok('45h o gato deita, respira em dois quadros e vira de um lado para o outro',
+   deitada.deitou && deitada.trocouSilhueta
+   && deitada.umPorVez && deitada.variouRespiro
+   && deitada.virouDeLado && deitada.levantou,
+   JSON.stringify(deitada));
 
 
 /* =====================================================================

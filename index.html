@@ -25403,15 +25403,17 @@ window.mgResumoHTML    = mgResumoHTML;
 
 <style>
 /* =====================================================================
-   SEÇÃO · O GATO SENTADO NA BARRA
+   SEÇÃO · O GATO DA BARRA
 
-   Ele parou de atravessar a tela. Atravessar chamava atenção no momento
-   errado, obrigava a cronometrar passada com pose de pata, e no fim
-   parecia um brinquedo de corda passando por cima dos botões.
+   Ele vive EM CIMA da barra, nunca dentro dela: o topo do bicho fica
+   acima da borda, então ele nunca cobre botão. Foi por atravessar a tela
+   inteira, por cima do conteúdo, que a primeira versão saiu.
 
-   Agora ele senta na barra e fica lá. O que dá vida é o que um gato
-   parado faz: pisca, mexe o rabo, lambe a patinha, e de vez em quando
-   dá um mortal. Tocar nele faz ele ronronar.
+   O que ele faz é o que um gato faz: anda um trecho da barra, para,
+   senta, às vezes deita e vira de um lado para o outro, pisca, mexe o
+   rabo, lambe a patinha e de vez em quando dá um mortal. Tocar nele faz
+   ele ronronar. Os intervalos são irregulares de propósito: no ritmo
+   certinho o olho aprende a previsão e o bicho vira relógio.
 
    Três cuidados que continuam valendo:
    • some com a aba escondida, para não gastar quadro à toa;
@@ -25420,10 +25422,14 @@ window.mgResumoHTML    = mgResumoHTML;
    ===================================================================== */
 .mg-gato-sen{position:fixed;z-index:94;cursor:pointer;line-height:0;
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));
-  transition:transform .12s ease}
+  transition:transform .3s linear}
 .mg-gato-sen svg{display:block;overflow:visible}
-.mg-gato-sen:hover{transform:translateY(-1px)}
-.mg-gato-sen:active{transform:translateY(1px) scale(.96)}
+/* O container agora carrega o deslocamento pela barra, então o realce do
+   mouse não pode morar nele: um transform de hover apagaria a posição do
+   gato. Ele desceu uma camada. */
+.mg-gato-vira{display:block;line-height:0}
+.mg-gato-sen:hover svg{transform:translateY(-1px)}
+.mg-gato-sen:active svg{transform:translateY(1px) scale(.96)}
 
 /* ---------- piscar ----------
    Fecha os dois olhos por um quadro só. É o sinal mais barato de "isto
@@ -25458,6 +25464,35 @@ window.mgResumoHTML    = mgResumoHTML;
   34%,62%{transform:translate(0,1px)}
 }
 .mg-gato-sen.lambendo .cabeca{animation:mgGatoCabeca 1.5s ease-in-out both}
+
+/* ---------- andar ----------
+   Três camadas, de propósito. O container leva o deslocamento, a camada
+   de dentro leva o espelhamento e o svg leva o gingado. Se o mesmo
+   elemento levasse deslocamento e espelho, a transição interpolaria os
+   dois juntos e o gato atravessaria a largura zero toda vez que virasse.
+   O corpo de perfil tem quatro quadros, trocados em degrau. */
+.mg-gato-sen .mg-g-and,.mg-gato-sen .mg-g-dei{display:none}
+.mg-gato-sen.andando .mg-g-sen,.mg-gato-sen.deitado .mg-g-sen{display:none}
+.mg-gato-sen.andando .mg-g-and{display:block}
+.mg-gato-sen.deitado .mg-g-dei{display:block}
+
+@keyframes mgGatoPasso{0%,24.9%{opacity:1}25%,100%{opacity:0}}
+.mg-gato-sen.andando .a0{animation:mgGatoPasso .72s steps(1,end) infinite}
+.mg-gato-sen.andando .a1{animation:mgGatoPasso .72s steps(1,end) -.54s infinite}
+.mg-gato-sen.andando .a2{animation:mgGatoPasso .72s steps(1,end) -.36s infinite}
+.mg-gato-sen.andando .a3{animation:mgGatoPasso .72s steps(1,end) -.18s infinite}
+/* o lombo sobe e desce meia casa a cada meio passo. Sem isso a passada
+   vira patinação: os pés trocam mas o bicho desliza. */
+@keyframes mgGatoGingado{0%,100%{transform:translateY(0)}50%{transform:translateY(-1px)}}
+.mg-gato-sen.andando svg{animation:mgGatoGingado .36s ease-in-out infinite}
+
+/* ---------- deitado ----------
+   Dois quadros de respiração, num ritmo bem mais lento que a passada,
+   e o rabo já vem batendo dentro de cada quadro. */
+@keyframes mgGatoRespA{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+@keyframes mgGatoRespB{0%,49.9%{opacity:0}50%,100%{opacity:1}}
+.mg-gato-sen.deitado .d0{animation:mgGatoRespA 2.8s steps(1,end) infinite}
+.mg-gato-sen.deitado .d1{animation:mgGatoRespB 2.8s steps(1,end) infinite}
 
 /* ---------- o mortal ----------
    Agacha, sobe girando, e pousa. O giro é do bicho inteiro; o agachar
@@ -25501,23 +25536,37 @@ body.mg-sem-anim .mg-gato-sen{display:none}
   .mg-gato-sen .rabo1{opacity:0}
   .mg-gato-sen.lambendo .pata,.mg-gato-sen.lambendo .cabeca,
   .mg-gato-sen.mortal svg,.mg-gato-sen.ronronando svg{animation:none}
+  /* sem passada e sem respiração: fica o primeiro quadro de cada pose */
+  .mg-gato-sen.andando svg,.mg-gato-sen .a0,.mg-gato-sen .a1,
+  .mg-gato-sen .a2,.mg-gato-sen .a3,
+  .mg-gato-sen .d0,.mg-gato-sen .d1{animation:none}
+  .mg-gato-sen .a1,.mg-gato-sen .a2,.mg-gato-sen .a3,.mg-gato-sen .d1{opacity:0}
+  .mg-gato-sen{transition:none}
 }
 /* a barra precisa ser referência de posição para o gato sentar nela */
 .mg-dock{position:fixed}
 </style>
 <script>
 /* =====================================================================
-   SEÇÃO · O GATO SENTADO NA BARRA
+   SEÇÃO · O GATO DA BARRA
    ===================================================================== */
 (function(){
 
 /* ---------------------------------------------------------------------
    O desenho
 
-   Gato sentado de perfil, 11 de largura por 12 de altura. A cabeça é a
-   mesma do símbolo do Kronos, para ser o mesmo bicho da marca; abaixo
-   dela vem o corpo sentado, a patinha da frente e o rabo, cada um em
-   grupo próprio porque cada um se mexe sozinho.
+   Três silhuetas, todas na mesma grade de 16 por 12, com o chão sempre
+   na linha 11. Grade única é o que impede o bicho de pular de tamanho
+   ao trocar de pose.
+
+   • sentado, de frente, 11 de largura centrado na grade. É o que já
+     existia e é o que o olho reconhece parado.
+   • andando, de perfil, quatro quadros de passada.
+   • deitado, de perfil, dois quadros de respiração.
+
+   Perfil e frente não combinam num giro, e fingir o giro com meia dúzia
+   de quadros sairia pior do que a troca seca. Gato real também resolve
+   assim: ele vira a cabeça e o corpo vem junto, num quadro só.
    --------------------------------------------------------------------- */
 const G_CABECA = [            /* 7 x 6, colunas 0 a 6 */
   '1.....1',
@@ -25538,70 +25587,152 @@ const G_CORPO  = [            /* começa na linha 6 */
   '1111111',
   '1111111',
 ];
-const G_PATA   = [            /* a patinha da frente, linha 11 */
-  '.11....',
-];
+const G_PATA   = [ '.11....' ];
 const G_PATA_Y = 11;
-const G_TRAS   = [            /* a pata de trás, que fica parada */
-  '....11.',
-];
+const G_TRAS   = [ '....11.' ];
 /* O rabo sobe por trás, encostado no corpo, com um vão de fundo separando
    os dois. A primeira versão saía na horizontal na altura do meio do
-   corpo e parecia asa, não rabo. Duas posições, que alternam em degrau.
-   Colunas 7 a 10, começando na linha 4. */
+   corpo e parecia asa, não rabo. */
 const G_RABO = [
-  ['..1.',     /* levantado, curvando para fora */
-   '..1.',
-   '.11.',
-   '.1..',
-   '11..',
-   '11..'],
-  ['...1',     /* caído, mais aberto */
-   '..11',
-   '..1.',
-   '.11.',
-   '11..',
-   '11..'],
+  ['..1.','..1.','.11.','.1..','11..','11..'],
+  ['...1','..11','..1.','.11.','11..','11..'],
 ];
 const G_RABO_Y = 4;
 const G_RABO_X = 7;
+/* o sentado é 11 de largura numa grade de 16: encosta no meio */
+const G_SEN_X  = 3;
 
+/* ---- de perfil, andando ----
+   O tronco não muda; mudam as quatro patas e o rabo. O rabo é desenhado
+   dentro do quadro, colado no traseiro: desenhado por fora ele boiava
+   acima do lombo e virava um toco solto. */
+const G_TRONCO = [
+  '................',
+  '................',
+  '...........1..1.',
+  '...........1111.',
+  '..........111111',
+  '..111111111111.1',
+  '.1111111111111..',
+  '.1111111111111..',
+  '..111111111111..',
+];
+const G_PERNAS = [
+  ['..11..11...11...',
+   '..11..11...11...',
+   '.111..11...111..'],
+  ['...11.11..111...',
+   '...11.11..111...',
+   '...11.11..111...'],
+  ['...11..11.11....',
+   '...11..11.11....',
+   '..111..11.111...'],
+  ['..11.11...11.1..',
+   '..11.11...11.1..',
+   '..11.11...11.1..'],
+];
+const G_RABO_AND = [
+  ['.11.','11..','1...','1...','1...'],
+  ['....','..11','.11.','11..','1...'],
+];
+const G_RABO_AND_Y = 2;
+const G_OLHO_AND   = [13,4];
+const G_NARIZ_AND  = [15,5];
+
+/* ---- de perfil, deitado ----
+   Monte baixo, patas recolhidas, cabeça erguida. O corpo recua para a
+   direita para abrir espaço ao rabo, que corre pelo chão atrás. */
+const G_DEITADO = ['....111111111111', '...1111111111111'].map(lombo => [
+  '................','................','................',
+  '................','................',
+  '............1..1',
+  '............1111',
+  '...........11111',
+  lombo,
+  '...11111111111..',
+  '...11111111111..',
+  '...111111111.11.',
+]);
+const G_RABO_DEI = [
+  ['....','..1.','.11.','11..'],
+  ['..1.','.11.','11..','1...'],
+];
+const G_RABO_DEI_Y = 8;
+const G_OLHO_DEI   = [14,6];
+const G_NARIZ_DEI  = [15,7];
+
+const G_LARG = 16, G_GRADE_A = 12;
 const G_COR  = '#D2694A';    /* terracota, a mesma do símbolo */
 const G_OLHO = '#17150F';
 
-function mgGatoSentadoSVG(alt){
-  const L = 11, A = 12;
-  const px = Math.max(1, Math.round((alt || 24) / A));
+function mgGatoDesenho(alt){
+  const px = Math.max(1, Math.round((alt || 24) / G_GRADE_A));
   const q = (x,y,cor)=>'<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="'+cor+'"/>';
-
   const bloco = (grade, dy, dx)=> grade.map((linha,y)=>
     [...linha].map((c,x)=> c === '1' ? q(x + (dx||0), y + dy, G_COR) : '').join('')
   ).join('');
+  /* funde o rabo dentro da grade do quadro, para sair um desenho só */
+  const comRabo = (grade, rabo, ry)=>{
+    const g = grade.map(l=>[...l]);
+    rabo.forEach((linha,y)=>[...linha].forEach((c,x)=>{
+      const Y = y + ry;
+      if(c === '1' && g[Y] && g[Y][x] !== undefined) g[Y][x] = '1';
+    }));
+    return g.map(a=>a.join(''));
+  };
 
-  const cabeca = bloco(G_CABECA, 0)
-    + G_FOCINHO.map(([x,y]) => q(x, y, G_OLHO)).join('');
-  const olhos  = G_OLHOS.map(([x,y]) => q(x, y, G_OLHO)).join('');
-  const corpo  = bloco(G_CORPO, 6);
-  const tras   = bloco(G_TRAS, G_PATA_Y);
-  const pata   = bloco(G_PATA, G_PATA_Y);
-  const rabos  = G_RABO.map((grade,i)=>
-    '<g class="rabo' + i + '">' + bloco(grade, G_RABO_Y, G_RABO_X) + '</g>').join('');
-
-  return '<svg width="' + (L*px) + '" height="' + (A*px) + '"'
-    + ' viewBox="0 0 ' + L + ' ' + A + '" shape-rendering="crispEdges"'
-    + ' aria-hidden="true" focusable="false">'
-    + rabos
+  /* sentado, de frente */
+  const cabeca = bloco(G_CABECA, 0, G_SEN_X)
+    + G_FOCINHO.map(([x,y]) => q(x + G_SEN_X, y, G_OLHO)).join('');
+  const olhos  = G_OLHOS.map(([x,y]) => q(x + G_SEN_X, y, G_OLHO)).join('');
+  const sentado = G_RABO.map((grade,i)=>
+      '<g class="rabo' + i + '">' + bloco(grade, G_RABO_Y, G_RABO_X + G_SEN_X) + '</g>').join('')
     + '<g class="cabeca">' + cabeca + '<g class="olhos">' + olhos + '</g></g>'
-    + corpo + tras
-    + '<g class="pata">' + pata + '</g>'
+    + bloco(G_CORPO, 6, G_SEN_X) + bloco(G_TRAS, G_PATA_Y, G_SEN_X)
+    + '<g class="pata">' + bloco(G_PATA, G_PATA_Y, G_SEN_X) + '</g>';
+
+  /* andando, de perfil. O rabo troca de pose na metade da frequência da
+     passada, senão ele vira chicote. */
+  const andando = G_PERNAS.map((pernas,i)=>{
+    const quadro = comRabo(G_TRONCO.concat(pernas), G_RABO_AND[i < 2 ? 0 : 1], G_RABO_AND_Y);
+    return '<g class="a' + i + '">' + bloco(quadro, 0)
+      + q(G_OLHO_AND[0],  G_OLHO_AND[1],  G_OLHO)
+      + q(G_NARIZ_AND[0], G_NARIZ_AND[1], G_OLHO) + '</g>';
+  }).join('');
+
+  /* deitado, de perfil */
+  const deitado = G_DEITADO.map((grade,i)=>{
+    const quadro = comRabo(grade, G_RABO_DEI[i], G_RABO_DEI_Y);
+    return '<g class="d' + i + '">' + bloco(quadro, 0)
+      + q(G_OLHO_DEI[0],  G_OLHO_DEI[1],  G_OLHO)
+      + q(G_NARIZ_DEI[0], G_NARIZ_DEI[1], G_OLHO) + '</g>';
+  }).join('');
+
+  return '<svg width="' + (G_LARG*px) + '" height="' + (G_GRADE_A*px) + '"'
+    + ' viewBox="0 0 ' + G_LARG + ' ' + G_GRADE_A + '" shape-rendering="crispEdges"'
+    + ' aria-hidden="true" focusable="false">'
+    + '<g class="mg-g-sen">' + sentado + '</g>'
+    + '<g class="mg-g-and">' + andando + '</g>'
+    + '<g class="mg-g-dei">' + deitado + '</g>'
     + '</svg>';
 }
 
 /* ---------------------------------------------------------------------
-   Onde ele senta
+   Onde ele fica, e como ele anda
+
+   Posição em duas partes: `left` marca a quina esquerda da barra e só
+   muda quando a barra muda; `translateX` no container marca onde o gato
+   está ao longo dela. Separado assim, redimensionar a janela não
+   atropela uma caminhada em curso.
    --------------------------------------------------------------------- */
-let mgGatoEl = null, mgGatoRelogio = null, mgGatoRonronando = null;
+let mgGatoEl = null, mgGatoVira = null;
+let mgGatoRelogio = null, mgGatoRonronando = null, mgGatoChegada = null;
 const G_ALT = 26;
+const G_MARGEM = 10;          /* folga nas duas pontas da barra */
+const G_VEL = 32;             /* pixels por segundo: passo de gato, não de rato */
+let mgGatoX = 0;              /* deslocamento a partir da quina da barra */
+let mgGatoLado = 1;           /* 1 olha para a direita, -1 para a esquerda */
+let mgGatoLimite = 0;
 
 function mgGatoPodeAparecer(){
   if(document.hidden) return false;
@@ -25615,6 +25746,15 @@ function mgGatoPodeAparecer(){
      da barra, e por isso não serve aqui. */
   return barra.getClientRects().length > 0;
 }
+function mgGatoQuieto(){
+  return document.body.classList.contains('mg-sem-anim')
+    || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function mgGatoAplicar(){
+  if(!mgGatoEl) return;
+  mgGatoEl.style.transform = 'translateX(' + Math.round(mgGatoX) + 'px)';
+  if(mgGatoVira) mgGatoVira.style.transform = 'scaleX(' + mgGatoLado + ')';
+}
 
 function mgGatoPosicionar(){
   if(!mgGatoEl || !mgGatoEl.isConnected) return;
@@ -25622,15 +25762,19 @@ function mgGatoPosicionar(){
   if(!barra){ mgGatoSumir(); return }
   const r = barra.getBoundingClientRect();
   if(!r.width){ mgGatoSumir(); return }
-  /* senta na quina esquerda, um pouco para dentro, e apoiado na borda de
-     cima da barra. Ali ele não cobre botão nenhum. */
-  mgGatoEl.style.left = Math.round(r.left + 14) + 'px';
+  /* ele caminha em cima da barra, nunca dentro dela: o topo do bicho fica
+     acima da borda de cima, e por isso não cobre botão nenhum */
+  mgGatoEl.style.left = Math.round(r.left + G_MARGEM) + 'px';
   mgGatoEl.style.top  = Math.round(r.top - G_ALT + 2) + 'px';
+  const larg = mgGatoEl.offsetWidth || 32;
+  mgGatoLimite = Math.max(0, Math.round(r.width - larg - G_MARGEM*2));
+  if(mgGatoX > mgGatoLimite){ mgGatoX = mgGatoLimite; mgGatoAplicar() }
 }
 
 function mgGatoSumir(){
-  if(mgGatoEl){ mgGatoEl.remove(); mgGatoEl = null }
-  clearTimeout(mgGatoRelogio); mgGatoRelogio = null;
+  if(mgGatoEl){ mgGatoEl.remove(); mgGatoEl = null; mgGatoVira = null }
+  clearTimeout(mgGatoRelogio);  mgGatoRelogio = null;
+  clearTimeout(mgGatoChegada);  mgGatoChegada = null;
 }
 
 function mgGatoSentar(){
@@ -25641,43 +25785,146 @@ function mgGatoSentar(){
   el.title = 'Kronos';
   el.setAttribute('role', 'button');
   el.setAttribute('aria-label', 'Kronos');
-  el.innerHTML = mgGatoSentadoSVG(G_ALT);
+  el.innerHTML = '<span class="mg-gato-vira">' + mgGatoDesenho(G_ALT) + '</span>';
   el.addEventListener('click', mgGatoTocado);
   document.body.appendChild(el);
   mgGatoEl = el;
+  mgGatoVira = el.querySelector('.mg-gato-vira');
   mgGatoPosicionar();
-  mgGatoAgendarManha();
+  /* começa num ponto qualquer da barra, e não sempre na mesma quina */
+  if(!mgGatoX && mgGatoLimite) mgGatoX = Math.round(Math.random() * mgGatoLimite);
+  mgGatoAplicar();
+  mgGatoAgendar(2200 + Math.random()*3000);
 }
 
 /* ---------------------------------------------------------------------
-   As manhas
+   A caminhada
 
-   Uma de cada vez, em intervalo irregular. Irregular de propósito: no
-   ritmo certinho o olho aprende a previsão e o bicho vira relógio.
+   Virar e caminhar são transforms de elementos diferentes de propósito.
+   No mesmo elemento, a transição interpolaria translate e scale juntos e
+   o gato atravessaria a largura zero toda vez que mudasse de direção.
+   --------------------------------------------------------------------- */
+function mgGatoAndarAte(destino){
+  if(!mgGatoEl) return;
+  destino = Math.max(0, Math.min(mgGatoLimite, Math.round(destino)));
+  const dist = Math.abs(destino - mgGatoX);
+  if(dist < 12){ mgGatoAgendar(2500 + Math.random()*3500); return }
+
+  mgGatoLado = destino > mgGatoX ? 1 : -1;
+  mgGatoEl.classList.remove('deitado', 'lambendo', 'mortal');
+  mgGatoEl.classList.add('andando');
+  mgGatoAplicar();                                  /* vira antes de sair */
+
+  const seg = Math.min(7, Math.max(.5, dist / G_VEL));
+  mgGatoEl.style.transitionDuration = seg.toFixed(2) + 's';
+  /* o próximo quadro é o que garante que a transição enxergue a mudança */
+  requestAnimationFrame(()=>{
+    if(!mgGatoEl) return;
+    mgGatoX = destino;
+    mgGatoAplicar();
+  });
+
+  clearTimeout(mgGatoChegada);
+  mgGatoChegada = setTimeout(()=>{
+    if(!mgGatoEl) return;
+    mgGatoEl.classList.remove('andando');
+    mgGatoEl.style.transitionDuration = '';
+    mgGatoAgendar(1800 + Math.random()*3200);
+  }, seg*1000 + 60);
+}
+
+function mgGatoPassear(){
+  if(!mgGatoLimite){ mgGatoAgendar(3000); return }
+  /* mira longe do ponto atual: passo curto demais não lê como caminhada */
+  let destino = Math.round(Math.random() * mgGatoLimite);
+  if(Math.abs(destino - mgGatoX) < mgGatoLimite * 0.35){
+    destino = mgGatoX < mgGatoLimite/2 ? mgGatoLimite : 0;
+  }
+  mgGatoAndarAte(destino);
+}
+
+function mgGatoDeitar(){
+  if(!mgGatoEl) return;
+  mgGatoEl.classList.remove('andando', 'lambendo', 'mortal');
+  mgGatoEl.classList.add('deitado');
+  mgGatoAgendar(5000 + Math.random()*7000);
+}
+function mgGatoLevantar(){
+  if(!mgGatoEl) return;
+  mgGatoEl.classList.remove('deitado');
+  mgGatoAgendar(1500 + Math.random()*2500);
+}
+
+/* ---------------------------------------------------------------------
+   A rotina
+
+   Uma coisa de cada vez, em intervalo irregular. Irregular de propósito:
+   no ritmo certinho o olho aprende a previsão e o bicho vira relógio.
    --------------------------------------------------------------------- */
 function mgGatoManha(){
   if(!mgGatoEl || !mgGatoEl.isConnected) return;
-  if(mgGatoEl.classList.contains('ronronando')) return mgGatoAgendarManha();
+  if(mgGatoEl.classList.contains('ronronando')){ mgGatoAgendar(2500); return }
+  if(mgGatoQuieto()){ mgGatoAgendar(12000); return }
+
+  const sorte = Math.random();
+
+  if(mgGatoEl.classList.contains('deitado')){
+    /* deitado ele só faz duas coisas: virar de lado, ou levantar */
+    if(sorte < 0.5){
+      mgGatoLado = -mgGatoLado;
+      mgGatoAplicar();
+      mgGatoAgendar(4000 + Math.random()*6000);
+    }else{
+      mgGatoLevantar();
+    }
+    return;
+  }
+  if(mgGatoEl.classList.contains('andando')){ mgGatoAgendar(1200); return }
+
+  if(sorte < 0.40){ mgGatoPassear(); return }
+  if(sorte < 0.60){ mgGatoDeitar();  return }
+
   /* o mortal é raro: virasse rotina, deixaria de ser gracinha */
-  const mortal = Math.random() < 0.22;
+  const mortal = sorte > 0.93;
   const classe = mortal ? 'mortal' : 'lambendo';
   const tempo  = mortal ? 1000 : 1600;
   mgGatoEl.classList.remove('mortal', 'lambendo');
   void mgGatoEl.offsetWidth;                 /* reinicia a animação */
   mgGatoEl.classList.add(classe);
   setTimeout(()=>{ if(mgGatoEl) mgGatoEl.classList.remove(classe) }, tempo);
-  mgGatoAgendarManha();
+  mgGatoAgendar(tempo + 2500 + Math.random()*5000);
 }
-function mgGatoAgendarManha(){
+function mgGatoAgendar(ms){
   clearTimeout(mgGatoRelogio);
-  mgGatoRelogio = setTimeout(mgGatoManha, 9000 + Math.random()*13000);
+  mgGatoRelogio = setTimeout(mgGatoManha, ms || (6000 + Math.random()*9000));
 }
+/* nome antigo, mantido porque os testes e o resto do arquivo chamam por ele */
+function mgGatoAgendarManha(){ mgGatoAgendar() }
 
 /* ---------------------------------------------------------------------
    Tocar nele
    --------------------------------------------------------------------- */
+function mgGatoCongelar(){
+  /* parar no meio de uma transição exige ler onde ele está DE VERDADE:
+     mgGatoX já guarda o destino, não o ponto da tela */
+  if(!mgGatoEl) return;
+  const barra = document.querySelector('.mg-dock');
+  if(barra){
+    const r = mgGatoEl.getBoundingClientRect();
+    const b = barra.getBoundingClientRect();
+    mgGatoX = Math.max(0, Math.min(mgGatoLimite, Math.round(r.left - b.left - G_MARGEM)));
+  }
+  clearTimeout(mgGatoChegada); mgGatoChegada = null;
+  mgGatoEl.style.transitionDuration = '0s';
+  mgGatoAplicar();
+  void mgGatoEl.offsetWidth;
+  mgGatoEl.style.transitionDuration = '';
+  mgGatoEl.classList.remove('andando');
+}
+
 function mgGatoTocado(){
   if(!mgGatoEl) return;
+  mgGatoCongelar();
   mgGatoEl.classList.remove('mortal', 'lambendo');
   mgGatoEl.classList.add('ronronando');
   const r = mgGatoEl.getBoundingClientRect();
@@ -25692,7 +25939,7 @@ function mgGatoTocado(){
   clearTimeout(mgGatoRonronando);
   mgGatoRonronando = setTimeout(()=>{
     if(mgGatoEl) mgGatoEl.classList.remove('ronronando');
-    mgGatoAgendarManha();
+    mgGatoAgendar(1500 + Math.random()*2500);
   }, 1900);
 }
 
@@ -25727,7 +25974,13 @@ window.mgGatoSumir        = mgGatoSumir;
 window.mgGatoManha        = mgGatoManha;
 window.mgGatoTocado       = mgGatoTocado;
 window.mgGatoPodeAparecer = mgGatoPodeAparecer;
-window.mgGatoSentadoSVG   = mgGatoSentadoSVG;
+window.mgGatoDesenho      = mgGatoDesenho;
+window.mgGatoSentadoSVG   = mgGatoDesenho;   /* nome antigo, para os testes */
+window.mgGatoPassear      = mgGatoPassear;
+window.mgGatoAndarAte     = mgGatoAndarAte;
+window.mgGatoDeitar       = mgGatoDeitar;
+window.mgGatoCongelar     = mgGatoCongelar;
+window.mgGatoOnde         = ()=>({x: mgGatoX, lado: mgGatoLado, limite: mgGatoLimite});
 
 })();
 </script>
