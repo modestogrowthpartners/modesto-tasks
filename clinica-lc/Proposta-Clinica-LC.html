@@ -567,47 +567,65 @@ S.push(`<div class="slide">
 /* 12. CUSTOS DE PLATAFORMA */
 S.push(`<div class="slide">
   <p class="eyebrow">Custos de plataforma</p>
-  <h2>O que as lojas e a estrutura custam</h2>
-  <p class="lead">Estes são os custos das plataformas, pagos diretamente aos fornecedores.
-  Estão separados do nosso trabalho de propósito, para que vocês saibam exatamente para onde
-  vai cada valor. Dólar convertido a R$ 5,60.</p>
-  <div class="grid g2">
+  <h2>O que a estrutura custa, mês a mês</h2>
+  <p class="lead" style="margin-bottom:16px">Estes são os custos pagos diretamente aos fornecedores,
+  separados do nosso trabalho de propósito. Eles mudam de patamar em três momentos: antes de começar,
+  durante os três meses de construção e depois que o app entra no ar. Dólar convertido a R$ 5,60.</p>
+  <div class="grid g3">
     <div>
-      <h3>Uma vez, no início</h3>
+      <h3>1. Antes de começar</h3>
       <table>
         <thead><tr><th>Item</th><th class="num">Valor</th></tr></thead>
         <tbody>
-          <tr><td>Conta de desenvolvedor Apple <span class="small">(anual)</span></td><td class="num">R$ 554</td></tr>
-          <tr><td>Conta de desenvolvedor Google <span class="small">(pagamento único)</span></td><td class="num">R$ 140</td></tr>
-          <tr><td>Cadastro internacional exigido pela Apple</td><td class="num">sem custo</td></tr>
-          <tr class="total"><td>Total no primeiro ano</td><td class="num">R$ 694</td></tr>
+          <tr><td>Conta Apple <span class="small">(anual)</span></td><td class="num">R$ 554</td></tr>
+          <tr><td>Conta Google <span class="small">(uma vez só)</span></td><td class="num">R$ 140</td></tr>
+          <tr><td>Cadastro exigido pela Apple</td><td class="num">R$ 0</td></tr>
+          <tr class="total"><td>Pagamento único</td><td class="num">R$ 694</td></tr>
         </tbody>
       </table>
-      <p class="small" style="margin-top:10px">A conta da Apple renova anualmente por R$ 554.
-      A do Google não tem renovação.</p>
+      <p class="small" style="margin-top:10px">Contas em nome da Clínica LC. Só a da Apple renova,
+      por R$ 554 ao ano.</p>
     </div>
     <div>
-      <h3>Mensal, com o app no ar</h3>
+      <h3>2. Durante os 3 meses</h3>
+      <table>
+        <thead><tr><th>Item</th><th class="num">3 meses</th></tr></thead>
+        <tbody>
+          <tr><td>Ambiente de desenvolvimento assistido por IA <span class="small">(2 assinaturas)</span></td><td class="num">R$ 5.040</td></tr>
+          <tr><td>Compilação para iOS e Android</td><td class="num">R$ 2.228</td></tr>
+          <tr><td>Banco de dados e hospedagem</td><td class="num">R$ 280</td></tr>
+          <tr><td>Repositório, CI e monitoramento</td><td class="num">R$ 0</td></tr>
+          <tr class="total"><td>Total do período</td><td class="num">R$ 7.548</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px">Custo assumido pela Bytech, já considerado no
+      investimento do próximo slide. Equivale a R$ 2.516 por mês nos três meses.</p>
+    </div>
+    <div>
+      <h3>3. Depois do lançamento</h3>
       <table>
         <thead><tr><th>Item</th><th class="num">Por mês</th></tr></thead>
         <tbody>
           <tr><td>Banco de dados e hospedagem</td><td class="num">R$ 140</td></tr>
-          <tr><td>Conta Apple <span class="small">(rateio)</span></td><td class="num">R$ 46</td></tr>
+          <tr><td>Ambiente de IA para sustentação <span class="small">(1 assinatura)</span></td><td class="num">R$ 560</td></tr>
           <tr><td>Domínio</td><td class="num">R$ 3</td></tr>
-          <tr><td>Envio de notificações</td><td class="num">sem custo</td></tr>
-          <tr><td>E-mails do sistema</td><td class="num">sem custo</td></tr>
-          <tr><td>Monitoramento de erros</td><td class="num">sem custo</td></tr>
-          <tr class="total"><td>Total de infraestrutura</td><td class="num">R$ 189</td></tr>
+          <tr><td>Notificações e e-mails</td><td class="num">R$ 0</td></tr>
+          <tr class="total"><td>Custo recorrente</td><td class="num">R$ 703</td></tr>
         </tbody>
       </table>
-      <p class="small" style="margin-top:10px">Valor referente ao volume inicial de pacientes.
-      Cresce de forma previsível conforme a base aumenta.</p>
+      <p class="small" style="margin-top:10px">Coberto pela mensalidade de sustentação. O custo de
+      compilação cai a zero fora dos meses de atualização grande.</p>
     </div>
   </div>
-  <div class="card" style="margin-top:16px"><h4>Por que isso é tão baixo</h4>
-    <p>Porque escolhemos serviços gerenciados em vez de servidor próprio. Um servidor dedicado
-    custaria de três a cinco vezes mais por mês e exigiria manutenção constante, para entregar
-    exatamente o mesmo resultado no volume da clínica.</p></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h4>Por que o custo cai tanto depois do terceiro mês</h4>
+      <p>Durante a construção pagamos ferramentas de desenvolvimento e compilação diária, que somam
+      R$ 2.516 por mês. Com o app pronto, sobra apenas a conta de manter no ar, que é de R$ 703.</p></div>
+    <div class="card"><h4>Por que isso é baixo para um app de clínica</h4>
+      <p>Porque usamos serviços gerenciados em vez de servidor próprio. Um servidor dedicado custaria
+      de três a cinco vezes mais por mês e exigiria manutenção constante, para entregar o mesmo
+      resultado no volume da Clínica LC.</p></div>
+  </div>
 </div>`);
 
 /* 13. INVESTIMENTO (editável ao vivo) */

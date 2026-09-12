@@ -56,7 +56,7 @@ C.push(U.table(
     ["Prazo até app publicado nas duas lojas", "14 semanas"],
     ["Custo de plataforma para a Bytech no build", "R$ 7.548 (3 meses)"],
     ["Custo que fica com a Clínica LC (contas de loja)", "R$ 694 no primeiro ano"],
-    ["Custo de operação depois do lançamento", "R$ 189/mês de infraestrutura"],
+    ["Custo mensal a partir do 4º mês", "R$ 703 (infraestrutura + 1 assinatura de IA)"],
     ["Esforço estimado", "≈ 600 horas (2 devs × 25 h/semana × 12 semanas)"],
     ["Faixa de honorário recomendada", "R$ 85.000 a R$ 98.000 (detalhe na seção 11)"],
   ],
@@ -370,30 +370,32 @@ C.push(U.table(
 C.push(spacer(100));
 C.push(p("No mês 1 o banco e o serviço de build rodam em plano gratuito, que é suficiente enquanto não há build de produção nem dado real. A partir do mês 2 os dois sobem de plano.", { italics: true }));
 C.push(spacer(140));
-C.push(h3("C · Operação, depois do lançamento"));
+C.push(h3("C · Operação, mensal, a partir do 4º mês"));
+C.push(p("A partir daqui não existe mais custo de build. O que sobra é a conta de manter o app no ar mais uma assinatura de IA para a sustentação.", { italics: true }));
 C.push(U.table(
   ["Item", "Mensal em BRL", "Observação"],
   [
+    ["Claude Max 5x, 1 conta", "R$ 560", "Sustentação exige menos que o build. A segunda conta pode ser cancelada ou rebaixada no fim do 3º mês"],
     ["Banco de dados gerenciado", "R$ 140", "Cobre com folga a base inicial. O item que cresce primeiro é armazenamento de exame"],
-    ["Apple Developer (rateio anual)", "R$ 46", "US$ 99 ÷ 12"],
     ["Domínio", "R$ 3", "Rateio anual"],
     ["Serviço de build", "R$ 0", "Plano gratuito basta fora de mês de release. Em mês de release grande, US$ 199 pontual"],
     ["Notificações push", "R$ 0", "Sem custo por mensagem"],
     ["E-mail transacional", "R$ 0", "Dentro da cota gratuita no volume inicial"],
     ["Monitoramento de erro", "R$ 0", "Plano gratuito"],
-    ["Total de infraestrutura", "R$ 189", "Sem contar mão de obra de sustentação"],
-  ], [34, 18, 48]
+    ["Total", "R$ 703", "Custo mensal recorrente da Bytech"],
+  ], [30, 16, 54]
 ));
+C.push(spacer(100));
+C.push(p("A renovação anual da conta Apple, de R$ 554, não entra aqui porque fica com a Clínica LC, conforme a seção A. Manter as duas assinaturas de IA na sustentação em vez de uma leva este total de R$ 703 para R$ 1.263 por mês.", { italics: true }));
 C.push(spacer(140));
 C.push(h3("D · Custo total do primeiro ano para a Bytech"));
 C.push(U.table(
   ["Item", "Valor"],
   [
+    ["Domínio, pago no início", "R$ 40"],
     ["Build, 3 meses (seção B)", "R$ 7.548"],
-    ["Domínio", "R$ 40"],
-    ["Infraestrutura em operação, 9 meses", "R$ 1.701"],
-    ["1 conta Claude Max 5x para sustentação, 9 meses", "R$ 5.040"],
-    ["Total", "R$ 14.329"],
+    ["Operação, 9 meses × R$ 703 (seção C)", "R$ 6.327"],
+    ["Total", "R$ 13.915"],
   ], [62, 38]
 ));
 C.push(spacer(140));
@@ -469,9 +471,9 @@ C.push(U.table(
   ["Linha", "Valor"],
   [
     ["Mensalidade sugerida", "R$ 2.900 por mês"],
-    ["Custo de infraestrutura e IA", "R$ 749 por mês"],
-    ["Margem mensal", "R$ 2.151"],
-    ["Margem em 12 meses", "R$ 25.812"],
+    ["Custo de infraestrutura e IA (seção 9C)", "R$ 703 por mês"],
+    ["Margem mensal", "R$ 2.197"],
+    ["Margem em 12 meses", "R$ 26.364"],
   ], [62, 38]
 ));
 C.push(spacer(100));
@@ -479,7 +481,7 @@ C.push(p("A mensalidade cobre: hospedagem e banco, monitoramento, correção de 
 C.push(spacer(140));
 C.push(h3("Como apresentar em 15/09"));
 C.push(bulletKV("Não abrir com o número.", "Abrir com o protótipo navegável. A cliente precisa tocar no app antes de ouvir o valor."));
-C.push(bulletKV("Mostrar o custo de plataforma primeiro.", "R$ 694 no ano para ela e R$ 189 por mês de infraestrutura. Isso estabelece que somos transparentes e faz o honorário parecer o que de fato é: trabalho, não intermediação."));
+C.push(bulletKV("Mostrar o custo de plataforma primeiro.", "R$ 694 uma vez para ela, R$ 7.548 que a Bytech gasta nos três meses de construção e R$ 703 por mês depois que o app entra no ar. Isso estabelece que somos transparentes e faz o honorário parecer o que de fato é: trabalho, não intermediação."));
 C.push(bulletKV("Apresentar projeto e sustentação juntos.", "R$ 89.000 mais R$ 2.900 por mês. Separar os dois gera a conversa de 'depois a gente vê a manutenção', que nunca acontece."));
 C.push(bulletKV("Oferecer a fase de discovery como porta de entrada.", "Se houver hesitação, propor 2 semanas de escopo fechado, arquitetura e design por R$ 12.000, abatidos do total se o projeto seguir. Reduz o risco percebido e filtra cliente que não vai fechar."));
 C.push(bulletKV("Não dar desconto na primeira reunião.", "Se pedirem, tirar escopo em vez de baixar preço. Ranking e painel avançado são os candidatos naturais."));
