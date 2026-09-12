@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clínica LC · App do Paciente — Proposta Modesto Growth</title>
+<style>
+:root{
+  --bege:#F0EDE6; --bege2:#E7E2D7; --preto:#1A1A18; --dourado:#C9A227;
+  --cinza:#4A4A46; --cinza2:#77736B; --linha:#D8D3C8; --branco:#FAFAF7;
+  --oliva:#8A6F5C; --olivaC:#B79C89; --creme:#F7F1EA; --marfim:#FDFBF7;
+  --vinho:#8C4B3F; --grafite:#2E2B25; --grafiteS:#6B6558; --linhaApp:#E9DFD2;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--preto);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;color:var(--cinza)}
+body{overflow:hidden}
+
+/* ---------- deck ---------- */
+#deck{position:relative;width:100vw;height:100vh;overflow:hidden}
+.slide{position:absolute;inset:0;background:var(--bege);
+  display:none;flex-direction:column;overflow-y:auto;
+  padding:clamp(28px,4.5vh,60px) clamp(20px,5vw,88px) clamp(72px,9vh,96px)}
+.slide.on{display:flex;animation:fade .32s ease}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.slide.center{justify-content:center;align-items:center;text-align:center}
+
+.eyebrow{font-size:clamp(10px,1.05vw,13px);font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--dourado);margin:0 0 10px;
+  border-left:3px solid var(--dourado);padding-left:10px}
+.slide.center .eyebrow{border:0;padding:0}
+h1{font-family:var(--serif);font-weight:700;color:var(--preto);
+  font-size:clamp(30px,5.4vw,72px);line-height:1.08;margin:0 0 14px;letter-spacing:-.015em}
+h2{font-family:var(--serif);font-weight:700;color:var(--preto);
+  font-size:clamp(24px,3.5vw,46px);line-height:1.12;margin:0 0 6px;letter-spacing:-.01em}
+h3{font-size:clamp(13px,1.35vw,17px);font-weight:700;color:var(--dourado);
+  margin:0 0 10px;letter-spacing:.02em}
+.lead{font-size:clamp(14px,1.5vw,21px);line-height:1.5;color:var(--cinza);
+  margin:0 0 22px;max-width:74ch}
+.slide.center .lead{margin-left:auto;margin-right:auto}
+p{font-size:clamp(13px,1.15vw,16px);line-height:1.6;margin:0 0 12px}
+.small{font-size:clamp(11px,.95vw,13.5px);color:var(--cinza2);line-height:1.55}
+strong{color:var(--preto);font-weight:700}
+.rule{height:2px;background:var(--dourado);width:64px;margin:16px 0 26px;border:0}
+.slide.center .rule{margin-left:auto;margin-right:auto}
+
+/* grid de cards */
+.grid{display:grid;gap:clamp(10px,1.3vw,18px);width:100%}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--branco);border:1px solid var(--linha);border-radius:14px;
+  padding:clamp(13px,1.5vw,22px)}
+.card h4{margin:0 0 7px;font-size:clamp(13px,1.25vw,17px);color:var(--preto);
+  font-weight:700;font-family:var(--sans)}
+.card p{margin:0;font-size:clamp(11.5px,1vw,14.5px);line-height:1.55;color:var(--cinza)}
+.card.dark{background:var(--preto);border-color:var(--preto)}
+.card.dark h4,.card.dark .big{color:var(--bege)}
+.card.dark p{color:#B9B5AC}
+.tagn{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--dourado);margin-bottom:6px}
+.big{font-family:var(--serif);font-size:clamp(26px,3.4vw,46px);font-weight:700;
+  color:var(--preto);line-height:1;display:block;margin-bottom:4px}
+.big.gold{color:var(--dourado)}
+
+/* citação do transcript */
+.quote{background:var(--branco);border-left:4px solid var(--dourado);
+  border-radius:0 12px 12px 0;padding:clamp(13px,1.5vw,20px) clamp(15px,1.8vw,24px)}
+.quote p{font-style:italic;color:var(--preto);margin:0 0 7px;
+  font-size:clamp(12.5px,1.1vw,16px);line-height:1.5}
+.quote cite{font-style:normal;font-size:clamp(10.5px,.9vw,12.5px);
+  color:var(--cinza2);font-weight:600}
+
+/* tabela */
+table{width:100%;border-collapse:collapse;background:var(--branco);
+  border:1px solid var(--linha);border-radius:12px;overflow:hidden;
+  font-size:clamp(11.5px,1.05vw,15px)}
+thead th{background:var(--preto);color:var(--bege);text-align:left;
+  padding:11px 14px;font-size:clamp(9.5px,.85vw,12px);font-weight:700;
+  letter-spacing:.13em;text-transform:uppercase}
+td{padding:10px 14px;border-top:1px solid var(--linha);color:var(--cinza);vertical-align:top}
+tbody tr:nth-child(even) td{background:#F5F2EA}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.total td{background:var(--bege2)!important;font-weight:700;color:var(--preto)}
+.chk{color:var(--dourado);font-weight:700}
+
+/* timeline */
+.tl{display:flex;gap:8px;width:100%;margin-top:6px;flex-wrap:wrap}
+.tl-i{flex:1 1 150px;background:var(--branco);border:1px solid var(--linha);
+  border-radius:12px;padding:12px 13px;border-top:3px solid var(--dourado)}
+.tl-i .wk{font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--dourado);
+  text-transform:uppercase;margin-bottom:5px}
+.tl-i .tt{font-size:clamp(12px,1.05vw,14.5px);font-weight:700;color:var(--preto);
+  margin-bottom:4px;line-height:1.25}
+.tl-i .ds{font-size:clamp(10.5px,.9vw,12.5px);color:var(--cinza2);line-height:1.45}
+.tl-i.mk{border-top-color:var(--preto);background:var(--bege2)}
+
+/* nav */
+#nav{position:fixed;left:0;right:0;bottom:0;height:56px;display:flex;
+  align-items:center;gap:14px;padding:0 clamp(16px,4vw,44px);
+  background:rgba(240,237,230,.94);backdrop-filter:blur(8px);
+  border-top:1px solid var(--linha);z-index:80}
+#bar{flex:1;height:3px;background:var(--linha);border-radius:9px;overflow:hidden}
+#barf{height:100%;width:0;background:var(--dourado);transition:width .3s}
+.nbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--linha);
+  background:var(--branco);cursor:pointer;color:var(--preto);font-size:15px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.nbtn:hover{background:var(--preto);color:var(--bege);border-color:var(--preto)}
+#cnt{font-size:12px;color:var(--cinza2);font-weight:600;min-width:52px;
+  text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+#brand{font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cinza2);font-weight:700;flex-shrink:0}
+@media(max-width:720px){#brand{display:none}}
+
+/* editável */
+[contenteditable]{outline:none;border-bottom:2px dashed var(--dourado);
+  padding:0 3px;cursor:text;min-width:1ch;display:inline-block}
+[contenteditable]:focus{background:#FFF8E3;border-bottom-style:solid}
+.edit-hint{display:inline-flex;align-items:center;gap:6px;font-size:11px;
+  font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dourado);
+  background:#FBF6E6;border:1px solid #EADFB8;border-radius:99px;padding:5px 12px}
+
+/* ================= PROTÓTIPO ================= */
+.protowrap{display:flex;gap:clamp(16px,3vw,52px);align-items:center;
+  justify-content:center;width:100%;flex-wrap:wrap}
+.phone{width:330px;height:668px;background:var(--creme);border-radius:42px;
+  border:9px solid var(--grafite);box-shadow:0 24px 50px rgba(46,43,37,.28);
+  position:relative;overflow:hidden;flex-shrink:0;
+  font-family:var(--sans);color:var(--grafite)}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:128px;
+  height:23px;background:var(--grafite);border-radius:0 0 14px 14px;z-index:40}
+.sbar{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 20px 5px;font-size:11.5px;font-weight:700;color:var(--grafite)}
+.sbar .ic{display:flex;gap:5px;align-items:center}
+.screen{height:calc(100% - 36px);position:relative;overflow-y:auto;scrollbar-width:thin}
+.screen::-webkit-scrollbar{width:0}
+.phd{padding:4px 20px 14px;display:flex;justify-content:space-between;align-items:flex-end}
+.phd .eb{font-size:11.5px;color:var(--grafiteS);margin-bottom:2px}
+.phd .tt{font-family:var(--serif);font-size:22px;color:var(--grafite);line-height:1.14}
+.pbody{padding:0 20px 92px;display:flex;flex-direction:column;gap:11px}
+.pc{background:var(--marfim);border:1px solid var(--linhaApp);border-radius:15px;padding:14px}
+.pc.oliva{background:var(--oliva);border-color:var(--oliva);color:var(--marfim)}
+.prow{display:flex;justify-content:space-between;align-items:center}
+.plabel{font-size:11.5px;color:var(--grafiteS);margin-bottom:3px}
+.pc.oliva .plabel{color:#EFE3D6}
+.ptit{font-family:var(--serif);font-size:15px;color:var(--grafite)}
+.pstrong{font-weight:600;font-size:13px;color:var(--grafite)}
+.psub{font-size:12px;color:var(--grafiteS)}
+.pill{font-size:10.5px;font-weight:700;color:var(--marfim);background:var(--dourado);
+  border-radius:99px;padding:4px 9px;white-space:nowrap}
+.bar{height:7px;background:var(--linhaApp);border-radius:99px;overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;background:var(--oliva);border-radius:99px;transition:width .3s}
+.bar.gold i{background:var(--dourado)}
+.btn-s{display:inline-flex;align-items:center;gap:4px;background:none;
+  border:1px solid var(--oliva);border-radius:8px;padding:3px 9px;cursor:pointer;
+  color:var(--oliva);font-size:11.5px;font-weight:600;font-family:inherit}
+.btn-s:hover{background:var(--oliva);color:var(--marfim)}
+.btn-p{background:var(--oliva);color:var(--marfim);border:0;border-radius:11px;
+  padding:12px 0;font-weight:600;font-size:13.5px;cursor:pointer;width:100%;
+  font-family:inherit;margin-top:4px}
+.btn-p:hover{background:#78604F}
+.btn-o{background:transparent;color:var(--oliva);border:1px solid var(--oliva);
+  border-radius:11px;padding:11px 0;font-weight:600;font-size:13.5px;cursor:pointer;
+  width:100%;font-family:inherit;margin-top:8px}
+.btn-o.vinho{color:var(--vinho);border-color:var(--vinho)}
+.tsk{display:flex;align-items:center;gap:9px;padding:7px 0;cursor:pointer}
+.tsk+.tsk{border-top:1px solid var(--linhaApp)}
+.tsk .bx{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--linhaApp);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tsk.done .bx{background:var(--oliva);border-color:var(--oliva)}
+.tsk .lb{font-size:13px;color:var(--grafite)}
+.tsk.done .lb{color:var(--grafiteS);text-decoration:line-through}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:11.5px;color:var(--grafiteS);margin-bottom:5px}
+.fld input,.fld textarea{width:100%;border:1px solid var(--linhaApp);border-radius:9px;
+  padding:9px 11px;font-family:inherit;font-size:13px;color:var(--grafite);
+  background:var(--marfim);resize:none}
+.fld input:focus,.fld textarea:focus{outline:0;border-color:var(--oliva)}
+.tabs{display:flex;gap:7px;padding:0 20px 14px}
+.tab{flex:1;padding:9px 0;border-radius:11px;border:1px solid var(--linhaApp);
+  background:transparent;color:var(--grafiteS);font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit}
+.tab.on{background:var(--oliva);border-color:var(--oliva);color:var(--marfim)}
+.slot{font-size:12px;font-weight:600;color:var(--oliva);border:1px solid var(--oliva);
+  border-radius:9px;padding:5px 11px;background:none;cursor:pointer;font-family:inherit}
+.slot:hover{background:var(--oliva);color:var(--marfim)}
+.nav5{position:absolute;bottom:0;left:0;right:0;background:var(--marfim);
+  border-top:1px solid var(--linhaApp);display:flex;padding:8px 4px 16px;z-index:20}
+.nv{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:0;cursor:pointer;padding:3px 0;color:var(--grafiteS);font-family:inherit}
+.nv span{font-size:9.5px;font-weight:600}
+.nv.on{color:var(--oliva)}
+.nv.on span{font-weight:700}
+.sheet{position:absolute;top:36px;left:0;right:0;bottom:0;background:var(--creme);
+  z-index:30;display:flex;flex-direction:column;animation:up .22s ease}
+@keyframes up{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.sheet .sh{display:flex;justify-content:space-between;align-items:center;padding:15px 20px 8px}
+.sheet .sh b{font-family:var(--serif);font-size:17px;color:var(--grafite);font-weight:700}
+.sheet .sb{flex:1;overflow-y:auto;padding:0 20px 22px}
+.xbtn{background:none;border:0;cursor:pointer;padding:4px;color:var(--grafiteS);line-height:0}
+.rk{display:flex;justify-content:space-between;align-items:center;padding:7px 0}
+.rk+.rk{border-top:1px solid var(--linhaApp)}
+.rk .pos{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-family:var(--serif);font-size:12.5px;color:var(--grafite)}
+.rk.me .pos{background:var(--oliva);color:var(--marfim)}
+.rk.me .nm{font-weight:700}
+.tg{width:41px;height:24px;border-radius:99px;background:var(--linhaApp);
+  position:relative;cursor:pointer;flex-shrink:0;transition:background .15s}
+.tg i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:var(--marfim);transition:left .15s}
+.tg.on{background:var(--oliva)}
+.tg.on i{left:20px}
+/* legenda do protótipo */
+.plegend{max-width:340px;min-width:250px}
+.plegend ol{margin:0;padding-left:19px}
+.plegend li{font-size:clamp(11.5px,1vw,14.5px);line-height:1.5;color:var(--cinza);
+  margin-bottom:9px}
+.plegend li b{color:var(--preto)}
+.slide.proto{padding-top:clamp(16px,2.4vh,34px);padding-bottom:clamp(64px,8vh,84px)}
+.slide.proto h2{font-size:clamp(20px,2.9vw,38px);margin-bottom:4px}
+.slide.proto .lead{font-size:clamp(12.5px,1.2vw,16.5px);margin-bottom:10px}
+.phone{transform-origin:center center}
+@media(max-height:1000px){.phone{transform:scale(.88);margin:-41px 0}}
+@media(max-height:880px){.phone{transform:scale(.78);margin:-75px 0}}
+@media(max-height:780px){.phone{transform:scale(.68);margin:-110px 0}}
+@media(max-height:680px){.phone{transform:scale(.58);margin:-144px 0}}
+@media(max-width:900px){.phone{transform:scale(.82);margin:-62px 0}}
+@media(max-width:860px){.g4{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="deck"></div>
+<div id="nav">
+  <span id="brand">Modesto Growth Partners</span>
+  <button class="nbtn" id="prev" title="Anterior (←)">&#8592;</button>
+  <button class="nbtn" id="next" title="Próximo (→)">&#8594;</button>
+  <div id="bar"><div id="barf"></div></div>
+  <span id="cnt">1 / 14</span>
+  <button class="nbtn" id="fs" title="Tela cheia (F)">&#9974;</button>
+</div>
+<script>
+const sv=(d,s=16,extra="")=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;${extra}">${d}</svg>`;
+const ICON={
+ signal: sv('<path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4"/>',12),
+ wifi:   sv('<path d="M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M2 8.8a15 15 0 0 1 20 0"/><circle cx="12" cy="20" r=".5" fill="currentColor"/>',12),
+ batt:   sv('<rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><rect x="4" y="9" width="12" height="6" rx="1" fill="currentColor" stroke="none"/>',14),
+ home:   sv('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',19),
+ meal:   sv('<path d="M3 2v7c0 1.1.9 2 2 2h1a2 2 0 0 0 2-2V2M5 2v7M16 2v20M20 2v8c0 1.5-1 2.5-2 2.5"/>',19),
+ cal:    sv('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',19),
+ trend:  sv('<path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',19),
+ user:   sv('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',19),
+ drop:   sv('<path d="M12 2.7l5.3 5.3a7.5 7.5 0 1 1-10.6 0z"/>',17),
+ plus:   sv('<path d="M12 5v14M5 12h14"/>',12),
+ check:  sv('<path d="M20 6L9 17l-5-5"/>',12),
+ flame:  sv('<path d="M12 2s5 4.5 5 9a5 5 0 0 1-10 0c0-1.5.5-2.8 1.3-3.8C9 9 12 7 12 2z"/>',21),
+ award:  sv('<circle cx="12" cy="8" r="6"/><path d="M8.2 13.9L7 22l5-3 5 3-1.2-8.1"/>',17),
+ clock:  sv('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',13),
+ chev:   sv('<path d="M9 18l6-6-6-6"/>',17),
+ bell:   sv('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',17),
+ lock:   sv('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',15),
+ msg:    sv('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l2-4.9A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/>',15),
+ x:      sv('<path d="M18 6L6 18M6 6l12 12"/>',20),
+ cog:    sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 3 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 3a1.7 1.7 0 0 0 1-1.6V1a2 2 0 1 1 4 0v.1A1.7 1.7 0 0 0 15 3a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 9v0a1.7 1.7 0 0 0 1.6 1h.4a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',16),
+ out:    sv('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',14),
+ heart:  sv('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',24),
+ pin:    sv('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',14)
+};
+
+const S = [];
+
+/* 1 — CAPA */
+S.push(`<div class="slide center">
+  <p class="eyebrow">Proposta de desenvolvimento · 15 de setembro de 2026</p>
+  <h1>Clínica LC<br>App do Paciente</h1>
+  <hr class="rule">
+  <p class="lead">Um aplicativo que transforma o protocolo médico em rotina diária acompanhada,
+  tira o agendamento do horário comercial e aproxima o paciente da clínica todos os dias,
+  não só no dia da consulta.</p>
+  <div class="grid g3" style="max-width:840px;margin-top:12px">
+    <div class="card"><span class="big gold">iOS</span><p>App Store</p></div>
+    <div class="card"><span class="big gold">Android</span><p>Google Play</p></div>
+    <div class="card"><span class="big gold">14</span><p>semanas até a publicação</p></div>
+  </div>
+  <p class="small" style="margin-top:26px">Use as setas do teclado para navegar &nbsp;·&nbsp; Tecla F para tela cheia</p>
+</div>`);
+
+/* 2 — O QUE OUVIMOS */
+S.push(`<div class="slide">
+  <p class="eyebrow">Ponto de partida</p>
+  <h2>O que ouvimos na reunião</h2>
+  <p class="lead">Não estamos propondo um app genérico de saúde. Cada funcionalidade desta proposta
+  responde a algo dito na conversa de 11 de setembro.</p>
+  <div class="grid g2">
+    <div class="quote"><p>“O nutricionista fez a dieta, o paciente tem acesso à dieta ali… para no final do
+    dia ele ver se ele conseguiu cumprir a meta dele diária ou não.”</p><cite>Diário alimentar e plano nutricional</cite></div>
+    <div class="quote"><p>“Nossos pacientes não têm muito tempo… às vezes não respondem em horário comercial,
+    e a nossa recepcionista fica só em horário comercial.”</p><cite>Agendamento pelo próprio paciente</cite></div>
+    <div class="quote"><p>“Ele faz a consulta, monta uma programação e passa pelo Gmail… mas aí o paciente
+    não tem como cumprir essas propostas.”</p><cite>Protocolo virando checklist com lembrete</cite></div>
+    <div class="quote"><p>“Que legal seria se a gente conseguisse fazer um gráfico de como o paciente chegou
+    aqui na clínica e o que mudou durante o percurso dele.”</p><cite>Linha do tempo de evolução</cite></div>
+    <div class="quote"><p>“As pessoas são competitivas… não sei se a gente consegue fazer um ranking do
+    paciente que mais tem adesão ao tratamento.”</p><cite>Ranking anônimo de adesão</cite></div>
+    <div class="quote"><p>“São vários aplicativos em separado: o do lembrete da água, o da atividade física,
+    o do controle alimentar.”</p><cite>A tese central: um app no lugar de seis</cite></div>
+  </div>
+</div>`);
+
+/* 3 — O PROBLEMA */
+S.push(`<div class="slide">
+  <p class="eyebrow">Diagnóstico</p>
+  <h2>O que acontece hoje</h2>
+  <p class="lead">A clínica já entrega um acompanhamento contínuo de alto padrão. O que falta é
+  a camada que sustenta esse acompanhamento entre uma consulta e outra.</p>
+  <div class="grid g4">
+    <div class="card"><span class="tagn">Prescrição</span><h4>Vai por e-mail</h4>
+      <p>O médico monta a programação e envia por Gmail e Google Calendar. O paciente lê,
+      concorda e não tem onde registrar se cumpriu.</p></div>
+    <div class="card"><span class="tagn">Agendamento</span><h4>Depende de gente</h4>
+      <p>A recepcionista atende em horário comercial. O paciente responde fora dele.
+      O reagendamento vira perseguição por WhatsApp.</p></div>
+    <div class="card"><span class="tagn">Acompanhamento</span><h4>Espalhado em apps</h4>
+      <p>Um app para água, outro para treino, outro para dieta. Nenhum deles conversa
+      com o protocolo que a clínica prescreveu.</p></div>
+    <div class="card"><span class="tagn">Engajamento</span><h4>Só no grupo</h4>
+      <p>O vínculo existe no grupo de WhatsApp e depende do paciente tomar a iniciativa.
+      A automação tentada no CRM não reconhecia grupos.</p></div>
+  </div>
+  <div class="card dark" style="margin-top:18px">
+    <h4 style="font-size:clamp(15px,1.6vw,21px)">A consequência comercial</h4>
+    <p style="font-size:clamp(12px,1.1vw,15.5px);max-width:96ch">Num serviço high ticket, o paciente
+    precisa sentir o valor entre as consultas, não apenas durante elas. Hoje, entre uma visita e outra,
+    a Clínica LC fica invisível — e quem fica invisível vira uma despesa recorrente que o paciente
+    reavalia no fim do protocolo.</p>
+  </div>
+</div>`);
+
+/* 4 — A PROPOSTA */
+S.push(`<div class="slide">
+  <p class="eyebrow">A proposta</p>
+  <h2>Um aplicativo, três funções</h2>
+  <p class="lead">Exclusivo para pacientes da Clínica LC, disponível na App Store e no Google Play,
+  com a identidade visual da clínica.</p>
+  <div class="grid g3">
+    <div class="card"><span class="big gold">01</span><h4>Cumprir o protocolo</h4>
+      <p>O que o médico prescreveu vira checklist com horário. O paciente marca o que fez,
+      recebe lembrete na hora certa e vê a própria sequência de dias crescer.</p></div>
+    <div class="card"><span class="big gold">02</span><h4>Marcar sozinho</h4>
+      <p>O paciente escolhe profissional e horário direto no celular, às onze da noite se quiser,
+      dentro das regras de antecedência que a clínica definir.</p></div>
+    <div class="card"><span class="big gold">03</span><h4>Ver o próprio avanço</h4>
+      <p>Gráfico de peso e medidas desde a primeira consulta, resultados de exame liberados
+      pelo profissional e adesão consolidada mês a mês.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card"><h4>O que o app não é</h4>
+      <p>Não é prontuário eletrônico e não substitui o sistema da clínica. O laudo completo
+      continua onde está. O app mostra o que o profissional libera — que foi exatamente
+      a fronteira apontada na reunião.</p></div>
+    <div class="card"><h4>O grupo de WhatsApp continua</h4>
+      <p>A comunicação da equipe segue no grupo, como a Carol faz questão. O app coloca um
+      atalho para ele, não um concorrente dele.</p></div>
+  </div>
+</div>`);
+
+/* 5 — PÚBLICO */
+S.push(`<div class="slide">
+  <p class="eyebrow">Quem vai usar</p>
+  <h2>O perfil define o desenho</h2>
+  <p class="lead">Foi dito na reunião que o público é 35+, cerca de 90% feminino, alto padrão e com
+  pouco tempo. Isso não é um detalhe de marketing: muda decisão de interface.</p>
+  <div class="grid g2">
+    <div class="card"><h4>Tudo grande e com contraste alto</h4>
+      <p>Texto a partir de 16px, área de toque generosa, nada de cinza claro sobre bege.
+      Acessibilidade aqui não é acessório, é usabilidade para a maioria da base.</p></div>
+    <div class="card"><h4>Cinco abas, nunca menu escondido</h4>
+      <p>Toda função principal a um toque de distância. Nenhuma ação essencial atrás de
+      gesto, menu sanduíche ou tela de configuração.</p></div>
+    <div class="card"><h4>O dia resolvido em menos de um minuto</h4>
+      <p>Abrir, marcar o que fez, fechar. Se registrar o dia custar mais que isso,
+      o paciente abandona na segunda semana.</p></div>
+    <div class="card"><h4>Estética coerente com o serviço</h4>
+      <p>A identidade da clínica, sem visual de aplicativo de dieta gratuito.
+      O app é parte da percepção de valor do protocolo.</p></div>
+  </div>
+</div>`);
+
+/* 6 — PROTÓTIPO (montado por JS) */
+S.push(`<div class="slide proto">
+  <p class="eyebrow">Protótipo navegável</p>
+  <h2>Experimente agora</h2>
+  <p class="lead" style="margin-bottom:16px">Este é o app funcionando. Toque nas abas, registre uma
+  refeição, marque um item da rotina, agende e cancele uma consulta. Tudo responde de verdade.</p>
+  <div class="protowrap">
+    <div class="phone" id="phone">
+      <div class="notch"></div>
+      <div class="sbar"><span>9:41</span><span class="ic">${ICON.signal}${ICON.wifi}${ICON.batt}</span></div>
+      <div class="screen" id="screen"></div>
+      <div class="nav5" id="nav5"></div>
+    </div>
+    <div class="plegend">
+      <h3>Roteiro sugerido</h3>
+      <ol>
+        <li>Entre com qualquer e-mail e senha, ou crie um cadastro para ver os dados que pedimos.</li>
+        <li>Em <b>Início</b>, marque itens da rotina do dia e toque em <b>+250 ml</b> na água.</li>
+        <li>Em <b>Diário</b>, registre o lanche da tarde e veja a meta calórica subir.</li>
+        <li>Em <b>Agenda</b>, marque um horário novo e cancele um existente.</li>
+        <li>Em <b>Evolução</b>, veja o gráfico de peso e o ranking anônimo.</li>
+        <li>No sino do topo, veja como chegam os lembretes.</li>
+      </ol>
+      <p class="small" style="margin-top:14px"><b>Este é um protótipo de navegação.</b> Cores, nome
+      e identidade visual final serão definidos com vocês. Os dados exibidos são fictícios.</p>
+    </div>
+  </div>
+</div>`);
+
+/* 7 — FUNCIONALIDADES MVP */
+S.push(`<div class="slide">
+  <p class="eyebrow">Escopo · Bloco A</p>
+  <h2>O que entra na primeira versão</h2>
+  <p class="lead">Tudo abaixo está incluído no prazo e no investimento desta proposta.</p>
+  <table>
+    <thead><tr><th style="width:27%">Funcionalidade</th><th>O que o paciente faz</th><th style="width:27%">O que a clínica ganha</th></tr></thead>
+    <tbody>
+      <tr><td><b>Cadastro e acesso</b></td><td>Cria conta com dados pessoais, endereço e informações de saúde</td><td>Ficha organizada desde o primeiro dia</td></tr>
+      <tr><td><b>Protocolo diário</b></td><td>Vê o que o médico prescreveu e marca o que cumpriu</td><td>Prescrição sai do e-mail e vira dado acompanhável</td></tr>
+      <tr><td><b>Lembretes por horário</b></td><td>Recebe aviso no celular na hora de cada item</td><td>Adesão sem ninguém precisar cobrar</td></tr>
+      <tr><td><b>Diário alimentar</b></td><td>Registra refeições com descrição, foto e calorias</td><td>O nutricionista chega na consulta já sabendo</td></tr>
+      <tr><td><b>Plano do nutricionista</b></td><td>Consulta a dieta prescrita a qualquer momento</td><td>Fim do PDF perdido no WhatsApp</td></tr>
+      <tr><td><b>Água e atividade</b></td><td>Registra hidratação e exercício com um toque</td><td>Substitui três apps avulsos por um só</td></tr>
+      <tr><td><b>Agendamento</b></td><td>Marca e cancela consulta sozinho, a qualquer hora</td><td>Recepção deixa de ser gargalo</td></tr>
+      <tr><td><b>Evolução</b></td><td>Vê peso, medidas e resultados ao longo do protocolo</td><td>Argumento visual de renovação de protocolo</td></tr>
+      <tr><td><b>Notificações</b></td><td>Recebe lembrete e mensagem de incentivo</td><td>Presença diária da marca no celular</td></tr>
+      <tr><td><b>Ranking anônimo</b></td><td>Vê sua posição de adesão no mês, sem expor ninguém</td><td>Competição saudável que puxa engajamento</td></tr>
+      <tr><td><b>Atalho do WhatsApp</b></td><td>Abre o grupo da equipe direto do app</td><td>Mantém o canal que já funciona</td></tr>
+      <tr><td><b>Painel da equipe</b></td><td>—</td><td>Os 7 profissionais prescrevem, liberam exame e gerenciam agenda pelo computador</td></tr>
+    </tbody>
+  </table>
+</div>`);
+
+/* 8 — FASE 2 */
+S.push(`<div class="slide">
+  <p class="eyebrow">Escopo · Blocos B e C</p>
+  <h2>O que fica para depois, e o que não entra</h2>
+  <p class="lead">Transparência sobre limites evita frustração no meio do caminho. Tudo aqui pode
+  ser contratado depois, como evolução.</p>
+  <div class="grid g2">
+    <div>
+      <h3>Fase 2 · depois do lançamento</h3>
+      <div class="card" style="margin-bottom:10px"><h4>Integração com o sistema de agenda atual</h4>
+        <p>Precisamos primeiro saber qual sistema a clínica usa e se ele permite integração.
+        Na primeira versão o app tem agenda própria.</p></div>
+      <div class="card" style="margin-bottom:10px"><h4>Histórico completo de exames com laudo</h4>
+        <p>Na primeira versão o app mostra o resumo que o profissional liberar.</p></div>
+      <div class="card" style="margin-bottom:10px"><h4>E-mails automáticos de jornada</h4>
+        <p>As notificações no celular já cobrem a maior parte do objetivo, com custo menor.</p></div>
+      <div class="card"><h4>WhatsApp com disparo automático</h4>
+        <p>Exige número verificado e mensagens aprovadas pela Meta, com custo por conversa.</p></div>
+    </div>
+    <div>
+      <h3>Não incluído nesta proposta</h3>
+      <div class="card" style="margin-bottom:10px"><h4>Prontuário eletrônico e prescrição assinada</h4>
+        <p>Exige certificação específica do setor de saúde, que multiplica prazo e custo.</p></div>
+      <div class="card" style="margin-bottom:10px"><h4>Telemedicina e videochamada</h4>
+        <p>Não foi levantado como necessidade na reunião.</p></div>
+      <div class="card" style="margin-bottom:10px"><h4>Pagamento dentro do app</h4>
+        <p>A cobrança do protocolo segue pelo processo atual da clínica.</p></div>
+      <div class="card" style="margin-bottom:10px"><h4>Tráfego pago e CRM</h4>
+        <p>Conforme combinado, vamos indicar um parceiro especializado.</p></div>
+      <div class="card"><h4>Redação jurídica</h4>
+        <p>A política de privacidade deve ser validada por advogado com prática em saúde.</p></div>
+    </div>
+  </div>
+</div>`);
+
+/* 9 — ARQUITETURA */
+S.push(`<div class="slide">
+  <p class="eyebrow">Como é construído</p>
+  <h2>A engenharia por trás</h2>
+  <p class="lead">Uma base de código para as duas lojas, banco de dados em servidor brasileiro e
+  regra de acesso dentro do próprio banco.</p>
+  <div class="grid g4">
+    <div class="card"><span class="tagn">Camada 1</span><h4>O aplicativo</h4>
+      <p>Um único código que gera o app de iPhone e o de Android. Atualização de correção
+      chega ao paciente sem esperar aprovação de loja.</p></div>
+    <div class="card"><span class="tagn">Camada 2</span><h4>O banco de dados</h4>
+      <p>Banco relacional gerenciado, hospedado em São Paulo. O dado de saúde do paciente
+      não sai do Brasil.</p></div>
+    <div class="card"><span class="tagn">Camada 3</span><h4>A regra de acesso</h4>
+      <p>Quem pode ver o quê é decidido dentro do banco, não no aplicativo. Uma falha no app
+      não expõe o dado de outro paciente.</p></div>
+    <div class="card"><span class="tagn">Camada 4</span><h4>O painel da equipe</h4>
+      <p>Site privado para os 7 profissionais prescreverem protocolo, montarem dieta,
+      liberarem exame e ajustarem a agenda.</p></div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><h4>Escala</h4><p>A estrutura proposta atende com folga o volume de pacientes
+    da clínica e cresce sem reescrita.</p></div>
+    <div class="card"><h4>Continuidade</h4><p>Todo o código fica em repositório versionado,
+    com histórico completo e ambiente de teste separado do ambiente real.</p></div>
+    <div class="card"><h4>Monitoramento</h4><p>Erro em produção gera alerta para a nossa equipe
+    antes de o paciente reclamar no grupo.</p></div>
+  </div>
+</div>`);
+
+/* 10 — SEGURANÇA E LGPD */
+S.push(`<div class="slide">
+  <p class="eyebrow">Segurança</p>
+  <h2>Dado de saúde tem regra própria</h2>
+  <p class="lead">Pela LGPD, informação de saúde é dado pessoal sensível e recebe proteção reforçada.
+  Isso foi considerado no desenho desde o início, não adicionado no fim.</p>
+  <div class="grid g3">
+    <div class="card"><h4>Dados no Brasil</h4><p>Banco hospedado em região brasileira.</p></div>
+    <div class="card"><h4>Criptografia</h4><p>Em trânsito e em repouso, como padrão da plataforma.</p></div>
+    <div class="card"><h4>Isolamento por paciente</h4><p>Cada pessoa só alcança o próprio dado, com a regra aplicada no banco.</p></div>
+    <div class="card"><h4>Exame com acesso temporário</h4><p>Arquivo nunca fica em endereço público; o link expira.</p></div>
+    <div class="card"><h4>Registro de acesso</h4><p>Fica gravado qual profissional consultou qual dado e quando.</p></div>
+    <div class="card"><h4>Consentimento registrado</h4><p>Versão do termo, data e aceite guardados de forma permanente.</p></div>
+    <div class="card"><h4>Exclusão de conta no app</h4><p>Direito do titular e exigência formal da Apple.</p></div>
+    <div class="card"><h4>Ranking sempre anônimo</h4><p>Participação opcional e nomes ocultos para os demais pacientes.</p></div>
+    <div class="card"><h4>Contrato de operador</h4><p>A clínica é a controladora dos dados; a Modesto atua como operadora, com contrato próprio.</p></div>
+  </div>
+  <p class="small" style="margin-top:16px">A redação final da política de privacidade e do termo de
+  consentimento deve ser validada por advogado com prática na área de saúde. Esse custo não está
+  incluído nesta proposta.</p>
+</div>`);
+
+/* 11 — CRONOGRAMA */
+S.push(`<div class="slide">
+  <p class="eyebrow">Prazo</p>
+  <h2>Doze semanas de construção, quatorze até a loja</h2>
+  <p class="lead">O código fica pronto na semana 12. As duas semanas seguintes são de revisão da
+  Apple e do Google, que não dependem de nós — e por isso entram no plano em vez de virarem surpresa.</p>
+  <div class="tl">
+    <div class="tl-i"><div class="wk">Semana 0</div><div class="tt">Preparação</div>
+      <div class="ds">Abertura das contas Apple e Google, definição do nome e da identidade visual</div></div>
+    <div class="tl-i"><div class="wk">Semanas 1–2</div><div class="tt">Fundação</div>
+      <div class="ds">Estrutura, banco de dados, cadastro e login funcionando</div></div>
+    <div class="tl-i"><div class="wk">Semanas 3–4</div><div class="tt">Protocolo</div>
+      <div class="ds">Médico prescreve no painel, paciente marca no app</div></div>
+    <div class="tl-i"><div class="wk">Semanas 5–6</div><div class="tt">Nutrição</div>
+      <div class="ds">Diário alimentar, plano do nutricionista e metas diárias</div></div>
+    <div class="tl-i mk"><div class="wk">Semanas 7–8</div><div class="tt">Agenda · Beta</div>
+      <div class="ds">Agendamento completo e primeira versão na mão da equipe da clínica</div></div>
+    <div class="tl-i"><div class="wk">Semana 9</div><div class="tt">Evolução</div>
+      <div class="ds">Gráficos, medidas e liberação de resultados de exame</div></div>
+    <div class="tl-i"><div class="wk">Semana 10</div><div class="tt">Engajamento</div>
+      <div class="ds">Notificações, lembretes por horário e ranking</div></div>
+    <div class="tl-i"><div class="wk">Semana 11</div><div class="tt">Painel e segurança</div>
+      <div class="ds">Painel completo dos profissionais e itens de LGPD</div></div>
+    <div class="tl-i"><div class="wk">Semana 12</div><div class="tt">Submissão</div>
+      <div class="ds">Envio às lojas e treinamento da equipe</div></div>
+    <div class="tl-i mk"><div class="wk">Semanas 13–14</div><div class="tt">Publicação</div>
+      <div class="ds">Ajustes de revisão e app disponível para download</div></div>
+  </div>
+  <div class="card dark" style="margin-top:18px">
+    <h4>O que a clínica precisa fazer na semana 0</h4>
+    <p>Abrir a conta de desenvolvedor Apple e Google no CNPJ da clínica e solicitar o cadastro
+    internacional exigido pela Apple. É rápido de iniciar e demora a sair, então precisa começar
+    no primeiro dia. Também é quando definimos o nome do aplicativo e confirmamos a identidade visual.</p>
+  </div>
+</div>`);
+
+/* 12 — CUSTOS DE PLATAFORMA */
+S.push(`<div class="slide">
+  <p class="eyebrow">Custos de plataforma</p>
+  <h2>O que as lojas e a estrutura custam</h2>
+  <p class="lead">Estes são os custos das plataformas, pagos diretamente aos fornecedores.
+  Estão separados do nosso trabalho de propósito, para que vocês saibam exatamente para onde
+  vai cada valor. Dólar convertido a R$ 5,60.</p>
+  <div class="grid g2">
+    <div>
+      <h3>Uma vez, no início</h3>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Valor</th></tr></thead>
+        <tbody>
+          <tr><td>Conta de desenvolvedor Apple <span class="small">(anual)</span></td><td class="num">R$ 554</td></tr>
+          <tr><td>Conta de desenvolvedor Google <span class="small">(pagamento único)</span></td><td class="num">R$ 140</td></tr>
+          <tr><td>Cadastro internacional exigido pela Apple</td><td class="num">sem custo</td></tr>
+          <tr class="total"><td>Total no primeiro ano</td><td class="num">R$ 694</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px">A conta da Apple renova anualmente por R$ 554.
+      A do Google não tem renovação.</p>
+    </div>
+    <div>
+      <h3>Mensal, com o app no ar</h3>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Por mês</th></tr></thead>
+        <tbody>
+          <tr><td>Banco de dados e hospedagem</td><td class="num">R$ 140</td></tr>
+          <tr><td>Conta Apple <span class="small">(rateio)</span></td><td class="num">R$ 46</td></tr>
+          <tr><td>Domínio</td><td class="num">R$ 3</td></tr>
+          <tr><td>Envio de notificações</td><td class="num">sem custo</td></tr>
+          <tr><td>E-mails do sistema</td><td class="num">sem custo</td></tr>
+          <tr><td>Monitoramento de erros</td><td class="num">sem custo</td></tr>
+          <tr class="total"><td>Total de infraestrutura</td><td class="num">R$ 189</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:10px">Valor referente ao volume inicial de pacientes.
+      Cresce de forma previsível conforme a base aumenta.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><h4>Por que isso é tão baixo</h4>
+    <p>Porque escolhemos serviços gerenciados em vez de servidor próprio. Um servidor dedicado
+    custaria de três a cinco vezes mais por mês e exigiria manutenção constante, para entregar
+    exatamente o mesmo resultado no volume da clínica.</p></div>
+</div>`);
+
+/* 13 — INVESTIMENTO (editável ao vivo) */
+S.push(`<div class="slide">
+  <p class="eyebrow">Investimento</p>
+  <h2>Resumo financeiro</h2>
+  <p class="lead" style="margin-bottom:14px">Desenvolvimento completo, publicação nas duas lojas e
+  treinamento da equipe.</p>
+  <p style="margin-bottom:18px"><span class="edit-hint">Campos com traço dourado são editáveis durante a apresentação</span></p>
+  <div class="grid g2">
+    <div>
+      <table>
+        <thead><tr><th>Descrição</th><th class="num">Valor</th></tr></thead>
+        <tbody>
+          <tr><td><b>Desenvolvimento do aplicativo</b><br><span class="small">App iOS e Android, painel da equipe, publicação nas lojas e treinamento</span></td>
+              <td class="num">R$ <span contenteditable="true" id="fHon">00.000</span></td></tr>
+          <tr><td>Contas de desenvolvedor Apple e Google<br><span class="small">Pago diretamente às plataformas, no primeiro ano</span></td>
+              <td class="num">R$ 694</td></tr>
+          <tr class="total"><td>Total para colocar o app no ar</td><td class="num">R$ <span id="fTot">—</span></td></tr>
+        </tbody>
+      </table>
+      <table style="margin-top:16px">
+        <thead><tr><th>Depois do lançamento</th><th class="num">Por mês</th></tr></thead>
+        <tbody>
+          <tr><td><b>Sustentação e evolução</b><br><span class="small">Hospedagem, monitoramento, correções, atualizações obrigatórias das lojas, suporte à equipe e uma melhoria por mês</span></td>
+              <td class="num">R$ <span contenteditable="true" id="fMen">0.000</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Forma de pagamento sugerida</h3>
+      <div class="card" style="margin-bottom:10px"><h4><span contenteditable="true" id="p1">30</span>% na assinatura</h4>
+        <p>Início imediato: abertura das contas, arquitetura e estrutura base. <b>R$ <span id="v1">—</span></b></p></div>
+      <div class="card" style="margin-bottom:10px"><h4><span contenteditable="true" id="p2">30</span>% na semana 8</h4>
+        <p>Na entrega do beta, quando a equipe da clínica usa o app pela primeira vez. <b>R$ <span id="v2">—</span></b></p></div>
+      <div class="card" style="margin-bottom:10px"><h4><span contenteditable="true" id="p3">40</span>% na publicação</h4>
+        <p>Quando o app estiver disponível para download nas duas lojas. <b>R$ <span id="v3">—</span></b></p></div>
+      <div class="card dark"><h4>Por que a sustentação não é opcional</h4>
+        <p>Apple e Google exigem atualização técnica periódica. Um app sem manutenção deixa de
+        funcionar dentro de um a dois anos, mesmo que nada mude nele. A mensalidade cobre isso,
+        além de hospedagem, suporte e melhorias contínuas.</p></div>
+    </div>
+  </div>
+  <p class="small" style="margin-top:14px">Proposta válida por 30 dias. Valores de plataforma sujeitos
+  a variação cambial e a reajuste dos fornecedores.</p>
+</div>`);
+
+/* 14 — PRÓXIMOS PASSOS */
+S.push(`<div class="slide">
+  <p class="eyebrow">Para começar</p>
+  <h2>Próximos passos</h2>
+  <p class="lead">Três decisões destravam a semana 0. Nenhuma delas exige mais do que uma conversa interna.</p>
+  <div class="grid g3">
+    <div class="card"><span class="big gold">01</span><h4>Confirmar o escopo</h4>
+      <p>Validar a lista de funcionalidades do bloco A e aprovar o que fica para a fase 2.</p></div>
+    <div class="card"><span class="big gold">02</span><h4>Abrir as contas das lojas</h4>
+      <p>Apple e Google no CNPJ da clínica. É o item de maior risco de atraso e o mais simples de iniciar.</p></div>
+    <div class="card"><span class="big gold">03</span><h4>Definir nome e identidade</h4>
+      <p>Nome do aplicativo e aplicação da identidade visual da Clínica LC.</p></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h4>Duas informações que precisamos de vocês</h4>
+    <p><b>Qual sistema de agenda a clínica usa hoje.</b> Precisamos saber se ele permite integração,
+    para planejar a fase 2 com precisão.<br>
+    <b>Quantos pacientes ativos existem hoje.</b> O ranking de adesão só funciona bem a partir de um
+    certo número de participantes. Abaixo disso, propomos metas individuais no lugar.</p></div>
+  <hr class="rule" style="margin-top:26px">
+  <p style="font-size:clamp(13px,1.3vw,18px)"><b>Modesto Growth Partners</b> &nbsp;·&nbsp; modestogrowth.com.br</p>
+</div>`);
+
+/* ================= ESTADO DO PROTÓTIPO ================= */
+const st = {
+  auth:"login", tab:"inicio", overlay:null, od:null,
+  agua:1200, meta:2500,
+  rotina:[
+    {l:"Café da manhã registrado",d:true},
+    {l:"2 copos de água até 10h",d:true},
+    {l:"Caminhada de 30 minutos",d:true},
+    {l:"Suplemento das 16h",d:false},
+    {l:"Jantar leve registrado",d:false}
+  ],
+  ref:{
+    "Café da manhã":{r:true,t:"Iogurte natural, aveia, morango",k:320},
+    "Almoço":{r:true,t:"Frango grelhado, arroz integral, salada",k:540},
+    "Lanche da tarde":{r:false,t:"",k:0},
+    "Jantar":{r:false,t:"",k:0}
+  },
+  cons:[
+    {id:1,p:"Dr. Luiz Torres",a:"Consulta médica semanal",d:"Ter, 15 set",h:"14h00",s:"ok"},
+    {id:2,p:"Scanner corporal 3D",a:"Avaliação metabólica",d:"Qui, 24 set",h:"10h30",s:"ok"}
+  ],
+  agTab:"minhas",
+  cfg:{notif:true,wpp:true,mail:false}
+};
+const META_KCAL = 1600;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const hd = (eb,tt,right="") => `<div class="phd"><div>
+  <div class="eb">${eb}</div><div class="tt">${tt}</div></div>${right}</div>`;
+
+/* ---------- telas ---------- */
+function scLogin(){return `<div style="padding:30px 24px 20px;display:flex;flex-direction:column;height:100%">
+  <div style="text-align:center;margin-bottom:26px">
+    <div style="width:56px;height:56px;border-radius:50%;background:var(--oliva);margin:0 auto 12px;
+      display:flex;align-items:center;justify-content:center;color:var(--marfim)">${ICON.heart}</div>
+    <div style="font-family:var(--serif);font-size:21px;color:var(--grafite)">Clínica LC</div>
+    <div style="font-size:12px;color:var(--grafiteS);margin-top:4px;font-style:italic">Invista na sua história. Invista em você.</div>
+  </div>
+  <div class="fld"><label>E-mail</label><input type="email" placeholder="seuemail@exemplo.com"></div>
+  <div class="fld"><label>Senha</label><input type="password" placeholder="••••••••"></div>
+  <button class="btn-p" data-a="login">Entrar</button>
+  <div style="text-align:center;margin-top:16px;font-size:12.5px;color:var(--grafiteS)">
+    Ainda não é paciente? <b data-a="cad" style="color:var(--oliva);cursor:pointer">Criar cadastro</b></div>
+  <div style="margin-top:auto;text-align:center;font-size:11px;color:var(--grafiteS)">
+    Protótipo de demonstração</div></div>`;}
+
+function scCad(){return `<div style="height:100%;display:flex;flex-direction:column">
+  ${hd("Novo paciente","Criar cadastro")}
+  <div style="flex:1;overflow-y:auto;padding:0 20px 22px">
+    <div class="ptit" style="color:var(--oliva);margin:6px 0 9px">Dados pessoais</div>
+    <div class="fld"><label>Nome completo</label><input placeholder="Seu nome"></div>
+    <div class="fld"><label>Data de nascimento</label><input placeholder="DD/MM/AAAA"></div>
+    <div class="fld"><label>E-mail</label><input placeholder="seuemail@exemplo.com"></div>
+    <div class="fld"><label>WhatsApp</label><input placeholder="(41) 90000-0000"></div>
+    <div class="ptit" style="color:var(--oliva);margin:14px 0 9px">Endereço</div>
+    <div class="fld"><label>Rua e número</label><input placeholder="Rua, número e complemento"></div>
+    <div class="fld"><label>Cidade</label><input placeholder="São José dos Pinhais"></div>
+    <div class="ptit" style="color:var(--oliva);margin:14px 0 9px">Dados de saúde</div>
+    <div class="fld"><label>Peso atual (kg)</label><input placeholder="72,5"></div>
+    <div class="fld"><label>Altura (cm)</label><input placeholder="165"></div>
+    <div class="fld"><label>Condições ou observações</label>
+      <textarea rows="3" placeholder="Alergias, restrições, condições em acompanhamento"></textarea></div>
+    <div style="font-size:11px;color:var(--grafiteS);margin:-4px 0 12px">
+      Esses dados ficam visíveis apenas para você e para a equipe médica da clínica</div>
+    <div class="ptit" style="color:var(--oliva);margin:14px 0 9px">Acesso</div>
+    <div class="fld"><label>Senha</label><input type="password" placeholder="••••••••"></div>
+    <button class="btn-p" data-a="login">Criar conta</button>
+    <div style="text-align:center;margin-top:14px;font-size:12.5px;color:var(--grafiteS)">
+      Já tem conta? <b data-a="volta" style="color:var(--oliva);cursor:pointer">Entrar</b></div>
+  </div></div>`;}
+
+function scInicio(){
+  const pct = Math.min(st.agua/st.meta*100,100);
+  const feitas = st.rotina.filter(r=>r.d).length;
+  const sino = `<button data-a="notif" style="width:37px;height:37px;border-radius:50%;background:var(--oliva);
+    border:0;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;color:var(--marfim)">
+    ${ICON.bell}<span style="position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:50%;
+    background:var(--dourado);border:1.5px solid var(--oliva)"></span></button>`;
+  return hd("Boa tarde, Mariana","Como você está hoje?",sino) + `<div class="pbody">
+    <div class="pc oliva"><div class="prow"><div>
+      <div class="plabel">Sequência de adesão ao protocolo</div>
+      <div style="display:flex;align-items:center;gap:7px;color:var(--dourado)">${ICON.flame}
+        <span style="font-family:var(--serif);font-size:25px;color:var(--marfim)">12 dias</span></div>
+      </div><span class="pill">Top 3 do mês</span></div></div>
+
+    <div class="pc"><div class="prow" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:7px;color:var(--oliva)">${ICON.drop}
+        <span class="pstrong">Água de hoje</span></div>
+      <button class="btn-s" data-a="agua">${ICON.plus} 250 ml</button></div>
+      <div class="psub">${(st.agua/1000).toFixed(1)} L de ${(st.meta/1000).toFixed(1)} L</div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>
+
+    <div class="pc"><div class="prow"><div>
+      <div class="plabel">Próxima consulta</div>
+      <div class="ptit">Dr. Luiz Torres · Cardiologia</div>
+      <div class="psub" style="margin-top:2px">Terça, 15 de setembro · 14h</div>
+      </div><span style="color:var(--grafiteS)">${ICON.chev}</span></div></div>
+
+    <div class="pc"><div class="pstrong" style="margin-bottom:9px">Rotina de hoje · ${feitas} de 5 concluídas</div>
+      ${st.rotina.map((r,i)=>`<div class="tsk ${r.d?'done':''}" data-a="tsk" data-i="${i}">
+        <span class="bx">${r.d?'<span style="color:var(--marfim)">'+ICON.check+'</span>':''}</span>
+        <span class="lb">${esc(r.l)}</span></div>`).join("")}
+    </div></div>`;}
+
+function scDiario(){
+  const tot = Object.values(st.ref).reduce((a,r)=>a+(r.r?r.k:0),0);
+  return hd("Acompanhamento diário","Diário alimentar") + `<div class="pbody">
+    <div class="pc"><div class="prow" style="margin-bottom:8px">
+      <span class="pstrong">Meta calórica de hoje</span>
+      <span class="psub">${tot} de ${META_KCAL} kcal</span></div>
+      <div class="bar gold"><i style="width:${Math.min(tot/META_KCAL*100,100)}%"></i></div></div>
+    <div class="pc"><div class="prow" style="margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:7px;color:var(--oliva)">${ICON.drop}
+        <span class="pstrong">Água</span></div>
+      <button class="btn-s" data-a="agua">${ICON.plus} copo</button></div>
+      <div class="psub">${(st.agua/1000).toFixed(1)} L de ${(st.meta/1000).toFixed(1)} L</div></div>
+    ${Object.entries(st.ref).map(([n,r])=>`<div class="pc">
+      <div class="prow" style="align-items:flex-start">
+        <div style="flex:1"><div class="ptit" style="margin-bottom:3px">${esc(n)}</div>
+        ${r.r?`<div class="psub">${esc(r.t)}</div>`:`<div class="psub" style="font-style:italic">Ainda não registrado</div>`}
+        </div>
+        ${r.r?`<span class="psub">${r.k} kcal</span>`
+        :`<button data-a="meal" data-n="${esc(n)}" style="width:28px;height:28px;border-radius:50%;
+          border:1.5px solid var(--oliva);background:none;display:flex;align-items:center;
+          justify-content:center;cursor:pointer;color:var(--oliva)">${ICON.plus}</button>`}
+      </div></div>`).join("")}
+  </div>`;}
+
+function scAgenda(){
+  const disp=[
+    {p:"Dr. Luiz Torres",a:"Consulta médica semanal",h:["09h00","11h30","16h00"]},
+    {p:"Equipe de Nutrição",a:"Acompanhamento nutricional",h:["10h30","15h00"]},
+    {p:"Scanner corporal 3D",a:"Avaliação metabólica",h:["08h30","13h00"]}
+  ];
+  const minhas = st.cons.filter(c=>c.s==="ok");
+  const tabs = `<div class="tabs">
+    <button class="tab ${st.agTab==='minhas'?'on':''}" data-a="agtab" data-t="minhas">Minhas consultas</button>
+    <button class="tab ${st.agTab==='nova'?'on':''}" data-a="agtab" data-t="nova">Agendar nova</button></div>`;
+  let body="";
+  if(st.agTab==="minhas"){
+    body = minhas.length===0
+      ? `<div class="psub" style="text-align:center;padding:20px 0">Nenhuma consulta agendada no momento</div>`
+      : minhas.map(c=>`<div class="pc"><div class="ptit">${esc(c.p)}</div>
+        <div class="psub" style="margin-bottom:8px">${esc(c.a)}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;color:var(--oliva)">${ICON.clock}
+          <span style="font-size:12.5px;color:var(--grafite)">${esc(c.d)} · ${esc(c.h)}</span></div>
+        <button data-a="cancel" data-id="${c.id}" style="background:none;border:0;color:var(--vinho);
+          font-size:12.5px;font-weight:600;cursor:pointer;padding:0;font-family:inherit">Cancelar consulta</button>
+        </div>`).join("");
+  } else {
+    body = disp.map(c=>`<div class="pc"><div class="ptit">${esc(c.p)}</div>
+      <div class="psub" style="margin-bottom:9px">${esc(c.a)}</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        ${c.h.map(h=>`<button class="slot" data-a="book" data-p="${esc(c.p)}" data-ar="${esc(c.a)}" data-h="${h}">${h}</button>`).join("")}
+      </div></div>`).join("");
+  }
+  return hd("Sua agenda","Consultas") + tabs + `<div class="pbody">${body}</div>`;}
+
+function scEvol(){
+  const d=[{m:"Mai",p:78.4},{m:"Jun",p:76.9},{m:"Jul",p:75.1},{m:"Ago",p:73.6},{m:"Set",p:72.5}];
+  const W=250,H=110,pad=8;
+  const mx=Math.max(...d.map(x=>x.p))+1, mn=Math.min(...d.map(x=>x.p))-1;
+  const X=i=>pad+i*((W-pad*2)/(d.length-1));
+  const Y=v=>pad+(mx-v)/(mx-mn)*(H-pad*2);
+  const pts=d.map((x,i)=>`${X(i).toFixed(1)},${Y(x.p).toFixed(1)}`).join(" ");
+  const area=`${pad},${H-pad} ${pts} ${W-pad},${H-pad}`;
+  const rank=[{n:"Paciente A.",p:1,v:"97%"},{n:"Paciente B.",p:2,v:"95%"},{n:"Você",p:3,v:"92%"}];
+  return hd("Seu progresso","Evolução") + `<div class="pbody">
+    <div class="pc"><div class="pstrong" style="margin-bottom:4px">Peso ao longo do protocolo</div>
+      <div class="psub" style="margin-bottom:8px">5,9 kg desde o início do acompanhamento</div>
+      <svg viewBox="0 0 ${W} ${H+16}" style="width:100%;height:128px;overflow:visible">
+        <polygon points="${area}" fill="var(--oliva)" opacity=".09"/>
+        <polyline points="${pts}" fill="none" stroke="var(--oliva)" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"/>
+        ${d.map((x,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(x.p).toFixed(1)}" r="3.6" fill="var(--dourado)"/>
+          <text x="${X(i).toFixed(1)}" y="${H+9}" font-size="8.5" fill="var(--grafiteS)"
+            text-anchor="middle" font-family="Inter,sans-serif">${x.m}</text>`).join("")}
+      </svg></div>
+    <div class="pc"><div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;color:var(--dourado)">
+      ${ICON.award}<span class="pstrong">Ranking de adesão do mês</span></div>
+      ${rank.map(r=>`<div class="rk ${r.n==='Você'?'me':''}">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span class="pos">${r.p}</span><span class="nm" style="font-size:13px">${r.n}</span></div>
+        <span class="psub">${r.v} de adesão</span></div>`).join("")}
+      <div class="psub" style="margin-top:9px;font-size:11px">Nomes de outros pacientes ficam anônimos por padrão</div>
+    </div></div>`;}
+
+function scPerfil(){
+  return hd("Sua conta","Perfil") + `<div class="pbody">
+    <div class="pc" style="display:flex;align-items:center;gap:12px">
+      <div style="width:48px;height:48px;border-radius:50%;background:var(--oliva);display:flex;
+        align-items:center;justify-content:center;font-family:var(--serif);font-size:19px;
+        color:var(--marfim);flex-shrink:0">M</div>
+      <div><div class="ptit">Mariana Ferreira</div>
+        <div class="psub">Paciente desde março de 2025</div></div></div>
+    <div class="pc"><div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;color:var(--oliva)">
+      ${ICON.lock}<span class="pstrong">Histórico de exames</span></div>
+      ${["Avaliação metabólica completa · 12 ago","Scanner corporal 3D · 03 jul"].map((e,i)=>
+        `<div class="prow" style="padding:7px 0;${i?'border-top:1px solid var(--linhaApp)':''}">
+          <span style="font-size:12.5px">${e}</span><span style="color:var(--grafiteS)">${ICON.chev}</span></div>`).join("")}
+      <div class="psub" style="margin-top:7px;font-size:11px">Resumo do seu prontuário. O laudo completo fica com sua equipe médica.</div>
+    </div>
+    <div class="pc"><div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;color:var(--oliva)">
+      ${ICON.msg}<span class="pstrong">Canal com a equipe</span></div>
+      <div class="psub" style="margin-bottom:9px">Fale com a equipe da Clínica LC direto pelo WhatsApp</div>
+      <div style="display:inline-flex;background:var(--oliva);color:var(--marfim);font-weight:600;
+        font-size:12.5px;padding:9px 15px;border-radius:11px">Abrir conversa</div></div>
+    <div class="pc prow" style="cursor:pointer" data-a="cfg">
+      <div style="display:flex;align-items:center;gap:9px;color:var(--oliva)">${ICON.cog}
+        <span class="pstrong">Configurações</span></div>
+      <span style="color:var(--grafiteS)">${ICON.chev}</span></div>
+  </div>`;}
+
+/* ---------- overlays ---------- */
+function sheet(title,body){return `<div class="sheet"><div class="sh"><b>${title}</b>
+  <button class="xbtn" data-a="close">${ICON.x}</button></div><div class="sb">${body}</div></div>`;}
+
+function ovNotif(){
+  const n=[["Hora de beber água","Já se passaram 2 horas desde o último registro","há 12 min"],
+    ["Consulta amanhã","Dra. Camila Souza às 14h, Nutrição","há 3 horas"],
+    ["Sequência de 12 dias!","Você está entre as 3 pacientes mais engajadas do mês","ontem"],
+    ["Novo exame disponível","Bioimpedância de 03 de julho já está no seu histórico","há 2 dias"]];
+  return sheet("Notificações", `<div style="display:flex;flex-direction:column;gap:10px">
+    ${n.map(x=>`<div class="pc"><div class="pstrong" style="margin-bottom:3px">${x[0]}</div>
+      <div class="psub" style="margin-bottom:5px">${x[1]}</div>
+      <div class="psub" style="font-size:11px">${x[2]}</div></div>`).join("")}</div>`);}
+
+function ovMeal(){return sheet(esc(st.od), `
+  <div class="fld"><label>O que você comeu?</label>
+    <textarea id="mDesc" rows="3" placeholder="Ex: frango grelhado, arroz integral, salada"></textarea></div>
+  <div class="fld" style="margin-bottom:18px"><label>Estimativa de calorias (kcal)</label>
+    <input id="mKcal" type="number" placeholder="Ex: 450"></div>
+  <button class="btn-p" data-a="saveMeal">Salvar registro</button>`);}
+
+function ovBook(){
+  if(st.od.done) return sheet("Consulta agendada", `<div style="text-align:center;padding:26px 0">
+    <div style="width:52px;height:52px;border-radius:50%;background:var(--oliva);display:flex;
+      align-items:center;justify-content:center;margin:0 auto 14px;color:var(--marfim)">${ICON.check}</div>
+    <div class="ptit" style="font-size:17px;margin-bottom:5px">Tudo certo, Mariana</div>
+    <div class="psub" style="margin-bottom:20px">Sua consulta com ${esc(st.od.p)} às ${esc(st.od.h)} foi confirmada</div>
+    <button class="btn-p" data-a="close">Concluir</button></div>`);
+  return sheet("Confirmar agendamento", `
+    <div class="pc" style="margin-bottom:16px"><div class="ptit">${esc(st.od.p)}</div>
+      <div class="psub" style="margin-bottom:8px">${esc(st.od.a)}</div>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--oliva)">${ICON.clock}
+        <span style="font-size:12.5px;color:var(--grafite)">Próxima terça-feira · ${esc(st.od.h)}</span></div></div>
+    <div class="psub" style="margin-bottom:16px">Cancelamento gratuito até 24 horas antes do horário marcado</div>
+    <button class="btn-p" data-a="confirmBook">Confirmar agendamento</button>
+    <button class="btn-o" data-a="close">Voltar</button>`);}
+
+function ovCancel(){
+  const c=st.cons.find(x=>x.id===st.od);
+  if(!c) return "";
+  return sheet("Cancelar consulta", `
+    <div class="pc" style="margin-bottom:16px"><div class="ptit">${esc(c.p)}</div>
+      <div class="psub" style="margin-bottom:8px">${esc(c.a)}</div>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--oliva)">${ICON.clock}
+        <span style="font-size:12.5px;color:var(--grafite)">${esc(c.d)} · ${esc(c.h)}</span></div></div>
+    <div class="psub" style="margin-bottom:16px">Essa consulta está dentro do prazo de cancelamento gratuito de 24 horas</div>
+    <button class="btn-o vinho" style="margin-top:0" data-a="doCancel" data-id="${c.id}">Confirmar cancelamento</button>
+    <button class="btn-p" data-a="close">Manter consulta</button>`);}
+
+function ovCfg(){
+  const rows=[["notif","Notificações push","Lembretes e mensagens motivacionais"],
+    ["wpp","Integração com WhatsApp","Encaminhar mensagens da clínica para o seu WhatsApp"],
+    ["mail","E-mails da clínica","Novidades, lembretes e resumos por e-mail"]];
+  return sheet("Configurações", `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+    ${rows.map(r=>`<div class="pc prow" style="gap:10px"><div>
+      <div class="pstrong" style="margin-bottom:2px">${r[1]}</div>
+      <div class="psub" style="font-size:11.5px">${r[2]}</div></div>
+      <div class="tg ${st.cfg[r[0]]?'on':''}" data-a="tg" data-k="${r[0]}"><i></i></div></div>`).join("")}</div>
+    <button class="btn-o vinho" style="margin-top:0" data-a="sair">${ICON.out} Sair da conta</button>`);}
+
+/* ---------- render do protótipo ---------- */
+const TABS=[["inicio","Início",ICON.home],["diario","Diário",ICON.meal],
+  ["agenda","Agenda",ICON.cal],["evolucao","Evolução",ICON.trend],["perfil","Perfil",ICON.user]];
+
+function renderPhone(){
+  const scr=document.getElementById("screen"); if(!scr) return;
+  const nav=document.getElementById("nav5");
+  if(st.auth==="login"){ scr.innerHTML=scLogin(); nav.innerHTML=""; nav.style.display="none"; return; }
+  if(st.auth==="cadastro"){ scr.innerHTML=scCad(); nav.innerHTML=""; nav.style.display="none"; return; }
+  nav.style.display="flex";
+  const map={inicio:scInicio,diario:scDiario,agenda:scAgenda,evolucao:scEvol,perfil:scPerfil};
+  let html = map[st.tab]();
+  if(st.overlay==="notif") html+=ovNotif();
+  if(st.overlay==="meal")  html+=ovMeal();
+  if(st.overlay==="book")  html+=ovBook();
+  if(st.overlay==="cancel")html+=ovCancel();
+  if(st.overlay==="cfg")   html+=ovCfg();
+  scr.innerHTML=html;
+  nav.innerHTML=TABS.map(t=>`<button class="nv ${st.tab===t[0]?'on':''}" data-a="tab" data-t="${t[0]}">
+    ${t[2]}<span>${t[1]}</span></button>`).join("");
+}
+
+/* ---------- interação do protótipo ---------- */
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-a]"); if(!el) return;
+  const a=el.dataset.a;
+  if(a==="login"){st.auth="app";st.tab="inicio";}
+  else if(a==="cad"){st.auth="cadastro";}
+  else if(a==="volta"){st.auth="login";}
+  else if(a==="tab"){st.tab=el.dataset.t;st.overlay=null;}
+  else if(a==="agua"){st.agua=Math.min(st.agua+250,st.meta);}
+  else if(a==="tsk"){const i=+el.dataset.i;st.rotina[i].d=!st.rotina[i].d;}
+  else if(a==="notif"){st.overlay="notif";}
+  else if(a==="cfg"){st.overlay="cfg";}
+  else if(a==="close"){st.overlay=null;st.od=null;}
+  else if(a==="meal"){st.overlay="meal";st.od=el.dataset.n;}
+  else if(a==="saveMeal"){
+    const d=document.getElementById("mDesc").value.trim();
+    const k=parseInt(document.getElementById("mKcal").value,10);
+    st.ref[st.od]={r:true,t:d||"Refeição registrada",k:isNaN(k)?0:k};
+    st.overlay=null;st.od=null;}
+  else if(a==="agtab"){st.agTab=el.dataset.t;}
+  else if(a==="book"){st.overlay="book";st.od={p:el.dataset.p,a:el.dataset.ar,h:el.dataset.h,done:false};}
+  else if(a==="confirmBook"){
+    st.cons.push({id:Date.now(),p:st.od.p,a:st.od.a,d:"Próxima terça",h:st.od.h,s:"ok"});
+    st.od={...st.od,done:true};}
+  else if(a==="cancel"){st.overlay="cancel";st.od=+el.dataset.id;}
+  else if(a==="doCancel"){
+    const id=+el.dataset.id;
+    st.cons=st.cons.map(c=>c.id===id?{...c,s:"x"}:c);
+    st.overlay=null;st.od=null;st.agTab="minhas";}
+  else if(a==="tg"){st.cfg[el.dataset.k]=!st.cfg[el.dataset.k];}
+  else if(a==="sair"){st.auth="login";st.tab="inicio";st.overlay=null;st.od=null;}
+  else return;
+  renderPhone();
+});
+
+/* ================= NAVEGAÇÃO DO DECK ================= */
+const deck=document.getElementById("deck");
+deck.innerHTML=S.join("");
+const slides=[...deck.querySelectorAll(".slide")];
+let cur=0;
+const barf=document.getElementById("barf"), cnt=document.getElementById("cnt");
+
+function show(i){
+  cur=Math.max(0,Math.min(slides.length-1,i));
+  slides.forEach((s,k)=>s.classList.toggle("on",k===cur));
+  barf.style.width=((cur+1)/slides.length*100)+"%";
+  cnt.textContent=(cur+1)+" / "+slides.length;
+  slides[cur].scrollTop=0;
+  if(slides[cur].querySelector("#phone")) renderPhone();
+}
+document.getElementById("prev").onclick=()=>show(cur-1);
+document.getElementById("next").onclick=()=>show(cur+1);
+document.getElementById("fs").onclick=()=>{
+  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();};
+document.addEventListener("keydown",e=>{
+  if(e.target.isContentEditable||/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if(e.key==="ArrowRight"||e.key==="PageDown"||e.key===" ") {e.preventDefault();show(cur+1);}
+  if(e.key==="ArrowLeft"||e.key==="PageUp") {e.preventDefault();show(cur-1);}
+  if(e.key==="Home") show(0);
+  if(e.key==="End") show(slides.length-1);
+  if(e.key.toLowerCase()==="f") document.getElementById("fs").click();
+});
+
+/* ================= CÁLCULO DO INVESTIMENTO ================= */
+const num = s => { const d=String(s).replace(/[^\d,]/g,"").replace(",","."); const v=parseFloat(d); return isNaN(v)?0:v; };
+const fmt = v => v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});
+function calc(){
+  const hon=num(document.getElementById("fHon").textContent);
+  const tot=hon+694;
+  document.getElementById("fTot").textContent = hon>0?fmt(tot):"—";
+  [["p1","v1"],["p2","v2"],["p3","v3"]].forEach(([p,v])=>{
+    const pc=num(document.getElementById(p).textContent);
+    document.getElementById(v).textContent = hon>0?fmt(hon*pc/100):"—";
+  });
+}
+["fHon","fMen","p1","p2","p3"].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener("input",calc);
+  el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el.blur();}});
+});
+calc();
+show(0);
+</script>
+</body>
+</html>
