@@ -12,7 +12,7 @@
   const FIX={
     profiles: perfis.map(p=>({...p, checklist:{items:[],notes:''}})),
     user_directory: perfis,
-    clients:[{id:CID,nome:'Cliente Um',logo_url:null,resumo:'resumo',plano_midia:true}],
+    clients:[{id:CID,nome:'Cliente Um',logo_url:null,resumo:'resumo',plano_midia:true,jornada:{}}],
     tasks:[{id:'t-1',client_id:CID,title:'Demanda de teste',description:'desc',status:'Não iniciado',
             priority:'Alta',assignees:['Vinícius','Renato'],assignee_ids:[UID],due:'2026-09-10',recurrence:'none',
             subtasks:[{text:'sub',done:false}],time_spent:120,timer_start:null,position:10,
@@ -54,6 +54,7 @@
     const sc = localStorage.getItem('__stub_channels'); if(sc) FIX.channels = JSON.parse(sc);
     const sb2 = localStorage.getItem('__stub_members'); if(sb2) FIX.channel_members = JSON.parse(sb2);
     const sp = localStorage.getItem('__stub_pesquisas'); if(sp) FIX.mgp_pesquisas = JSON.parse(sp);
+    const sj = localStorage.getItem('__stub_clients');   if(sj) FIX.clients = JSON.parse(sj);
   }catch(e){}
   function persistir(){
     try{
@@ -61,6 +62,7 @@
       localStorage.setItem('__stub_channels', JSON.stringify(FIX.channels));
       localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
       localStorage.setItem('__stub_pesquisas', JSON.stringify(FIX.mgp_pesquisas));
+      localStorage.setItem('__stub_clients',   JSON.stringify(FIX.clients));
     }catch(e){}
   }
   /* movimento da semana corrente: uma demanda concluída e duas anotações,

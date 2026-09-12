@@ -59,6 +59,7 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._mgp_responsaveis_por_id` | vínculo de responsável por id, e o rename que não órfã mais as demandas |
 | `..._mgp_perfil_do_lucas` | o Lucas tinha login desde julho e nunca teve perfil |
 | `..._mgp_nps_pesquisas_cip_mgpr` | a tabela `mgp_pesquisas`, que guarda Pré-Discovery, Client Discovery e Revisão de Parceria |
+| `..._mgp_jornada_do_cliente` | a coluna `clients.jornada`, o roadmap que o cliente vê ao entrar |
 
 ## `mgp_pesquisas`
 
@@ -83,6 +84,30 @@ Duas garantias que não dependem da tela:
 O cálculo do MGPI não está no banco. Ele é feito na tela, a partir das
 chaves do jsonb, do mesmo jeito que a planilha faz a partir das células —
 e está coberto por `testes/nps.mjs`.
+
+## `clients.jornada`
+
+O roadmap da empresa, em coluna e não em tabela nova: existe no máximo uma
+por empresa e é sempre lida junto dela, então uma tabela separada custaria um
+segundo SELECT em toda tela e uma segunda RLS para manter alinhada com a de
+`clients` — que já diz exatamente quem pode o quê (`select`: admin ou a
+própria empresa; `update`: `is_dono()`). O cliente lê a própria jornada e não
+escreve nela, sem policy nova.
+
+Os rótulos das etapas NÃO ficam no banco. Ficam no catálogo da tela, junto da
+descrição que o cliente lê: guardar texto de interface no banco faria toda
+correção de redação virar um UPDATE em todas as empresas.
+
+`visivel` é o que decide o que o cliente enxerga. É por isso que ele começa
+vendo só o andamento do cadastro e vai ganhando etapa conforme o diagnóstico,
+a proposta e o kickoff acontecem.
+
+Uma ressalva sobre a trava de "só o Vinícius configura": ela vive no front e
+é um guarda-corpo, não uma fronteira. Qualquer `admin` pode renomear um perfil
+pela aba Equipe e passar por ela. A trava real é a policy, que exige
+`role = 'admin'` para escrever em `clients`. Para uma trava por pessoa de
+verdade seria preciso uma coluna de permissão em `profiles` e uma policy que
+a leia — não dá para fazer só no front, e essa coluna não foi inventada aqui.
 
 ## Pendências
 

@@ -29293,5 +29293,589 @@ window.mgzQuemEh        = mgzQuemEh;
 })();
 </script>
 
+
+<style>
+/* =====================================================================
+   SEÇÃO · JORNADA · estilo
+   ===================================================================== */
+/* a trilha que o cliente vê na página dele */
+.mgj-trilha{display:flex;flex-direction:column;gap:0;padding:4px 0}
+.mgj-et{display:grid;grid-template-columns:34px 1fr auto;gap:14px;align-items:start;
+  padding:13px 20px;position:relative}
+.mgj-et .marca{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:700;background:var(--card2);color:var(--muted2);
+  border:2px solid var(--line2);z-index:1;margin-top:1px}
+/* o fio que liga uma etapa à seguinte */
+.mgj-et::before{content:'';position:absolute;left:32px;top:38px;bottom:-13px;width:2px;
+  background:var(--line2)}
+.mgj-et:last-child::before{display:none}
+.mgj-et .tx b{display:block;font-size:13.5px;margin-bottom:3px}
+.mgj-et .tx span{display:block;font-size:12.5px;color:var(--muted);line-height:1.6}
+.mgj-et .quando{font-size:11.5px;color:var(--muted2);white-space:nowrap;margin-top:2px}
+
+/* apagadinho enquanto não chega, aceso quando passa */
+.mgj-et.pendente{opacity:.52}
+.mgj-et.concluido .marca{background:#2E9E6B;border-color:#2E9E6B;color:#fff}
+.mgj-et.concluido::before{background:#2E9E6B}
+.mgj-et.andamento .marca{background:var(--brass);border-color:var(--brass);color:#fff;
+  box-shadow:0 0 0 4px rgba(194,161,91,.2)}
+.mgj-et.andamento .tx b{color:var(--brass2)}
+.mgj-et.andamento .agora{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--brass2);background:rgba(194,161,91,.15);
+  border-radius:20px;padding:2px 9px;margin-left:8px;vertical-align:1px}
+
+/* a janela de configuração, só do Vinícius */
+.mgj-cfg{display:flex;flex-direction:column;gap:2px}
+.mgj-l{display:grid;grid-template-columns:1fr 132px 116px 70px;gap:10px;align-items:center;
+  padding:10px 2px;border-bottom:1px solid var(--line)}
+.mgj-l:last-child{border-bottom:0}
+.mgj-l .nm{font-size:13px;min-width:0}
+.mgj-l .nm b{display:block}
+.mgj-l .nm span{display:block;font-size:11.5px;color:var(--muted2);margin-top:2px}
+.mgj-l select,.mgj-l input[type=date]{width:100%;background:var(--bg);border:1px solid var(--line2);
+  border-radius:9px;padding:8px 9px;font-family:inherit;font-size:12.5px;color:var(--text)}
+.mgj-l .ve{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);cursor:pointer}
+.mgj-l .ve input{width:15px;height:15px;accent-color:var(--brass)}
+.mgj-cab{display:grid;grid-template-columns:1fr 132px 116px 70px;gap:10px;
+  font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--muted2);padding:0 2px 8px;border-bottom:1px solid var(--line2)}
+
+/* as etapas escolhidas no cadastro do cliente */
+.mgj-esc{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.mgj-esc label{display:inline-flex;align-items:center;gap:7px;background:var(--bg);
+  border:1px solid var(--line2);border-radius:20px;padding:7px 13px;font-size:12.5px;
+  color:var(--muted);cursor:pointer;user-select:none}
+.mgj-esc label:has(input:checked){background:rgba(46,158,107,.12);border-color:#2E9E6B;
+  color:#2E9E6B;font-weight:600}
+.mgj-esc input{width:14px;height:14px;accent-color:#2E9E6B}
+
+@media(max-width:640px){
+  .mgj-et{grid-template-columns:28px 1fr;padding:12px 13px}
+  .mgj-et .quando{grid-column:2;margin-top:5px}
+  .mgj-et::before{left:26px}
+  .mgj-l,.mgj-cab{grid-template-columns:1fr 1fr}
+  .mgj-cab{display:none}
+}
+</style>
+
+<script>
+/* =====================================================================
+   SEÇÃO · JORNADA · o roadmap que o cliente vê ao entrar
+
+   O cliente entrava na plataforma e via demandas e documentos, sem saber
+   em que ponto do trabalho ele estava. A jornada responde isso: uma
+   trilha de etapas, com a atual acesa e as que ainda não chegaram
+   apagadas, do jeito que foi pedido na reunião ("fica tudo apagadinho e
+   com a entrada dele a gente vai acendendo").
+
+   Três coisas nesta seção:
+
+     1. No cadastro da empresa, escolhe-se quais etapas essa conta vai
+        ter. Marcar Pré-Discovery ou Client Discovery não só acende a
+        etapa: já cria a pesquisa, então o cliente encontra o formulário
+        na primeira vez que abre a plataforma.
+
+     2. Na aba Clientes, um botão por empresa abre a configuração: a
+        situação de cada etapa, a data e — o que importa mais — se o
+        cliente enxerga aquela etapa. É assim que ele começa vendo só o
+        andamento do cadastro e vai ganhando etapa conforme o diagnóstico,
+        a proposta e o kickoff acontecem.
+
+     3. Na página do cliente, a trilha, com as etapas visíveis apenas.
+
+   Sobre o acesso da configuração: ela aparece só para o Vinícius Reis,
+   como pedido. Vale dizer o que essa trava é e o que ela não é. Ela é um
+   guarda-corpo de interface: qualquer pessoa com papel `admin` pode
+   renomear um perfil pela aba Equipe e, com isso, passar por ela. O banco
+   já exige `role = 'admin'` para escrever em `clients` (policy
+   `clients_admin_update`, que chama `is_dono()`), e essa é a trava de
+   verdade. Se a intenção for uma trava real por pessoa, o caminho é uma
+   coluna de permissão em `profiles` mais uma policy que a leia — não dá
+   para fazer isso só no front, e não inventei essa coluna aqui.
+   ===================================================================== */
+(function(){
+  if(typeof sb === 'undefined') return;
+
+  /* ---------------------------------------------------------------------
+     1. O catálogo de etapas
+
+     A ordem é a do fluxo que a Patrícia mandou:
+       Comercial → Pré-Discovery → Diagnóstico → Proposta → Contrato/NDA →
+       Client Discovery → Client Intelligence → Pré-Kickoff → Kickoff →
+       Growth Plan → Operação → CIP/MGPR → CAP
+
+     `interna: true` marca a etapa que existe para a equipe e que não faz
+     sentido mostrar ao cliente. Ela nasce invisível; nada impede de abrir
+     depois, é só marcar na configuração.
+
+     `padrao: true` é o que já vem marcado ao cadastrar uma empresa nova.
+     Só o cadastro, porque no primeiro acesso o cliente precisa ver o
+     andamento do cadastro dele e mais nada.
+     --------------------------------------------------------------------- */
+  const ETAPAS = [
+    {id:'cadastro',       rot:'Cadastro na plataforma', padrao:true,
+     ds:'Sua conta foi criada e o acesso liberado.'},
+    {id:'pre_discovery',  rot:'Pré-Discovery',
+     ds:'Um questionário curto para entendermos o contexto antes do diagnóstico.',
+     pesquisa:'pre_discovery'},
+    {id:'diagnostico',    rot:'Diagnóstico',
+     ds:'Analisamos contas, dados e mercado, e devolvemos a leitura.'},
+    {id:'proposta',       rot:'Proposta',
+     ds:'Escopo, times envolvidos e investimento da parceria.'},
+    {id:'contrato',       rot:'Contrato e NDA',
+     ds:'Documentos assinados. Ficam guardados e o acesso é restrito.'},
+    {id:'client_discovery', rot:'Client Discovery',
+     ds:'O questionário que nos deixa chegar ao kickoff já preparados.',
+     pesquisa:'client_discovery'},
+    {id:'client_intelligence', rot:'Client Intelligence', interna:true,
+     ds:'Leitura interna da Modesto sobre a conta, antes do kickoff.'},
+    {id:'pre_kickoff',    rot:'Pré-Kickoff', interna:true,
+     ds:'Alinhamento do time da Modesto antes de sentar com você.'},
+    {id:'kickoff',        rot:'Kickoff',
+     ds:'Primeira reunião de trabalho, já em nível estratégico.'},
+    {id:'growth_plan',    rot:'Growth Plan',
+     ds:'O plano de crescimento com metas, canais e prioridades.'},
+    {id:'operacao',       rot:'Operação',
+     ds:'Rotina de execução, otimização e acompanhamento.'},
+    {id:'cip',            rot:'Revisão de Parceria',
+     ds:'A cada trimestre, você avalia a parceria e recebe nossos compromissos.',
+     pesquisa:'mgpr'},
+    {id:'cap',            rot:'CAP', interna:true,
+     ds:'Plano de ação interno a partir da revisão de parceria.'},
+  ];
+  const SITUACOES = [
+    {v:'pendente',  r:'Não começou'},
+    {v:'andamento', r:'Em andamento'},
+    {v:'concluido', r:'Concluída'},
+  ];
+  const cat = id => ETAPAS.find(e => e.id === id) || null;
+
+  /* ---------------------------------------------------------------------
+     2. Ler e escrever a jornada
+     --------------------------------------------------------------------- */
+  /* Normaliza: o que está gravado manda, o catálogo completa. Assim uma
+     etapa nova no catálogo aparece para empresas já cadastradas, em vez de
+     exigir migração de dado. */
+  function jornadaDe(cli){
+    const salvas = (cli && cli.jornada && Array.isArray(cli.jornada.etapas))
+      ? cli.jornada.etapas : [];
+    const por = {};
+    salvas.forEach(e => { if(e && e.id) por[e.id] = e });
+    return ETAPAS.map(e=>{
+      const s = por[e.id] || {};
+      return {
+        id: e.id,
+        status: SITUACOES.some(x => x.v === s.status) ? s.status : 'pendente',
+        data: s.data || null,
+        /* etapa que ninguém configurou: visível se não for interna e já
+           tiver saído do 'pendente'. O cadastro é a exceção: ele nasce
+           visível, porque é a única coisa que o cliente tem para ver no
+           primeiro acesso. */
+        visivel: (s.visivel === true || s.visivel === false)
+          ? s.visivel
+          : (!e.interna && (e.id === 'cadastro' || s.status === 'andamento' || s.status === 'concluido')),
+      };
+    });
+  }
+  function etapaAtual(etapas){
+    return etapas.find(e => e.status === 'andamento')
+        || [...etapas].reverse().find(e => e.status === 'concluido')
+        || etapas[0];
+  }
+  async function gravar(cid, etapas){
+    const jornada = {etapas, atualizado_em: new Date().toISOString()};
+    const {error} = await sb.from('clients').update({jornada}).eq('id', cid);
+    if(error) throw error;
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === cid);
+    if(c) c.jornada = jornada;
+    return jornada;
+  }
+
+  /* Só o Vinícius configura. Ver o cabeçalho da seção sobre o que esta
+     trava é: guarda-corpo de interface, não fronteira de segurança. */
+  const DONO_DA_JORNADA = 'vinicius reis';
+  function normNome(s){
+    return String(s || '').toLowerCase().normalize('NFD')
+      .replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+  }
+  function podeConfigurar(){
+    if(typeof ME === 'undefined' || !ME) return false;
+    if(typeof ehDono === 'function' && !ehDono()) return false;
+    return normNome(ME.name || ME.nome) === DONO_DA_JORNADA;
+  }
+  window.mgJornadaPodeConfigurar = podeConfigurar;
+
+  /* ---------------------------------------------------------------------
+     3. A trilha, na página do cliente
+     --------------------------------------------------------------------- */
+  function minhaEmpresa(){
+    const id = (typeof ME !== 'undefined' && ME) ? ME.client_id : null;
+    if(!id) return null;
+    return (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(c => c.id === id) || null;
+  }
+  function dataBR(d){
+    if(!d) return '';
+    try{ return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') }catch(e){ return '' }
+  }
+  function trilhaHTML(){
+    const emp = minhaEmpresa(); if(!emp) return '';
+    const etapas = jornadaDe(emp).filter(e => e.visivel);
+    if(!etapas.length) return '';
+    /* Empresa cujo roadmap ninguém configurou ainda: `jornadaDe` deixa o
+       cadastro visível por padrão, mas ele fica 'pendente', e uma trilha com
+       um único passo apagado não informa nada — é ruído na página de quem já
+       está trabalhando com a gente há meses. A trilha só aparece quando
+       alguma etapa saiu do 'pendente', ou seja, quando existe jornada de
+       verdade para mostrar. */
+    if(!etapas.some(e => e.status !== 'pendente')) return '';
+    const atual = etapaAtual(etapas);
+    const feitas = etapas.filter(e => e.status === 'concluido').length;
+
+    return '<section class="mgp-bloco mgj-bloco">'
+      + '<header><span class="ic" style="background:rgba(45,111,207,.14);color:#2D6FCF">◷</span>'
+      + '<h2>Onde estamos</h2>'
+      + '<span class="n">' + feitas + ' de ' + etapas.length + '</span></header>'
+      + '<div class="mgj-trilha">'
+      + etapas.map(e=>{
+          const c = cat(e.id) || {rot:e.id, ds:''};
+          const eh = (atual && atual.id === e.id);
+          const marca = e.status === 'concluido' ? '✓' : (e.status === 'andamento' ? '●' : '');
+          return '<div class="mgj-et ' + e.status + '">'
+            + '<span class="marca">' + marca + '</span>'
+            + '<span class="tx"><b>' + esc(c.rot)
+              + (eh && e.status === 'andamento' ? '<span class="agora">agora</span>' : '') + '</b>'
+            + '<span>' + esc(c.ds || '') + '</span></span>'
+            + '<span class="quando">' + esc(e.data ? dataBR(e.data)
+                : (e.status === 'pendente' ? 'a seguir' : '')) + '</span>'
+            + '</div>';
+        }).join('')
+      + '</div></section>';
+  }
+
+  /* Entra na página do cliente pelo mesmo caminho da seção do MGP NPS: um
+     observador do DOM, porque o módulo do portal redesenha chamando a
+     função interna dele, fora do alcance de qualquer wrapper. */
+  function ajustar(){
+    if(typeof isAdmin === 'function' && isAdmin()) return;
+    const alvo = document.getElementById('v-portal'); if(!alvo) return;
+    /* formulário de pesquisa aberto: a página é dele, não mexe */
+    if(alvo.querySelector('.mgn-form, .mgn-snap')) return;
+    const cx = alvo.querySelector('.mgp-portal'); if(!cx) return;
+    if(cx.querySelector('.mgj-bloco')) return;
+    let html = '';
+    try{ html = trilhaHTML() }catch(e){ console.warn('[jornada]', e); return }
+    if(!html) return;
+    const no = document.createElement('div');
+    no.innerHTML = html;
+    const sec = no.firstElementChild; if(!sec) return;
+    /* a trilha vem antes das pesquisas e das demandas: é o "onde estamos" */
+    const cab = cx.querySelector('.mgp-cab');
+    if(cab) cab.after(sec); else cx.prepend(sec);
+  }
+  (function observar(n){
+    const alvo = document.getElementById('v-portal');
+    if(!alvo){ if(n < 75) setTimeout(()=>observar(n + 1), 400); return }
+    let pendente = false;
+    new MutationObserver(()=>{
+      if(pendente) return;
+      pendente = true;
+      setTimeout(()=>{ pendente = false; try{ ajustar() }catch(e){} }, 70);
+    }).observe(alvo, {childList:true, subtree:true});
+    ajustar();
+  })(0);
+
+  /* ---------------------------------------------------------------------
+     4. A configuração, na aba Clientes
+     --------------------------------------------------------------------- */
+  let CFG_ID = null;      /* empresa em configuração */
+  let CFG_ET = [];        /* rascunho, só grava no Salvar */
+
+  window.mgJornadaAbrir = function(cid){
+    if(!podeConfigurar()){ toast('A jornada é configurada pelo Vinícius'); return }
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === cid);
+    if(!c) return;
+    CFG_ID = cid;
+    CFG_ET = jornadaDe(c);
+    desenharCfg();
+    const el = document.getElementById('mg-jor');
+    if(el) el.classList.add('on');
+  };
+  window.mgJornadaFechar = function(){
+    if(typeof mgFechar === 'function') mgFechar('mg-jor');
+    else { const el = document.getElementById('mg-jor'); if(el) el.classList.remove('on') }
+    CFG_ID = null;
+  };
+  window.mgJornadaCampo = function(i, campo, v){
+    if(!CFG_ET[i]) return;
+    if(campo === 'visivel') CFG_ET[i].visivel = !!v;
+    else CFG_ET[i][campo] = v || null;
+    /* concluir sem data: carimba hoje, senão a trilha do cliente fica sem
+       referência de quando aconteceu */
+    if(campo === 'status' && v === 'concluido' && !CFG_ET[i].data){
+      CFG_ET[i].data = new Date().toISOString().slice(0, 10);
+    }
+    /* etapa que saiu do pendente passa a valer a pena mostrar; quem não
+       quiser desmarca na mesma tela */
+    if(campo === 'status' && v !== 'pendente'){
+      const c = cat(CFG_ET[i].id);
+      if(c && !c.interna) CFG_ET[i].visivel = true;
+    }
+    desenharCfg();
+  };
+
+  function desenharCfg(){
+    const cx = document.getElementById('jor-corpo'); if(!cx) return;
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === CFG_ID);
+    const tit = document.getElementById('jor-tit');
+    if(tit) tit.textContent = 'Jornada de ' + ((c && c.nome) || 'cliente');
+
+    const visiveis = CFG_ET.filter(e => e.visivel).length;
+    cx.innerHTML =
+      '<div class="desc" style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:14px">'
+      + 'Marque a situação de cada etapa e decida o que o cliente enxerga. '
+      + 'Ele vê hoje <b>' + visiveis + '</b> de ' + CFG_ET.length + ' etapas. '
+      + 'As marcadas como internas existem só para a equipe, e nascem escondidas.'
+      + '</div>'
+      + '<div class="mgj-cab"><span>Etapa</span><span>Situação</span><span>Data</span><span>Cliente vê</span></div>'
+      + '<div class="mgj-cfg">'
+      + CFG_ET.map((e, i)=>{
+          const k = cat(e.id) || {rot:e.id};
+          return '<div class="mgj-l">'
+            + '<span class="nm"><b>' + esc(k.rot) + '</b>'
+              + '<span>' + (k.interna ? 'uso interno' : esc((k.ds || '').slice(0, 64))) + '</span></span>'
+            + '<select onchange="mgJornadaCampo(' + i + ',\'status\',this.value)">'
+              + SITUACOES.map(s => '<option value="' + s.v + '"'
+                  + (e.status === s.v ? ' selected' : '') + '>' + esc(s.r) + '</option>').join('')
+              + '</select>'
+            + '<input type="date" value="' + esc(e.data || '') + '"'
+              + ' onchange="mgJornadaCampo(' + i + ',\'data\',this.value)">'
+            + '<label class="ve"><input type="checkbox"' + (e.visivel ? ' checked' : '')
+              + ' onchange="mgJornadaCampo(' + i + ',\'visivel\',this.checked)"> vê</label>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
+  window.mgJornadaSalvar = async function(){
+    if(!CFG_ID) return;
+    const b = document.getElementById('jor-btn');
+    const res = document.getElementById('jor-res');
+    if(b) b.disabled = true;
+    try{
+      await gravar(CFG_ID, CFG_ET);
+      if(res) res.innerHTML = '<div class="mg-res ok">✓ Jornada salva. O cliente já vê a trilha atualizada.</div>';
+      toast('Jornada salva');
+      if(typeof VIEW !== 'undefined' && VIEW === 'clientes' && typeof renderClientes === 'function') renderClientes();
+      setTimeout(window.mgJornadaFechar, 800);
+    }catch(e){
+      const m = (e && e.message) || 'erro';
+      if(res) res.innerHTML = '<div class="mg-res err">⚠ '
+        + (/jornada/i.test(m)
+            ? 'Falta a coluna <b>jornada</b> na tabela <b>clients</b>. A migração '
+              + '<b>20260912060000_mgp_jornada_do_cliente.sql</b> está no repositório e precisa ser aplicada.'
+            : esc(m))
+        + '</div>';
+    }finally{ if(b) b.disabled = false }
+  };
+
+  /* a janela */
+  (function(){
+    if(document.getElementById('mg-jor')) return;
+    const el = document.createElement('div');
+    el.className = 'mg-modal'; el.id = 'mg-jor';
+    el.innerHTML = '<div class="cx">'
+      + '<div class="cb"><h2 id="jor-tit">Jornada</h2>'
+      + '<button class="x" onclick="mgJornadaFechar()">✕</button></div>'
+      + '<div class="cc"><div id="jor-corpo"></div>'
+      + '<div style="display:flex;gap:9px;margin-top:16px">'
+        + '<button class="btn-p" id="jor-btn" onclick="mgJornadaSalvar()">Salvar jornada</button>'
+        + '<button class="mini-btn ghost" onclick="mgJornadaFechar()">Cancelar</button>'
+      + '</div><div id="jor-res" style="margin-top:10px"></div></div></div>';
+    el.addEventListener('click', e => { if(e.target === el) window.mgJornadaFechar() });
+    document.body.appendChild(el);
+  })();
+
+  /* o botão na linha de cada empresa, só para quem configura */
+  if(typeof renderClientes === 'function'){
+    const _rc = renderClientes;
+    renderClientes = async function(){
+      const r = await _rc.apply(this, arguments);
+      try{
+        if(typeof VIEW !== 'undefined' && VIEW !== 'clientes') return r;
+        if(!podeConfigurar()) return r;
+        document.querySelectorAll('#v-clientes .crow').forEach(linha=>{
+          if(linha.querySelector('[data-jornada]')) return;
+          let id = null;
+          linha.querySelectorAll('[onclick]').forEach(el=>{
+            if(id) return;
+            const m = (el.getAttribute('onclick') || '')
+              .match(/(?:abrirEditarCliente|pickClientLogo|renameClient|deleteClient)\(\s*(['"])(.*?)\1/);
+            if(m) id = m[2];
+          });
+          if(!id) return;
+          const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === id);
+          const et = c ? jornadaDe(c) : [];
+          const atual = et.length ? etapaAtual(et) : null;
+          const k = atual ? cat(atual.id) : null;
+          linha.insertAdjacentHTML('beforeend',
+            '<button class="mini-btn ghost" data-jornada="1"'
+            + ' title="' + esc(k ? ('agora: ' + k.rot) : 'configurar a jornada') + '"'
+            + ' onclick="mgJornadaAbrir(\'' + escJS(id) + '\')">Jornada</button>');
+        });
+      }catch(e){ console.warn('[jornada · clientes]', e) }
+      return r;
+    };
+  }
+
+  /* ---------------------------------------------------------------------
+     5. As etapas no cadastro da empresa
+
+     Escolher aqui o que essa conta vai ter evita o caso que a reunião
+     descreveu: o cliente entra e não sabe onde está. Marcar Pré-Discovery
+     ou Client Discovery faz mais do que acender a etapa — cria a pesquisa,
+     então ele já encontra o formulário no primeiro acesso.
+     --------------------------------------------------------------------- */
+  (function(){
+    const caixa = document.getElementById('nc-acesso');
+    if(!caixa || document.getElementById('nc-jornada')) return;
+
+    /* entra depois do bloco de acesso, antes dos botões */
+    const bloco = document.createElement('div');
+    bloco.id = 'nc-jornada';
+    bloco.innerHTML = '<div class="rot">Jornada desta conta</div>'
+      + '<div style="font-size:12px;color:var(--muted);line-height:1.55;margin:2px 0 2px">'
+      + 'O que vamos fazer com essa empresa. O cliente vê só o andamento do cadastro no '
+      + 'primeiro acesso; as outras etapas acendem conforme avançam. Pré-Discovery e '
+      + 'Client Discovery, quando marcados, já criam o questionário para ele responder.'
+      + '</div>'
+      + '<div class="mgj-esc">'
+      + ETAPAS.filter(e => !e.interna && e.id !== 'cadastro').map(e =>
+          '<label><input type="checkbox" data-etapa="' + esc(e.id) + '"'
+          + (e.id === 'pre_discovery' ? ' checked' : '') + '>' + esc(e.rot) + '</label>').join('')
+      + '</div>';
+    caixa.after(bloco);
+  })();
+
+  function escolhidasNoCadastro(){
+    return [...document.querySelectorAll('#nc-jornada input[data-etapa]')]
+      .filter(i => i.checked).map(i => i.dataset.etapa);
+  }
+
+  /* Monta a jornada da empresa nova: cadastro concluído hoje, a primeira
+     etapa escolhida em andamento, o resto pendente. */
+  function jornadaNova(escolhidas){
+    const hoje = new Date().toISOString().slice(0, 10);
+    const set = new Set(escolhidas);
+    let primeira = ETAPAS.find(e => set.has(e.id));
+    return ETAPAS.map(e=>{
+      if(e.id === 'cadastro') return {id:e.id, status:'concluido', data:hoje, visivel:true};
+      if(!set.has(e.id))      return {id:e.id, status:'pendente',  data:null,  visivel:false};
+      const eh = primeira && primeira.id === e.id;
+      return {id:e.id, status: eh ? 'andamento' : 'pendente', data:null,
+              visivel: !e.interna && !!eh};
+    });
+  }
+
+  /* Criar a empresa passa a gravar a jornada e a abrir as pesquisas. Isso
+     roda DEPOIS do original, que é quem insere em `clients` — então a
+     empresa nova já está em CLIENTS quando chegamos aqui. Falha aqui não
+     desfaz o cadastro: a empresa existe, e o que não deu é relatado na
+     própria janela, em vez de sumir num toast. */
+  if(typeof criarClienteCompleto === 'function'){
+    const _cc = criarClienteCompleto;
+    criarClienteCompleto = async function(){
+      const escolhidas = escolhidasNoCadastro();
+      const antes = new Set((typeof CLIENTS !== 'undefined' ? CLIENTS : []).map(c => c.id));
+      const r = await _cc.apply(this, arguments);
+      try{
+        const nova = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(c => !antes.has(c.id));
+        if(!nova) return r;
+
+        const recado = [];
+        try{ await gravar(nova.id, jornadaNova(escolhidas)) }
+        catch(e){
+          const m = (e && e.message) || '';
+          recado.push(/jornada/i.test(m)
+            ? 'A jornada não foi salva: falta a coluna <b>jornada</b> em <b>clients</b> '
+              + '(migração <b>20260912060000_mgp_jornada_do_cliente.sql</b>).'
+            : 'A jornada não foi salva: ' + esc(m));
+        }
+
+        /* as pesquisas das etapas marcadas */
+        for(const e of ETAPAS){
+          if(!e.pesquisa || !escolhidas.includes(e.id)) continue;
+          try{
+            const {error} = await sb.from('mgp_pesquisas').insert({
+              client_id: nova.id, tipo: e.pesquisa, rodada: 1, status: 'enviado',
+              respostas: {}, anexos: [], interno: {},
+              criado_por: (typeof ME !== 'undefined' && ME) ? ME.id : null,
+            });
+            if(error) throw error;
+          }catch(err){
+            const m = (err && err.message) || '';
+            recado.push(/mgp_pesquisas|does not exist|schema cache/i.test(m)
+              ? 'O ' + e.rot + ' não foi criado: falta a tabela <b>mgp_pesquisas</b> '
+                + '(migração <b>20260911060000_mgp_nps_pesquisas_cip_mgpr.sql</b>).'
+              : 'O ' + e.rot + ' não foi criado: ' + esc(m));
+          }
+        }
+
+        const res = document.getElementById('nc-res');
+        if(res && res.innerHTML){
+          const feitas = escolhidas.filter(id => { const k = cat(id); return k && k.pesquisa });
+          res.innerHTML += recado.length
+            ? '<div class="mg-res err" style="margin-top:8px">⚠ ' + recado.join('<br>') + '</div>'
+            : '<div class="mg-res ok" style="margin-top:8px">✓ Jornada montada'
+              + (feitas.length
+                  ? ', e ' + feitas.map(id => esc(cat(id).rot)).join(' e ')
+                    + ' já ' + (feitas.length > 1 ? 'aguardam' : 'aguarda') + ' resposta do cliente.'
+                  : '.')
+              + '</div>';
+        }
+      }catch(e){ console.warn('[jornada · cadastro]', e) }
+      return r;
+    };
+  }
+
+  /* limpar a janela também reseta as marcas */
+  if(typeof abrirNovoCliente === 'function'){
+    const _an = abrirNovoCliente;
+    abrirNovoCliente = window.abrirNovoCliente = function(){
+      const r = _an.apply(this, arguments);
+      try{
+        document.querySelectorAll('#nc-jornada input[data-etapa]').forEach(i=>{
+          i.checked = (i.dataset.etapa === 'pre_discovery');
+        });
+        const res = document.getElementById('jor-res'); if(res) res.innerHTML = '';
+      }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------------------------------------------------------------------
+     6. Atalho: a aba MGP NPS também mostra onde o cliente está
+     --------------------------------------------------------------------- */
+  window.mgJornadaResumo = function(cid){
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === cid);
+    if(!c) return null;
+    const et = jornadaDe(c);
+    const a = etapaAtual(et);
+    const k = a ? cat(a.id) : null;
+    return {
+      etapa: k ? k.rot : null,
+      status: a ? a.status : null,
+      feitas: et.filter(e => e.status === 'concluido').length,
+      visiveis: et.filter(e => e.visivel).length,
+      total: et.length,
+    };
+  };
+  window.mgJornadaEtapas = () => ETAPAS.map(e => ({id:e.id, rot:e.rot, interna:!!e.interna}));
+  window.mgJornadaDe = cid => {
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => x.id === cid);
+    return c ? jornadaDe(c) : [];
+  };
+})();
+</script>
+
 </body>
 </html>
