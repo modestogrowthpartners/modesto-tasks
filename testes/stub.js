@@ -12,7 +12,7 @@
   const FIX={
     profiles: perfis.map(p=>({...p, checklist:{items:[],notes:''}})),
     user_directory: perfis,
-    clients:[{id:CID,nome:'Cliente Um',logo_url:null,resumo:'resumo',plano_midia:true}],
+    clients:[{id:CID,nome:'Cliente Um',logo_url:null,resumo:'resumo',plano_midia:true,jornada:{}}],
     tasks:[{id:'t-1',client_id:CID,title:'Demanda de teste',description:'desc',status:'Não iniciado',
             priority:'Alta',assignees:['Vinícius','Renato'],assignee_ids:[UID],due:'2026-09-10',recurrence:'none',
             subtasks:[{text:'sub',done:false}],time_spent:120,timer_start:null,position:10,
@@ -44,6 +44,7 @@
       {id:'pc-2', conta:'Cliente Um Ads', client_id:CID, dia:'2026-09-03', mes:'2026-09', moeda:'BRL',
        dias_fechados:3, dias_no_mes:30, receita:60000, pedidos:30, conversoes:38, roas:4.0, roas_piso:3.5,
        canais:[{canal:'Meta Ads', investido:9000},{canal:'Google Ads', investido:6000}]}],
+    mgp_pesquisas:[],
     assistant_messages:[], assistant_actions:[]
   };
   /* persiste entre recargas, para dar sentido ao teste de persistência:
@@ -52,12 +53,16 @@
     const sm = localStorage.getItem('__stub_messages'); if(sm) FIX.messages = JSON.parse(sm);
     const sc = localStorage.getItem('__stub_channels'); if(sc) FIX.channels = JSON.parse(sc);
     const sb2 = localStorage.getItem('__stub_members'); if(sb2) FIX.channel_members = JSON.parse(sb2);
+    const sp = localStorage.getItem('__stub_pesquisas'); if(sp) FIX.mgp_pesquisas = JSON.parse(sp);
+    const sj = localStorage.getItem('__stub_clients');   if(sj) FIX.clients = JSON.parse(sj);
   }catch(e){}
   function persistir(){
     try{
       localStorage.setItem('__stub_messages', JSON.stringify(FIX.messages));
       localStorage.setItem('__stub_channels', JSON.stringify(FIX.channels));
       localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
+      localStorage.setItem('__stub_pesquisas', JSON.stringify(FIX.mgp_pesquisas));
+      localStorage.setItem('__stub_clients',   JSON.stringify(FIX.clients));
     }catch(e){}
   }
   /* movimento da semana corrente: uma demanda concluída e duas anotações,
@@ -126,7 +131,31 @@
     api.lte=(c,v)=>{ rows=rows.filter(r=>r[c] && String(r[c]) <= String(v)); return api };
     api.neq=()=>api;
     let novos=null;
-    const alvo=()=>novos||rows.filter(passa);
+    /* update e delete precisam esperar o filtro.
+       `.update(v).eq('id', x)` chega nesta ordem: se a gravação acontecer
+       dentro de update(), o `filtros` ainda está vazio e ela cai em TODAS
+       as linhas da tabela — que era o que acontecia aqui. Resultado: o
+       teste dava verde gravando na linha errada. Agora a escrita só
+       acontece quando alguém pede o resultado, com os filtros já
+       montados, que é como o Supabase de verdade se comporta. */
+    let pendente=null;   /* {op:'update', v} | {op:'delete'} */
+    function aplicar(){
+      if(!pendente) return;
+      const op=pendente; pendente=null;
+      const atingidas=rows.filter(passa);
+      if(op.op==='update'){
+        atingidas.forEach(r=>{
+          Object.assign(r, op.v);
+          const real=(FIX[table]||[]).find(x=>String(x.id)===String(r.id));
+          if(real) Object.assign(real, op.v);
+        });
+      }else{
+        const ids=new Set(atingidas.map(r=>String(r.id)));
+        FIX[table]=(FIX[table]||[]).filter(r=>!ids.has(String(r.id)));
+      }
+      novos=atingidas; persistir();
+    }
+    const alvo=()=>{ aplicar(); return novos||rows.filter(passa) };
     const um=()=>Promise.resolve({data:alvo()[0]||null,error:null});
     api.single=um; api.maybeSingle=um;
     api.insert=v=>{const a=Array.isArray(v)?v:[v];
@@ -136,15 +165,8 @@
     api.upsert=api.insert;
     /* o dublê copiava as linhas, então update mexia só na cópia e o teste
        nunca via a mudança. Agora ele grava também na fonte. */
-    api.update=v=>{
-      novos=rows.filter(passa).map(r=>Object.assign(r,v));
-      novos.forEach(n=>{ const real=(FIX[table]||[]).find(x=>String(x.id)===String(n.id));
-                         if(real) Object.assign(real, v) });
-      persistir();
-      return api;
-    };
-    api.delete=()=>{novos=rows.filter(passa).slice();
-      FIX[table]=(FIX[table]||[]).filter(r=>!passa(r)); persistir(); return api};
+    api.update=v=>{ pendente={op:'update', v}; return api };
+    api.delete=()=>{ pendente={op:'delete'}; return api };
     api.then=(res,rej)=>Promise.resolve({data:alvo(),error:null,count:alvo().length}).then(res,rej);
     return api;
   }
