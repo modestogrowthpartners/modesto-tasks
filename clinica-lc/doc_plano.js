@@ -1,4 +1,4 @@
-const modesto = require("./brand/modesto_docx.js");
+const modesto = require("./brand/bytech_docx.js");
 const U = require("./gerar_plano.js");
 const { Document, Packer, Paragraph, TextRun, AlignmentType, Header } = require("docx");
 const fs = require("fs");
@@ -54,7 +54,7 @@ C.push(U.table(
   [
     ["Prazo de código pronto", "12 semanas"],
     ["Prazo até app publicado nas duas lojas", "14 semanas"],
-    ["Custo de plataforma para a Modesto no build", "R$ 7.548 (3 meses)"],
+    ["Custo de plataforma para a Bytech no build", "R$ 7.548 (3 meses)"],
     ["Custo que fica com a Clínica LC (contas de loja)", "R$ 694 no primeiro ano"],
     ["Custo de operação depois do lançamento", "R$ 189/mês de infraestrutura"],
     ["Esforço estimado", "≈ 600 horas (2 devs × 25 h/semana × 12 semanas)"],
@@ -224,7 +224,7 @@ C.push(p("Este é o ponto em que um app de clínica difere de qualquer outro app
 C.push(spacer(80));
 C.push(h3("Papéis"));
 C.push(bulletKV("Clínica LC é a controladora.", "Ela decide a finalidade do tratamento e precisa nomear um encarregado (DPO), ainda que seja alguém da própria equipe."));
-C.push(bulletKV("Modesto Growth é a operadora.", "Trata dado em nome da clínica. Isso exige um contrato de operador anexo ao contrato principal, não é opcional e protege os dois lados."));
+C.push(bulletKV("A Bytech é a operadora.", "Trata dado em nome da clínica. Isso exige um contrato de operador anexo ao contrato principal, não é opcional e protege os dois lados."));
 C.push(spacer(120));
 C.push(h3("Base legal"));
 C.push(p("Para o dado clínico, a base é a tutela da saúde em procedimento realizado por profissionais de saúde (Art. 11, II, 'f'), que dispensa consentimento. Para tudo que não é assistencial (ranking, notificação motivacional, e-mail) a base é consentimento específico e destacado, que o paciente pode revogar sem perder acesso ao app."));
@@ -355,7 +355,7 @@ C.push(U.table(
   ], [40, 20, 20, 20], { numeric: false }
 ));
 C.push(spacer(140));
-C.push(h3("B · Build, 3 meses, custo da Modesto"));
+C.push(h3("B · Build, 3 meses, custo da Bytech"));
 C.push(U.table(
   ["Item", "Mês 1", "Mês 2", "Mês 3", "Total"],
   [
@@ -385,7 +385,7 @@ C.push(U.table(
   ], [34, 18, 48]
 ));
 C.push(spacer(140));
-C.push(h3("D · Custo total do primeiro ano para a Modesto"));
+C.push(h3("D · Custo total do primeiro ano para a Bytech"));
 C.push(U.table(
   ["Item", "Valor"],
   [
@@ -485,7 +485,7 @@ C.push(bulletKV("Oferecer a fase de discovery como porta de entrada.", "Se houve
 C.push(bulletKV("Não dar desconto na primeira reunião.", "Se pedirem, tirar escopo em vez de baixar preço. Ranking e painel avançado são os candidatos naturais."));
 C.push(spacer(160));
 C.push(callout("Ponto a decidir antes de terça",
-  "Quem fica dono do código e em nome de quem ficam as contas das lojas. Recomendação: as contas ficam no CNPJ da clínica, porque é o correto para um app médico, e o código permanece da Modesto, com licença de uso perpétua e irrevogável para a Clínica LC enquanto o contrato de sustentação estiver ativo. Se a clínica exigir a cessão total do código, isso é outro produto e o preço sobe para a faixa de teto."));
+  "Quem fica dono do código e em nome de quem ficam as contas das lojas. Recomendação: as contas ficam no CNPJ da clínica, porque é o correto para um app médico, e o código permanece da Bytech, com licença de uso perpétua e irrevogável para a Clínica LC enquanto o contrato de sustentação estiver ativo. Se a clínica exigir a cessão total do código, isso é outro produto e o preço sobe para a faixa de teto."));
 
 /* ============ MONTAGEM ============ */
 const doc = new Document({
