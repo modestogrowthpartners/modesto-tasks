@@ -76,8 +76,8 @@ const ROTA = {
   'ALLIANCE LATAM':   { google: { aba: ' [ALI] Google LATAM' }, meta: null },
   'D&G':              { google: { aba: '[DEG] Google' },        meta: null },
   'RUMINAR':          { google: null,                         meta: { aba: '[RUM] Meta', blocos: 2 } },
-  'WONDR EXPERIENCE': { google: { aba: '[WDR] Google' },        meta: { manual: true } },
-  'BARBIE':           { google: { aba: '[BRB] Google' },        meta: { manual: true } },
+  'WONDR EXPERIENCE': { google: { aba: '[WDR] Google', manual: true }, meta: { manual: true } },
+  'BARBIE':           { google: { aba: '[BRB] Google', manual: true }, meta: { manual: true } },
   'MEU RODAPE':       { google: { manual: true },             meta: { manual: true } },
   'DABELA SITE':      { google: { manual: true },             meta: { manual: true } },
   'DABELA REVENDA':   { google: null,                         meta: { manual: true } }
@@ -198,16 +198,27 @@ function importarPacingDoDrive_(ss, datas, alertas) {
 
     ['google', 'meta'].forEach(function (veiculo) {
       const destino = rota[veiculo];
+      if (!destino) return;
+
       const valores = conta[veiculo];
-      if (!destino || !valores) return;
+      // A Ruminar não tem a chave "meta": tem meta_lead e meta_whatsapp, e
+      // quem sabe disso é gravarRuminar_. Exigir conta[veiculo] aqui fazia a
+      // conta inteira ser ignorada em silêncio, sem entrar nem nas puladas.
+      if (!destino.blocos && !valores) return;
 
       try {
-        if (destino.manual) {
-          res.gravadas += gravarNaAbaCliente_(ss, nomeConta, veiculo, numeroDoDia, valores, res);
-        } else if (destino.blocos) {
+        if (destino.blocos) {
           res.gravadas += gravarRuminar_(ss, destino.aba, numeroDoDia, conta, res, datas.ontem);
         } else {
-          res.gravadas += gravarNaAbaBruta_(ss, destino.aba, numeroDoDia, valores, res, datas.ontem);
+          // `aba` e `manual` não são exclusivos. Wondr e Barbie têm aba bruta
+          // de Google E célula fixa na aba do cliente: a fórmula que ligaria
+          // as duas não existe, então gravar só na bruta não chega no pacing.
+          if (destino.aba) {
+            res.gravadas += gravarNaAbaBruta_(ss, destino.aba, numeroDoDia, valores, res, datas.ontem);
+          }
+          if (destino.manual) {
+            res.gravadas += gravarNaAbaCliente_(ss, nomeConta, veiculo, numeroDoDia, valores, res);
+          }
         }
       } catch (e) {
         res.puladas.push(nomeConta + ' / ' + veiculo + ' -> ' + (destino.aba || 'aba do cliente') +
