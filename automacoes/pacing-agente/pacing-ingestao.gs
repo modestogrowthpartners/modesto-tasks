@@ -115,6 +115,16 @@ function importarPacingAgora() {
     ? 'Importadas ' + res.gravadas + ' células de ' + res.contas + ' contas, arquivo ' + res.arquivo
     : 'Nada importado: ' + res.motivo;
   Logger.log(msg);
+
+  // O que foi pulado é a informação que importa quando o número vem menor do
+  // que o esperado. Sem isso, a execução diz "importadas 20 células" e parece
+  // sucesso, quando na verdade 40 falharam em silêncio.
+  if (res.puladas && res.puladas.length) {
+    Logger.log('PULADAS (%s):', res.puladas.length);
+    res.puladas.forEach(function (x) { Logger.log('  - %s', x); });
+  } else {
+    Logger.log('Nenhuma célula pulada.');
+  }
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
   return res;
 }
@@ -198,7 +208,8 @@ function importarPacingDoDrive_(ss, datas, alertas) {
           res.gravadas += gravarNaAbaBruta_(ss, destino.aba, numeroDoDia, valores, res, datas.ontem);
         }
       } catch (e) {
-        res.puladas.push(nomeConta + ' / ' + veiculo + ': ' + e.message);
+        res.puladas.push(nomeConta + ' / ' + veiculo + ' -> ' + (destino.aba || 'aba do cliente') +
+                         ': ' + e.message);
         alertas.push(ingAlerta_(ingNivel_().ATENCAO, nomeConta, 'Lançamento falhou',
           'Veículo ' + veiculo + ': ' + e.message, 'ing_' + nomeConta + '_' + veiculo));
       }
