@@ -389,6 +389,10 @@ function analisarConta_(ss, c, datas, orcamentos, alertas) {
 
   const recomendacoes = aba.getRange(31, 1, 6, 6).getValues(); // A31:F36
 
+  // O e-mail mostra uma linha por veículo, então o detalhe precisa sobreviver
+  // a esta função em vez de virar só alerta.
+  c.veiculos = [];
+
   veiculos.forEach((v, k) => {
     const budget = num_(aba.getRange(6, v.col).getValue()) || 0;
     const investido = num_(aba.getRange(7, v.col).getValue()) || 0;
@@ -398,6 +402,18 @@ function analisarConta_(ss, c, datas, orcamentos, alertas) {
     const roas = num_(aba.getRange(26, v.col).getValue()) || 0;
     const rotulo = c.nome + ' / ' + v.nome;
     const chaveBase = c.nome + '|' + v.nome;
+
+    c.veiculos.push({
+      nome: v.nome,
+      budget: budget,
+      investido: investido,
+      metaReceita: num_(aba.getRange(18, v.col).getValue()) || 0,
+      receita: num_(aba.getRange(19, v.col).getValue()) || 0,
+      metaCpa: metaCpa, cpa: cpa, metaRoas: metaRoas, roas: roas,
+      idx: budget > 0 ? (investido / budget) / datas.pctMes : null,
+      proj: budget > 0 ? investido / datas.diasDecorridos * datas.diasNoMes : null,
+      ritmo: (budget > 0 && datas.diasRestantes > 0) ? (budget - investido) / datas.diasRestantes : null
+    });
 
     // Pacing por veículo
     if (budget > 0) {
@@ -640,47 +656,202 @@ function postSlackApi_(token, channel, text) {
 // ---------------------------------------------------------------------
 //  FORMATAÇÃO DAS MENSAGENS
 // ---------------------------------------------------------------------
+/**
+ * E-mail no padrão visual da Modesto: fundo bege, cabeçalho preto com filete
+ * dourado, uma linha por veículo.
+ *
+ * O número sozinho não decide nada. Cada célula mostra realizado sobre meta e
+ * a bolinha diz se está dentro, perto ou fora, para o leitor conseguir varrer
+ * a tabela sem fazer conta de cabeça.
+ */
 function montarHtml_(crit, aten, info, painel, datas, url, soCriticos) {
-  const css = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;';
-  let h = '<div style="' + css + '">';
-  h += '<h2 style="margin:0 0 4px">Controle de Pacing | ' + (soCriticos ? 'Escalação para ' + CONFIG.NOME_ESCALACAO : 'Resumo diário') + '</h2>';
-  h += '<div style="color:#555;margin-bottom:14px">Dados de ' + datas.labelOntem + ' (dia ' + datas.diasDecorridos + ' de ' + datas.diasNoMes +
-    ', ' + pct_(datas.pctMes) + ' do mês) · <a href="' + url + '">abrir planilha</a></div>';
-
-  const sec = (titulo, cor, lista, vazio) => {
-    let s = '<h3 style="margin:18px 0 6px;color:' + cor + '">' + titulo + ' (' + lista.length + ')</h3>';
-    if (!lista.length) return s + '<div style="color:#777">' + vazio + '</div>';
-    const porConta = agrupar_(lista);
-    Object.keys(porConta).forEach(conta => {
-      s += '<div style="margin:6px 0 2px;font-weight:bold">' + conta + '</div><ul style="margin:0 0 8px 18px;padding:0">';
-      porConta[conta].forEach(a => {
-        s += '<li style="margin-bottom:4px"><b>' + esc_(a.titulo) + '</b> <span style="color:#888;font-size:12px">(' + a.persistencia + ')</span><br>' + esc_(a.detalhe) + '</li>';
-      });
-      s += '</ul>';
-    });
-    return s;
+  const C = {
+    verde: '#2E7D4F', amarelo: '#C48A00', vermelho: '#B3261E', ouro: '#C9A227',
+    preto: '#1A1A18', texto: '#4A4A46', fraco: '#9A978F', bege: '#F0EDE6',
+    linha: '#E2DDD3', sub: '#BDB9B0'
   };
-  h += sec('🔴 CRÍTICO - ação hoje', '#b00020', crit, 'Nenhum crítico.');
-  if (!soCriticos) {
-    h += sec('🟡 ATENÇÃO - ajustar no mesmo dia', '#b26a00', aten, 'Nada em atenção.');
-    h += sec('ℹ️ Realocação e higiene', '#1a5fb4', info, 'Sem itens.');
+  const L = CONFIG.LIMITES;
 
-    // Tabela do painel
-    h += '<h3 style="margin:18px 0 6px">Visão geral da carteira</h3>';
-    h += '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;font-size:12px">';
-    h += '<tr style="background:#eee"><th align="left">Conta</th><th>Budget</th><th>Investido</th><th>Índice</th><th>Status</th><th>ROAS</th><th>Negócio</th></tr>';
-    painel.contas.forEach(c => {
-      const idx = c.budget > 0 ? (c.investido / c.budget) / datas.pctMes : null;
-      const st = idx === null ? '—' : classificar_(idx, c.credito);
-      const cor = st === 'FORA DE PACING' ? '#ffd6d6' : st === 'ATENCAO' ? '#fff2cc' : st === 'OK' ? '#e3f6e3' : '#fff';
-      h += '<tr style="background:' + cor + '"><td>' + esc_(c.nome) + (c.credito ? ' <small>(crédito)</small>' : '') + '</td><td align="right">' + brl_(c.budget) +
-        '</td><td align="right">' + brl_(c.investido) + '</td><td align="center">' + (idx === null ? '—' : idx.toFixed(2)) + '</td><td align="center">' + st +
-        '</td><td align="center">' + (c.roas ? c.roas.toFixed(2) : '—') + '</td><td align="center">' + esc_(c.statusNegocio || '—') + '</td></tr>';
-    });
-    h += '</table>';
+  function curto(v) {
+    v = Number(v) || 0;
+    if (Math.abs(v) >= 1000) return 'R$ ' + (v / 1000).toFixed(1).replace('.', ',') + 'k';
+    return brl_(v);
   }
-  h += '<div style="color:#999;font-size:11px;margin-top:18px">Gerado automaticamente pelo Apps Script de Controle de Pacing. Regras: verde 0,95 a 1,05 · amarelo 0,85 a 0,94 ou 1,06 a 1,15 · vermelho fora disso · contas de crédito são críticas acima de 1,05 e na regra dos 97%.</div>';
-  return h + '</div>';
+  function corIndice(idx, credito) {
+    if (idx === null) return null;
+    if (idx < L.AMARELO_MIN || idx > L.AMARELO_MAX) return C.vermelho;
+    if (credito && idx > L.CREDITO_MAX) return C.vermelho;
+    if (idx < L.VERDE_MIN || idx > L.VERDE_MAX) return C.amarelo;
+    return C.verde;
+  }
+  // Maior é melhor em receita e ROAS; em CPA é o contrário.
+  function corMeta(real, meta, maiorMelhor) {
+    if (!meta) return null;
+    const r = maiorMelhor ? real / meta : meta / real;
+    if (!isFinite(r) || r <= 0) return C.vermelho;
+    if (r >= 0.95) return C.verde;
+    if (r >= 0.85) return C.amarelo;
+    return C.vermelho;
+  }
+  function vazio() {
+    return '<td style="text-align:right;padding:10px 6px;border-bottom:1px solid ' + C.linha +
+           ';color:' + C.fraco + '">&mdash;</td>';
+  }
+  function celula(cor, valor, meta, nota) {
+    let h = '<td style="text-align:right;padding:10px 6px;border-bottom:1px solid ' + C.linha + ';white-space:nowrap">';
+    if (cor) h += '<span style="color:' + cor + ';font-size:15px">&#9679;</span> ';
+    h += '<b style="color:' + (cor === C.vermelho ? C.vermelho : C.preto) + '">' + valor;
+    if (meta) h += '<span style="font-weight:normal;color:' + C.fraco + '"> / ' + meta + '</span>';
+    h += '</b>';
+    if (nota) h += '<br><span style="font-size:11px;color:' + (cor || C.fraco) + '">' + nota + '</span>';
+    return h + '</td>';
+  }
+  function secao(titulo, fundo) {
+    return '<tr><td style="background:' + (fundo || '#fff') + ';padding:18px 30px 6px 30px">' +
+      '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:' + C.ouro +
+      ';font-weight:bold">' + titulo + '</div></td></tr>';
+  }
+
+  // ---- contagem por veículo, que é a unidade que o time trata
+  let noRitmo = 0, comAjuste = 0, foraDoPacing = 0;
+  painel.contas.forEach(function (c) {
+    (c.veiculos || []).forEach(function (v) {
+      const cor = corIndice(v.idx, c.credito);
+      if (cor === C.verde) noRitmo++;
+      else if (cor === C.amarelo) comAjuste++;
+      else if (cor === C.vermelho) foraDoPacing++;
+    });
+  });
+
+  let h = '<div style="background:' + C.bege + ';padding:28px 0;font-family:Inter,\'Helvetica Neue\',Arial,sans-serif;color:' + C.preto + '">';
+  h += '<table width="820" align="center" cellpadding="0" cellspacing="0" style="border-collapse:collapse">';
+
+  // ---- cabeçalho
+  h += '<tr><td style="background:' + C.preto + ';padding:26px 30px;border-bottom:3px solid ' + C.ouro + '">';
+  h += '<div style="font-size:11px;letter-spacing:2px;color:' + C.ouro + ';text-transform:uppercase">Modesto Growth Partners &middot; Controle de mídia</div>';
+  h += '<div style="font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:26px;color:#fff;margin-top:6px">' +
+       (soCriticos ? 'Escalação para ' + esc_(CONFIG.NOME_ESCALACAO) : 'Alerta de pacing') + '</div>';
+  h += '<div style="font-size:12px;color:' + C.sub + ';margin-top:6px">Dados fechados de ' + datas.labelOntem +
+       ' &middot; dia ' + datas.diasDecorridos + ' de ' + datas.diasNoMes + ' (' + pct_(datas.pctMes) + ' do mês) &middot; ' +
+       '<a href="' + url + '" style="color:' + C.ouro + ';text-decoration:none">abrir planilha &#8599;</a></div>';
+  h += '</td></tr>';
+
+  // ---- resumo
+  h += '<tr><td style="background:#fff;padding:14px 30px;border-bottom:1px solid ' + C.linha + ';font-size:13px">';
+  h += '<span style="color:' + C.verde + ';font-weight:bold">&#9679; ' + noRitmo + '</span> no ritmo &nbsp;&nbsp;&nbsp;';
+  h += '<span style="color:' + C.amarelo + ';font-weight:bold">&#9679; ' + comAjuste + '</span> com ajuste &nbsp;&nbsp;&nbsp;';
+  h += '<span style="color:' + C.vermelho + ';font-weight:bold">&#9679; ' + foraDoPacing + '</span> fora do pacing &nbsp;&nbsp;&nbsp;';
+  h += '<span style="color:' + C.fraco + '">' + crit.length + ' crítico(s) &middot; ' + aten.length + ' atenção</span>';
+  h += '</td></tr>';
+
+  // ---- ação hoje
+  const acoes = soCriticos ? crit : crit.concat(aten);
+  h += secao('Ação hoje');
+  if (!acoes.length) {
+    h += '<tr><td style="background:#fff;padding:6px 30px;border-bottom:1px solid ' + C.linha + ';font-size:13px;color:' + C.texto + '">Carteira no ritmo. Nenhum ajuste necessário hoje.</td></tr>';
+  }
+  acoes.forEach(function (a) {
+    const cor = a.nivel === NIVEL.CRITICO ? C.vermelho : C.amarelo;
+    const partes = String(a.titulo).split(': ');
+    const alvo = partes.length > 1 ? partes.slice(1).join(': ') : a.conta;
+    const desc = partes[0];
+    h += '<tr><td style="background:#fff;padding:6px 30px;border-bottom:1px solid ' + C.linha + ';font-size:13px">';
+    h += '<span style="color:' + cor + '">&#9679;</span> <b>' + esc_(alvo.replace(' / ', ' · ')) + '</b> ';
+    h += '<span style="color:' + C.texto + '">' + esc_(desc.toLowerCase()) + '. ' + esc_(a.detalhe) + '</span>';
+    if (a.persistencia && a.persistencia !== 'NOVO') {
+      h += ' <span style="font-size:11px;color:' + C.fraco + '">(' + esc_(a.persistencia) + ')</span>';
+    }
+    h += '</td></tr>';
+  });
+
+  if (soCriticos) {
+    h += '<tr><td style="background:#fff;padding:14px 30px;font-size:10px;color:' + C.fraco + ';border-top:1px solid ' + C.linha + '">Escalação automática. O resumo completo da carteira foi enviado ao time.</td></tr>';
+    return h + '</table></div>';
+  }
+
+  // ---- tabela de contas
+  h += secao('Contas');
+  h += '<tr><td style="background:#fff;padding:0 30px 20px 30px">';
+  h += '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px"><tr>';
+  ['Conta', 'Plataforma', 'Investimento', 'Receita', 'ROAS', 'CPA'].forEach(function (t, i) {
+    h += '<th style="text-align:' + (i < 2 ? 'left' : 'right') + ';font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:' +
+         C.texto + ';padding:8px 6px;border-bottom:2px solid ' + C.preto + '">' + t + '</th>';
+  });
+  h += '</tr>';
+
+  const faltando = [];
+  painel.contas.forEach(function (c) {
+    const veics = c.veiculos || [];
+    if (!veics.length) return;
+    veics.forEach(function (v, i) {
+      const rot = c.nome + ' &middot; ' + esc_(v.nome);
+      const gaps = [];
+      h += '<tr><td style="padding:10px 6px;border-bottom:1px solid ' + C.linha + ';white-space:nowrap">';
+      if (i === 0) {
+        h += '<b>' + esc_(c.nome) + '</b>';
+        if (c.credito) h += '<br><span style="font-size:10px;color:' + C.ouro + ';letter-spacing:1px">CRÉDITO AGÊNCIA</span>';
+      }
+      h += '</td><td style="padding:10px 6px;border-bottom:1px solid ' + C.linha + ';color:' + C.texto + '">' + esc_(v.nome) + '</td>';
+
+      // investimento
+      if (v.budget > 0) {
+        const cor = corIndice(v.idx, c.credito);
+        let nota = '';
+        if (cor !== C.verde && v.proj !== null) {
+          const desvio = v.proj - v.budget;
+          nota = 'fecha em ' + curto(v.proj) + ' (' + (desvio >= 0 ? '+' : '') + curto(desvio) + ')';
+          if (v.ritmo !== null) nota += ' · ' + (desvio >= 0 ? 'frear ' : 'acelerar ') + brl_(v.ritmo) + '/dia';
+        }
+        h += celula(cor, brl_(v.investido), curto(v.budget), nota);
+      } else { h += vazio(); gaps.push('budget'); }
+
+      // receita
+      if (v.metaReceita > 0) {
+        const cor = corMeta(v.receita / Math.max(datas.pctMes, 0.0001), v.metaReceita, true);
+        const projR = datas.diasDecorridos ? v.receita / datas.diasDecorridos * datas.diasNoMes : 0;
+        const gap = projR - v.metaReceita;
+        const nota = cor === C.vermelho ? 'fecha em ' + curto(projR) + ' · gap ' + curto(gap) : '';
+        h += celula(cor, brl_(v.receita), curto(v.metaReceita), nota);
+      } else { h += vazio(); gaps.push('meta de receita'); }
+
+      // roas
+      if (v.metaRoas > 0 && v.roas > 0) {
+        const cor = corMeta(v.roas, v.metaRoas, true);
+        h += celula(cor, v.roas.toFixed(2), v.metaRoas.toFixed(1), cor === C.vermelho ? 'meta ' + v.metaRoas.toFixed(2) : '');
+      } else { h += vazio(); gaps.push(v.metaRoas > 0 ? 'ROAS' : 'meta de ROAS'); }
+
+      // cpa
+      if (v.metaCpa > 0 && v.cpa > 0) {
+        const cor = corMeta(v.cpa, v.metaCpa, false);
+        h += celula(cor, brl_(v.cpa), brl_(v.metaCpa), cor === C.vermelho ? 'meta ' + brl_(v.metaCpa) : '');
+      } else { h += vazio(); gaps.push(v.metaCpa > 0 ? 'CPA' : 'meta de CPA'); }
+
+      h += '</tr>';
+      if (gaps.length) faltando.push({ rotulo: rot, campos: gaps });
+    });
+  });
+  h += '</table></td></tr>';
+
+  // ---- dados faltantes
+  if (faltando.length) {
+    h += secao('Dados faltantes', C.bege);
+    h += '<tr><td style="background:' + C.bege + ';padding:0 30px 20px 30px;font-size:12px;color:' + C.texto + '">';
+    faltando.forEach(function (f) {
+      h += '<div style="padding:4px 0;border-bottom:1px solid ' + C.linha + '"><b style="color:' + C.preto + '">' +
+           f.rotulo + '</b> &nbsp;' + f.campos.join(' · ') + '</div>';
+    });
+    h += '</td></tr>';
+  }
+
+  // ---- legenda
+  h += '<tr><td style="background:#fff;padding:14px 30px;font-size:10px;color:' + C.fraco + ';border-top:1px solid ' + C.linha + '">';
+  h += '<span style="color:' + C.verde + '">&#9679;</span> dentro da meta &nbsp; ';
+  h += '<span style="color:' + C.amarelo + '">&#9679;</span> até 15% fora &nbsp; ';
+  h += '<span style="color:' + C.vermelho + '">&#9679;</span> acima de 15% fora &nbsp; &mdash; sem meta ou sem dado. ';
+  h += 'Investimento e receita comparados com o % do mês já decorrido. Contas de crédito da agência ficam vermelhas com 5% de sobregasto.';
+  h += '</td></tr>';
+
+  return h + '</table></div>';
 }
 
 function montarTextoSlack_(crit, aten, info, datas, url, dm) {
