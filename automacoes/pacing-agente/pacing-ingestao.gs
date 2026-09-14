@@ -107,7 +107,7 @@ const ROTULOS_CLIENTE = {
 /** Roda a ingestão à mão, sem alertas. Use para autorizar e para testar. */
 function importarPacingAgora() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const datas = calcularDatas_();
+  const datas = ingDatas_();
   const alertas = [];
   const res = importarPacingDoDrive_(ss, datas, alertas);
   SpreadsheetApp.flush();
@@ -122,7 +122,7 @@ function importarPacingAgora() {
 /** Monta a aba ALERTAS à mão, a partir da última execução. */
 function escreverAbaAlertasAgora() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  escreverAbaAlertas_(ss, [], calcularDatas_());
+  escreverAbaAlertas_(ss, [], ingDatas_());
 }
 
 // ---------------------------------------------------------------------
@@ -135,7 +135,7 @@ function escreverAbaAlertasAgora() {
  * contas que estão certas.
  */
 function importarPacingDoDrive_(ss, datas, alertas) {
-  const dia = Utilities.formatDate(datas.ontem, CONFIG.FUSO, 'yyyy-MM-dd');
+  const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
   const nome = ING.PREFIXO + dia + '.json';
   const res = { ok: false, arquivo: nome, contas: 0, gravadas: 0, puladas: [], motivo: '' };
 
@@ -144,7 +144,7 @@ function importarPacingDoDrive_(ss, datas, alertas) {
     const it = DriveApp.getFolderById(ING.PASTA_ID).getFilesByName(nome);
     if (!it.hasNext()) {
       res.motivo = 'arquivo ' + nome + ' não encontrado na pasta de ingestão';
-      alertas.push(alerta_(NIVEL.CRITICO, 'GERAL', 'Coleta do agente não chegou',
+      alertas.push(ingAlerta_(ingNivel_().CRITICO, 'GERAL', 'Coleta do agente não chegou',
         'O agente das 7:30 não deixou o arquivo ' + nome + ' na pasta de ingestão. ' +
         'A planilha está com os números de ontem, e todo alerta abaixo pode estar defasado.',
         'ingestao_ausente'));
@@ -153,7 +153,7 @@ function importarPacingDoDrive_(ss, datas, alertas) {
     arquivo = it.next();
   } catch (e) {
     res.motivo = 'pasta de ingestão inacessível: ' + e.message;
-    alertas.push(alerta_(NIVEL.CRITICO, 'GERAL', 'Pasta de ingestão inacessível', res.motivo, 'ingestao_pasta'));
+    alertas.push(ingAlerta_(ingNivel_().CRITICO, 'GERAL', 'Pasta de ingestão inacessível', res.motivo, 'ingestao_pasta'));
     return res;
   }
 
@@ -162,18 +162,18 @@ function importarPacingDoDrive_(ss, datas, alertas) {
     dados = JSON.parse(arquivo.getBlob().getDataAsString('UTF-8'));
   } catch (e) {
     res.motivo = 'JSON inválido: ' + e.message;
-    alertas.push(alerta_(NIVEL.CRITICO, 'GERAL', 'Coleta do agente ilegível', res.motivo, 'ingestao_json'));
+    alertas.push(ingAlerta_(ingNivel_().CRITICO, 'GERAL', 'Coleta do agente ilegível', res.motivo, 'ingestao_json'));
     return res;
   }
 
   if (dados.data !== dia) {
     res.motivo = 'o arquivo diz ' + dados.data + ' e o dia a lançar é ' + dia;
-    alertas.push(alerta_(NIVEL.CRITICO, 'GERAL', 'Coleta com data errada',
+    alertas.push(ingAlerta_(ingNivel_().CRITICO, 'GERAL', 'Coleta com data errada',
       res.motivo + '. Nada foi gravado, para não lançar o dia errado na linha errada.', 'ingestao_data'));
     return res;
   }
 
-  const numeroDoDia = Number(Utilities.formatDate(datas.ontem, CONFIG.FUSO, 'd'));
+  const numeroDoDia = Number(Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'd'));
 
   Object.keys(dados.contas || {}).forEach(function (nomeConta) {
     const rota = ROTA[nomeConta];
@@ -199,14 +199,14 @@ function importarPacingDoDrive_(ss, datas, alertas) {
         }
       } catch (e) {
         res.puladas.push(nomeConta + ' / ' + veiculo + ': ' + e.message);
-        alertas.push(alerta_(NIVEL.ATENCAO, nomeConta, 'Lançamento falhou',
+        alertas.push(ingAlerta_(ingNivel_().ATENCAO, nomeConta, 'Lançamento falhou',
           'Veículo ' + veiculo + ': ' + e.message, 'ing_' + nomeConta + '_' + veiculo));
       }
     });
   });
 
   if (res.puladas.length) {
-    alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Lançamentos pulados',
+    alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Lançamentos pulados',
       res.puladas.join(' · '), 'ingestao_puladas'));
   }
 
@@ -290,7 +290,7 @@ function gravarNaAbaCliente_(ss, nomeAba, veiculo, dia, valores, res) {
   const alvo = veiculo === 'google' ? 'google ads' : 'meta ads';
   let ini = -1, fim = ultima;
   for (let i = 0; i < linhaBloco.length; i++) {
-    const v = normalizar_(String(linhaBloco[i] || ''));
+    const v = ingNormalizar_(String(linhaBloco[i] || ''));
     if (!v) continue;
     if (v === alvo) ini = i;
     else if (ini >= 0 && i > ini) { fim = i; break; }
@@ -304,7 +304,7 @@ function gravarNaAbaCliente_(ss, nomeAba, veiculo, dia, valores, res) {
     if (valores[campo] === undefined || valores[campo] === null) return;
     let col = -1;
     for (let i = ini; i < fim; i++) {
-      if (ROTULOS_CLIENTE[campo].indexOf(normalizar_(String(cab[i] || ''))) >= 0) { col = i; break; }
+      if (ROTULOS_CLIENTE[campo].indexOf(ingNormalizar_(String(cab[i] || ''))) >= 0) { col = i; break; }
     }
     if (col < 0) return;
     if (escreverSeNaoForFormula_(aba, linha, col, valores[campo], nomeAba, res)) n++;
@@ -351,7 +351,7 @@ function acharColunaPorRotulo_(cab, rotulos, ocorrencia) {
   const alvo = ocorrencia || 0;
   let vistas = 0;
   for (let i = 0; i < cab.length; i++) {
-    if (rotulos.indexOf(normalizar_(String(cab[i] || ''))) >= 0) {
+    if (rotulos.indexOf(ingNormalizar_(String(cab[i] || ''))) >= 0) {
       if (vistas === alvo) return i;
       vistas++;
     }
@@ -369,7 +369,7 @@ function acharColunaPorRotulo_(cab, rotulos, ocorrencia) {
  * duplicar.
  */
 function escreverAbaAlertas_(ss, alertas, datas) {
-  const CAB = ['Data', 'Enviado em', 'Nível', 'Conta', 'Título', 'Detalhe', 'Persistente', 'Chave'];
+  const CAB = ['Data', 'Enviado em', 'Nível', 'Conta', 'Título', 'Detalhe', 'Persistência', 'Chave'];
   let aba = ss.getSheetByName(ING.ABA_ALERTAS);
 
   if (!aba) {
@@ -381,8 +381,8 @@ function escreverAbaAlertas_(ss, alertas, datas) {
     aba.setColumnWidth(6, 520);
   }
 
-  const dia = Utilities.formatDate(datas.ontem, CONFIG.FUSO, 'yyyy-MM-dd');
-  const agora = Utilities.formatDate(new Date(), CONFIG.FUSO, 'yyyy-MM-dd HH:mm');
+  const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
+  const agora = Utilities.formatDate(new Date(), ingCfg_().FUSO, 'yyyy-MM-dd HH:mm');
 
   // Tira as linhas deste mesmo dia, de baixo para cima, para o índice não andar.
   const ultima = aba.getLastRow();
@@ -400,14 +400,14 @@ function escreverAbaAlertas_(ss, alertas, datas) {
 
   const linhas = alertas.map(function (a) {
     return [dia, agora, a.nivel, a.conta, a.titulo, a.detalhe,
-            a.persistente ? 'sim' : '', a.chave || ''];
+            a.persistencia || '', a.chave || ''];
   });
   aba.getRange(aba.getLastRow() + 1, 1, linhas.length, CAB.length).setValues(linhas);
 
   // Crítico em vermelho, atenção em amarelo. É o que o olho procura primeiro.
   const inicio = aba.getLastRow() - linhas.length + 1;
   linhas.forEach(function (l, i) {
-    const cor = l[2] === NIVEL.CRITICO ? '#FFC7CE' : (l[2] === NIVEL.ATENCAO ? '#FFF2CC' : null);
+    const cor = l[2] === ingNivel_().CRITICO ? '#FFC7CE' : (l[2] === ingNivel_().ATENCAO ? '#FFF2CC' : null);
     if (cor) aba.getRange(inicio + i, 1, 1, CAB.length).setBackground(cor);
   });
 }
@@ -438,7 +438,7 @@ function postarNoCanalPacing_(blocos, alertas) {
 
   if (webhook) {
     try {
-      blocos.forEach(function (txt) { postSlack_(webhook, { text: txt }); });
+      blocos.forEach(function (txt) { ingPostSlack_(webhook, { text: txt }); });
       res.ok = true; res.via = 'webhook';
       return res;
     } catch (e) {
@@ -448,7 +448,7 @@ function postarNoCanalPacing_(blocos, alertas) {
 
   if (token && canal) {
     try {
-      blocos.forEach(function (txt) { postSlackApi_(token, canal, txt); });
+      blocos.forEach(function (txt) { ingPostSlackApi_(token, canal, txt); });
       res.ok = true; res.via = 'bot token em ' + canal;
       return res;
     } catch (e) {
@@ -459,10 +459,98 @@ function postarNoCanalPacing_(blocos, alertas) {
   }
 
   if (alertas) {
-    alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack não recebeu o alerta',
+    alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Slack não recebeu o alerta',
       'O resumo foi por e-mail mas não chegou em ' + ING.SLACK_CANAL_NOME + '. ' + res.erro,
       'slack_falhou'));
   }
   Logger.log('Slack não enviado: %s', res.erro);
   return res;
+}
+
+// ---------------------------------------------------------------------
+//  COMPATIBILIDADE
+// ---------------------------------------------------------------------
+/*
+ * Este arquivo depende do `pacing_alertas.gs` para CONFIG, NIVEL, alerta_,
+ * normalizar_, calcularDatas_, postSlack_ e postSlackApi_.
+ *
+ * Quando o companheiro não está no projeto, o Apps Script derruba a execução
+ * com `ReferenceError: X is not defined`, que não diz o que fazer. Os
+ * acessores abaixo existem para o erro virar uma frase em português dizendo
+ * qual arquivo falta, e para as funções que dá para reproduzir sozinho
+ * continuarem funcionando.
+ *
+ * Nenhum deles redeclara função do outro arquivo. Redeclarar faria a última
+ * definição carregada vencer em silêncio, e um dia o pacing rodaria com a
+ * régua errada sem ninguém saber.
+ */
+
+/** Lista o que está faltando. Rode para diagnosticar. */
+function conferirInstalacao() {
+  const dependencias = ['CONFIG', 'NIVEL', 'alerta_', 'normalizar_', 'calcularDatas_',
+                        'postSlack_', 'postSlackApi_', 'executar_'];
+  const faltando = dependencias.filter(function (n) {
+    try { return eval('typeof ' + n) === 'undefined'; } catch (e) { return true; }
+  });
+  const msg = faltando.length
+    ? 'Falta o arquivo pacing_alertas.gs neste projeto. Sem ele: ' + faltando.join(', ') +
+      '. Adicione Arquivos > + > Script e cole o pacing_alertas.gs.'
+    : 'Instalação completa: pacing_alertas.gs e ingestao no mesmo projeto.';
+  Logger.log(msg);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return { ok: !faltando.length, faltando: faltando };
+}
+
+function ingCfg_() {
+  if (typeof CONFIG !== 'undefined') return CONFIG;
+  // Só o fuso é indispensável para a ingestão, então ela sobrevive sem o resto.
+  return { FUSO: 'America/Sao_Paulo' };
+}
+
+function ingNivel_() {
+  if (typeof NIVEL !== 'undefined') return NIVEL;
+  return { CRITICO: 'CRITICO', ATENCAO: 'ATENCAO', INFO: 'INFO' };
+}
+
+function ingAlerta_(nivel, conta, titulo, detalhe, chave) {
+  if (typeof alerta_ === 'function') return alerta_(nivel, conta, titulo, detalhe, chave);
+  return { nivel: nivel, conta: conta, titulo: titulo, detalhe: detalhe, chave: chave, persistencia: 'NOVO' };
+}
+
+function ingNormalizar_(s) {
+  if (typeof normalizar_ === 'function') return normalizar_(s);
+  return String(s === null || s === undefined ? '' : s)
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function ingDatas_() {
+  if (typeof calcularDatas_ === 'function') return calcularDatas_();
+  const fuso = ingCfg_().FUSO;
+  const hoje = new Date();
+  const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+  return {
+    hoje: hoje,
+    ontem: ontem,
+    labelHoje: Utilities.formatDate(hoje, fuso, 'dd/MM/yyyy'),
+    labelOntem: Utilities.formatDate(ontem, fuso, 'dd/MM/yyyy')
+  };
+}
+
+function ingPostSlack_(webhook, payload) {
+  if (typeof postSlack_ === 'function') return postSlack_(webhook, payload);
+  const r = UrlFetchApp.fetch(webhook, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify(payload), muteHttpExceptions: true
+  });
+  if (r.getResponseCode() >= 300) throw new Error('Slack webhook ' + r.getResponseCode() + ': ' + r.getContentText());
+}
+
+function ingPostSlackApi_(token, canal, texto) {
+  if (typeof postSlackApi_ === 'function') return postSlackApi_(token, canal, texto);
+  const r = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
+    method: 'post', contentType: 'application/json; charset=utf-8',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ channel: canal, text: texto }), muteHttpExceptions: true
+  });
+  if (r.getContentText().indexOf('"ok":true') < 0) throw new Error('Slack API: ' + r.getContentText());
 }
