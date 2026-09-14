@@ -146,9 +146,15 @@ alerta sumir em silêncio, com o relatório dizendo que deu tudo certo. Falhar
 alto é melhor: ele para a entrega, deixa os alertas no resultado da tarefa e
 reporta "fila de alertas não localizada".
 
-Entram na fila: todo vermelho, todo amarelo e toda conta que ficou `SEM DADO`.
-Verde que continuou verde não entra. Só o vermelho vai marcado como crítico, e
-é o que chega no Everton.
+**Só entra na fila o que MUDOU.** O agente compara com o dia anterior e entrega
+quando a cor do cliente mudou em qualquer sentido, quando o cliente segue
+amarelo ou vermelho e o ajuste diário mudou mais de 10%, ou quando uma conta
+passou a ficar `SEM DADO` (ou voltou a ter dado). Nada disso mudou, nada é
+entregue: o relatório diz "sem alteração hoje" e encerra.
+
+Repetir o mesmo alerta todo dia treina o time a ignorar, e no dia que importa
+ele passa batido. Só o vermelho vai marcado como crítico, e é o que chega no
+Everton.
 
 Cada alerta carrega data de referência, cliente, cor, índice, consumido, budget,
 % do mês decorrido, se é para subir ou descer, o ajuste diário e a moeda.
