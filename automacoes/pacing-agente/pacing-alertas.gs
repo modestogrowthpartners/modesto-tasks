@@ -493,6 +493,24 @@ function analisarConta_(ss, c, datas, orcamentos, alertas) {
     }
   });
 
+  // ---------- Série diária, para o gráfico do e-mail ----------
+  if (colsRealizado.length) {
+    const bloco = aba.getRange(37, 1, datas.diasNoMes, aba.getLastColumn()).getValues();
+    const acum = [];
+    let soma = 0;
+    for (let d = 0; d < datas.diasNoMes; d++) {
+      if (d < datas.diasDecorridos) {
+        colsRealizado.forEach(function (col) { soma += num_(bloco[d][col - 1]) || 0; });
+        acum.push(Math.round(soma * 100) / 100);
+      } else {
+        // Dia futuro fica null para a linha parar no último dia fechado em vez
+        // de despencar para zero e sugerir que o gasto caiu.
+        acum.push(null);
+      }
+    }
+    c.serie = acum;
+  }
+
   // ---------- Conta consolidada ----------
   if (c.budget > 0) {
     const idx = (c.investido / c.budget) / datas.pctMes;
@@ -832,6 +850,19 @@ function montarHtml_(crit, aten, info, painel, datas, url, soCriticos) {
   });
   h += '</table></td></tr>';
 
+  // ---- gráficos de pacing
+  const comGrafico = painel.contas.filter(function (c) { return c.serie && c.budget > 0; });
+  if (comGrafico.length) {
+    h += secao('Pacing acumulado');
+    h += '<tr><td style="background:#fff;padding:0 30px 20px 30px">';
+    comGrafico.forEach(function (c) {
+      const idx = (c.investido / c.budget) / datas.pctMes;
+      const url = urlGraficoPacing_(c.nome, c.serie, c.budget, datas, corIndice(idx, c.credito) || C.fraco);
+      if (url) h += '<div style="padding:8px 0"><img src="' + url + '" width="560" alt="Pacing de ' + esc_(c.nome) + '" style="display:block;border:1px solid ' + C.linha + '"></div>';
+    });
+    h += '</td></tr>';
+  }
+
   // ---- dados faltantes
   if (faltando.length) {
     h += secao('Dados faltantes', C.bege);
@@ -852,6 +883,61 @@ function montarHtml_(crit, aten, info, painel, datas, url, soCriticos) {
   h += '</td></tr>';
 
   return h + '</table></div>';
+}
+
+/**
+ * Gráfico de pacing acumulado: plano contra realizado.
+ *
+ * Duas linhas e mais nada. A do plano é cinza tracejada porque é referência,
+ * não concorrente: o olho precisa achar o realizado primeiro. O realizado
+ * herda a cor do semáforo, então a mesma informação que está na tabela aparece
+ * aqui sem exigir uma segunda leitura.
+ *
+ * O plano é desenhado a partir do budget, não da coluna "Inv. Planejado" da
+ * aba. Aquela coluna usa divisor diferente em cada conta (/31, /30, valor
+ * fixo), então a linha não fecharia no budget no último dia, que é justamente
+ * o que o gráfico existe para mostrar.
+ *
+ * Dia futuro vai como null: a linha para no último dia fechado em vez de cair
+ * para zero e parecer que o investimento despencou.
+ */
+function urlGraficoPacing_(nome, serie, budget, datas, cor) {
+  if (!serie || !budget) return null;
+
+  const rotulos = [], plano = [];
+  for (let d = 1; d <= datas.diasNoMes; d++) {
+    rotulos.push(String(d));
+    plano.push(Math.round(budget / datas.diasNoMes * d));
+  }
+  const realizado = serie[datas.diasDecorridos - 1] || 0;
+  const curto = function (v) {
+    return Math.abs(v) >= 1000 ? 'R$ ' + (v / 1000).toFixed(1).replace('.', ',') + 'k' : brl_(v);
+  };
+
+  const cfg = {
+    type: 'line',
+    data: {
+      labels: rotulos,
+      datasets: [
+        { label: 'Plano · ' + curto(budget), data: plano, borderColor: '#9A978F',
+          borderDash: [6, 4], borderWidth: 2, fill: false, pointRadius: 0 },
+        { label: 'Realizado · ' + curto(realizado), data: serie, borderColor: cor,
+          backgroundColor: 'rgba(26,26,24,0.06)', borderWidth: 3, fill: true,
+          pointRadius: 0, spanGaps: false }
+      ]
+    },
+    options: {
+      plugins: {
+        title: { display: true, text: nome, font: { size: 15, weight: 'bold' }, color: '#1A1A18', padding: 8 },
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: '#4A4A46' } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 }, color: '#9A978F' }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, color: '#9A978F' }, grid: { color: '#E2DDD3' } }
+      }
+    }
+  };
+  return 'https://quickchart.io/chart?w=560&h=220&bkg=%23ffffff&c=' + encodeURIComponent(JSON.stringify(cfg));
 }
 
 function montarTextoSlack_(crit, aten, info, datas, url, dm) {
