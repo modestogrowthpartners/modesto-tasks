@@ -88,9 +88,8 @@ indice = % do budget consumido / % do mes decorrido
 | 0,85 a 0,94 ou 1,06 a 1,15 | amarelo | ajustar no mesmo dia |
 | abaixo de 0,85 ou acima de 1,15 | vermelho | escalar imediatamente |
 
-Vermelho escala no mesmo dia para o Lucas. **O contato dele ainda não foi
-informado**, então o alerta sai marcado como "escalonamento pendente de
-contato" até ter.
+Vermelho escala no mesmo dia para o **Everton**, via Apps Script. O prompt de
+origem dizia Lucas e o fluxograma dizia Everton; a decisão do time foi Everton.
 
 **Crédito da agência** (Alliance BR, Alliance LATAM, Meu Rodapé, Wondr): estouro
 é prejuízo da agência, não do cliente. A trava de gasto na plataforma precisa
@@ -131,6 +130,29 @@ Amakha, `/30` na Alliance BR e no Meu Rodapé, valor fixo na Ruminar, enquanto a
 nem o status, é referência visual. Não corrigir sozinho, é decisão de
 padronização, não bug funcional.
 
+## Entrega dos alertas
+
+O Apps Script já existe e é ele quem avisa o Everton. O agente não manda e-mail
+e não posta no Slack: ele entrega o que ficou errado e para por aí.
+
+**O script não está no GitHub.** Vive só no editor do Apps Script, então o ponto
+de entrada dele não é auditável daqui. Enquanto ele não for lido, o agente
+trabalha por descoberta: procura no arquivo uma aba de fila (`ALERTAS`,
+`ALERTA`, `AJUSTES`, `ALERTS`) e escreve respeitando o cabeçalho que já estiver
+lá.
+
+**Se não achar a fila, o agente não cria uma.** Aba que o script não lê faz o
+alerta sumir em silêncio, com o relatório dizendo que deu tudo certo. Falhar
+alto é melhor: ele para a entrega, deixa os alertas no resultado da tarefa e
+reporta "fila de alertas não localizada".
+
+Entram na fila: todo vermelho, todo amarelo e toda conta que ficou `SEM DADO`.
+Verde que continuou verde não entra. Só o vermelho vai marcado como crítico, e
+é o que chega no Everton.
+
+Cada alerta carrega data de referência, cliente, cor, índice, consumido, budget,
+% do mês decorrido, se é para subir ou descer, o ajuste diário e a moeda.
+
 ## Limites
 
 - Somente leitura nas plataformas. Nunca `update_google_ads_campaign`,
@@ -159,8 +181,8 @@ na tela de Rotinas do claude.ai.
 2. **ID do Google da Alliance BR.**
 3. **Orçamento do mês do Google para Wondr e Barbie**, hoje em branco.
 4. **Contato do Lucas** para os vermelhos.
-5. **Apps Script** para rotear alerta a Slack e e-mail. Até existir, o aviso
-   sai só no resultado da tarefa.
+5. **Onde o Apps Script lê os alertas.** O script existe e não está no GitHub,
+   então o nome da aba de fila (ou a URL, se for Web App) ainda não é conhecido.
 
 ## Relação com o que já existe
 
