@@ -118,8 +118,17 @@ function executar_(opts) {
   // 0. Ingestão da coleta do agente das 7:30 (arquivo ingestao.gs).
   //    Vem antes de tudo: analisar sem lançar o dia de ontem seria analisar
   //    dado velho e mandar alerta defasado como se fosse de hoje.
-  importarPacingDoDrive_(ss, datas, alertas);
-  SpreadsheetApp.flush();
+  //
+  //    FORA do modo teste, de propósito. O menu promete "Testar (só para mim,
+  //    sem Slack)", e quem clica não espera que a planilha seja escrita. Pior:
+  //    a ingestão marca o JSON como processado, então um teste inocente faria
+  //    a execução real das 8h não achar mais o arquivo e alertar que a coleta
+  //    não chegou. Teste que consome o insumo da execução de verdade não é
+  //    teste.
+  if (!opts.teste) {
+    importarPacingDoDrive_(ss, datas, alertas);
+    SpreadsheetApp.flush();
+  }
 
   // 1. Budgets externos + sincronização
   let orcamentos = {};
