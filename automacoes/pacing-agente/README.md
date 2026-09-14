@@ -33,6 +33,39 @@ Pipeboard + Windsor.ai
 O aviso da fase 1 sai no próprio resultado da tarefa. Quando o Apps Script
 existir, ele passa a rotear o mesmo conteúdo para Slack e e-mail.
 
+## Descoberta antes da coleta
+
+Lista fixa de conta envelhece em silêncio. Todo dia, antes de coletar, o agente
+lista as contas de anúncio de todas as plataformas conectadas e compara com a
+lista conhecida.
+
+| Plataforma | Chamada |
+|---|---|
+| Google Ads | `list_google_ads_customers` |
+| Meta Ads | `get_ad_accounts` |
+| TikTok Ads | `list_tiktok_advertisers` |
+| Pinterest | `list_pinterest_ad_accounts` |
+| Snapchat | `list_snap_ad_accounts` |
+| Windsor.ai | `get_connectors` |
+
+- Conta conhecida que sumiu vira `SEM ACESSO`, com o erro.
+- Conta nova que gastou ontem entra no relatório como "cliente não definido",
+  com o gasto. **Nunca descarte em silêncio uma conta que está gastando
+  dinheiro.** É assim que verba some do pacing sem ninguém perceber.
+- Conta sem gasto ontem e sem gasto no mês fica de fora, para não poluir.
+
+Pinterest e Snapchat estão conectados e nenhum cliente tem conta mapeada no
+`contas.json`. São listados mesmo assim, exatamente pelo segundo caso acima.
+
+## GA4 e Shopify são receita, nunca gasto
+
+Entram como contexto e ficam em coluna própria, com a fonte declarada.
+
+**Dado de analytics de site não é prova de entrega de plataforma.** Quando a
+receita do GA4 ou do Shopify divergir da receita reportada pela plataforma, o
+relatório mostra as duas e diz que divergem, em vez de escolher uma e apresentar
+como se fosse a verdade.
+
 ## Precedência de fonte
 
 **Pipeboard primeiro, Windsor só onde a Pipeboard não chega.** Nunca o
@@ -47,6 +80,7 @@ reportado a 8% do gasto real.
 | Conta | Fonte |
 |---|---|
 | Amakha, Meu Rodapé, Wondr, Barbie, D&G, Ruminar | Pipeboard |
+| TikTok de Wondr, Barbie e Amakha | Pipeboard TikTok |
 | Dabela (Semijoias e Revendedoras) | Windsor, é a única que tem |
 | Alliance BR e LATAM | Pipeboard se `5026131996` responder; se voltar `CUSTOMER_NOT_ENABLED`, Windsor |
 
@@ -174,6 +208,22 @@ conversa.
 **Restrinja `fields` e passe `category`** nas chamadas do Meta, senão a
 resposta estoura o limite de tokens.
 
+## TikTok entra na conta
+
+Os orçamentos do plano de mídia são "investimento total todas as plataformas".
+Wondr, Barbie e Amakha têm conta de TikTok ativa no `contas.json`. Coletar só
+Google e Meta e comparar com essa meta faz o pacing dos três sair subestimado,
+e o agente recomendaria subir verba onde não precisa.
+
+| Cliente | Conta TikTok | Moeda |
+|---|---|---|
+| Wondr | `7030798271740116994` (WONDR B.V.) | EUR |
+| Barbie | `7527375330907439120` (Barbie Experience) | EUR |
+| Amakha | `7475811555985571856` (Amakha#1) | BRL |
+
+O bot antigo não coleta TikTok. Essa é a segunda fonte de divergência entre ele
+e o agente, junto com a precedência Pipeboard/Windsor.
+
 ## Preenchimento de células sem dado
 
 | Caso | Escreve |
@@ -187,6 +237,17 @@ permissão é `SEM DADO`, nunca célula vazia.
 Se a Pipeboard ou a Windsor rejeitarem uma chamada, **pare e registre o erro**
 no relatório. Não tente credencial alternativa, token de ambiente ou qualquer
 via que não seja a ferramenta MCP já autorizada.
+
+## A rotina
+
+`trig_01NQZmDapBpDbdymgLxAvgtv`, cron `30 10 * * *` em UTC, que é 07:30 de
+Brasília. Sessão nova a cada disparo, sem herdar contexto do dia anterior.
+
+**Ela foi criada sem conectores MCP.** A API recusa anexar conector por esta
+via, e sem `Pipeboard Google Ads`, `Pipeboard Meta Ads`, `Pipeboard TikTok Ads`,
+`Windsor.ai` e `Google Drive` a sessão disparada não enxerga nenhuma conta nem
+a planilha. Os conectores precisam ser anexados na tela de Rotinas do claude.ai
+antes do primeiro disparo valer alguma coisa.
 
 ## O que ainda falta
 
