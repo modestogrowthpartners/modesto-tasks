@@ -94,6 +94,83 @@ próprio try. O log diz qual ficou para trás.
 mostra e-commerce e revendedoras separados, que é como o time opera; a tela de
 Pacing filtra por empresa e junta.
 
+## A Windsor.ai não enxerga metade das contas (12/09/2026)
+
+Conferido conta por conta contra a API do Google Ads e a do Meta, na janela
+de 1 a 11/09/2026. **A Windsor devolve só 3 das 8 contas Meta, e não devolve a
+conta viva do Meu Rodapé no Google.** Como o bot puxa tudo pela Windsor, o
+número que vai para o Slack e para o e-mail da diretoria está subestimado.
+
+Meta Ads, gasto de 1 a 11/09:
+
+| Conta | Plataforma diz | Windsor diz |
+|---|---:|---|
+| Meta Ads \| Meu Rodapé V2 | R$ 47.196,26 | ausente |
+| Barbie Experience | € 23.346,29 | ausente |
+| WONDR EXPERIENCE | € 13.799,66 | ausente |
+| PINK BEACH | € 2.745,37 | ausente |
+| LATAM (Alliance) | US$ 1.851,29 | ausente |
+| Amakha Paris #1 | R$ 11.974,29 | confere |
+| Ruminar - Whatsapp | R$ 7.221,22 | confere |
+| Ruminar - Lead Ad | R$ 2.094,72 | confere |
+
+Google Ads, Meu Rodapé:
+
+| Conta | Gasto 1 a 11/09 | Windsor |
+|---|---:|---|
+| 308-486-9797 (viva) | R$ 50.825,65 | ausente |
+| 805-602-2205 (antiga) | R$ 8.496,32 | presente |
+
+O efeito somado: o Meu Rodapé gastou **R$ 106.518** em setembro até o dia 11,
+e pela Windsor aparecem **R$ 8.496**. Um cliente com plano de R$ 315.000/mês
+sendo reportado a 8% do que realmente gastou.
+
+Isto não é o mesmo problema da tabela `UNITS` descrito abaixo. Ali o bot
+aponta para a conta errada; aqui a Windsor não entrega a conta, então trocar
+o `UNITS` não resolve. **O que resolve é autorizar as contas que faltam na
+Windsor.ai**, e só depois corrigir o `UNITS`.
+
+Enquanto isso não acontecer, o pacing do portal foi preenchido na mão, a
+partir das APIs das plataformas (ver "Preenchimento manual" abaixo).
+
+## Preenchimento manual de 12/09/2026
+
+`public.pacing` estava com zero linhas. Foram gravadas 7 linhas, uma por
+empresa, com o retrato de 1 a 11/09/2026 (`dia = 2026-09-11`,
+`dias_fechados = 11`, `dias_no_mes = 30`):
+
+| Empresa | Moeda | Google | Meta | Total | Receita | ROAS |
+|---|---|---:|---:|---:|---:|---:|
+| Meu Rodapé | BRL | 59.321,97 | 47.196,26 | 106.518,23 | 517.388,16 | 4,86 |
+| Wondr/Barbie/PB | EUR | 9.935,30 | 39.891,32 | 49.826,62 | 137.952,46 | 2,77 |
+| Amakha Paris | BRL | 15.959,77 | 11.974,29 | 27.934,06 | 70.277,11 | 2,52 |
+| Ruminar | BRL | — | 9.315,94 | 9.315,94 | — | — |
+| Alliance Laundry | USD | 1.822,80 | 1.851,29 | 3.674,09 | — | — |
+| Dolce & Gabbana | BRL | 3.034,74 | — | 3.034,74 | — | — |
+| Dabela | BRL | 0,06 | — | 0,06 | — | — |
+
+Três decisões, para quem for conferir:
+
+**Uma linha por empresa, não uma por conta.** A tela de Pacing filtra por
+empresa e usa a linha mais recente. Wondr, Barbie e Pink Beach compartilham
+o mesmo `client_id`, então três linhas no mesmo dia fariam a tela mostrar uma
+e esconder duas. Elas vão somadas, com `conta = 'Wondr/Barbie/PB'`.
+
+**Receita só onde é receita.** Alliance e Ruminar reportam contagem de lead
+no campo de valor (5,99 conversões = 5,99 de "valor"), e a D&G usa valor
+atribuído a lead. Nesses três, `receita` e `roas` ficaram nulos em vez de
+virarem um ROAS que ninguém pode usar. A tela mostra "—", que é verdade.
+
+**De onde veio cada número.** Google pela Windsor, para ficar na mesma fonte
+do bot, exceto a conta viva do Meu Rodapé, que a Windsor não tem e veio da
+API do Google Ads. Meta inteiramente pela API do Meta, porque a Windsor só
+tem 3 das 8 contas. Não há `roas_piso`: ele não existe em lugar nenhum que
+dê para ler daqui.
+
+Isto é um remendo com data. Quando o bot voltar a gravar, ele sobrescreve
+pelo índice único `(conta, dia)` — desde que use o mesmo rótulo de `conta`,
+que hoje ele não usa. Vale conferir na primeira execução.
+
 ## Divergências conhecidas no bot antigo
 
 Achadas conferindo o `UNITS` contra a API do Google Ads em 09/09/2026. Não
