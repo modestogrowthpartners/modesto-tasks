@@ -162,3 +162,71 @@ Aba de cliente, linha 37 é o dia 1. Linha do dia N é `36+N`.
 Amakha: `B6` = 36.000 Google, `C6` = 34.000 Meta, total 70.000 BRL. Bate com o
 `meta_mes` do `contas.json`. Meta de ROAS 3,0 e meta de CPA 90 nos dois
 veículos.
+
+## 11. O bloco META muda de coluna dependendo da aba
+
+Conferido de duas formas independentes: pelo cabeçalho da linha 36 e pelo mapa
+de células amarelas.
+
+| Campo (Meta) | Maioria das abas | **MEU RODAPE e BARBIE** |
+|---|---|---|
+| Inv. Planejado | `M` | `N` |
+| Inv. Realizado | `N` | `O` |
+| Impressões | `O` | `P` |
+| Cliques | `P` | `Q` |
+| Conversões | `R` | `S` |
+| Receita | `U` | `V` |
+
+Um deslocamento de uma coluna. É por isso que essas duas abas vão até `AI` e as
+outras param em `AH`.
+
+Escrever o gasto de Meta na coluna `N` do Meu Rodapé colocaria o número em
+**Investimento Planejado**, não em Realizado. O erro não dá erro: o pacing
+simplesmente passa a comparar o planejado com ele mesmo.
+
+**Regra: ler o cabeçalho da linha 36 da aba antes de escrever, sempre.** Nunca
+assumir a coluna por analogia com outra aba.
+
+## 12. Onde ficam as células amarelas
+
+Amarelo é `FFFFF2CC`. As abas de dados brutos **não têm célula amarela
+nenhuma**: o amarelo vive só nas abas de cliente.
+
+Por aba de cliente, cerca de 380 células amarelas:
+
+| Faixa | O que é |
+|---|---|
+| linhas 6 a 8, colunas do bloco | budget do mês e cabeçalho de controle |
+| linhas 37 a 67 | o registro diário, uma linha por dia |
+
+Nas contas em modo fórmula, a célula amarela **já contém fórmula** apontando
+para a aba bruta (ex: `AMAKHA PARIS!D37` é
+`=(IF('AMK Google'!C2="","",'AMK Google'!C2))`). Amarelo ali significa "campo de
+entrada do processo", não "digite aqui por cima".
+
+Sobrescrever essas com número mata o vínculo com a aba bruta para o mês inteiro.
+Nas contas em modo manual (Meu Rodapé, Barbie, Wondr, Dabela) a amarela tem
+número mesmo, e é onde se escreve.
+
+## 13. O conector do Drive não escreve célula
+
+Verificado nas ferramentas disponíveis:
+
+| Ferramenta | O que faz |
+|---|---|
+| `update_file` | **só metadados**: título e pasta. Não toca em conteúdo |
+| `create_file` | cria arquivo **novo**. Não edita existente, não cria aba |
+| `read_file_content`, `download_file_content` | leitura |
+
+Não há conector de Google Sheets com escrita de célula no registro desta conta.
+Busca por "google sheets", "spreadsheet write" e "planilha" devolve Smartsheet,
+Tiller, Aleph e Rockhopper, nenhum deles ligado a esta planilha.
+
+**Consequência:** o agente não consegue preencher as células amarelas nem criar
+a aba `ALERTAS` neste arquivo. Ele lê tudo e calcula tudo, mas a escrita precisa
+de outro braço.
+
+O braço natural é o **Apps Script**, que tem `SpreadsheetApp` nativo. Desenho
+proposto: o agente grava um JSON do dia numa pasta do Drive (`create_file`
+funciona), e o Apps Script lê esse JSON, preenche as amarelas, monta a aba
+`ALERTAS` e dispara o aviso.
