@@ -234,9 +234,7 @@ function importarPacingDoDrive_(ss, datas, alertas) {
 
 /** Grava numa aba de dados brutos. Linha do dia N é N+1, cabeçalho na linha 1. */
 function gravarNaAbaBruta_(ss, nomeAba, dia, valores, res, dataRef) {
-  const aba = ss.getSheetByName(nomeAba);
-  if (!aba) throw new Error('aba ' + nomeAba + ' não existe');
-
+  const aba = acharAba_(ss, nomeAba);
   const cab = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
   const linha = dia + ING.OFFSET_BRUTA;
   let n = 0;
@@ -257,8 +255,7 @@ function gravarNaAbaBruta_(ss, nomeAba, dia, valores, res, dataRef) {
  * dois, e não se toca nela.
  */
 function gravarRuminar_(ss, nomeAba, dia, conta, res, dataRef) {
-  const aba = ss.getSheetByName(nomeAba);
-  if (!aba) throw new Error('aba ' + nomeAba + ' não existe');
+  const aba = acharAba_(ss, nomeAba);
   const linha = dia + ING.OFFSET_BRUTA;
   const cab = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
 
@@ -291,9 +288,7 @@ function gravarRuminar_(ss, nomeAba, dia, conta, res, dataRef) {
  * em relação às outras abas, então posição fixa está fora de questão.
  */
 function gravarNaAbaCliente_(ss, nomeAba, veiculo, dia, valores, res) {
-  const aba = ss.getSheetByName(nomeAba);
-  if (!aba) throw new Error('aba ' + nomeAba + ' não existe');
-
+  const aba = acharAba_(ss, nomeAba);
   const ultima = aba.getLastColumn();
   const linhaBloco = aba.getRange(35, 1, 1, ultima).getValues()[0];
   const cab = aba.getRange(36, 1, 1, ultima).getValues()[0];
@@ -355,6 +350,29 @@ function gravarDataDaLinha_(aba, cab, linha, dataRef, ocorrencia) {
   const cel = aba.getRange(linha, col + 1);
   if (cel.getFormula() || cel.getValue()) return;
   cel.setValue(dataRef);
+}
+
+/**
+ * Acha a aba pelo nome, tolerando diferença de espaço, caixa e acento.
+ *
+ * `getSheetByName` exige o nome byte a byte. Uma aba chamada "AMK Google " com
+ * espaço no fim, ou com espaço não separável no meio, não é encontrada e o
+ * erro diz apenas "não existe", que manda o leitor procurar a aba errada.
+ * Aqui, se a busca exata falhar, a comparação normalizada resolve, e se ainda
+ * assim não achar, o erro lista os nomes que existem de verdade.
+ */
+function acharAba_(ss, nome) {
+  const direta = ss.getSheetByName(nome);
+  if (direta) return direta;
+
+  const alvo = ingNormalizar_(nome).replace(/\s+/g, ' ');
+  const abas = ss.getSheets();
+  for (let i = 0; i < abas.length; i++) {
+    if (ingNormalizar_(abas[i].getName()).replace(/\s+/g, ' ') === alvo) return abas[i];
+  }
+
+  throw new Error('aba "' + nome + '" não encontrada. Existem: ' +
+    abas.map(function (a) { return '"' + a.getName() + '"'; }).join(', '));
 }
 
 /** Acha a coluna pelo rótulo, na N-ésima ocorrência (0 = primeira). */
