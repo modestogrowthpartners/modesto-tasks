@@ -44,6 +44,10 @@ const ING = {
 
   ABA_ALERTAS: 'ALERTAS',
 
+  // Canal #controle_pacing_diário. Conferido na API do Slack em 14/09/2026.
+  SLACK_CANAL: 'C0BG2NK56UC',
+  SLACK_CANAL_NOME: '#controle_pacing_diário',
+
   // Linha 1 das abas brutas. Linha do dia N é N+1.
   OFFSET_BRUTA: 1,
   // Linha 36 é cabeçalho nas abas de cliente. Linha do dia N é 36+N.
@@ -406,4 +410,59 @@ function escreverAbaAlertas_(ss, alertas, datas) {
     const cor = l[2] === NIVEL.CRITICO ? '#FFC7CE' : (l[2] === NIVEL.ATENCAO ? '#FFF2CC' : null);
     if (cor) aba.getRange(inicio + i, 1, 1, CAB.length).setBackground(cor);
   });
+}
+
+// ---------------------------------------------------------------------
+//  SLACK COM RESERVA
+// ---------------------------------------------------------------------
+
+/**
+ * Posta no canal de pacing por webhook e, se não houver webhook, pela API com
+ * o bot token.
+ *
+ * O `enviar_` original só tenta o webhook e, quando ele não está configurado,
+ * escreve uma linha no Logger e segue. Ninguém lê Logger. O e-mail sai dizendo
+ * que está tudo certo e o canal fica mudo, e a falha só aparece quando alguém
+ * repara que faz semanas que não chega nada no Slack.
+ *
+ * Aqui a falha de Slack vira alerta no dia seguinte e linha na aba ALERTAS.
+ *
+ * @return {{ok: boolean, via: string, erro: string}}
+ */
+function postarNoCanalPacing_(blocos, alertas) {
+  const props = PropertiesService.getScriptProperties();
+  const webhook = props.getProperty('SLACK_WEBHOOK_URL');
+  const token = props.getProperty('SLACK_BOT_TOKEN');
+  const canal = props.getProperty('SLACK_CANAL_PACING') || ING.SLACK_CANAL;
+  const res = { ok: false, via: '', erro: '' };
+
+  if (webhook) {
+    try {
+      blocos.forEach(function (txt) { postSlack_(webhook, { text: txt }); });
+      res.ok = true; res.via = 'webhook';
+      return res;
+    } catch (e) {
+      res.erro = 'webhook falhou: ' + e.message + '. ';
+    }
+  }
+
+  if (token && canal) {
+    try {
+      blocos.forEach(function (txt) { postSlackApi_(token, canal, txt); });
+      res.ok = true; res.via = 'bot token em ' + canal;
+      return res;
+    } catch (e) {
+      res.erro += 'API falhou: ' + e.message;
+    }
+  } else if (!webhook) {
+    res.erro += 'nem SLACK_WEBHOOK_URL nem SLACK_BOT_TOKEN configurados nas Propriedades do script';
+  }
+
+  if (alertas) {
+    alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack não recebeu o alerta',
+      'O resumo foi por e-mail mas não chegou em ' + ING.SLACK_CANAL_NOME + '. ' + res.erro,
+      'slack_falhou'));
+  }
+  Logger.log('Slack não enviado: %s', res.erro);
+  return res;
 }

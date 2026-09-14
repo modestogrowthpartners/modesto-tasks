@@ -127,3 +127,44 @@ registrada, nunca sobrescrita em silêncio.
    ```
 
 5. Rode `importarPacingAgora` uma vez para autorizar o Drive.
+
+6. Slack. Em `enviar_(alertas, painel, datas, opts)`, troque o bloco
+
+   ```javascript
+   if (webhook) {
+     blocosCanal.forEach(txt => postSlack_(webhook, { text: txt }));
+   } else {
+     Logger.log('SLACK_WEBHOOK_URL não configurado. Canal não notificado.');
+   }
+   ```
+
+   por
+
+   ```javascript
+   postarNoCanalPacing_(blocosCanal, alertas);
+   ```
+
+   E acrescente nas Propriedades do script **uma** das duas:
+
+   | Propriedade | Para quê |
+   |---|---|
+   | `SLACK_WEBHOOK_URL` | Incoming Webhook de `#controle_pacing_diário` |
+   | `SLACK_BOT_TOKEN` | token `xoxb-...`, e o bot precisa estar no canal |
+
+   O canal é `#controle_pacing_diário`, ID `C0BG2NK56UC`, conferido na API do
+   Slack em 14/09/2026. O ID já está no código, e `SLACK_CANAL_PACING`
+   sobrescreve se um dia mudar.
+
+## O Slack hoje falha calado
+
+O `enviar_` original só tenta o webhook. Sem a propriedade configurada, ele
+escreve uma linha no `Logger` e segue em frente.
+
+Ninguém lê Logger. O e-mail sai normalmente, dizendo que está tudo certo, e o
+canal fica mudo. A falha só aparece quando alguém repara que faz semanas que não
+chega nada no Slack, e aí não dá para saber desde quando.
+
+`postarNoCanalPacing_` tenta o webhook, cai para o bot token, e se nenhum dos
+dois funcionar transforma isso em alerta de ATENÇÃO no dia seguinte e linha na
+aba `ALERTAS`. Falha de canal de alerta precisa gritar, senão vira exatamente o
+problema que o canal existia para evitar.
