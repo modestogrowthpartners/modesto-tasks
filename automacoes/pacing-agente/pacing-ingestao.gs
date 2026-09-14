@@ -43,6 +43,8 @@ const ING = {
   PREFIXO: 'pacing_',
 
   ABA_ALERTAS: 'ALERTAS',
+  CAB_ALERTAS: ['Data', 'Nível', 'Conta', 'Título', 'Detalhe',
+                'Enviar', 'Enviado em', 'Persistência', 'Chave'],
 
   // Canal #controle_pacing_diário. Conferido na API do Slack em 14/09/2026.
   SLACK_CANAL: 'C0BG2NK56UC',
@@ -400,12 +402,17 @@ function acharColunaPorRotulo_(cab, rotulos, ocorrencia) {
 // ---------------------------------------------------------------------
 
 /**
- * Registra na aba ALERTAS o que foi enviado. Empilha por dia, uma linha por
- * alerta, e reexecução no mesmo dia substitui as linhas do dia em vez de
- * duplicar.
+ * Monta a fila de envio do dia na aba ALERTAS.
+ *
+ * A aba é a FONTE do que vai ser enviado, não o registro do que já saiu. O
+ * fluxo é escrever aqui, ler de volta e mandar o que a aba disser. Assim, numa
+ * execução manual, dá para abrir a aba, marcar "não" na coluna Enviar de uma
+ * linha e ela não chega no time.
+ *
+ * Reexecução no mesmo dia substitui as linhas do dia, não empilha.
  */
 function escreverAbaAlertas_(ss, alertas, datas) {
-  const CAB = ['Data', 'Enviado em', 'Nível', 'Conta', 'Título', 'Detalhe', 'Persistência', 'Chave'];
+  const CAB = ING.CAB_ALERTAS;
   let aba = ss.getSheetByName(ING.ABA_ALERTAS);
 
   if (!aba) {
@@ -413,14 +420,13 @@ function escreverAbaAlertas_(ss, alertas, datas) {
     aba.getRange(1, 1, 1, CAB.length).setValues([CAB])
       .setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#1F3864');
     aba.setFrozenRows(1);
-    aba.setColumnWidth(5, 280);
-    aba.setColumnWidth(6, 520);
+    aba.setColumnWidth(4, 260);
+    aba.setColumnWidth(5, 520);
   }
 
   const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
-  const agora = Utilities.formatDate(new Date(), ingCfg_().FUSO, 'yyyy-MM-dd HH:mm');
 
-  // Tira as linhas deste mesmo dia, de baixo para cima, para o índice não andar.
+  // De baixo para cima, senão o índice anda a cada linha removida.
   const ultima = aba.getLastRow();
   if (ultima > 1) {
     const col = aba.getRange(2, 1, ultima - 1, 1).getDisplayValues();
@@ -430,12 +436,13 @@ function escreverAbaAlertas_(ss, alertas, datas) {
   }
 
   if (!alertas.length) {
-    aba.appendRow([dia, agora, 'INFO', 'GERAL', 'Sem alteração', 'Nenhum alerta hoje.', '', 'sem_alerta']);
+    aba.appendRow([dia, ingNivel_().INFO, 'GERAL', 'Sem alteração',
+                   'Nenhum alerta hoje.', 'não', '', '', 'sem_alerta']);
     return;
   }
 
   const linhas = alertas.map(function (a) {
-    return [dia, agora, a.nivel, a.conta, a.titulo, a.detalhe,
+    return [dia, a.nivel, a.conta, a.titulo, a.detalhe, 'sim', '',
             a.persistencia || '', a.chave || ''];
   });
   aba.getRange(aba.getLastRow() + 1, 1, linhas.length, CAB.length).setValues(linhas);
@@ -443,8 +450,66 @@ function escreverAbaAlertas_(ss, alertas, datas) {
   // Crítico em vermelho, atenção em amarelo. É o que o olho procura primeiro.
   const inicio = aba.getLastRow() - linhas.length + 1;
   linhas.forEach(function (l, i) {
-    const cor = l[2] === ingNivel_().CRITICO ? '#FFC7CE' : (l[2] === ingNivel_().ATENCAO ? '#FFF2CC' : null);
+    const cor = l[1] === ingNivel_().CRITICO ? '#FFC7CE'
+              : (l[1] === ingNivel_().ATENCAO ? '#FFF2CC' : null);
     if (cor) aba.getRange(inicio + i, 1, 1, CAB.length).setBackground(cor);
+  });
+}
+
+/**
+ * Lê de volta a fila do dia. Linha com "não" na coluna Enviar fica de fora:
+ * é o botão que uma pessoa tem para barrar um alerta antes dele sair.
+ */
+function lerAbaAlertas_(ss, datas) {
+  const aba = ss.getSheetByName(ING.ABA_ALERTAS);
+  if (!aba) return [];
+  const ultima = aba.getLastRow();
+  if (ultima < 2) return [];
+
+  const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
+  const dados = aba.getRange(2, 1, ultima - 1, ING.CAB_ALERTAS.length).getDisplayValues();
+  const out = [];
+
+  dados.forEach(function (l) {
+    if (l[0] !== dia) return;
+    if (ingNormalizar_(l[5]) === 'nao') return;
+    if (l[8] === 'sem_alerta') return;
+    out.push({ nivel: l[1], conta: l[2], titulo: l[3], detalhe: l[4],
+               persistencia: l[7], chave: l[8] });
+  });
+  return out;
+}
+
+/**
+ * Carimba a hora do envio nas linhas que saíram, e acrescenta alertas que
+ * nasceram durante o próprio envio.
+ *
+ * O segundo caso existe por causa de uma situação real: se o Slack falhar,
+ * `postarNoCanalPacing_` cria um alerta DEPOIS da fila já estar escrita. Sem
+ * isto, esse alerta sumiria, e a falha do canal de alerta ficaria sem registro
+ * justamente na aba que serve para registrar alertas.
+ */
+function marcarEnviados_(ss, datas, enviados) {
+  const aba = ss.getSheetByName(ING.ABA_ALERTAS);
+  if (!aba) return;
+  const ultima = aba.getLastRow();
+  if (ultima < 2) return;
+
+  const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
+  const agora = Utilities.formatDate(new Date(), ingCfg_().FUSO, 'dd/MM/yyyy HH:mm');
+  const dados = aba.getRange(2, 1, ultima - 1, ING.CAB_ALERTAS.length).getDisplayValues();
+
+  const naFila = {};
+  dados.forEach(function (l, i) {
+    if (l[0] !== dia) return;
+    naFila[l[8]] = true;
+    if (ingNormalizar_(l[5]) !== 'nao') aba.getRange(i + 2, 7).setValue(agora);
+  });
+
+  (enviados || []).forEach(function (a) {
+    if (naFila[a.chave]) return;
+    aba.appendRow([dia, a.nivel, a.conta, a.titulo, a.detalhe, 'sim', agora,
+                   a.persistencia || '', a.chave || '']);
   });
 }
 

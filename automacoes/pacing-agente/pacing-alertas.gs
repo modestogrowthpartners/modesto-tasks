@@ -159,10 +159,22 @@ function executar_(opts) {
   marcarPersistencia_(alertas, estado, datas);
   if (!opts.teste) salvarEstado_(alertas, estado, datas);
 
-  enviar_(alertas, painel, datas, opts);
+  // 6. A aba ALERTAS é a FILA de envio, não o histórico do que já saiu.
+  //    Escreve, lê de volta e manda o que a aba disser. Numa execução manual
+  //    isso dá a chance de abrir a aba, marcar "não" na coluna Enviar de uma
+  //    linha, e ela não chega no time.
+  let paraEnviar = alertas;
+  if (!opts.teste) {
+    escreverAbaAlertas_(ss, alertas, datas);
+    SpreadsheetApp.flush();
+    paraEnviar = lerAbaAlertas_(ss, datas);
+  }
 
-  // 6. Histórico do que foi enviado, dentro da própria planilha (ingestao.gs).
-  if (!opts.teste) escreverAbaAlertas_(ss, alertas, datas);
+  enviar_(paraEnviar, painel, datas, opts);
+
+  // 7. Carimba o horário do envio. `paraEnviar` pode ter ganhado um alerta
+  //    durante o próprio envio (falha de Slack), e ele entra na aba aqui.
+  if (!opts.teste) marcarEnviados_(ss, datas, paraEnviar);
 }
 
 // ---------------------------------------------------------------------
