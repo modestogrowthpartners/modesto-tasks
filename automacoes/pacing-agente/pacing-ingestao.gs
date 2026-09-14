@@ -69,13 +69,13 @@ const ING = {
  * o número somado das duas praças. Separar exige mudar a planilha.
  */
 const ROTA = {
-  'AMAKHA PARIS':     { google: { aba: 'AMK Google' },        meta: { aba: 'AMK Meta' } },
-  'ALLIANCE BR':      { google: { aba: 'ALI Google BR' },     meta: { aba: 'ALI Meta' } },
-  'ALLIANCE LATAM':   { google: { aba: ' ALI Google LATAM' }, meta: null },
-  'D&G':              { google: { aba: 'DEG Google' },        meta: null },
-  'RUMINAR':          { google: null,                         meta: { aba: 'RUM Meta', blocos: 2 } },
-  'WONDR EXPERIENCE': { google: { aba: 'WDR Google' },        meta: { manual: true } },
-  'BARBIE':           { google: { aba: 'BRB Google' },        meta: { manual: true } },
+  'AMAKHA PARIS':     { google: { aba: '[AMK] Google' },        meta: { aba: '[AMK] Meta' } },
+  'ALLIANCE BR':      { google: { aba: '[ALI] Google BR' },     meta: { aba: '[ALI] Meta' } },
+  'ALLIANCE LATAM':   { google: { aba: ' [ALI] Google LATAM' }, meta: null },
+  'D&G':              { google: { aba: '[DEG] Google' },        meta: null },
+  'RUMINAR':          { google: null,                         meta: { aba: '[RUM] Meta', blocos: 2 } },
+  'WONDR EXPERIENCE': { google: { aba: '[WDR] Google' },        meta: { manual: true } },
+  'BARBIE':           { google: { aba: '[BRB] Google' },        meta: { manual: true } },
   'MEU RODAPE':       { google: { manual: true },             meta: { manual: true } },
   'DABELA SITE':      { google: { manual: true },             meta: { manual: true } },
   'DABELA REVENDA':   { google: null,                         meta: { manual: true } }
@@ -365,10 +365,17 @@ function acharAba_(ss, nome) {
   const direta = ss.getSheetByName(nome);
   if (direta) return direta;
 
-  const alvo = ingNormalizar_(nome).replace(/\s+/g, ' ');
+  // Colchetes entram na normalização porque o export da planilha para .xlsx
+  // os remove: o Excel não aceita [ ] em nome de aba. Quem monta o mapa lendo
+  // um export acaba com "AMK Google" quando a aba real é "[AMK] Google", e a
+  // busca falha sem nenhuma pista do porquê.
+  const limpa = function (x) {
+    return ingNormalizar_(x).replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+  };
+  const alvo = limpa(nome);
   const abas = ss.getSheets();
   for (let i = 0; i < abas.length; i++) {
-    if (ingNormalizar_(abas[i].getName()).replace(/\s+/g, ' ') === alvo) return abas[i];
+    if (limpa(abas[i].getName()) === alvo) return abas[i];
   }
 
   throw new Error('aba "' + nome + '" não encontrada. Existem: ' +
