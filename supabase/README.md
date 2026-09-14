@@ -75,6 +75,76 @@ Definir em: Project Settings → Edge Functions → Secrets.
 supabase functions deploy kronos --project-ref eeqaabwsheaiwyhujcqj
 ```
 
+## Segurança: o que o advisor aponta e o que foi decidido
+
+Rodado em 13/09/2026 com `get_advisors`. Três achados, nenhum deles
+corrigido às cegas: cada um tem uma razão registrada aqui.
+
+| Achado | Nível | Decisão |
+|---|---|---|
+| View `user_directory` é SECURITY DEFINER | erro | **Mantida de propósito.** É o diretório canônico de nomes e fotos. Ela precisa passar por cima da RLS de `profiles` para que um cliente consiga resolver o nome de quem escreveu no chat; o filtro de visibilidade está DENTRO da view (`is_admin() or id = auth.uid() or role in (admin, equipe) or mesmo client_id`), e o e-mail só sai para `is_dono()`. Trocar para `security_invoker` faria o chat do cliente mostrar "Desconhecido" em toda mensagem da equipe. |
+| 19 funções SECURITY DEFINER chamáveis por `authenticated` via `/rest/v1/rpc` | aviso | **Mantidas.** As de escrita foram lidas uma a uma nesta varredura: todas checam `auth.uid()`, `is_dono()` ou `can_see_channel()` antes de tocar no banco (`mg_criar_canal`, `mg_definir_membros`, `mg_excluir_canal`, `mg_atualizar_canal`, `mg_kronos_publicar`, `mg_toggle_reaction`, `mg_abrir_grupo`, `save_my_checklist` só altera a própria linha). As auxiliares (`is_admin`, `is_dono`, `current_client_id`, `can_see_channel`, `mg_pode_ver_pessoa`) devolvem um booleano sobre quem chamou. A forma "certa" pelo linter é movê-las para um schema fora da API, o que reescreve todas as policies; o ganho não paga o risco agora. |
+| Proteção contra senha vazada desligada | aviso | **Ação de painel**, não dá para ligar por aqui: Authentication → Providers → Email → "Leaked password protection". Liga e pronto. |
+
+Conferido e em ordem, sem achado: bucket `documents` privado, com lista de
+MIME e teto de 25 MB; leitura só para admin ou para a pasta da própria
+empresa; cliente grava só em `<empresa>/chat/` e `<empresa>/pesquisas/`.
+A chave anon está no HTML porque é pública por desenho; `service_role`
+não aparece em lugar nenhum do código.
+
+Um item continua pendente porque depende de uma máquina com saída para
+o CDN: o `supabase-js` é carregado de `@2` sem versão fixa e sem SRI.
+Para fixar, rode num terminal seu:
+
+```
+curl -sI https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 | grep -i x-jsd-version
+curl -s https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.X.Y | openssl dgst -sha384 -binary | openssl base64 -A
+```
+
+e troque a tag do `index.html` por `@2.X.Y` com `integrity="sha384-…"
+crossorigin="anonymous"`. Sem isso, uma versão nova ou comprometida no
+CDN entra no site sem ninguém decidir.
+
+## Fluidez: o que foi medido e mudado
+
+Medição com Playwright, dados de produção (452 demandas), 8 segundos
+parado na tela de demandas. "Layouts" é o número de vezes que o
+navegador recalculou a geometria da página.
+
+| | CPU em 8 s | recálculos de estilo | layouts |
+|---|---|---|---|
+| antes | 837 ms | 482 | 482 |
+| sem o fundo animado | 103 ms | 36 | 5 |
+| sem fundo nem pollers | 13 ms | 5 | 0 |
+| **depois das mudanças** | **58 ms** | **17** | **2** |
+
+O que estava custando e o que mudou:
+
+- **Fundo de marca (88% do custo).** Duas linhas fluíam por
+  `stroke-dashoffset`, seis pontos subiam por `transform` em `<circle>`,
+  e a marca d'água respirava por opacidade num `<g>`. Tudo em SVG passa
+  pela thread principal e suja o layout a cada quadro, 60 vezes por
+  segundo, em toda tela. As linhas ficaram paradas, a marca d'água ficou
+  numa opacidade fixa, e os pontos viraram elementos HTML com
+  `will-change`, que o compositor move sozinho. O desenho é o mesmo.
+- **Pollers.** `mgPainelAberto` a cada 250 ms e `mgEstadoDaTela` a cada
+  700 ms (este com `getComputedStyle`, que força recálculo). Agora um
+  `MutationObserver` no `<body>` chama os dois no máximo uma vez por
+  quadro, e só quando o DOM muda; sobrou um poll de 2,5 s de segurança.
+- **`buildNotifs`** fazia um `find()` linear por nota: 92 ms → 33 ms com
+  um mapa por id.
+- **Rodada completa da sincronização** (a cada 10) repintava 450 cards
+  mesmo sem mudança. Agora compara o retrato antes e depois e só repinta
+  se mudou.
+- **Banco.** Índice duplicado em `messages` removido e dez chaves
+  estrangeiras sem índice ganharam um (migração
+  `20260913100000_mgp_indices_apontados_pelo_advisor`).
+
+Não mexido, de propósito: 29 policies que chamam `auth.uid()` sem o
+`(select …)` que o advisor recomenda. É uma reescrita mecânica de todas
+as policies; com o volume atual o ganho é pequeno e o risco de trancar
+alguém fora não é.
+
 ## `migrations/`
 
 Doze migrações, na ordem em que foram aplicadas. As quatro primeiras
@@ -94,6 +164,7 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._mgp_diretorio_com_data_de_entrada` | "membro desde" com data real, e canais em comum |
 | `..._mgp_responsaveis_por_id` | vínculo de responsável por id, e o rename que não órfã mais as demandas |
 | `..._mgp_perfil_do_lucas` | o Lucas tinha login desde julho e nunca teve perfil |
+| `..._mgp_indices_apontados_pelo_advisor` | índice duplicado em `messages` fora, e dez chaves estrangeiras sem índice ganharam o seu |
 
 ## Pendências
 

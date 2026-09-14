@@ -634,8 +634,12 @@ button,.nav-i,.asg-chip,.acc,.tchip,.timer-btn,.mini-btn,.cbadge,.seg>button,.to
 /* fundo animado com MGP */
 .bg-anim{position:fixed;inset:0;z-index:-1;pointer-events:none}
 .bg-anim svg{width:100%;height:100%;display:block}
-.bg-line{stroke-dasharray:420;animation:bgflow 5s linear infinite}
-.bg-line2{stroke-dasharray:300;animation:bgflow2 7s linear infinite}
+/* As duas linhas paravam de fluir só quando a aba ia para o fundo.
+   Animar stroke-dashoffset em SVG roda na thread principal e suja o
+   layout a cada quadro: medido, o fundo respondia por 88% da CPU em
+   ocioso (837 ms contra 103 ms por 8 s). As linhas ficam paradas. */
+.bg-line{stroke-dasharray:420}
+.bg-line2{stroke-dasharray:300}
 @keyframes bgflow{to{stroke-dashoffset:-840}}
 @keyframes bgflow2{to{stroke-dashoffset:600}}
 .bg-marks{animation:bgdrift 22s ease-in-out infinite alternate}
@@ -645,8 +649,17 @@ button,.nav-i,.asg-chip,.acc,.tchip,.timer-btn,.mini-btn,.cbadge,.seg>button,.to
 .bg-marks text:nth-child(3){animation-delay:3s}
 .bg-marks text:nth-child(4){animation-delay:4.5s}
 @keyframes bgpulse{0%,100%{opacity:.045}50%{opacity:.09}}
-.bg-dot{animation:bgrise linear infinite}
+/* Os pontos subindo eram círculos SVG animados por transform: em SVG
+   isso também passa pelo layout. Agora são elementos HTML com
+   will-change, que o compositor move sozinho, sem tocar a thread
+   principal. O desenho é o mesmo: bolinhas douradas subindo devagar. */
+.bg-dot{display:none}
+.bg-pontos{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.bg-pontos i{position:absolute;bottom:-6px;width:6px;height:6px;border-radius:50%;
+  background:#c2a15b;opacity:0;will-change:transform,opacity;
+  animation:bgrise linear infinite}
 @keyframes bgrise{0%{transform:translateY(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-320px);opacity:0}}
+body.theme-dark .bg-pontos i{opacity:.6}
 body.theme-dark .bg-anim .bg-marks text{opacity:.08!important}
 body.no-bg .bg-anim{display:none}
 
@@ -874,6 +887,14 @@ body.theme-dark .side-nav .nav-i.on{color:#1a1a18!important}
       </g>
       <path d="M-50,760 C220,740 360,600 560,580 C780,558 900,420 1120,340 C1280,282 1380,250 1460,190 L1460,900 L-50,900 Z" fill="url(#bgar)"/>
     </svg>
+    <div class="bg-pontos" aria-hidden="true">
+      <i style="left:17%;animation-duration:11s;animation-delay:0s"></i>
+      <i style="left:37%;width:5px;height:5px;animation-duration:14s;animation-delay:2s"></i>
+      <i style="left:54%;width:7px;height:7px;animation-duration:9s;animation-delay:1s"></i>
+      <i style="left:70%;width:5px;height:5px;animation-duration:13s;animation-delay:3s"></i>
+      <i style="left:84%;animation-duration:10s;animation-delay:1.5s"></i>
+      <i style="left:94%;width:5px;height:5px;animation-duration:15s;animation-delay:4s"></i>
+    </div>
   </div>
   <div class="layout">
     <aside class="side" id="side">
@@ -1312,13 +1333,17 @@ function buildNotifs(){
     if((t.assignees||[]).some(a=>a.toLowerCase().includes(myfn))&&new Date(t.created_at).getTime()>cutoff)
       items.push({ts:t.created_at,icon:'📋',text:'Demanda atribuída a você: <b>'+esc(t.title)+'</b>',taskId:t.id});
   });
+  /* mapa por id: com centenas de demandas e de notas, o find() por nota
+     era o que fazia esta função custar quase 100 ms a cada sincronização */
+  const porId=new Map(TASKS.map(t=>[t.id,t]));
   _recentNotes.forEach(n=>{
     if((n.visibility||'public')!=='public'||n.author_id===ME.id)return;
-    const t=TASKS.find(x=>x.id===n.task_id);if(!t)return;
+    const t=porId.get(n.task_id);if(!t)return;
     if(!(t.assignees||[]).some(a=>a.toLowerCase().includes(myfn)))return;
     items.push({ts:n.created_at,icon:'💬',text:'<b>'+esc(n.author_name||'Alguém')+'</b> comentou em '+esc(t.title),taskId:t.id});
   });
-  items.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  /* ISO ordena como texto; instanciar Date duas vezes por comparação não */
+  items.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
   items.forEach(it=>{it.unread=!seen||new Date(it.ts)>new Date(seen);});
   if(!localStorage.getItem('mgp_welcome'))
     items.push({ts:'2000-01-01T00:00:00Z',icon:'👋',text:'<b>Bem-vindo ao Modesto Tasks!</b> Você recebe um aviso aqui quando uma demanda for sua ou quando comentarem numa demanda que você acompanha.',welcome:true,unread:true});
@@ -3608,8 +3633,17 @@ async function carregarVisor(id){
       ifr.srcdoc = txt;
       box.innerHTML=''; box.appendChild(ifr);
     }else{
+      /* A URL assinada é de outra origem, e a CSP só libera iframe de
+         'self', data: e blob:. Colocá-la direto no src era um quadro em
+         branco, sem erro na tela. O arquivo vem por fetch e entra como
+         blob: além de passar na CSP, a URL assinada nunca vai ao DOM. */
+      const resp = await fetch(data.signedUrl);
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const blob = await resp.blob();
       const ifr = document.createElement('iframe');
-      ifr.src = data.signedUrl;
+      ifr.setAttribute('referrerpolicy','no-referrer');
+      ifr.src = URL.createObjectURL(blob);
+      ifr.addEventListener('load', ()=>setTimeout(()=>URL.revokeObjectURL(ifr.src), 60000), {once:true});
       box.innerHTML=''; box.appendChild(ifr);
     }
   }catch(e){
@@ -6613,12 +6647,15 @@ const MG_LINK_EMAIL = 'https://supabase.com/dashboard/project/eeqaabwsheaiwyhujc
    Substitui o pulsar de cada letra por um respiro único e lento do
    conjunto. Fica calmo, sem nada saltando na frente do conteúdo.      */
 .bg-marks text{animation:none!important}
-.bg-marks{animation:mgFundoEscurece 14s ease-in-out infinite alternate!important}
+/* O respiro de 14 s ia de .55 a 1 e ninguém percebia; o que se percebia
+   era o custo, porque opacidade num <g> de SVG repinta o SVG inteiro a
+   cada quadro. Fica parado no meio do caminho. */
+.bg-marks{animation:none!important;opacity:.78}
+body.theme-dark .bg-marks{animation:none!important;opacity:.68}
 @keyframes mgFundoEscurece{
   from{ opacity:.55 }
   to  { opacity:1 }
 }
-body.theme-dark .bg-marks{animation:mgFundoEscureceNoite 14s ease-in-out infinite alternate!important}
 @keyframes mgFundoEscureceNoite{
   from{ opacity:.45 }
   to  { opacity:.9 }
@@ -8111,8 +8148,12 @@ function mgDesenharListaEspelho(){
 .card-t{content-visibility:auto;contain-intrinsic-size:auto 172px}
 .cal-d{content-visibility:auto;contain-intrinsic-size:auto 88px}
 .dcard{content-visibility:auto;contain-intrinsic-size:auto 132px}
-/* animação de fundo parada quando a aba está em segundo plano */
+/* animação de fundo parada quando a aba está em segundo plano, quando a
+   pessoa pediu "Animações: desligado", e quando o sistema pede menos
+   movimento. Antes só o gato obedecia a essas duas últimas. */
 body.mg-oculto .bg-anim *{animation-play-state:paused!important}
+body.mg-sem-anim .bg-anim *{animation:none!important}
+@media (prefers-reduced-motion: reduce){ .bg-anim *{animation:none!important} }
 
 /* ---------- 3. celular ---------- */
 @media (max-width:760px){
@@ -9664,13 +9705,42 @@ function mgEstadoDaTela(){
   const tour = document.getElementById('tour');
   const semApp = !app || getComputedStyle(app).display === 'none';
   const emBoasVindas = !!(tour && tour.classList.contains('on'));
-  document.body.classList.toggle('mg-sem-app', semApp);
-  document.body.classList.toggle('mg-boas-vindas', emBoasVindas);
+  const cl = document.body.classList;
+  if(cl.contains('mg-sem-app') !== semApp) cl.toggle('mg-sem-app', semApp);
+  if(cl.contains('mg-boas-vindas') !== emBoasVindas) cl.toggle('mg-boas-vindas', emBoasVindas);
+}
+/* Um observador só para os dois estados de tela. getComputedStyle força
+   recálculo de estilo, e chamar isso a cada 700 ms era pagar por nada
+   quando nada mudou. Agora só roda quando o DOM muda, uma vez por quadro. */
+let mgTelaAgendada = 0;
+const mgTelaOuvintes = [];
+function mgObservarTela(fn){
+  /* aceita o nome: assim quem embrulhar a função depois (o guarda de aba
+     escondida faz isso) continua valendo por aqui também */
+  mgTelaOuvintes.push(fn);
+  if(mgTelaAgendada !== 0) return;          /* observer já montado */
+  mgTelaAgendada = -1;
+  const rodar = ()=>{
+    mgTelaAgendada = -1;
+    mgTelaOuvintes.forEach(f=>{
+      const g = (typeof f === 'string') ? window[f] : f;
+      try{ typeof g === 'function' && g() }catch(_){}
+    });
+  };
+  const obs = new MutationObserver(recs=>{
+    if(mgTelaAgendada !== -1) return;
+    /* mutação no body em si é, na maior parte, a nossa própria classe */
+    if(!recs.some(r => r.target !== document.body)) return;
+    mgTelaAgendada = requestAnimationFrame(rodar);
+  });
+  const ligar = ()=> obs.observe(document.body, {attributes:true, attributeFilter:['class','style'], childList:true, subtree:true});
+  if(document.body) ligar(); else document.addEventListener('DOMContentLoaded', ligar);
 }
 (function(){
   const _dock = mgDock;
   mgDock = function(){ mgEstadoDaTela(); return _dock() };
-  setInterval(mgEstadoDaTela, 700);
+  mgObservarTela('mgEstadoDaTela');
+  setInterval(mgEstadoDaTela, 2500);
   mgEstadoDaTela();
 })();
 
@@ -10953,9 +11023,16 @@ function mgPainelAberto(){
     document.querySelector('.modal.on') ||
     document.querySelector('.mg-modal.on')
   );
-  document.body.classList.toggle('mg-painel-aberto', aberto);
+  if(document.body.classList.contains('mg-painel-aberto') !== aberto)
+    document.body.classList.toggle('mg-painel-aberto', aberto);
 }
-setInterval(mgPainelAberto, 250);
+/* Era um poll de 250 ms, quatro consultas por segundo para descobrir uma
+   coisa que só muda quando o DOM muda. Agora quem avisa é o DOM, com no
+   máximo uma checagem por quadro, e um poll lento fica só de rede de
+   segurança. A checagem ignora mutação no próprio <body>, porque ela
+   mesma altera classe do body e viraria laço. */
+mgObservarTela('mgPainelAberto');
+setInterval(mgPainelAberto, 2500);
 mgPainelAberto();
 
 /* ---------------------------------------------------------------------
@@ -24452,8 +24529,14 @@ async function mgSincronizar(){
                     || !(typeof TASKS !== 'undefined' && TASKS.length);
   if(precisaCheia){
     MG_CHEIO = 0;
+    /* a completa existe para enxergar demanda apagada, mas na maioria das
+       vezes ela volta igual ao que já está na tela. Comparar o retrato
+       antes e depois custa uns poucos milissegundos; repintar 450 cards
+       custa uns 200. Só repinta quando a comparação disser que mudou. */
+    const retratoAntes = (typeof TASKS !== 'undefined' && TASKS.length) ? JSON.stringify(TASKS) : '';
     await loadTasks();
     MG_MARCO = mgMarcoDe(TASKS);
+    if(retratoAntes && retratoAntes === JSON.stringify(TASKS)) return;
     buildNotifs(); updateNotifBadge(); render();
     if(DETAIL_ID) renderDetailBody();
     return;
@@ -25422,6 +25505,9 @@ window.mgResumoHTML    = mgResumoHTML;
    ===================================================================== */
 .mg-gato-sen{position:fixed;z-index:94;cursor:pointer;line-height:0;
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));
+  /* camada própria: a sombra é refeita a cada piscada e a cada passo, e
+     sem isto o repinte podia arrastar o que está em volta */
+  will-change:transform;
   transition:transform .3s linear}
 .mg-gato-sen svg{display:block;overflow:visible}
 /* O container agora carrega o deslocamento pela barra, então o realce do

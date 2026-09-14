@@ -1698,7 +1698,11 @@ ok('42c o texto sai com as duas listas em bullets, e a conta bate',
 
 /* ---- 42d. empresa sem movimento não entra na lista ---- */
 const semMovimento = await page.evaluate(async ()=>{
-  const d = await mgSemanaDados(mgSemana(2));      /* retrasada: nada lá */
+  /* Era mgSemana(2). Numa segunda-feira a "retrasada" passa a cobrir a
+     semana em que o stub grava suas datas fixas (01/09 e 02/09), e o
+     caso quebrava sozinho com a virada do calendário. Vinte semanas para
+     trás não há dado nenhum, em nenhum dia do ano. */
+  const d = await mgSemanaDados(mgSemana(20));
   return {empresas: d.length};
 });
 ok('42d semana sem movimento não gera resumo vazio',
@@ -2170,13 +2174,21 @@ const deitada = await page.evaluate(async ()=>{
 
   /* deitado, a rotina só vira de lado ou levanta. Nas duas ele continua
      com uma silhueta válida, e nunca fica preso andando. */
+  /* a rotina sorteia entre virar e levantar. Para provar que ele VIRA,
+     deita de novo sempre que levantar, até ver o espelho mudar; para
+     provar que LEVANTA, conta se em algum momento saiu do deitado. */
   const lados = new Set([getComputedStyle(vira).transform]);
   let levantou = false;
-  for(let i=0;i<40;i++){
-    if(!g.classList.contains('deitado')){ levantou = true; break }
+  for(let i=0;i<60 && lados.size < 2;i++){
+    if(!g.classList.contains('deitado')){ levantou = true; mgGatoDeitar(); }
     mgGatoManha();
     await new Promise(r=>setTimeout(r,20));
     lados.add(getComputedStyle(vira).transform);
+  }
+  for(let i=0;i<60 && !levantou;i++){
+    mgGatoManha();
+    await new Promise(r=>setTimeout(r,20));
+    if(!g.classList.contains('deitado')) levantou = true;
   }
   g.classList.remove('deitado');
   return {deitou, trocouSilhueta, respiros: [...respiros],
@@ -3254,6 +3266,88 @@ ok('54b a função do Kronos tem a varredura, o panorama e a fronteira de dado',
    kFn.temFerramenta && kFn.temPanorama && kFn.ligaNoContexto
    && kFn.avisaQueEDado && kFn.semServiceRole,
    JSON.stringify(kFn));
+
+/* ---------------------------------------------------------------------
+   55 · fluidez: o que foi medido e corrigido não pode voltar
+   ---------------------------------------------------------------------
+   Em 8 s parado a página fazia 482 layouts, um por quadro, e 88% da CPU
+   em ocioso era o fundo de marca animado em SVG. Estes casos travam a
+   forma da correção, não o número: o número depende da máquina.       */
+const fundo = await page.evaluate(()=>{
+  const nomes = document.getAnimations().map(a=>a.animationName||'');
+  const svgAnimado = document.getAnimations().some(a=>{
+    const el = a.effect && a.effect.target;
+    return el && el.closest && el.closest('.bg-anim svg');
+  });
+  const pontos = [...document.querySelectorAll('.bg-pontos i')];
+  return {
+    /* nada dentro do SVG do fundo pode estar animando */
+    svgAnimado,
+    linhasParadas: ['.bg-line','.bg-line2'].every(sel=>{
+      const e=document.querySelector(sel); return e && getComputedStyle(e).animationName==='none' }),
+    marcaParada: (()=>{ const e=document.querySelector('.bg-marks'); return e && getComputedStyle(e).animationName==='none' })(),
+    /* os pontos existem, são HTML e pedem camada própria */
+    pontos: pontos.length,
+    pontosNoCompositor: pontos.every(i=>/transform/.test(getComputedStyle(i).willChange)),
+    pontosAnimando: nomes.filter(n=>n==='bgrise').length,
+  };
+});
+ok('55 o fundo de marca não anima mais em SVG, e os pontos vão pelo compositor',
+   !fundo.svgAnimado && fundo.linhasParadas && fundo.marcaParada
+   && fundo.pontos === 6 && fundo.pontosNoCompositor && fundo.pontosAnimando === 6,
+   JSON.stringify(fundo));
+
+/* ---- 55b. o estado da tela vem do DOM, não de um poll ----
+   Abrir o painel de detalhe tem que refletir na classe do body dentro
+   de poucos quadros, sem esperar os 2,5 s do poll de segurança. */
+const semPoll = await page.evaluate(async ()=>{
+  const slide = document.getElementById('slide'); if(!slide) return {erro:'sem slide'};
+  const t0 = performance.now();
+  slide.classList.add('on');
+  let quadros = 0;
+  while(!document.body.classList.contains('mg-painel-aberto') && quadros < 20){
+    await new Promise(r=>requestAnimationFrame(r)); quadros++;
+  }
+  const abriuEm = performance.now() - t0;
+  slide.classList.remove('on');
+  quadros = 0;
+  while(document.body.classList.contains('mg-painel-aberto') && quadros < 20){
+    await new Promise(r=>requestAnimationFrame(r)); quadros++;
+  }
+  return {abriuEm: Math.round(abriuEm), fechou: !document.body.classList.contains('mg-painel-aberto'),
+          observador: typeof mgObservarTela === 'function'};
+});
+ok('55b abrir e fechar o painel reflete no body em poucos quadros, sem poll',
+   semPoll.observador && semPoll.abriuEm < 400 && semPoll.fechou,
+   JSON.stringify(semPoll));
+
+/* ---- 55c. o visor de documentos entrega o arquivo por blob ----
+   A URL assinada é de outra origem e a CSP só libera iframe de 'self',
+   data: e blob:. Antes o src ia direto e o quadro ficava em branco. */
+const visor = await page.evaluate(async ()=>{
+  if(typeof DOCS === 'undefined' || typeof carregarVisor !== 'function') return {erro:'sem visor'};
+  const d = DOCS.find(x=>x.storage_path && !/\.html?$/i.test(x.storage_path));
+  if(!d) return {erro:'sem documento não-HTML no stub'};
+  let box = document.getElementById('mg-visor');
+  if(!box){ box = document.createElement('div'); box.id='mg-visor'; document.body.appendChild(box) }
+  /* o domínio falso do stub não passa na connect-src; em produção a URL
+     assinada é do supabase.co, que passa. Aqui o fetch é simulado. */
+  const _fetch = window.fetch; let buscou = '';
+  window.fetch = async (u)=>{ buscou = String(u); return new Response(new Blob(['%PDF-1.4'], {type:'application/pdf'}), {status:200}) };
+  try{
+    await carregarVisor(d.id);
+    await new Promise(r=>setTimeout(r,300));
+  } finally { window.fetch = _fetch }
+  const ifr = box.querySelector('iframe');
+  const saida = {arquivo: d.storage_path, buscouAssinada: /assinado/.test(buscou),
+                 temIframe: !!ifr, src: ifr ? ifr.src.slice(0,5) : '',
+                 semUrlAssinada: !(ifr && /exemplo\.invalid|token=/.test(ifr.src))};
+  box.innerHTML = '';
+  return saida;
+});
+ok('55c o visor põe o arquivo num iframe blob:, e a URL assinada não vai ao DOM',
+   visor.buscouAssinada && visor.temIframe && visor.src === 'blob:' && visor.semUrlAssinada,
+   JSON.stringify(visor));
 
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
