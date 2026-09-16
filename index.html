@@ -1868,11 +1868,38 @@ function openTaskModal(id=null,status=null){
     </div>
     <label>Responsáveis</label><div class="mg-resp-host">${assigneePickerHTML()}</div>
     <label>Descrição</label><textarea class="fld" id="m-desc" placeholder="Detalhes…">${t?esc(t.description):''}</textarea>
+    ${t?'':`<label>Arquivos</label>
+    <div class="mg-anx-nova" id="m-anexos">
+      <button type="button" class="mg-anx-add" id="m-anexos-btn" onclick="mgEscolherAnexosNovos()">📎 Anexar arquivos</button>
+      <div class="lista" id="m-anexos-lista"></div>
+    </div>`}
     <div class="modal-actions">
       <button class="btn-save" onclick="saveTask(${t?`'${escJS(t.id)}'`:'null'})">${t?'Salvar':'Criar demanda'}</button>
       <button class="btn-x" onclick="$('tmodal').classList.remove('on')">Cancelar</button>
     </div>`;
+  MG_ANEXOS_NOVOS = [];
   $('tmodal').classList.add('on');
+}
+/* arquivos escolhidos na janela de criar, à espera da demanda existir */
+let MG_ANEXOS_NOVOS = [];
+function mgEscolherAnexosNovos(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true;
+  inp.onchange = e => {
+    MG_ANEXOS_NOVOS = MG_ANEXOS_NOVOS.concat([...e.target.files]);
+    mgPintarAnexosNovos();
+  };
+  inp.click();
+}
+function mgTirarAnexoNovo(i){ MG_ANEXOS_NOVOS.splice(i,1); mgPintarAnexosNovos() }
+function mgPintarAnexosNovos(){
+  const cx = $('m-anexos-lista'); if(!cx) return;
+  cx.innerHTML = MG_ANEXOS_NOVOS.map((f,i)=>`<div class="mg-anx-i">
+      <span class="ic">${typeof mgIconeArquivo==='function' ? mgIconeArquivo(f.name, f.type) : '📎'}</span>
+      <span class="txt"><span class="nm" title="${esc(f.name)}">${esc(f.name)}</span>
+        <span class="sb">${typeof mgTamanho==='function' ? mgTamanho(f.size) : ''} · sobe ao criar</span></span>
+      <button type="button" class="x" title="Tirar" onclick="mgTirarAnexoNovo(${i})">✕</button>
+    </div>`).join('');
 }
 async function saveTask(id){
   const payload={
@@ -1887,12 +1914,28 @@ async function saveTask(id){
     description:$('m-desc').value,
   };
   if(!payload.title){toast('Informe o título.');return}
-  let error;
+  let error, criada = null;
   if(id){({error}=await sb.from('tasks').update(payload).eq('id',id));}
-  else {({error}=await sb.from('tasks').insert(payload));}
+  else {
+    /* devolve a linha: é ela que recebe os arquivos escolhidos na janela */
+    const r = await sb.from('tasks').insert(payload).select('id,client_id,anexos').single();
+    error = r.error; criada = r.data;
+  }
   if(error){toast('Erro ao salvar');console.error(error);return}
   $('tmodal').classList.remove('on');
   toast(id?'Demanda atualizada':'Demanda criada');
+  if(criada && MG_ANEXOS_NOVOS.length){
+    const pendentes = MG_ANEXOS_NOVOS; MG_ANEXOS_NOVOS = [];
+    try{
+      const novos = await mgSubirAnexos(criada, pendentes);
+      if(novos.length) toast(novos.length===1 ? 'Demanda criada com 1 arquivo ✓' : 'Demanda criada com '+novos.length+' arquivos ✓');
+    }catch(e){
+      /* a demanda existe; só o arquivo falhou, e a pessoa precisa saber */
+      console.error(e);
+      toast('A demanda foi criada, mas o arquivo não subiu: ' + ((e&&e.message)||'erro'));
+    }
+  }
+  MG_ANEXOS_NOVOS = [];
   await refresh();
 }
 async function deleteTask(id){
@@ -11583,6 +11626,14 @@ setTimeout(mgFDesenhar, 1400);
 .mg-anx-i button:hover{background:rgba(194,161,91,.12)}
 .mg-anx-i button.x{color:var(--muted2)}
 .mg-anx-i button.x:hover{background:rgba(184,74,62,.1);color:var(--danger)}
+.mg-anx-nova{margin:4px 0 10px}
+.mg-anx-nova .lista:not(:empty){margin-top:8px;display:grid;gap:6px}
+.mg-anx-nova .mg-anx-i{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:7px 10px;display:flex;align-items:center;gap:9px;font-size:13px}
+.mg-anx-nova .mg-anx-i .txt{min-width:0;flex:1;display:flex;flex-direction:column}
+.mg-anx-nova .mg-anx-i .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-anx-nova .mg-anx-i .sb{font-size:11.5px;color:var(--muted)}
+.mg-anx-nova .mg-anx-i .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px}
+.slide-foot .mg-anx-foot{margin-right:0}
 .mg-anx-add{display:flex;align-items:center;gap:9px;background:var(--card2);
   border:1px dashed var(--line2);border-radius:10px;padding:10px 13px;font-family:inherit;
   font-size:12.5px;font-weight:600;color:var(--muted);width:100%}
@@ -11687,6 +11738,29 @@ function mgTamanho(b){
    ===================================================================== */
 function mgAnexos(t){ return Array.isArray(t && t.anexos) ? t.anexos : [] }
 
+/* Sobe os arquivos para a pasta da empresa e grava a lista na demanda.
+   Serve ao painel de detalhe e à janela de criar, que passou a aceitar
+   arquivo antes mesmo de a demanda existir. */
+async function mgSubirAnexos(t, arqs){
+  const novos = [];
+  for(const f of arqs){
+    if(f.size > 25*1024*1024){ toast('“'+f.name+'” passa de 25 MB'); continue }
+    const ext = (f.name.split('.').pop()||'bin').toLowerCase();
+    const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(16).slice(2));
+    const path = `${t.client_id}/tarefas/${id}.${ext}`;
+    const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
+    if(up.error) throw up.error;
+    novos.push({nome:f.name, path, tipo:f.type||'', tamanho:f.size,
+                por: ME ? ME.name : null, em: new Date().toISOString()});
+  }
+  if(!novos.length) return [];
+  const lista = mgAnexos(t).concat(novos);
+  const {error} = await sb.from('tasks').update({anexos:lista}).eq('id', t.id);
+  if(error) throw error;
+  t.anexos = lista;
+  return novos;
+}
+
 async function mgAnexar(){
   const t = TASKS.find(x=>x.id===DETAIL_ID); if(!t) return;
   const inp = document.createElement('input');
@@ -11695,23 +11769,9 @@ async function mgAnexar(){
     const arqs = [...e.target.files]; if(!arqs.length) return;
     const btn = document.getElementById('mg-anx-add');
     if(btn){ btn.disabled = true; btn.textContent = 'Enviando…' }
-    const novos = [];
     try{
-      for(const f of arqs){
-        if(f.size > 25*1024*1024){ toast('“'+f.name+'” passa de 25 MB'); continue }
-        const ext = (f.name.split('.').pop()||'bin').toLowerCase();
-        const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(16).slice(2));
-        const path = `${t.client_id}/tarefas/${id}.${ext}`;
-        const up = await sb.storage.from('documents').upload(path, f, {upsert:false});
-        if(up.error) throw up.error;
-        novos.push({nome:f.name, path, tipo:f.type||'', tamanho:f.size,
-                    por: ME ? ME.name : null, em: new Date().toISOString()});
-      }
+      const novos = await mgSubirAnexos(t, arqs);
       if(!novos.length) return;
-      const lista = mgAnexos(t).concat(novos);
-      const {error} = await sb.from('tasks').update({anexos:lista}).eq('id', t.id);
-      if(error) throw error;
-      t.anexos = lista;
       renderDetailBody();
       toast(novos.length===1 ? 'Arquivo anexado ✓' : novos.length+' arquivos anexados ✓');
     }catch(err){
@@ -12033,12 +12093,27 @@ function mgUrgConferir(){
         else corpo.insertAdjacentHTML('beforeend', html);
       }
 
-      /* arquivos e projeto na coluna da esquerda */
-      if(esq && !esq.querySelector('.mg-anx')){
+      /* Arquivos ABRE a coluna da esquerda. Medido: com o double check
+         ligado a lista de subtarefas tem 16 itens e empurrava o botão de
+         anexar para 1.864 px do topo, três telas e meia abaixo. Quem
+         procurava não achava, e estava certo. Projeto fica onde estava,
+         antes do tempo. Sem coluna (demanda sem anotações), o bloco vai
+         direto no corpo, em vez de sumir. */
+      if(!corpo.querySelector('.mg-anx')){
+        if(esq) esq.insertAdjacentHTML('afterbegin', mgAnexosHTML(t));
+        else corpo.insertAdjacentHTML('beforeend', mgAnexosHTML(t));
+      }
+      if(esq && !esq.querySelector('.mg-pj-bloco')){
         const tempo = esq.querySelector('.timebox');
-        const bloco = mgAnexosHTML(t) + mgProjetoHTML(t);
-        if(tempo) tempo.insertAdjacentHTML('beforebegin', bloco);
-        else esq.insertAdjacentHTML('beforeend', bloco);
+        const pj = '<div class="mg-pj-bloco">' + mgProjetoHTML(t) + '</div>';
+        if(tempo) tempo.insertAdjacentHTML('beforebegin', pj);
+        else esq.insertAdjacentHTML('beforeend', pj);
+      }
+      /* e um atalho no rodapé, que está sempre à vista */
+      const pe = document.querySelector('#slide .slide-foot');
+      if(pe && !pe.querySelector('.mg-anx-foot')){
+        pe.insertAdjacentHTML('afterbegin',
+          `<button class="mini-btn ghost mg-anx-foot" onclick="mgAnexar()" title="Anexar arquivo a esta demanda">📎 Anexar</button>`);
       }
     }catch(e){ console.warn('[detalhe] adição 48', e) }
     return r;
@@ -12096,7 +12171,9 @@ function mgUrgConferir(){
   saveTask = async function(){
     const cx = document.getElementById('mg-urg-nova');
     const quer = cx ? cx.checked : null;
-    const r = await _st();
+    /* repassa os argumentos: sem isto o id da edição sumia aqui e a
+       camada de baixo fazia INSERT, duplicando a demanda editada */
+    const r = await _st.apply(this, arguments);
     if(quer===null) return r;
     try{
       await loadTasks();

@@ -3349,6 +3349,94 @@ ok('55c o visor põe o arquivo num iframe blob:, e a URL assinada não vai ao DO
    visor.buscouAssinada && visor.temIframe && visor.src === 'blob:' && visor.semUrlAssinada,
    JSON.stringify(visor));
 
+/* ---------------------------------------------------------------------
+   56 · anexar arquivo tem que estar ao alcance, e criar não pode duplicar
+   ---------------------------------------------------------------------
+   Medido: com o double check ligado a lista de subtarefas empurrava o
+   botão de anexar para 1.864 px do topo, numa área visível de 526 px.
+   "Não tem botão" era a descrição honesta. */
+const anexoAoAlcance = await page.evaluate(async ()=>{
+  const t=document.getElementById('tour'); if(t) t.classList.remove('on');
+  document.querySelectorAll('.mg-boas,.mg-tour').forEach(e=>e.remove());
+  showView('board'); await new Promise(r=>setTimeout(r,200));
+  const tarefa = TASKS.find(x=>!x.archived);
+  openDetail(tarefa.id); await new Promise(r=>setTimeout(r,600));
+  const corpo = document.querySelector('#slide .slide-b');
+  const topo = el => Math.round(el.getBoundingClientRect().top - corpo.getBoundingClientRect().top + corpo.scrollTop);
+  const foot = document.querySelector('#slide .slide-foot .mg-anx-foot');
+  const esq  = corpo.querySelector('.mg-det-col');
+  const primeiro = esq && esq.firstElementChild;
+  return {
+    subtarefas: corpo.querySelectorAll('#d-subs .sub').length,
+    botaoNoRodape: !!foot,
+    rodapeVisivel: !!(foot && foot.getClientRects().length),
+    /* o rodapé é fixo: fica na tela sem rolar, seja qual for a lista */
+    rodapeNaTela: !!(foot && foot.getBoundingClientRect().top < window.innerHeight),
+    arquivosAbreAColuna: !!(primeiro && /Arquivos/.test(primeiro.textContent)),
+    /* relação, não número mágico: a coluna começa depois de status,
+       prazo e descrição, então o que importa é Arquivos vir ANTES da
+       lista de subtarefas, que é quem empurrava tudo para baixo */
+    arquivosAntesDasSubtarefas: (()=>{ const a=corpo.querySelector('.mg-anx'), sub=corpo.querySelector('#d-subs');
+      return !!(a && sub && topo(a) < topo(sub)) })(),
+    projetoUmaVez: corpo.querySelectorAll('.mg-pj-bloco').length,
+  };
+});
+ok('56 anexar fica no rodapé sempre à vista, e Arquivos abre a coluna da esquerda',
+   anexoAoAlcance.botaoNoRodape && anexoAoAlcance.rodapeVisivel && anexoAoAlcance.rodapeNaTela
+   && anexoAoAlcance.arquivosAbreAColuna && anexoAoAlcance.arquivosAntesDasSubtarefas
+   && anexoAoAlcance.projetoUmaVez === 1,
+   JSON.stringify(anexoAoAlcance));
+
+/* ---- 56b. arquivo escolhido na janela de criar sobe junto com a demanda ---- */
+const criarComArquivo = await page.evaluate(async ()=>{
+  closeDetail();
+  openTaskModal(null, 'Não iniciado'); await new Promise(r=>setTimeout(r,200));
+  const temBotao = !!document.getElementById('m-anexos-btn');
+  document.getElementById('m-title').value = 'Demanda com arquivo';
+  /* o seletor nativo não abre em teste: o arquivo entra pela mesma lista
+     que o botão preenche */
+  MG_ANEXOS_NOVOS = [new File(['%PDF-1.4 teste'], 'briefing.pdf', {type:'application/pdf'})];
+  mgPintarAnexosNovos();
+  const listou = document.querySelectorAll('#m-anexos-lista .mg-anx-i').length;
+  const antes = TASKS.length;
+  await saveTask(null);
+  await new Promise(r=>setTimeout(r,1200));
+  const nova = (TASKS||[]).filter(x=>x.title==='Demanda com arquivo')
+    .sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)))[0];
+  return {temBotao, listou, criou: TASKS.length === antes + 1, achou: !!nova,
+          anexos: nova ? (nova.anexos||[]).map(a=>a.nome) : [],
+          caminhoNaPastaDaEmpresa: !!(nova && nova.anexos && nova.anexos[0] && String(nova.anexos[0].path).startsWith(nova.client_id + '/tarefas/')),
+          listaZerada: MG_ANEXOS_NOVOS.length === 0};
+});
+ok('56b a janela de criar aceita arquivo, e ele sobe para a pasta da empresa junto com a demanda',
+   criarComArquivo.temBotao && criarComArquivo.listou === 1 && criarComArquivo.criou
+   && criarComArquivo.anexos.length === 1 && criarComArquivo.anexos[0] === 'briefing.pdf'
+   && criarComArquivo.caminhoNaPastaDaEmpresa && criarComArquivo.listaZerada,
+   JSON.stringify(criarComArquivo));
+
+/* ---- 56c. editar pela janela atualiza, não duplica ----
+   O wrapper de "urgente" chamava a camada de baixo sem repassar o id, e
+   as camadas de cima passam por ele: toda edição pela janela virava um
+   INSERT novo. */
+const editarSemDuplicar = await page.evaluate(async ()=>{
+  const alvo = (TASKS||[]).find(x=>x.title==='Demanda com arquivo');
+  if(!alvo) return {erro:'sem a demanda do caso anterior'};
+  openTaskModal(alvo.id); await new Promise(r=>setTimeout(r,200));
+  document.getElementById('m-title').value = 'Demanda com arquivo (editada)';
+  const antes = TASKS.length;
+  await saveTask(alvo.id);
+  await new Promise(r=>setTimeout(r,1200));
+  const iguais = (TASKS||[]).filter(x=>/Demanda com arquivo/.test(x.title));
+  const mesma = (TASKS||[]).find(x=>x.id===alvo.id);
+  return {antes, depois: TASKS.length, quantasComOTitulo: iguais.length,
+          tituloNovo: mesma && mesma.title, mesmoId: !!mesma};
+});
+ok('56c editar pela janela atualiza a mesma demanda em vez de criar outra',
+   editarSemDuplicar.depois === editarSemDuplicar.antes
+   && editarSemDuplicar.quantasComOTitulo === 1
+   && editarSemDuplicar.tituloNovo === 'Demanda com arquivo (editada)',
+   JSON.stringify(editarSemDuplicar));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
