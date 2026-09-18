@@ -196,6 +196,19 @@ O cálculo do MGPI não está no banco. Ele é feito na tela, a partir das
 chaves do jsonb, do mesmo jeito que a planilha faz a partir das células —
 e está coberto por `testes/nps.mjs`.
 
+Dois cuidados da tela que valem registrar:
+
+- **Excluir envio.** Uma pesquisa enviada sem querer pode ser excluída pela
+  equipe enquanto está em "aguardando o cliente". O `delete` vai com
+  `neq('status','respondido')`: se o cliente respondeu no meio do caminho,
+  o banco não apaga e a tela recarrega. Pesquisa respondida é dado do
+  cliente e não se apaga pela tela. A policy de delete é `is_admin()`.
+- **Salvar em PDF.** O retorno da Revisão de Parceria sempre teve o botão.
+  O bloco "Respostas do cliente" (Pré-Discovery e Client Discovery, que não
+  têm retorno) ganhou o mesmo: a classe `mgn-folha` só existe durante a
+  impressão, e a folha de estilo de papel mostra só o bloco, sem abas nem
+  botões, com um cabeçalho de empresa, pesquisa, rodada e data.
+
 ## Owner e avisos
 
 `tasks.owner_id` é uma pessoa da equipe, uma só, acima dos responsáveis.

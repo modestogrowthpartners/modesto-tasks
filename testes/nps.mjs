@@ -275,6 +275,62 @@ ok('21 a visão geral calcula o NPS de verdade, não a nota crua',
    carteira.car[0]==='100' && carteira.car[1]==='8,20' && carteira.farol==='Verde',
    JSON.stringify(carteira));
 
+/* ---- 24. a folha das respostas: Salvar em PDF no Pré-Discovery, que não tem retorno ---- */
+await page.evaluate(()=>mgNpsCliente('c-1'));   /* o caso 21 deixou a visão geral aberta */
+await page.waitForTimeout(400);
+const folha = await page.evaluate(()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
+  mgNpsLer(p.id);
+  const sec = document.getElementById('mgn-respostas');
+  const botao = [...sec.querySelectorAll('button')].find(b=>/Salvar em PDF/.test(b.textContent));
+  const _p = window.print; let duranteImpressao = null;
+  window.print = ()=>{ duranteImpressao = sec.classList.contains('mgn-folha') };
+  if(botao) botao.click();
+  window.print = _p;
+  const papel = [...document.styleSheets].flatMap(s=>{ try{ return [...s.cssRules] }catch(e){ return [] } })
+    .filter(r=>r.media && /print/.test(r.media.mediaText))
+    .flatMap(r=>[...r.cssRules].map(x=>x.cssText)).join('\n');
+  const cab = sec.querySelector('.mgn-so-print');
+  return {temBotao: !!botao, duranteImpressao,
+          folhaVisivelNoPapel: /\.mgn-folha[^{]*\{[^}]*visibility:\s*visible/.test(papel),
+          abasSomemNoPapel: /\.mgn-folha \.mgn-abas[^{]*\{[^}]*display:\s*none/.test(papel),
+          cabecalho: cab ? cab.textContent : '',
+          cabecalhoSoNoPapel: cab ? getComputedStyle(cab).display === 'none' : false};
+});
+await page.waitForTimeout(1700);
+const folhaLimpa = await page.evaluate(()=>!document.getElementById('mgn-respostas').classList.contains('mgn-folha'));
+ok('24 as respostas têm Salvar em PDF, e a folha de papel mostra só elas, com o cabeçalho',
+   folha.temBotao && folha.duranteImpressao && folha.folhaVisivelNoPapel && folha.abasSomemNoPapel
+   && /Cliente Um · Pré-Discovery · respondida em/.test(folha.cabecalho) && folha.cabecalhoSoNoPapel
+   && folhaLimpa, JSON.stringify({...folha, folhaLimpa}));
+
+/* ---- 25. enviado sem querer: excluir enquanto o cliente não respondeu ---- */
+await page.evaluate(async ()=>{ mgNpsCliente('c-1'); window.confirm = ()=>true; await mgNpsEnviarPesquisa('pre_discovery') });
+await page.waitForTimeout(400);
+const excluir = await page.evaluate(async ()=>{
+  const linhas = ()=>[...document.querySelectorAll('#v-nps tr')];
+  const antes = __FIX.mgp_pesquisas.length;
+  const pend = __FIX.mgp_pesquisas.find(p=>p.status==='enviado' && p.tipo==='pre_discovery');
+  const linha = linhas().find(tr=>/aguardando o cliente/.test(tr.textContent));
+  const botao = linha && [...linha.querySelectorAll('button')].find(b=>/excluir envio/.test(b.textContent));
+  const respondidaTemExcluir = linhas().some(tr=>/ler respostas/.test(tr.textContent) && /excluir envio/.test(tr.textContent));
+  window.confirm = ()=>false; await mgNpsExcluirEnvio(pend.id);
+  const cancelarNaoApaga = __FIX.mgp_pesquisas.length === antes;
+  window.confirm = ()=>true; await mgNpsExcluirEnvio(pend.id);
+  await new Promise(r=>setTimeout(r,300));
+  const sumiuDoBanco = !__FIX.mgp_pesquisas.some(p=>p.id===pend.id);
+  const sumiuDaTela = !linhas().some(tr=>/aguardando o cliente/.test(tr.textContent));
+  const resp = __FIX.mgp_pesquisas.find(p=>p.status==='respondido');
+  await mgNpsExcluirEnvio(resp.id);
+  const respondidaFica = __FIX.mgp_pesquisas.some(p=>p.id===resp.id);
+  return {rodada: pend && pend.rodada, temBotao: !!botao, respondidaTemExcluir, cancelarNaoApaga,
+          sumiuDoBanco, sumiuDaTela, respondidaFica, antes, depois: __FIX.mgp_pesquisas.length};
+});
+ok('25 o envio pendente tem "excluir envio", cancelar não apaga, confirmar apaga, e a respondida fica',
+   excluir.rodada === 2 && excluir.temBotao && !excluir.respondidaTemExcluir && excluir.cancelarNaoApaga
+   && excluir.sumiuDoBanco && excluir.sumiuDaTela && excluir.respondidaFica
+   && excluir.depois === excluir.antes - 1, JSON.stringify(excluir));
+
 /* =====================================================================
    FASE 6 — o que o cliente não alcança
    ===================================================================== */

@@ -28495,11 +28495,20 @@ window.mgzQuemEh        = mgzQuemEh;
   html,body{height:auto !important;overflow:visible !important;background:#fff !important}
   .main,.content,.view{overflow:visible !important;height:auto !important}
   body *{visibility:hidden}
-  .mgn-snap,.mgn-snap *{visibility:visible}
-  .mgn-snap{position:absolute;left:0;top:0;width:100%;padding:0;max-width:none}
+  .mgn-snap,.mgn-snap *,.mgn-folha,.mgn-folha *{visibility:visible}
+  .mgn-snap,.mgn-folha{position:absolute;left:0;top:0;width:100%;padding:0;max-width:none}
   .mgn-snap .acoes{display:none !important}
   .mgn-snap .hero,.mgn-snap .it{border:1px solid #ddd;break-inside:avoid;box-shadow:none}
+  /* a folha das respostas: sem abas nem botões, e com o cabeçalho que só
+     existe no papel (empresa, pesquisa, rodada e data) */
+  .mgn-folha{border:0;box-shadow:none;background:#fff}
+  .mgn-folha .mgn-abas,.mgn-folha button{display:none !important}
+  .mgn-folha .mgn-so-print{display:block !important}
+  .mgn-folha table{break-inside:auto}
+  .mgn-folha tr{break-inside:avoid}
 }
+.mgn-so-print{display:none;padding:10px 20px 0;font-size:13px;color:#444}
+.mgn-excluir:hover{border-color:#b4413c;color:#b4413c}
 </style>
 
 <script>
@@ -29352,7 +29361,9 @@ window.mgzQuemEh        = mgzQuemEh;
         + (p.tipo === 'mgpr'
             ? ' <button class="mgn-btn2" onclick="mgNpsVerRetorno(\'' + escJS(p.id) + '\')">ver retorno</button>'
             : '')
-      : '<span style="color:var(--muted2);font-size:12.5px">aguardando o cliente</span>';
+      : '<span style="color:var(--muted2);font-size:12.5px">aguardando o cliente</span>'
+        + ' <button class="mgn-btn2 mgn-excluir" style="padding:5px 10px;font-size:12px"'
+        + ' onclick="mgNpsExcluirEnvio(\'' + escJS(p.id) + '\')">excluir envio</button>';
     return '<tr><td><b>' + esc(spec.nome) + '</b>'
       + (p.rodada > 1 ? ' <span style="color:var(--muted2)">· rodada ' + p.rodada + '</span>' : '') + '</td>'
       + '<td>' + esc(p.status === 'respondido' ? 'respondida' : 'enviada') + '</td>'
@@ -29544,13 +29555,31 @@ window.mgzQuemEh        = mgzQuemEh;
 
     const quando = atual.respondido_em
       ? new Date(atual.respondido_em).toLocaleDateString('pt-BR') : '—';
+    const nomeEmp = (typeof clientName === 'function') ? (clientName(atual.client_id) || '') : '';
+    const folhaCab = '<div class="mgn-so-print">' + esc(nomeEmp ? nomeEmp + ' · ' : '')
+      + esc(spec.nome) + (atual.rodada > 1 ? ' · ' + atual.rodada + 'ª rodada' : '')
+      + ' · respondida em ' + esc(quando) + '</div>';
 
     return '<section class="mgn-bloco" id="mgn-respostas">'
       + '<header><h2>Respostas do cliente</h2>'
-      + '<span class="n">respondida em ' + esc(quando) + '</span></header>'
-      + abas + secoes + anexos
+      + '<span class="n">respondida em ' + esc(quando) + '</span>'
+      + '<button class="mgn-btn2" style="margin-left:auto;padding:6px 12px;font-size:12px"'
+      + ' onclick="mgNpsImprimirRespostas()">Salvar em PDF</button></header>'
+      + folhaCab + abas + secoes + anexos
       + '</section>';
   }
+
+  /* a folha das respostas: o mesmo Salvar em PDF do retorno, para o
+     Pré-Discovery e o Client Discovery, que não têm retorno. A classe
+     mgn-folha só existe durante a impressão; a folha de estilo de papel
+     esconde o resto da tela e mostra o cabeçalho de papel. */
+  window.mgNpsImprimirRespostas = function(){
+    const sec = document.getElementById('mgn-respostas'); if(!sec) return;
+    sec.classList.add('mgn-folha');
+    const tirar = ()=>{ sec.classList.remove('mgn-folha'); window.removeEventListener('afterprint', tirar) };
+    window.addEventListener('afterprint', tirar);
+    try{ window.print() }finally{ setTimeout(tirar, 1500) }
+  };
 
   window.mgNpsLer = function(id){
     LENDO_ID = id || null;
@@ -29619,6 +29648,30 @@ window.mgzQuemEh        = mgzQuemEh;
       toast(FORMS[tipo].nome + ' enviado. O cliente vê na página de Início dele.');
       desenhar();
     }catch(e){ toast('Não foi possível enviar: ' + ((e && e.message) || '')) }
+  };
+  /* enviado sem querer: some enquanto o cliente ainda não respondeu. Uma
+     pesquisa respondida é dado do cliente e não se apaga por aqui. O filtro
+     de status vai junto no delete: se o cliente respondeu no meio do
+     caminho, o banco não apaga e a tela recarrega em vez de mentir. */
+  window.mgNpsExcluirEnvio = async function(id){
+    const p = LISTA.find(x => x.id === id); if(!p) return;
+    const spec = specDe(p);
+    if(p.status === 'respondido'){ toast('Esta pesquisa já foi respondida e não pode ser excluída.'); return }
+    if(!confirm('Excluir o envio de ' + spec.nome + (p.rodada > 1 ? ' (rodada ' + p.rodada + ')' : '')
+              + '?\n\nEle some da página de Início do cliente. Não dá para desfazer.')) return;
+    try{
+      const {data, error} = await sb.from('mgp_pesquisas').delete()
+        .eq('id', id).neq('status', 'respondido').select();
+      if(error) throw error;
+      if(!data || !data.length){
+        await carregar();
+        toast('O cliente respondeu enquanto isso. A pesquisa ficou.');
+      }else{
+        LISTA = LISTA.filter(x => x.id !== id);
+        toast(spec.nome + ' excluído.');
+      }
+      desenhar();
+    }catch(e){ toast('Não foi possível excluir: ' + ((e && e.message) || '')) }
   };
   window.mgNpsAbrir = function(id, somenteLeitura){
     const p = LISTA.find(x => x.id === id); if(!p) return;

@@ -55,7 +55,10 @@ a equipe envia o Pré-Discovery e o Client Discovery, o cliente responde, a
 revisão de 60 dias nasce com a continuidade do discovery já preenchida, o
 cliente recebe o retorno na hora e a equipe lê o painel. Confere também o
 cálculo do MGPI contra a planilha `Modesto_CIP_MGPR_V1`, pilar por pilar, e
-que o retorno ao cliente não mostra nota nem classificação.
+que o retorno ao cliente não mostra nota nem classificação. Os casos 24 e 25
+cobrem o Salvar em PDF das respostas (a folha de papel mostra só o bloco) e
+o "excluir envio" de uma pesquisa pendente: cancelar não apaga, confirmar
+apaga, e a respondida fica.
 
 ## `roadmap.mjs`
 
