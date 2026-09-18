@@ -3520,6 +3520,29 @@ const link = await page.evaluate(async ()=>{
 ok('57c abrir a plataforma com #demanda=<id> abre o card e limpa o endereço',
    link.aberto && link.view==='board' && link.hashLimpo, JSON.stringify(link));
 
+/* ---- 57d. o que muda na memória chega à tela na sincronização seguinte ----
+   Salvar o card altera TASKS antes de sincronizar. A sincronização compara
+   com o que está pintado, e não com a memória: se o servidor devolver o
+   mesmo (ou nada, no incremental), a tela ainda tem que acompanhar. */
+const repinta = await page.evaluate(async ()=>{
+  closeDetail(); showView('board'); await new Promise(r=>setTimeout(r,200));
+  const t = TASKS.find(x=>!x.archived);
+  const lerCard = ()=>(document.querySelector('.card-t[data-id="'+t.id+'"] .tt')||{}).textContent;
+  const antes = lerCard();
+  /* garante a rodada incremental: a completa recarrega do servidor e
+     descartaria a mudança de memória, que é o comportamento certo lá */
+  MG_CHEIO = 0; if(!MG_MARCO) MG_MARCO = mgMarcoDe(TASKS);
+  t.title = 'Título trocado só na memória';
+  await refresh(); await new Promise(r=>setTimeout(r,300));
+  const depois = lerCard();
+  t.title = antes;
+  await refresh(); await new Promise(r=>setTimeout(r,300));
+  return {antes, depois, voltou: lerCard()};
+});
+ok('57d o que muda na memória chega à tela na sincronização seguinte, mesmo sem o servidor mudar',
+   repinta.depois === 'Título trocado só na memória' && repinta.voltou === repinta.antes,
+   JSON.stringify(repinta));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');

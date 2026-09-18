@@ -144,10 +144,14 @@
       const op=pendente; pendente=null;
       const atingidas=rows.filter(passa);
       if(op.op==='update'){
+        /* o banco de verdade tem o gatilho tasks_touch, que carimba
+           updated_at em toda alteração; o sync incremental do app conta
+           com isso, então o dublê carimba também */
+        const v = table==='tasks' ? {...op.v, updated_at:new Date().toISOString()} : op.v;
         atingidas.forEach(r=>{
-          Object.assign(r, op.v);
+          Object.assign(r, v);
           const real=(FIX[table]||[]).find(x=>String(x.id)===String(r.id));
-          if(real) Object.assign(real, op.v);
+          if(real) Object.assign(real, v);
         });
       }else{
         const ids=new Set(atingidas.map(r=>String(r.id)));

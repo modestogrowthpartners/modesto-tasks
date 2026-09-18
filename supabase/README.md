@@ -134,8 +134,11 @@ O que estava custando e o que mudou:
 - **`buildNotifs`** fazia um `find()` linear por nota: 92 ms → 33 ms com
   um mapa por id.
 - **Rodada completa da sincronização** (a cada 10) repintava 450 cards
-  mesmo sem mudança. Agora compara o retrato antes e depois e só repinta
-  se mudou.
+  mesmo sem mudança. Agora compara o que veio do banco com o retrato da
+  última pintura e só repinta se mudou. A comparação é com o que está na
+  tela, e não com a memória: salvar um card altera a memória antes de
+  sincronizar, e a tela precisa acompanhar mesmo que o banco devolva o
+  mesmo (caso 57d da jornada).
 - **Banco.** Índice duplicado em `messages` removido e dez chaves
   estrangeiras sem índice ganharam um (migração
   `20260913100000_mgp_indices_apontados_pelo_advisor`).

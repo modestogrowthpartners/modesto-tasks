@@ -24600,6 +24600,7 @@ async function mgLigarAvisos(){
 /* 1 e 2 — refresh coalescido, incremental, e sem redesenho à toa */
 let MG_MARCO = null;              /* maior updated_at que já vimos */
 let MG_CHEIO = 0;                 /* quantas rodadas desde a última completa */
+let MG_PINTADO = '';              /* retrato das demandas na última pintura */
 let MG_PEDIDO = null;
 let MG_ADIADO = false;
 
@@ -24621,21 +24622,20 @@ async function mgSincronizar(){
     MG_CHEIO = 0;
     /* a completa existe para enxergar demanda apagada, mas na maioria das
        vezes ela volta igual ao que já está na tela. Comparar o retrato
-       antes e depois custa uns poucos milissegundos; repintar 450 cards
-       custa uns 200. Só repinta quando a comparação disser que mudou. */
-    const retratoAntes = (typeof TASKS !== 'undefined' && TASKS.length) ? JSON.stringify(TASKS) : '';
+       custa uns poucos milissegundos; repintar 450 cards custa uns 200.
+       A comparação é com o que está PINTADO, e não com o que está na
+       memória: salvar o card muda a memória antes de sincronizar, e a
+       tela precisa acompanhar mesmo que o servidor devolva o mesmo. */
     await loadTasks();
     MG_MARCO = mgMarcoDe(TASKS);
-    if(retratoAntes && retratoAntes === JSON.stringify(TASKS)) return;
-    buildNotifs(); updateNotifBadge(); render();
-    if(DETAIL_ID) renderDetailBody();
+    mgPintarSeMudou();
     return;
   }
 
   MG_CHEIO++;
   const {data, error} = await sb.from('tasks').select('*').gt('updated_at', MG_MARCO);
   if(error){ MG_CHEIO = 10; return }                 /* força completa na próxima */
-  if(!data || !data.length) return;                 /* nada mudou: nada a redesenhar */
+  if(!data || !data.length){ mgPintarSeMudou(); return }   /* nada veio do servidor; a memória pode ter mudado */
 
   const porId = new Map(TASKS.map(t=>[t.id, t]));
   data.forEach(t=>{
@@ -24648,6 +24648,14 @@ async function mgSincronizar(){
       (Number(a.position)||0) - (Number(b.position)||0)
    || String(b.created_at||'').localeCompare(String(a.created_at||'')));
   MG_MARCO = mgMarcoDe(data) || MG_MARCO;
+  mgPintarSeMudou();
+}
+
+/* repinta só se as demandas mudaram desde a última pintura */
+function mgPintarSeMudou(){
+  const retrato = JSON.stringify(typeof TASKS !== 'undefined' ? TASKS : []);
+  if(MG_PINTADO && retrato === MG_PINTADO) return;
+  MG_PINTADO = retrato;
   buildNotifs(); updateNotifBadge(); render();
   if(DETAIL_ID) renderDetailBody();
 }
@@ -24791,7 +24799,9 @@ window.mgSincronizar      = mgSincronizar;
 /* estado do sincronizador, para o teste poder olhar e reiniciar */
 window.mgSyncEstado       = ()=>({marco: MG_MARCO, rodadas: MG_CHEIO});
 window.mgSyncReiniciar    = ()=>{ MG_CHEIO = 0;
-  MG_MARCO = mgMarcoDe(typeof TASKS !== 'undefined' ? TASKS : []) };
+  MG_MARCO = mgMarcoDe(typeof TASKS !== 'undefined' ? TASKS : []);
+  /* a tela é tida como em dia com a memória: é o estado conhecido */
+  MG_PINTADO = JSON.stringify(typeof TASKS !== 'undefined' ? TASKS : []) };
 window.mgLigarAvisos      = mgLigarAvisos;
 
 })();
@@ -33241,7 +33251,9 @@ function mgOwnerOpcoes(sel){
    isto, o e-mail levaria para a página inicial e a pessoa procuraria. */
 (function(){
   function alvoDoLink(){
-    const m = String(location.hash||'').match(/^#demanda=([0-9a-f-]{8,})$/i);
+    /* em produção o id é uuid; a busca abaixo é por igualdade de texto, então
+       qualquer id em formato de token é seguro aqui */
+    const m = String(location.hash||'').match(/^#demanda=([A-Za-z0-9_-]{1,80})$/);
     return m ? m[1] : null;
   }
   function tentar(n){
