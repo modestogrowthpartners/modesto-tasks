@@ -666,3 +666,191 @@ function ingPostSlackApi_(token, canal, texto) {
   });
   if (r.getContentText().indexOf('"ok":true') < 0) throw new Error('Slack API: ' + r.getContentText());
 }
+
+// ---------------------------------------------------------------------
+//  DETALHE DE CAMPANHA, TERMO E CRIATIVO
+// ---------------------------------------------------------------------
+/*
+ * O total por conta diz que o ROAS caiu. Só o nível de campanha diz onde.
+ *
+ * No Meu Rodapé, em 17/09, a conta fechou ROAS 4,73 contra meta de 5,33. Sem a
+ * campanha de marca, que gastou R$ 312 e devolveu R$ 53 mil, o ROAS real da
+ * prospecção era 3,47. Nenhum relatório de total por conta mostraria isso.
+ *
+ * Quem puxa é o agente das 7:30, que já tem Pipeboard anexado. Ele grava
+ * `detalhe_AAAA-MM-DD.json` na mesma pasta do pacing, e este arquivo lê e
+ * escreve nas abas. Uma porta só para a plataforma: dois agentes puxando as
+ * mesmas contas em horários diferentes acabam com dois números do mesmo dia e
+ * ninguém sabendo qual vale.
+ *
+ * ROAS, CPA e CTR são calculados AQUI, não vêm no JSON. Métrica derivada
+ * calculada em dois lugares diverge no dia em que alguém arredonda diferente.
+ */
+
+const DET = {
+  PREFIXO: 'detalhe_',
+  ABA_CAMPANHA: 'DETALHE CAMPANHA',
+  ABA_TERMOS: 'DETALHE TERMOS',
+  ABA_CRIATIVO: 'DETALHE CRIATIVO',
+  MAX_LINHAS: 50000,
+
+  CAB_CAMPANHA: ['Dia', 'Cliente', 'Plataforma', 'Nível', 'Nome', 'Pai', 'Tipo', 'Status',
+                 'Gasto', 'Impressões', 'Cliques', 'Conversões', 'Receita', 'ROAS', 'CPA', 'CTR',
+                 'Coletado em', 'Fonte'],
+  CAB_TERMOS: ['Dia', 'Cliente', 'Termo', 'Campanha', 'Gasto', 'Cliques', 'Conversões',
+               'Receita', 'CPA', 'Coletado em', 'Fonte'],
+  CAB_CRIATIVO: ['Dia', 'Cliente', 'Anúncio', 'Campanha', 'Gasto', 'Impressões', 'Cliques',
+                 'Conversões', 'Receita', 'ROAS', 'Hook rate', 'Hold rate', 'Coletado em', 'Fonte']
+};
+
+/** Roda a ingestão do detalhe à mão. */
+function importarDetalheAgora() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const res = importarDetalheDoDrive_(ss, ingDatas_(), []);
+  const msg = res.ok
+    ? 'Detalhe importado: ' + res.campanhas + ' campanhas, ' + res.termos + ' termos, ' +
+      res.criativos + ' criativos (' + res.arquivo + ')'
+    : 'Nada importado: ' + res.motivo;
+  Logger.log(msg);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return res;
+}
+
+/**
+ * Lê `detalhe_AAAA-MM-DD.json` e reescreve as três abas para o dia.
+ *
+ * Ausência do arquivo é ATENÇÃO, não CRÍTICO: sem detalhe o pacing continua
+ * correto, só a análise das 9h fica mais rasa. Tratar como crítico faria o
+ * time aprender a ignorar crítico.
+ */
+function importarDetalheDoDrive_(ss, datas, alertas) {
+  const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
+  const nome = DET.PREFIXO + dia + '.json';
+  const res = { ok: false, arquivo: nome, campanhas: 0, termos: 0, criativos: 0, motivo: '' };
+
+  let arquivo;
+  try {
+    const it = DriveApp.getFolderById(ING.PASTA_ID).getFilesByName(nome);
+    if (!it.hasNext()) {
+      res.motivo = nome + ' não encontrado';
+      if (alertas) alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Detalhe de campanha não chegou',
+        'O agente das 7:30 não deixou ' + nome + '. O pacing está correto, mas a análise do dia fica ' +
+        'sem nível de campanha e não vai conseguir apontar onde o ROAS caiu.', 'detalhe_ausente'));
+      return res;
+    }
+    arquivo = it.next();
+  } catch (e) {
+    res.motivo = 'pasta inacessível: ' + e.message;
+    if (alertas) alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Pasta de detalhe inacessível', res.motivo, 'detalhe_pasta'));
+    return res;
+  }
+
+  let d;
+  try {
+    d = JSON.parse(arquivo.getBlob().getDataAsString('UTF-8'));
+  } catch (e) {
+    res.motivo = 'JSON inválido: ' + e.message;
+    if (alertas) alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Detalhe ilegível', res.motivo, 'detalhe_json'));
+    return res;
+  }
+  if (d.data !== dia) {
+    res.motivo = 'o arquivo diz ' + d.data + ' e o dia é ' + dia;
+    if (alertas) alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Detalhe com data errada',
+      res.motivo + '. Nada gravado.', 'detalhe_data'));
+    return res;
+  }
+
+  const linhasC = [], linhasT = [], linhasK = [];
+  const dias = {};   // os dias que este arquivo cobre, para substituir só eles
+  const coletadoEm = datas.hoje;
+
+  function diaDe(x) {
+    const v = x.dia || x.data || dia;
+    dias[v] = true;
+    return new Date(v + 'T12:00:00Z');
+  }
+
+  Object.keys(d.contas || {}).forEach(function (cliente) {
+    const c = d.contas[cliente] || {};
+
+    (c.campanhas || []).forEach(function (x) {
+      const g = Number(x.gasto) || 0, cv = Number(x.conversoes) || 0;
+      const rv = Number(x.receita) || 0, im = Number(x.impressoes) || 0, cl = Number(x.cliques) || 0;
+      linhasC.push([diaDe(x), cliente, x.plataforma || '', x.nivel || 'campanha', x.nome || '',
+        x.pai || '', x.tipo || '', x.status || '', g, im, cl, cv, rv,
+        g ? rv / g : '', cv ? g / cv : '', im ? cl / im : '', coletadoEm, x.fonte || 'Pipeboard']);
+    });
+
+    (c.termos || []).forEach(function (x) {
+      const g = Number(x.gasto) || 0, cv = Number(x.conversoes) || 0;
+      linhasT.push([diaDe(x), cliente, x.termo || '', x.campanha || '', g,
+        Number(x.cliques) || 0, cv, Number(x.receita) || 0, cv ? g / cv : '', coletadoEm, x.fonte || 'Pipeboard']);
+    });
+
+    (c.criativos || []).forEach(function (x) {
+      const g = Number(x.gasto) || 0, rv = Number(x.receita) || 0;
+      linhasK.push([diaDe(x), cliente, x.nome || '', x.campanha || '', g,
+        Number(x.impressoes) || 0, Number(x.cliques) || 0, Number(x.conversoes) || 0, rv,
+        g ? rv / g : '', x.hook === undefined ? '' : Number(x.hook),
+        x.hold === undefined ? '' : Number(x.hold), coletadoEm, x.fonte || 'Pipeboard']);
+    });
+  });
+
+  const diasCobertos = Object.keys(dias);
+
+  gravarDetalhe_(ss, DET.ABA_CAMPANHA, DET.CAB_CAMPANHA, linhasC, diasCobertos);
+  gravarDetalhe_(ss, DET.ABA_TERMOS, DET.CAB_TERMOS, linhasT, diasCobertos);
+  gravarDetalhe_(ss, DET.ABA_CRIATIVO, DET.CAB_CRIATIVO, linhasK, diasCobertos);
+
+  res.campanhas = linhasC.length; res.termos = linhasT.length; res.criativos = linhasK.length;
+  res.ok = true;
+
+  try { arquivo.setName(nome + ING.SUFIXO_PROCESSADO); } catch (e) {}
+  Logger.log('Detalhe: %s campanhas, %s termos, %s criativos', res.campanhas, res.termos, res.criativos);
+  return res;
+}
+
+/**
+ * Cria a aba se não existir, substitui SÓ os dias que o arquivo cobre e apara o excesso.
+ *
+ * O histórico é o ativo aqui: a análise das 9h compara a semana com a anterior,
+ * e sem dia guardado não existe comparação. Por isso a linha é DIÁRIA, nunca o
+ * agregado da janela. Guardar agregado de 7 dias todo dia faria dias
+ * consecutivos se sobreporem, e somar o histórico contaria o mesmo gasto sete
+ * vezes.
+ *
+ * A substituição é por dia, não por aba: o arquivo traz a janela móvel, então
+ * reescrever esses dias conserta lacuna e correção retroativa da plataforma
+ * sem tocar em nada anterior. Conversão que a plataforma atribui dias depois
+ * entra na próxima passada, que é o comportamento certo.
+ */
+function gravarDetalhe_(ss, nomeAba, cab, linhas, diasCobertos) {
+  let aba = ss.getSheetByName(nomeAba);
+  if (!aba) {
+    aba = ss.insertSheet(nomeAba, ss.getNumSheets());
+    aba.getRange(1, 1, 1, cab.length).setValues([cab])
+      .setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#1F3864');
+    aba.setFrozenRows(1);
+    aba.getRange('A:A').setNumberFormat('dd/mm/yyyy');
+    aba.setColumnWidth(5, 300);
+  }
+
+  const alvos = {};
+  (diasCobertos || []).forEach(function (x) {
+    alvos[Utilities.formatDate(new Date(x + 'T12:00:00Z'), ingCfg_().FUSO, 'dd/MM/yyyy')] = true;
+  });
+
+  const ultima = aba.getLastRow();
+  if (ultima > 1 && Object.keys(alvos).length) {
+    const col = aba.getRange(2, 1, ultima - 1, 1).getDisplayValues();
+    for (let i = col.length - 1; i >= 0; i--) {
+      if (alvos[col[i][0]]) aba.deleteRow(i + 2);
+    }
+  }
+
+  if (!linhas.length) return;
+  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, cab.length).setValues(linhas);
+
+  const total = aba.getLastRow() - 1;
+  if (total > DET.MAX_LINHAS) aba.deleteRows(2, total - DET.MAX_LINHAS);
+}
