@@ -3492,10 +3492,10 @@ const avisos = await page.evaluate(async ()=>{
   mgAvisarMencao({...base, origem:'anotacao', trecho:'@Vinícius olha isso'});
   window.mgAvisoNaTela = _tela;
   /* e no sino */
-  MG_MENCOES.unshift({...base, id:'m-sino', origem:'status', trecho:'Feito'});
+  mgMencoesLista().unshift({...base, id:'m-sino', origem:'status', trecho:'Feito'});
   buildNotifs();
   const noSino = (NOTIFS||[]).find(n=>/foi para Feito/.test(n.text||''));
-  MG_MENCOES.shift();
+  mgMencoesLista().shift();
   return {vistos, noSino: !!noSino, iconeSino: noSino && noSino.icon};
 });
 ok('57b cada origem de aviso tem o seu texto, na tela e no sino',

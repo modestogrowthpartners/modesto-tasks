@@ -27146,6 +27146,12 @@ function mgAvisarMencao(m){
     mgAvisoDoNavegador(txt.titulo, (t ? t.title + ' · ' : '') + txt.corpo);
 }
 
+/* expostos: o teste da jornada exercita o texto de cada origem sem
+   depender do realtime, e esta seção é um IIFE */
+window.mgAvisarMencao = mgAvisarMencao;
+window.mgMencaoTexto  = mgMencaoTexto;
+window.mgMencoesLista = ()=>MG_MENCOES;
+
 let mgCanalMencoes = null;
 function mgLigarMencoes(){
   if(mgCanalMencoes || typeof ME === 'undefined' || !ME || !ME.id) return;
