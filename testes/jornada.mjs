@@ -3530,8 +3530,9 @@ const repinta = await page.evaluate(async ()=>{
   const lerCard = ()=>(document.querySelector('.card-t[data-id="'+t.id+'"] .tt')||{}).textContent;
   const antes = lerCard();
   /* garante a rodada incremental: a completa recarrega do servidor e
-     descartaria a mudança de memória, que é o comportamento certo lá */
-  MG_CHEIO = 0; if(!MG_MARCO) MG_MARCO = mgMarcoDe(TASKS);
+     descartaria a mudança de memória, que é o comportamento certo lá.
+     O estado do sincronizador vive num IIFE; mgSyncReiniciar é a porta. */
+  mgSyncReiniciar();
   t.title = 'Título trocado só na memória';
   await refresh(); await new Promise(r=>setTimeout(r,300));
   const depois = lerCard();
