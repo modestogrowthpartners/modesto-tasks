@@ -5821,7 +5821,8 @@ let MG_PREF_ABA = 'perfil';
 /* preferências próprias, guardadas no navegador */
 const MG_P_KEY='mgp_prefs2';
 let MG_P = {enterEnvia:'on', horas:'on', compacto:'off', abrirLido:'inicio',
-            avisoDemanda:'on', avisoChat:'on', avisoDoc:'off', animacoes:'on'};
+            avisoDemanda:'on', avisoChat:'on', avisoDoc:'off', animacoes:'on',
+            gato:'off'};   /* o gato da barra é opcional, e começa escondido */
 (function(){ try{ Object.assign(MG_P, JSON.parse(localStorage.getItem(MG_P_KEY)||'{}')) }catch(_){} })();
 function mgP(k,v){
   if(v===undefined) return MG_P[k];
@@ -5831,6 +5832,7 @@ function mgP(k,v){
 function mgAplicarP(){
   document.body.classList.toggle('mg-sem-anim', MG_P.animacoes==='off');
   document.body.classList.toggle('mg-chat-compacto', MG_P.compacto==='on');
+  document.body.classList.toggle('mg-sem-gato', MG_P.gato!=='on');
 }
 mgAplicarP();
 
@@ -5966,6 +5968,8 @@ function mgPrefConteudo(aba){
     <div class="sub">Ajustes para deixar a plataforma mais confortável de usar.</div>
     ${mgLinha('Animações','Transições de janelas, cards e menus',
       mgSeg(mgP('animacoes'), [['on','Ligadas'],['off','Reduzidas']], 'mgSetAnim'))}
+    ${mgLinha('Kronos na barra','O gato que anda e deita em cima da barra de baixo. Só a equipe vê, e só quem ligar.',
+      mgSeg(mgP('gato'), [['on','Aparece'],['off','Escondido']], 'mgSetGato'))}
     <div class="grupo-ds" style="margin-top:8px">Se o seu sistema já pede menos animação, a plataforma respeita isso automaticamente.</div>
     <hr>
     ${mgLinha('Tamanho do texto','O mesmo ajuste do Visual', segBtns('fs',[['sm','A−'],['md','A'],['lg','A+']]))}`;
@@ -5997,6 +6001,10 @@ function mgSetEmpresas(v){
   try{ if(window.MGChat && MGChat.desenhar) MGChat.desenhar() }catch(_){}
 }
 function mgSetAnim(v){ mgP('animacoes',v) }
+function mgSetGato(v){
+  mgP('gato', v);
+  try{ if(v==='on'){ window.mgGatoSentar && mgGatoSentar() } else { window.mgGatoSumir && mgGatoSumir() } }catch(_){}
+}
 function mgLimparPrefs(){
   if(!confirm('Restaurar as preferências padrão deste navegador?')) return;
   localStorage.removeItem(MG_P_KEY);
@@ -25900,6 +25908,8 @@ let mgGatoLimite = 0;
 function mgGatoPodeAparecer(){
   if(document.hidden) return false;
   if(document.body.classList.contains('mg-sem-anim')) return false;
+  /* opcional: quem quiser liga em Configurações → Acessibilidade */
+  if(typeof MG_P === 'object' && MG_P && MG_P.gato !== 'on') return false;
   /* o gato é da casa, como o Kronos. Cliente não vê. */
   if(typeof isAdmin === 'function' && !isAdmin()) return false;
   const barra = document.querySelector('.mg-dock');

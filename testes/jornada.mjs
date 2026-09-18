@@ -1928,6 +1928,11 @@ const sentado = await page.evaluate(async ()=>{
   if(dock) dock.style.setProperty('display','flex','important');
   await new Promise(x=>setTimeout(x,120));
 
+  /* o gato é opcional e começa escondido: só aparece para quem ligar em
+     Configurações → Acessibilidade. O resto do caso testa com ele ligado. */
+  mgP('gato','off');
+  r.escondidoPorPadrao = !mgGatoPodeAparecer();
+  mgP('gato','on');
   r.podeAparecer = mgGatoPodeAparecer();
   mgGatoSumir(); mgGatoSentar();
   await new Promise(x=>setTimeout(x,200));
@@ -1952,8 +1957,8 @@ const sentado = await page.evaluate(async ()=>{
   document.body.classList.remove('mg-sem-anim');
   return r;
 });
-ok('45b o gato senta na borda da barra e obedece a preferência de animação',
-   sentado.podeAparecer && sentado.apareceu && sentado.encostadoNaBarra
+ok('45b o gato começa escondido, e ligado senta na barra obedecendo a animação',
+   sentado.escondidoPorPadrao && sentado.podeAparecer && sentado.apareceu && sentado.encostadoNaBarra
    && sentado.dentroDaBarra && sentado.parado && sentado.recebeClique
    && sentado.respeitaPreferencia && sentado.ficouQuieto,
    JSON.stringify(sentado));
