@@ -692,6 +692,7 @@ const DET = {
   ABA_CAMPANHA: 'DETALHE CAMPANHA',
   ABA_TERMOS: 'DETALHE TERMOS',
   ABA_CRIATIVO: 'DETALHE CRIATIVO',
+  ABA_ALTERACOES: 'DETALHE ALTERACOES',
   MAX_LINHAS: 50000,
 
   CAB_CAMPANHA: ['Dia', 'Cliente', 'Plataforma', 'Nível', 'Nome', 'Pai', 'Tipo', 'Status',
@@ -700,7 +701,9 @@ const DET = {
   CAB_TERMOS: ['Dia', 'Cliente', 'Termo', 'Campanha', 'Gasto', 'Cliques', 'Conversões',
                'Receita', 'CPA', 'Coletado em', 'Fonte'],
   CAB_CRIATIVO: ['Dia', 'Cliente', 'Anúncio', 'Campanha', 'Gasto', 'Impressões', 'Cliques',
-                 'Conversões', 'Receita', 'ROAS', 'Hook rate', 'Hold rate', 'Coletado em', 'Fonte']
+                 'Conversões', 'Receita', 'ROAS', 'Hook rate', 'Hold rate', 'Coletado em', 'Fonte'],
+  CAB_ALTERACOES: ['Dia', 'Cliente', 'Plataforma', 'Entidade', 'Tipo', 'Campo', 'De', 'Para',
+                   'Variação', 'Quem', 'Coletado em', 'Fonte']
 };
 
 /** Roda a ingestão do detalhe à mão. */
@@ -709,7 +712,7 @@ function importarDetalheAgora() {
   const res = importarDetalheDoDrive_(ss, ingDatas_(), []);
   const msg = res.ok
     ? 'Detalhe importado: ' + res.campanhas + ' campanhas, ' + res.termos + ' termos, ' +
-      res.criativos + ' criativos (' + res.arquivo + ')'
+      res.criativos + ' criativos, ' + res.alteracoes + ' alterações (' + res.arquivo + ')'
     : 'Nada importado: ' + res.motivo;
   Logger.log(msg);
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
@@ -726,7 +729,7 @@ function importarDetalheAgora() {
 function importarDetalheDoDrive_(ss, datas, alertas) {
   const dia = Utilities.formatDate(datas.ontem, ingCfg_().FUSO, 'yyyy-MM-dd');
   const nome = DET.PREFIXO + dia + '.json';
-  const res = { ok: false, arquivo: nome, campanhas: 0, termos: 0, criativos: 0, motivo: '' };
+  const res = { ok: false, arquivo: nome, campanhas: 0, termos: 0, criativos: 0, alteracoes: 0, motivo: '' };
 
   let arquivo;
   try {
@@ -760,7 +763,7 @@ function importarDetalheDoDrive_(ss, datas, alertas) {
     return res;
   }
 
-  const linhasC = [], linhasT = [], linhasK = [];
+  const linhasC = [], linhasT = [], linhasK = [], linhasA = [];
   const dias = {};   // os dias que este arquivo cobre, para substituir só eles
   const coletadoEm = datas.hoje;
 
@@ -787,6 +790,18 @@ function importarDetalheDoDrive_(ss, datas, alertas) {
         Number(x.cliques) || 0, cv, Number(x.receita) || 0, cv ? g / cv : '', coletadoEm, x.fonte || 'Pipeboard']);
     });
 
+    (c.alteracoes || []).forEach(function (x) {
+      const de = x.de === undefined || x.de === null ? '' : x.de;
+      const para = x.para === undefined || x.para === null ? '' : x.para;
+      // Variação só quando os dois lados são número. "ENABLED para PAUSED" não
+      // tem percentual, e forçar um faria aparecer -100% onde nada caiu.
+      const nDe = Number(de), nPara = Number(para);
+      const varia = (de !== '' && para !== '' && isFinite(nDe) && isFinite(nPara) && nDe !== 0)
+        ? (nPara / nDe - 1) : '';
+      linhasA.push([diaDe(x), cliente, x.plataforma || '', x.entidade || '', x.tipo || '',
+        x.campo || '', de, para, varia, x.quem || '', coletadoEm, x.fonte || 'Pipeboard']);
+    });
+
     (c.criativos || []).forEach(function (x) {
       const g = Number(x.gasto) || 0, rv = Number(x.receita) || 0;
       linhasK.push([diaDe(x), cliente, x.nome || '', x.campanha || '', g,
@@ -801,12 +816,26 @@ function importarDetalheDoDrive_(ss, datas, alertas) {
   gravarDetalhe_(ss, DET.ABA_CAMPANHA, DET.CAB_CAMPANHA, linhasC, diasCobertos);
   gravarDetalhe_(ss, DET.ABA_TERMOS, DET.CAB_TERMOS, linhasT, diasCobertos);
   gravarDetalhe_(ss, DET.ABA_CRIATIVO, DET.CAB_CRIATIVO, linhasK, diasCobertos);
+  gravarDetalhe_(ss, DET.ABA_ALTERACOES, DET.CAB_ALTERACOES, linhasA, diasCobertos);
 
-  res.campanhas = linhasC.length; res.termos = linhasT.length; res.criativos = linhasK.length;
+  res.campanhas = linhasC.length; res.termos = linhasT.length;
+  res.criativos = linhasK.length; res.alteracoes = linhasA.length;
   res.ok = true;
 
+  // Alteração é o elo entre o que o time fez e o que aconteceu depois. Semana
+  // inteira sem nenhuma, numa carteira deste tamanho, quase sempre significa
+  // coleta quebrada, não time parado.
+  if (!linhasA.length && alertas) {
+    alertas.push(ingAlerta_(ingNivel_().ATENCAO, 'GERAL', 'Nenhuma alteração coletada',
+      'A janela de 7 dias não trouxe nenhuma mudança de verba, status ou segmentação em ' +
+      'nenhuma conta. Sem isso a análise não consegue ligar ação a resultado. ' +
+      'Verifique a coleta de change_event no Google e de account_activities no Meta.',
+      'alteracoes_vazias'));
+  }
+
   try { arquivo.setName(nome + ING.SUFIXO_PROCESSADO); } catch (e) {}
-  Logger.log('Detalhe: %s campanhas, %s termos, %s criativos', res.campanhas, res.termos, res.criativos);
+  Logger.log('Detalhe: %s campanhas, %s termos, %s criativos, %s alterações',
+    res.campanhas, res.termos, res.criativos, res.alteracoes);
   return res;
 }
 
