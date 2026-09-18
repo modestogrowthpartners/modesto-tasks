@@ -7,6 +7,7 @@ node testes/jornada.mjs                    # jornada de ponta a ponta
 node testes/cliente.mjs                    # o que o cliente vê e o que não vê
 node testes/nps.mjs                        # MGP NPS: discovery, revisão e painel
 node testes/roadmap.mjs                    # jornada: cadastro, configuração e trilha
+node testes/utm.mjs                        # MGP UTM: gerador, QR embutido, só da equipe
 node testes/regressao.mjs /caminho/absoluto/index.html > snap.json   # retrato das 14 telas
 node testes/xss.mjs       /caminho/absoluto/index.html               # injeção por nome e por avatar
 ```
@@ -63,6 +64,14 @@ empresa (e as pesquisas que elas criam), a configuração restrita ao Vinícius,
 e a trilha que o cliente vê ao entrar. Cobre também o que NÃO deve aparecer:
 etapa interna na página do cliente, botão de configurar para outro admin, e a
 trilha em empresa sem jornada configurada.
+
+## `utm.mjs`
+
+A aba MGP UTM, portada da página solta "Gerador de UTM · todos os canais".
+Confere o nome de campanha, os conjuntos e anúncios versionados, a tabela de
+combinações, a URL final de material offline com o QR gerado a partir dela
+(biblioteca embutida, sem CDN), o lote persistido, a recusa de URL que já
+tem UTM, e que o cliente não alcança a aba.
 
 ## O que os testes NÃO cobrem
 
