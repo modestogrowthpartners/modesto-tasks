@@ -1417,6 +1417,10 @@ ok('38e a mensagem também entra na central de notificações',
 /* ---- 39. nada mudou, nada é redesenhado ---- */
 const sync = await page.evaluate(async ()=>{
   showView('tasks'); await new Promise(r=>setTimeout(r,250));
+  /* o dublê carimba updated_at como o banco; um caso anterior pode ter
+     gravado sem esperar a rodada que traz a linha de volta. Assenta
+     primeiro, senão "nada mudou" não é verdade do ponto de vista do sync. */
+  await refresh();
   mgSyncReiniciar();                    /* parte de um estado conhecido */
   const conta = {n:0};
   const _r = window.render;
