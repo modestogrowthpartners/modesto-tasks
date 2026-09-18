@@ -1532,6 +1532,7 @@ function taskCard(t,accent){
     <div class="tt">${esc(t.title)}</div>
     <div class="card-meta">
       <span class="cbadge" style="display:inline-flex;align-items:center;gap:5px;background:${hexA(clientColor(t.client_id),0.18)};color:${clientColor(t.client_id)};border:1px solid ${hexA(clientColor(t.client_id),0.4)}">${clientLogo(t.client_id)?`<img src="${mgUrlImagem(clientLogo(t.client_id))}" style="width:15px;height:15px;border-radius:3px;object-fit:contain;background:#fff">`:""}${esc(clientName(t.client_id))}</span>
+      ${t.owner_id?`<span class="cbadge mg-owner" title="Owner: ${esc(mgOwnerNome(t.owner_id))}">★ ${esc(firstName(mgOwnerNome(t.owner_id)))}</span>`:''}
       ${t.recurrence&&t.recurrence!=='none'?`<span class="cbadge" style="background:rgba(122,138,90,.14);color:#5e7444">♻︎ ${({daily:'Diária',weekly:'Semanal',monthly:'Mensal'})[t.recurrence]||'Semanal'}</span>`:''}
       ${(t.subtasks&&t.subtasks.length)?(()=>{const d=t.subtasks.filter(x=>x.done).length,tt=t.subtasks.length;return `<span class="sub-prog ${d===tt?'full':''}">☑ ${d}/${tt}</span>`;})():''}
     </div>
@@ -1697,6 +1698,7 @@ function renderDetailBody(){
     <div class="slide-b">
       <div class="frow"><span class="fl">Status</span>${statusField}</div>
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
+      <div class="frow"><span class="fl">Owner</span>${admin?`<select class="fld" id="d-owner">${mgOwnerOpcoes(t.owner_id)}</select>`:`<span>${esc(mgOwnerNome(t.owner_id)||'—')}</span>`}</div>
       <div class="frow" style="align-items:flex-start"><span class="fl">Responsáveis</span>${admin?`<div class="mg-resp-host">${assigneePickerHTML()}</div>`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
       <div class="frow"><span class="fl">Início</span>${admin?`<input class="fld" type="date" id="d-start" value="${t.start_date||''}">`:`<span>${t.start_date?fmtDate(t.start_date):'—'}</span>`}</div>
       <div class="frow"><span class="fl">Prazo final</span>${admin?`<input class="fld" type="date" id="d-due" value="${t.due||''}">`:`<span>${t.due?fmtDate(t.due):'—'}</span>`}</div>
@@ -1782,6 +1784,7 @@ async function saveDetail(){
     status:$('d-status').value,
     priority:$('d-prio').value,
     assignees:[..._selAssignees],
+    owner_id:(($('d-owner')||{}).value)||null,
     start_date:($('d-start')||{}).value||null,
     due:$('d-due').value||null,
     recurrence:$('d-rec').value,
@@ -1866,6 +1869,7 @@ function openTaskModal(id=null,status=null){
       <div><label>Prazo final</label><input class="fld" type="date" id="m-due" value="${t?(t.due||''):''}"></div>
       <div><label>Recorrência</label><select class="fld" id="m-rec">${[['none','Sem recorrência'],['daily','Diária'],['weekly','Semanal'],['monthly','Mensal']].map(([v,l])=>`<option value="${v}" ${t&&t.recurrence===v?'selected':''}>${l}</option>`).join('')}</select></div>
     </div>
+    <label>Owner</label><select class="fld" id="m-owner">${mgOwnerOpcoes(t?t.owner_id:'')}</select>
     <label>Responsáveis</label><div class="mg-resp-host">${assigneePickerHTML()}</div>
     <label>Descrição</label><textarea class="fld" id="m-desc" placeholder="Detalhes…">${t?esc(t.description):''}</textarea>
     ${t?'':`<label>Arquivos</label>
@@ -1911,6 +1915,7 @@ async function saveTask(id){
     due:$('m-due').value||null,
     recurrence:$('m-rec').value,
     assignees:[..._selAssignees],
+    owner_id:(($('m-owner')||{}).value)||null,
     description:$('m-desc').value,
   };
   if(!payload.title){toast('Informe o título.');return}
@@ -27105,9 +27110,23 @@ async function mgCarregarMencoes(){
   }catch(_){}
 }
 
+/* A mesma tabela avisa quatro coisas diferentes, e o texto tem que dizer
+   qual: ser marcado, virar owner, entrar como responsável, ou a demanda
+   ter ido para Impeditivo/Aprovação ou Feito. */
+function mgMencaoTexto(m, t){
+  const quem = m.autor_nome || 'Alguém';
+  const onde = t ? t.title : 'uma demanda';
+  switch(m.origem){
+    case 'owner':       return {titulo: quem + ' definiu você como owner', corpo: onde, sino: '<b>' + esc(quem) + '</b> definiu você como owner de ' + esc(onde), icone:'★'};
+    case 'responsavel': return {titulo: quem + ' colocou você como responsável', corpo: onde, sino: '<b>' + esc(quem) + '</b> colocou você como responsável por ' + esc(onde), icone:'👤'};
+    case 'status':      return {titulo: onde + ' foi para ' + (m.trecho || 'outro status'), corpo: 'movida por ' + quem, sino: '<b>' + esc(onde) + '</b> foi para ' + esc(m.trecho || 'outro status') + ' (' + esc(quem) + ')', icone: m.trecho === 'Feito' ? '✅' : '⛔'};
+    default:            return {titulo: quem + ' marcou você', corpo: m.trecho || '', sino: '<b>' + esc(quem) + '</b> marcou você em ' + esc(onde), icone:'📣'};
+  }
+}
 function mgAvisarMencao(m){
   const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === m.task_id);
   const quem = m.autor_nome || 'Alguém';
+  const txt = mgMencaoTexto(m, t);
   let retrato = '';
   try{
     if(typeof MGU !== 'undefined' && MGU.avatar)
@@ -27117,14 +27136,14 @@ function mgAvisarMencao(m){
     mgAvisoNaTela({
       avatar: retrato,
       iniciais: quem.slice(0,1).toUpperCase(),
-      titulo: quem + ' marcou você',
-      corpo: m.trecho || '',
+      titulo: txt.titulo,
+      corpo: txt.corpo,
       onde: t ? t.title : 'numa demanda',
       aoClicar: ()=>{ try{ openDetail(m.task_id) }catch(_){} }
     });
   }
   if(typeof mgAvisoDoNavegador === 'function')
-    mgAvisoDoNavegador(quem + ' marcou você', (t ? t.title + ' · ' : '') + (m.trecho||''));
+    mgAvisoDoNavegador(txt.titulo, (t ? t.title + ' · ' : '') + txt.corpo);
 }
 
 let mgCanalMencoes = null;
@@ -27156,10 +27175,10 @@ if(typeof buildNotifs === 'function'){
       const visto = localStorage.getItem('mgp_notif_seen') || '';
       MG_MENCOES.forEach(m=>{
         const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => x.id === m.task_id);
+        const txt = mgMencaoTexto(m, t);
         NOTIFS.push({
-          ts: m.created_at, icon:'📣', taskId: m.task_id,
-          text: '<b>' + esc(m.autor_nome || 'Alguém') + '</b> marcou você em '
-              + esc(t ? t.title : 'uma demanda'),
+          ts: m.created_at, icon: txt.icone, taskId: m.task_id,
+          text: txt.sino,
           unread: !m.lida && (!visto || new Date(m.created_at) > new Date(visto))
         });
       });
@@ -33174,6 +33193,65 @@ var qrcode = function() {
   }
   try{ if(typeof buildNav === 'function') buildNav() }catch(e){}
   window.mgUtmMontar = montar;
+})();
+</script>
+
+
+<style>
+/* =====================================================================
+   SEÇÃO · OWNER DA DEMANDA
+   ===================================================================== */
+.cbadge.mg-owner{background:rgba(194,161,91,.16);color:var(--brass2);border:1px solid rgba(194,161,91,.4)}
+</style>
+<script>
+/* =====================================================================
+   SEÇÃO · OWNER DA DEMANDA · seletor, nome, e o link direto
+
+   Owner é uma pessoa da equipe, uma só, acima dos responsáveis. Fica em
+   tasks.owner_id: coluna e não texto, porque o aviso precisa do id. Os
+   avisos (owner, responsável, status) nascem por gatilho no banco e
+   chegam pela mesma trilha do @: task_mentions, toast, sino e e-mail.
+   ===================================================================== */
+function mgEquipeParaOwner(){
+  let lista = [];
+  try{ if(typeof MGU !== 'undefined' && MGU.todos) lista = MGU.todos({equipe:true}) }catch(_){}
+  if(!lista.length && typeof TEAM !== 'undefined') lista = (TEAM||[]).map(u=>({id:u.id, nome:u.nome}));
+  return lista.map(u=>({id:u.id, nome:u.nome})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt'));
+}
+function mgOwnerNome(id){
+  if(!id) return '';
+  const u = mgEquipeParaOwner().find(x=>String(x.id)===String(id));
+  if(u) return u.nome;
+  try{ const g = MGU.get(id); if(g) return g.nome }catch(_){}
+  return '';
+}
+function mgOwnerOpcoes(sel){
+  const atual = sel ? String(sel) : '';
+  return '<option value="">Sem owner</option>' + mgEquipeParaOwner().map(u=>
+    '<option value="' + esc(String(u.id)) + '"' + (String(u.id)===atual ? ' selected' : '') + '>' + esc(u.nome) + '</option>').join('');
+}
+
+/* #demanda=<id> abre o card. É o link que o e-mail de aviso traz. Sem
+   isto, o e-mail levaria para a página inicial e a pessoa procuraria. */
+(function(){
+  function alvoDoLink(){
+    const m = String(location.hash||'').match(/^#demanda=([0-9a-f-]{8,})$/i);
+    return m ? m[1] : null;
+  }
+  function tentar(n){
+    const id = alvoDoLink(); if(!id) return;
+    const t = (typeof TASKS !== 'undefined' && TASKS || []).find(x => String(x.id) === id);
+    if(t && typeof openDetail === 'function'){
+      try{ history.replaceState(null, '', location.pathname + location.search) }catch(_){}
+      try{ if(typeof isAdmin === 'function' && isAdmin() && typeof showView === 'function' && VIEW !== 'board') showView('board') }catch(_){}
+      openDetail(id);
+      return;
+    }
+    if(n < 40) setTimeout(()=>tentar(n+1), 500);   /* até 20 s para a carga terminar */
+  }
+  window.addEventListener('hashchange', ()=>tentar(0));
+  setTimeout(()=>tentar(0), 1500);
+  window.mgAbrirDemandaDoLink = ()=>tentar(0);
 })();
 </script>
 

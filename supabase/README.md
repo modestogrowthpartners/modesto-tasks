@@ -167,6 +167,7 @@ saíram do histórico do próprio banco; as demais são as desta rodada.
 | `..._mgp_nps_pesquisas_cip_mgpr` | a tabela `mgp_pesquisas`, que guarda Pré-Discovery, Client Discovery e Revisão de Parceria |
 | `..._mgp_jornada_do_cliente` | a coluna `clients.jornada`, o roadmap que o cliente vê ao entrar |
 | `..._mgp_indices_apontados_pelo_advisor` | índice duplicado em `messages` fora, e dez chaves estrangeiras sem índice ganharam o seu |
+| `..._mgp_owner_e_avisos` | `tasks.owner_id`, os avisos por gatilho (owner, responsável, status) e a fila `email_fila` |
 
 ## `mgp_pesquisas`
 
@@ -191,6 +192,31 @@ Duas garantias que não dependem da tela:
 O cálculo do MGPI não está no banco. Ele é feito na tela, a partir das
 chaves do jsonb, do mesmo jeito que a planilha faz a partir das células —
 e está coberto por `testes/nps.mjs`.
+
+## Owner e avisos
+
+`tasks.owner_id` é uma pessoa da equipe, uma só, acima dos responsáveis.
+Coluna e não texto, porque o aviso precisa do id.
+
+Os avisos nascem no banco, não na tela. `trg_tasks_avisos` grava em
+`task_mentions` quando alguém vira owner, entra como responsável, ou quando a
+demanda vai para Impeditivo/Aprovação ou Feito; vale para todo caminho que
+muda a linha (janela, painel, arraste no Kanban, Kronos). A tela já entregava
+`task_mentions` na hora e no sino; o que muda é o texto, pela coluna
+`origem`. Quem agiu não recebe aviso da própria ação. O gatilho dispara em
+`update of assignees` de propósito: a tela grava nomes e é o gatilho BEFORE
+`trg_tasks_responsaveis` que sincroniza `assignee_ids`; um "update of
+assignee_ids" sozinho não dispararia.
+
+Duas regras de resiliência, aprendidas no teste: sem sessão (bot, migração,
+painel) o aviso é pulado, porque `task_mentions.autor_id` é obrigatório; e
+qualquer erro do aviso vira `warning`, nunca derruba a gravação da demanda.
+
+`trg_mencao_email` transforma cada `task_mentions` numa linha de
+`email_fila`, com o e-mail do alvo lido de `auth.users` (por isso SECURITY
+DEFINER), assunto, corpo e o link `#demanda=<id>`. A fila tem RLS ligada e
+nenhuma policy: só a chave de serviço enxerga. Quem envia é o Apps Script em
+`automacoes/avisos-email`, pelo Gmail, a cada 5 minutos.
 
 ## `clients.jornada`
 

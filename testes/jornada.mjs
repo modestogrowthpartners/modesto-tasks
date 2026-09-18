@@ -3442,6 +3442,84 @@ ok('56c editar pela janela atualiza a mesma demanda em vez de criar outra',
    && editarSemDuplicar.tituloNovo === 'Demanda com arquivo (editada)',
    JSON.stringify(editarSemDuplicar));
 
+/* ---------------------------------------------------------------------
+   57 · owner acima de responsáveis, e o aviso diz o que aconteceu
+   --------------------------------------------------------------------- */
+const owner = await page.evaluate(async ()=>{
+  const t=document.getElementById('tour'); if(t) t.classList.remove('on');
+  document.querySelectorAll('.mg-boas,.mg-tour').forEach(e=>e.remove());
+  showView('board'); await new Promise(r=>setTimeout(r,200));
+  const tarefa = TASKS.find(x=>!x.archived && x.title !== 'Demanda com arquivo (editada)');
+  openDetail(tarefa.id); await new Promise(r=>setTimeout(r,600));
+  const sel = document.getElementById('d-owner');
+  const host = document.querySelector('#slide .mg-resp-host');
+  const ordem = sel && host ? (sel.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING) === Node.DOCUMENT_POSITION_FOLLOWING : false;
+  const opcoes = sel ? [...sel.options].map(o=>o.textContent) : [];
+  /* escolhe alguém da equipe e salva */
+  const alvo = sel ? [...sel.options].find(o=>o.value && /Elias/.test(o.textContent)) : null;
+  if(alvo) sel.value = alvo.value;
+  await saveDetail(); await new Promise(r=>setTimeout(r,900));
+  const salvo = TASKS.find(x=>x.id===tarefa.id);
+  const card = document.querySelector('.card-t[data-id="'+tarefa.id+'"] .mg-owner');
+  closeDetail();
+  /* a janela de criar também tem, acima de Responsáveis */
+  openTaskModal(null,'Não iniciado'); await new Promise(r=>setTimeout(r,200));
+  const mSel = document.getElementById('m-owner'), mHost = document.querySelector('#tmodal .mg-resp-host');
+  const ordemModal = mSel && mHost ? (mSel.compareDocumentPosition(mHost) & Node.DOCUMENT_POSITION_FOLLOWING) === Node.DOCUMENT_POSITION_FOLLOWING : false;
+  document.getElementById('tmodal').classList.remove('on');
+  return {temSeletor: !!sel, acimaDosResponsaveis: ordem, semOwnerPrimeiro: opcoes[0]==='Sem owner',
+          temEquipe: opcoes.some(o=>/Elias/.test(o)), soEquipe: !opcoes.some(o=>/Flavia/.test(o)),
+          salvouOwner: !!(salvo && salvo.owner_id && salvo.owner_id === (alvo && alvo.value)),
+          cardMostra: !!(card && /Elias/.test(card.textContent)),
+          modalTem: !!mSel, modalAcima: ordemModal};
+});
+ok('57 o owner é um seletor da equipe acima de Responsáveis, salva e aparece no card',
+   owner.temSeletor && owner.acimaDosResponsaveis && owner.semOwnerPrimeiro && owner.temEquipe && owner.soEquipe
+   && owner.salvouOwner && owner.cardMostra && owner.modalTem && owner.modalAcima,
+   JSON.stringify(owner));
+
+/* ---- 57b. o aviso que chega diz owner, responsável ou status, não só "marcou você" ---- */
+const avisos = await page.evaluate(async ()=>{
+  const tarefa = TASKS.find(x=>!x.archived);
+  const vistos = [];
+  const _tela = window.mgAvisoNaTela;
+  window.mgAvisoNaTela = (a)=>{ vistos.push(a.titulo + ' | ' + a.corpo) };
+  const base = {id:'m-x', task_id: tarefa.id, autor_id:'u-colega', autor_nome:'Elias Braga', alvo_id: ME.id, lida:false, created_at:new Date().toISOString()};
+  mgAvisarMencao({...base, origem:'owner'});
+  mgAvisarMencao({...base, origem:'responsavel'});
+  mgAvisarMencao({...base, origem:'status', trecho:'Feito'});
+  mgAvisarMencao({...base, origem:'status', trecho:'Impeditivo/Aprovação'});
+  mgAvisarMencao({...base, origem:'anotacao', trecho:'@Vinícius olha isso'});
+  window.mgAvisoNaTela = _tela;
+  /* e no sino */
+  MG_MENCOES.unshift({...base, id:'m-sino', origem:'status', trecho:'Feito'});
+  buildNotifs();
+  const noSino = (NOTIFS||[]).find(n=>/foi para Feito/.test(n.text||''));
+  MG_MENCOES.shift();
+  return {vistos, noSino: !!noSino, iconeSino: noSino && noSino.icon};
+});
+ok('57b cada origem de aviso tem o seu texto, na tela e no sino',
+   avisos.vistos.length===5
+   && /definiu você como owner/.test(avisos.vistos[0])
+   && /colocou você como responsável/.test(avisos.vistos[1])
+   && /foi para Feito/.test(avisos.vistos[2])
+   && /foi para Impeditivo\/Aprovação/.test(avisos.vistos[3])
+   && /marcou você \| @Vinícius/.test(avisos.vistos[4])
+   && avisos.noSino && avisos.iconeSino==='✅',
+   JSON.stringify(avisos).slice(0,300));
+
+/* ---- 57c. #demanda=<id> abre o card, que é o link do e-mail ---- */
+const link = await page.evaluate(async ()=>{
+  closeDetail(); showView('home'); await new Promise(r=>setTimeout(r,200));
+  const tarefa = TASKS.find(x=>!x.archived);
+  location.hash = '#demanda=' + tarefa.id;
+  await new Promise(r=>setTimeout(r,700));
+  const aberto = !!document.querySelector('#slide.on') && DETAIL_ID === tarefa.id;
+  return {aberto, view: VIEW, hashLimpo: !location.hash};
+});
+ok('57c abrir a plataforma com #demanda=<id> abre o card e limpa o endereço',
+   link.aberto && link.view==='board' && link.hashLimpo, JSON.stringify(link));
+
 /* ---- resultado ---- */
 const larg = Math.max(...res.map(r=>r.t.length));
 console.log('');
