@@ -1,10 +1,20 @@
 /**
  * REPARO DA ABA "SERIE DIARIA" (21/09/2026)
  *
- * O que aconteceu: o backfill que povoou a SERIE DIARIA a partir das abas de
- * conta gravou 241 linhas SEM a coluna Data. A coluna A do bloco diário das
- * abas de conta (A37:A67) guarda o NÚMERO do dia (1, 2, 3...), não uma data,
- * e o backfill não converteu esse número em data com o mês do PAINEL.
+ * O que aconteceu: a SERIE DIARIA tem 241 linhas SEM a coluna Data.
+ *
+ * Causa provável (21/09, 20:42): a planilha está SEM FUSO HORÁRIO válido.
+ * getSpreadsheetTimeZone() volta vazio. Sem fuso, o Apps Script não converte
+ * objeto Date em número de série e o setValues grava VAZIO, sem erro nenhum.
+ * A primeira versão deste reparo "gravou" 240 datas e a releitura achou 0.
+ * A única célula com data (A69) guarda 14/09/2026 03:00, uma meia-noite UTC
+ * deslocada para o lado errado, o que confirma que o fuso está quebrado.
+ * O backfill original muito provavelmente sofreu do mesmo problema.
+ *
+ * Por isso este reparo grava o NÚMERO DE SÉRIE (dias desde 30/12/1899), que
+ * não depende de fuso, e existe uma função separada para corrigir o fuso da
+ * planilha, para que os outros scripts (backfill, importação) voltem a
+ * conseguir gravar datas.
  *
  * Consequência: tudo que filtra a série por data lê zero dias. É a causa de:
  *   - TENDENCIAS com "Dias c/ dado" = 0 em todas as plataformas;
@@ -24,10 +34,11 @@
  * Linhas com outra Fonte (importação diária) não são tocadas.
  *
  * COMO USAR
- *   1. Cole este arquivo no projeto do Apps Script (Arquivo > Novo > Script).
- *   2. Rode `simularReparoSerieDiaria` e leia o log: nada é gravado.
- *   3. Rode `repararDatasSerieDiaria`. Grava a coluna A.
- *   4. Rode de novo a geração das tendências / o e-mail por conta.
+ *   1. Rode `conferirSerieDiaria`: só lê; mostra o fuso e o estado da aba.
+ *   2. Rode `corrigirFusoDaPlanilha`: põe America/Sao_Paulo no fuso.
+ *   3. Rode `repararDatasSerieDiaria`: grava a coluna A e confere depois.
+ *   4. Rode `conferirSerieDiaria` de novo: tem que mostrar 241 com data.
+ *   5. Rode de novo a geração das tendências / o e-mail por conta.
  *
  * ATENÇÃO: isto conserta o DADO, não a CAUSA. Se a função de backfill rodar
  * de novo sem a correção (converter o número do dia em data), ela apaga ou
@@ -104,11 +115,13 @@ function repararDatasSerieDiaria_(simular) {
       continue;
     }
 
-    const nova = new Date(mes.ano, mes.indice, dia);
+    // Número de série do Sheets: dias desde 30/12/1899. Não passa por fuso.
+    const serial = serialDoDia_(mes.ano, mes.indice, dia);
     const atual = l[0];
-    if (atual instanceof Date && mesmaData_(atual, nova)) { res.jaCertas++; continue; }
-    if (atual instanceof Date) res.reescritas++; else res.corrigidas++;
-    colunaData[i] = [nova];
+    const atualSerial = serialDaCelula_(atual);
+    if (atualSerial === serial) { res.jaCertas++; continue; }
+    if (atualSerial !== null) res.reescritas++; else res.corrigidas++;
+    colunaData[i] = [serial];
   }
 
   let posGravacao = null;
@@ -120,7 +133,7 @@ function repararDatasSerieDiaria_(simular) {
     // Relê a coluna depois do flush. Se o número aqui não bater com o que foi
     // gravado, a escrita não persistiu e o log precisa dizer isso.
     posGravacao = serie.getRange(2, 1, ultima - 1, 1).getValues()
-      .filter(function (l) { return l[0] instanceof Date; }).length;
+      .filter(function (l) { return serialDaCelula_(l[0]) !== null; }).length;
   }
 
   const linhas = [];
@@ -208,8 +221,39 @@ function normalizarReparo_(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-function mesmaData_(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+/** Serial do Sheets para uma data civil: dias desde 30/12/1899, sem fuso. */
+function serialDoDia_(ano, mesIndice, dia) {
+  return Math.round((Date.UTC(ano, mesIndice, dia) - Date.UTC(1899, 11, 30)) / 86400000);
+}
+
+/**
+ * Serial (dia inteiro) do que está na célula, ou null se não é data.
+ * Aceita Date (planilha com fuso ok) e número (planilha sem fuso, em que o
+ * getValues pode devolver o serial cru). Ignora a hora: 46279.125 vira 46279.
+ */
+function serialDaCelula_(v) {
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    return serialDoDia_(v.getFullYear(), v.getMonth(), v.getDate());
+  }
+  if (typeof v === 'number' && v > 30000 && v < 80000) return Math.floor(v);
+  return null;
+}
+
+/**
+ * Corrige o fuso da planilha. Sem fuso válido, nenhum script consegue gravar
+ * Date nesta planilha (backfill, importação diária, este reparo). Mostra o
+ * valor anterior no log. Não mexe em nenhuma célula.
+ */
+function corrigirFusoDaPlanilha() {
+  const ss = SpreadsheetApp.getActive();
+  let antes;
+  try { antes = ss.getSpreadsheetTimeZone(); } catch (e) { antes = 'erro ao ler: ' + e; }
+  ss.setSpreadsheetTimeZone('America/Sao_Paulo');
+  SpreadsheetApp.flush();
+  let depois;
+  try { depois = ss.getSpreadsheetTimeZone(); } catch (e) { depois = 'erro ao ler: ' + e; }
+  Logger.log('fuso da planilha ' + ss.getName() + '\n  antes:  ' + JSON.stringify(antes) +
+    ' (' + typeof antes + ')\n  depois: ' + JSON.stringify(depois) + ' (' + typeof depois + ')');
 }
 
 /**
@@ -231,18 +275,26 @@ function conferirSerieDiaria() {
     if (!conta) return;
     const chave = conta + ' / ' + String(l[2] || '').trim();
     const g = grupos[chave] || (grupos[chave] = { com: 0, sem: 0, min: null, max: null });
-    if (l[0] instanceof Date) {
+    const sr = serialDaCelula_(l[0]);
+    if (sr !== null) {
       comData++; g.com++;
-      if (!g.min || l[0] < g.min) g.min = l[0];
-      if (!g.max || l[0] > g.max) g.max = l[0];
+      if (g.min === null || sr < g.min) g.min = sr;
+      if (g.max === null || sr > g.max) g.max = sr;
     } else { semData++; g.sem++; }
   });
-  // getSpreadsheetTimeZone() voltou vazio nesta planilha (21/09) e o
-  // formatDate rejeita. Fuso fixo de Brasília, que é o do time.
+  // Fuso fixo para formatar o log: o da planilha pode estar vazio (é o bug).
   const fuso = 'America/Sao_Paulo';
-  const fmt = function (d) { return d ? Utilities.formatDate(d, fuso, 'dd/MM/yyyy') : 'n/d'; };
+  const fmt = function (sr) {
+    if (sr === null) return 'n/d';
+    const d = new Date(Date.UTC(1899, 11, 30) + sr * 86400000);
+    return Utilities.formatDate(d, 'UTC', 'dd/MM/yyyy');
+  };
+  let fusoPlanilha;
+  try { fusoPlanilha = ss.getSpreadsheetTimeZone(); } catch (e) { fusoPlanilha = 'erro ao ler: ' + e; }
   const linhas = ['SERIE DIARIA em ' + Utilities.formatDate(new Date(), fuso, 'dd/MM/yyyy HH:mm:ss') +
     ' · planilha ' + ss.getName() + ' (' + ss.getId() + ')',
+    'fuso da planilha: ' + JSON.stringify(fusoPlanilha) + ' (' + typeof fusoPlanilha + ')' +
+      (typeof fusoPlanilha === 'string' && fusoPlanilha ? '' : '  <- VAZIO: é isso que impede gravar datas'),
     'linhas com data: ' + comData + ' · sem data: ' + semData];
   Object.keys(grupos).sort().forEach(function (k) {
     const g = grupos[k];
