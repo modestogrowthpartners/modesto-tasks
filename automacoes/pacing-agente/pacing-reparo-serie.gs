@@ -111,11 +111,16 @@ function repararDatasSerieDiaria_(simular) {
     colunaData[i] = [nova];
   }
 
+  let posGravacao = null;
   if (!simular && (res.corrigidas + res.reescritas) > 0) {
     const alvo = serie.getRange(2, 1, ultima - 1, 1);
     alvo.setValues(colunaData);
     alvo.setNumberFormat('dd/MM/yyyy');
     SpreadsheetApp.flush();
+    // Relê a coluna depois do flush. Se o número aqui não bater com o que foi
+    // gravado, a escrita não persistiu e o log precisa dizer isso.
+    posGravacao = serie.getRange(2, 1, ultima - 1, 1).getValues()
+      .filter(function (l) { return l[0] instanceof Date; }).length;
   }
 
   const linhas = [];
@@ -125,6 +130,11 @@ function repararDatasSerieDiaria_(simular) {
   linhas.push('datas erradas reescritas: ' + res.reescritas);
   linhas.push('já corretas: ' + res.jaCertas);
   linhas.push('linhas de outras fontes (não tocadas): ' + res.outrasFontes);
+  if (posGravacao !== null) {
+    const esperado = res.corrigidas + res.reescritas + res.jaCertas;
+    linhas.push('CONFERÊNCIA PÓS-GRAVAÇÃO: ' + posGravacao + ' linhas com data na aba (esperado ' + esperado + ')' +
+      (posGravacao === esperado ? ' · OK' : ' · NÃO BATEU, a escrita não persistiu'));
+  }
   const semAba = Object.keys(res.semAba);
   if (semAba.length) linhas.push('CONTAS SEM ABA (não tocadas): ' + semAba.join(', '));
   if (res.divergentes.length) {
@@ -200,4 +210,41 @@ function normalizarReparo_(s) {
 
 function mesmaData_(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/**
+ * Conferência independente: lê a SERIE DIARIA agora e diz, por conta e
+ * plataforma, quantas linhas têm data e qual o intervalo. Não grava nada.
+ * Serve para provar, de dentro do Apps Script, o que a planilha tem neste
+ * instante, sem depender de export ou cache.
+ */
+function conferirSerieDiaria() {
+  const ss = SpreadsheetApp.getActive();
+  const serie = ss.getSheetByName(REPARO_SERIE.ABA_SERIE);
+  if (!serie) throw new Error('aba "' + REPARO_SERIE.ABA_SERIE + '" não encontrada');
+  const ultima = serie.getLastRow();
+  const dados = ultima < 2 ? [] : serie.getRange(2, 1, ultima - 1, 10).getValues();
+  const grupos = {};
+  let semData = 0, comData = 0;
+  dados.forEach(function (l) {
+    const conta = String(l[1] || '').trim();
+    if (!conta) return;
+    const chave = conta + ' / ' + String(l[2] || '').trim();
+    const g = grupos[chave] || (grupos[chave] = { com: 0, sem: 0, min: null, max: null });
+    if (l[0] instanceof Date) {
+      comData++; g.com++;
+      if (!g.min || l[0] < g.min) g.min = l[0];
+      if (!g.max || l[0] > g.max) g.max = l[0];
+    } else { semData++; g.sem++; }
+  });
+  const fuso = ss.getSpreadsheetTimeZone();
+  const fmt = function (d) { return d ? Utilities.formatDate(d, fuso, 'dd/MM/yyyy') : 'n/d'; };
+  const linhas = ['SERIE DIARIA em ' + Utilities.formatDate(new Date(), fuso, 'dd/MM/yyyy HH:mm:ss') +
+    ' · planilha ' + ss.getName() + ' (' + ss.getId() + ')',
+    'linhas com data: ' + comData + ' · sem data: ' + semData];
+  Object.keys(grupos).sort().forEach(function (k) {
+    const g = grupos[k];
+    linhas.push('  ' + k + ': ' + g.com + ' com data (' + fmt(g.min) + ' a ' + fmt(g.max) + '), ' + g.sem + ' sem data');
+  });
+  Logger.log(linhas.join('\n'));
 }
