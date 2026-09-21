@@ -237,7 +237,9 @@ function conferirSerieDiaria() {
       if (!g.max || l[0] > g.max) g.max = l[0];
     } else { semData++; g.sem++; }
   });
-  const fuso = ss.getSpreadsheetTimeZone();
+  // getSpreadsheetTimeZone() voltou vazio nesta planilha (21/09) e o
+  // formatDate rejeita. Fuso fixo de Brasília, que é o do time.
+  const fuso = 'America/Sao_Paulo';
   const fmt = function (d) { return d ? Utilities.formatDate(d, fuso, 'dd/MM/yyyy') : 'n/d'; };
   const linhas = ['SERIE DIARIA em ' + Utilities.formatDate(new Date(), fuso, 'dd/MM/yyyy HH:mm:ss') +
     ' · planilha ' + ss.getName() + ' (' + ss.getId() + ')',
