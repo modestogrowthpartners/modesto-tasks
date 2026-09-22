@@ -453,3 +453,123 @@ function diagnosticarSerieDiaria() {
   restaurar('M2', m2antes);
   Logger.log('[fim] diagnóstico concluído');
 }
+/**
+ * DIAGNÓSTICO v3 (21/09, 21:25). A rodada anterior mostrou: filtro ativo em
+ * A1:Z246 na SERIE DIARIA, linhas 2..10 ocultas por ele, formato dd/mm/yyyy em
+ * 240 células e dd/MM/yyyy na A69, zero validações, zero proteções. E os meus
+ * testes de gravação usaram valores iguais aos que já estavam na célula, o que
+ * não prova nada. Esta versão:
+ *   1. lista o critério do filtro por coluna e quantas linhas ele oculta;
+ *   2. grava valores DIFERENTES dos atuais, cruzando linha oculta x visível e
+ *      formato dd/mm/yyyy x dd/MM/yyyy, e relê cada um; restaura tudo no fim.
+ * AUTOSSUFICIENTE: pode ficar sozinha no arquivo.
+ */
+function diagnosticarSerieDiariaV3() {
+  const ss = SpreadsheetApp.getActive();
+  const aba = ss.getSheetByName('SERIE DIARIA');
+  if (!aba) throw new Error('aba "SERIE DIARIA" não encontrada');
+  const ultima = aba.getLastRow();
+  const n = ultima - 1;
+  const serialDia = function (d) { return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000); };
+  const comoSerial = function (v) { if (v instanceof Date) return serialDia(v); if (typeof v === 'number') return Math.floor(v); return null; };
+  const passo = function (nome, fn) {
+    try { Logger.log('[' + nome + '] ' + fn()); }
+    catch (e) { Logger.log('[' + nome + '] QUEBROU: ' + (e && e.message ? e.message : e)); }
+  };
+
+  passo('0 contexto', function () {
+    return 'fuso planilha=' + JSON.stringify(ss.getSpreadsheetTimeZone()) + ' · fuso script=' + Session.getScriptTimeZone() + ' · linhas=' + n;
+  });
+
+  passo('1 tipos via getValues', function () {
+    const a = aba.getRange(2, 1, n, 11).getValues();
+    let ad = 0, an = 0, av = 0, kd = 0;
+    a.forEach(function (r) { if (r[0] instanceof Date) ad++; else if (typeof r[0] === 'number') an++; else if (r[0] === '') av++; if (r[10] instanceof Date) kd++; });
+    return 'coluna A: Date=' + ad + ' número=' + an + ' vazio=' + av + ' · coluna K (Atualizado em) com Date=' + kd;
+  });
+
+  let ocultas = [], visiveis = [];
+  passo('2 filtro', function () {
+    const f = aba.getFilter();
+    if (!f) return 'nenhum filtro';
+    const crit = [];
+    for (let c = 1; c <= 11; c++) {
+      const cr = f.getColumnFilterCriteria(c);
+      if (!cr) continue;
+      let desc = 'col ' + c + ': tipo=' + cr.getCriteriaType();
+      try { desc += ' valores=' + JSON.stringify(cr.getCriteriaValues()); } catch (e) {}
+      try { const hv = cr.getHiddenValues(); if (hv && hv.length) desc += ' ocultos=' + JSON.stringify(hv.slice(0, 5)) + (hv.length > 5 ? '...(' + hv.length + ')' : ''); } catch (e) {}
+      try { const vv = cr.getVisibleValues(); if (vv && vv.length) desc += ' visíveis=' + JSON.stringify(vv.slice(0, 5)) + (vv.length > 5 ? '...(' + vv.length + ')' : ''); } catch (e) {}
+      crit.push(desc);
+    }
+    for (let r = 2; r <= ultima; r++) { if (aba.isRowHiddenByFilter(r)) ocultas.push(r); else visiveis.push(r); }
+    return 'range=' + f.getRange().getA1Notation() + ' · critérios: ' + (crit.join(' | ') || 'nenhum por coluna') +
+      ' · linhas ocultas=' + ocultas.length + ' · visíveis=' + visiveis.length + ' (' + visiveis.slice(0, 12).join(',') + (visiveis.length > 12 ? '...' : '') + ')';
+  });
+
+  // 3. gravação com valores diferentes dos atuais, cruzando oculta/visível e formato
+  const rOculta = ocultas.length ? ocultas[0] : 2;
+  const rVisivel = visiveis.length ? visiveis[0] : 69;
+  const testar = function (rotulo, a1, valor, formato) {
+    let antes = null, fmtAntes = null;
+    passo('3 ' + rotulo, function () {
+      const rng = aba.getRange(a1);
+      antes = rng.getValue(); fmtAntes = rng.getNumberFormat();
+      if (formato) { rng.setNumberFormat(formato); SpreadsheetApp.flush(); }
+      rng.setValue(valor);
+      SpreadsheetApp.flush();
+      const depois = rng.getValue();
+      const esperado = comoSerial(valor), lido = comoSerial(depois);
+      const ok = esperado !== null ? lido === esperado : depois === valor;
+      return a1 + (formato ? ' (formato forçado ' + formato + ', ficou ' + rng.getNumberFormat() + ')' : ' (formato ' + fmtAntes + ')') +
+        ': gravei ' + (valor instanceof Date ? 'Date ' + valor.toISOString() : JSON.stringify(valor)) + ' · antes=' + JSON.stringify(antes) +
+        ' · depois=' + JSON.stringify(depois) + ' (' + typeof depois + ') · ' + (ok ? 'PERSISTIU' : 'NÃO PERSISTIU');
+    });
+    return { antes: antes, fmt: fmtAntes };
+  };
+  const restaurar = function (a1, est) {
+    passo('4 restaurar ' + a1, function () {
+      const rng = aba.getRange(a1);
+      if (!est || est.antes === null) return 'nada a restaurar';
+      if (est.antes instanceof Date) rng.setValue(serialDia(est.antes));
+      else if (est.antes === '' || est.antes === undefined) rng.clearContent();
+      else rng.setValue(est.antes);
+      if (est.fmt) rng.setNumberFormat(est.fmt);
+      SpreadsheetApp.flush();
+      return 'agora=' + JSON.stringify(rng.getValue()) + ' formato=' + rng.getNumberFormat();
+    });
+  };
+
+  const d2 = new Date(2026, 8, 2), d15 = new Date(2026, 8, 15);
+  // oculta, formato como está (dd/mm/yyyy)
+  let e = testar('Date em linha OCULTA ' + rOculta + ', formato atual', 'A' + rOculta, d2); restaurar('A' + rOculta, e);
+  // oculta, número
+  e = testar('número em linha OCULTA ' + rOculta, 'A' + rOculta, 46267); restaurar('A' + rOculta, e);
+  // oculta, formato forçado dd/MM/yyyy
+  e = testar('Date em linha OCULTA ' + rOculta + ', formato dd/MM/yyyy', 'A' + rOculta, d2, 'dd/MM/yyyy'); restaurar('A' + rOculta, e);
+  // oculta, coluna vazia M
+  e = testar('Date em M' + rOculta + ' (OCULTA, coluna vazia)', 'M' + rOculta, d2); restaurar('M' + rOculta, e);
+  // visível, formato como está
+  e = testar('Date em linha VISÍVEL ' + rVisivel + ', formato atual', 'A' + rVisivel, d15); restaurar('A' + rVisivel, e);
+  // visível, coluna vazia M
+  e = testar('Date em M' + rVisivel + ' (VISÍVEL, coluna vazia)', 'M' + rVisivel, d15); restaurar('M' + rVisivel, e);
+  Logger.log('[fim] diagnóstico v3 concluído');
+}
+
+/**
+ * Remove o filtro da SERIE DIARIA. A aba é interna (o script escreve e lê);
+ * filtro ali só serve para quem abre a aba na tela, e está escondendo 240
+ * linhas. Não apaga nem altera nenhuma célula. Rode só depois do diagnóstico
+ * v3 mostrar que a gravação falha nas linhas ocultas.
+ */
+function removerFiltroSerieDiaria() {
+  const aba = SpreadsheetApp.getActive().getSheetByName('SERIE DIARIA');
+  const f = aba.getFilter();
+  if (!f) { Logger.log('SERIE DIARIA: não há filtro.'); return; }
+  const range = f.getRange().getA1Notation();
+  f.remove();
+  SpreadsheetApp.flush();
+  let ocultas = 0;
+  for (let r = 2; r <= aba.getLastRow(); r++) if (aba.isRowHiddenByFilter(r) || aba.isRowHiddenByUser(r)) ocultas++;
+  Logger.log('Filtro ' + range + ' removido. Linhas ainda ocultas: ' + ocultas + '. Agora rode reconstruirSerieDoMesAtual e depois diagnosticarSerieDiariaV3 (passo 1: "coluna K com Date" tem que dar 241).');
+}
