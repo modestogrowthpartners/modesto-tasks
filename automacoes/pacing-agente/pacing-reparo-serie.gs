@@ -302,3 +302,52 @@ function conferirSerieDiaria() {
   });
   Logger.log(linhas.join('\n'));
 }
+
+// ---------------------------------------------------------------------
+//  ATALHOS PARA VALIDAR HOJE, SEM DISPARAR PRODUÇÃO (21/09/2026)
+//  Dependem de Código.gs (calcularDatas_, lerPainel_, analisarConta_,
+//  lerOrcamentosExternos_), tendencias.gs (gerarTendencias_) e conta.gs
+//  (testarEmailConta). Nenhum deles manda e-mail ao time, posta no Slack,
+//  escreve ALERTAS/HISTORICO ou mexe na fila de e-mails por cliente.
+// ---------------------------------------------------------------------
+
+/**
+ * Regera a aba TENDENCIAS e o tendencias_<ontem>.json no Drive a partir da
+ * SERIE DIARIA já reparada. É exatamente o passo 3b do executar_ (Código.gs),
+ * isolado: sem ingestão, sem sincronizar budgets, sem alertas, sem e-mail.
+ * O arquivo antigo do mesmo dia vai para a lixeira (comportamento do
+ * salvarJsonNoDrive_). O agente de análise das 9h05 de HOJE já leu o antigo;
+ * o de amanhã lê o que o rodarAlertas das 8h gerar.
+ */
+function regerarTendenciasAgora() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const datas = calcularDatas_();
+  const alertas = [];
+  const painel = lerPainel_(ss, datas, alertas);
+  let orcamentos = {};
+  try { orcamentos = lerOrcamentosExternos_(); } catch (e) { Logger.log('orçamento externo não lido (segue sem): ' + e.message); }
+  painel.contas.forEach(function (c) { analisarConta_(ss, c, datas, orcamentos, alertas); });
+  const antes = alertas.length;
+  const res = gerarTendencias_(ss, painel, datas, alertas);
+  if (!res) {
+    Logger.log('Tendências NÃO geradas: ' + alertas.slice(antes).map(function (a) { return a.titulo + ': ' + a.detalhe; }).join(' | '));
+    return null;
+  }
+  const linhas = ['tendencias_' + res.data + '.json regerado em ' + res.gerado_em + ' · detalhe_disponivel=' + res.detalhe_disponivel];
+  Object.keys(res.contas).forEach(function (c) {
+    const ps = res.contas[c].plataformas || {};
+    linhas.push('  ' + c + ': ' + Object.keys(ps).map(function (p) {
+      const t = ps[p];
+      return p + ' ' + t.dias_com_dado + 'd' + (t.suficiente ? '' : ' (insuficiente)') + (t.dado_inconsistente ? ' (inconsistente)' : '');
+    }).join(' · '));
+  });
+  linhas.push('Confira a aba TENDENCIAS: "Dias c/ dado" deve estar em 20 nas plataformas com histórico.');
+  Logger.log(linhas.join('\n'));
+  return res;
+}
+
+/** E-mail de teste da AMAKHA PARIS (a conta do print com os gráficos vazios). Vai só para CONFIG.EMAILS_TESTE. */
+function testarEmailAmakha() { testarEmailConta('AMAKHA PARIS'); }
+
+/** E-mail de teste do MEU RODAPE. Vai só para CONFIG.EMAILS_TESTE. */
+function testarEmailMeuRodape() { testarEmailConta('MEU RODAPE'); }
