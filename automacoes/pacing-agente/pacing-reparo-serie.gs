@@ -351,3 +351,67 @@ function testarEmailAmakha() { testarEmailConta('AMAKHA PARIS'); }
 
 /** E-mail de teste do MEU RODAPE. Vai só para CONFIG.EMAILS_TESTE. */
 function testarEmailMeuRodape() { testarEmailConta('MEU RODAPE'); }
+
+/**
+ * DIAGNÓSTICO (21/09, 21:10): o backfill regravou só a linha 69; as outras 240
+ * não persistiram, com o fuso já em America/Sao_Paulo. Então a diferença é na
+ * célula, não na planilha. Esta função testa, de dentro do script:
+ *   1. o que getValues devolve na coluna A (Date x número x vazio);
+ *   2. formatos, validações, proteções e filtro que possam bloquear a escrita;
+ *   3. gravação real: um Date em A2, um Date em M2 (célula fora da tabela) e
+ *      um número em A3, com releitura depois do flush. Restaura tudo no fim.
+ */
+function diagnosticarSerieDiaria() {
+  const ss = SpreadsheetApp.getActive();
+  const aba = ss.getSheetByName(REPARO_SERIE.ABA_SERIE);
+  const ultima = aba.getLastRow();
+  const n = ultima - 1;
+  const L = [];
+  let fusoPl; try { fusoPl = ss.getSpreadsheetTimeZone(); } catch (e) { fusoPl = 'erro: ' + e; }
+  L.push('planilha ' + ss.getId() + ' · fuso planilha=' + JSON.stringify(fusoPl) + ' · fuso script=' + Session.getScriptTimeZone() + ' · linhas=' + n);
+
+  // 1. tipos na coluna A e K
+  const a = aba.getRange(2, 1, n, 11).getValues();
+  const t = { A_date: 0, A_num: 0, A_vazio: 0, A_outro: 0, K_date: 0 };
+  a.forEach(function (r) {
+    const v = r[0];
+    if (v instanceof Date) t.A_date++; else if (typeof v === 'number') t.A_num++; else if (v === '') t.A_vazio++; else t.A_outro++;
+    if (r[10] instanceof Date) t.K_date++;
+  });
+  L.push('coluna A via getValues: Date=' + t.A_date + ' número=' + t.A_num + ' vazio=' + t.A_vazio + ' outro=' + t.A_outro + ' · K com Date=' + t.K_date);
+  L.push('A2=' + JSON.stringify(a[0][0]) + ' (' + typeof a[0][0] + ') · A69=' + JSON.stringify(a[67][0]) + ' (' + typeof a[67][0] + ')');
+
+  // 2. formatos, validações, proteções, filtro
+  const fmts = aba.getRange(2, 1, n, 1).getNumberFormats();
+  const fc = {}; fmts.forEach(function (r) { fc[r[0]] = (fc[r[0]] || 0) + 1; });
+  L.push('formatos coluna A: ' + JSON.stringify(fc));
+  const dv = aba.getRange(2, 1, n, 11).getDataValidations();
+  let nDv = 0, exDv = '';
+  dv.forEach(function (r, i) { r.forEach(function (v, j) { if (v) { nDv++; if (!exDv) exDv = 'ex.: linha ' + (i + 2) + ' col ' + (j + 1) + ' tipo ' + v.getCriteriaType() + ' rejeita=' + !v.getAllowInvalid(); } }); });
+  L.push('validações de dados em A2:K' + ultima + ': ' + nDv + (exDv ? ' (' + exDv + ')' : ''));
+  const prot = aba.getProtections(SpreadsheetApp.ProtectionType.RANGE).map(function (p) { return p.getRange().getA1Notation() + (p.isWarningOnly() ? ' (aviso)' : ' (bloqueia)') + ' editável por mim=' + p.canEdit(); });
+  const protAba = aba.getProtections(SpreadsheetApp.ProtectionType.SHEET).map(function (p) { return 'ABA' + (p.isWarningOnly() ? ' (aviso)' : ' (bloqueia)') + ' editável por mim=' + p.canEdit(); });
+  L.push('proteções: ' + (prot.concat(protAba).join('; ') || 'nenhuma') + ' · filtro=' + (aba.getFilter() ? aba.getFilter().getRange().getA1Notation() : 'nenhum'));
+  L.push('linhas ocultas entre 2 e 10: ' + [2,3,4,5,6,7,8,9,10].filter(function (r) { return aba.isRowHiddenByUser(r) || aba.isRowHiddenByFilter(r); }).join(',') || 'nenhuma');
+
+  // 3. gravação real com releitura
+  const teste = function (rotulo, rng, valor) {
+    const antes = rng.getValue();
+    rng.setValue(valor); SpreadsheetApp.flush();
+    const depois = rng.getValue();
+    L.push('teste ' + rotulo + ': gravei ' + JSON.stringify(valor) + ' · antes=' + JSON.stringify(antes) + ' · depois=' + JSON.stringify(depois) + ' (' + typeof depois + ')' +
+      ((depois instanceof Date && valor instanceof Date && depois.getTime() === valor.getTime()) || depois === valor ? ' · PERSISTIU' : ' · NÃO PERSISTIU'));
+    return antes;
+  };
+  const a2 = aba.getRange('A2'), a3 = aba.getRange('A3'), m2 = aba.getRange('M2');
+  const a2antes = teste('Date em A2', a2, new Date(2026, 8, 1));
+  const a3antes = teste('número em A3', a3, 46266);
+  const m2antes = teste('Date em M2 (fora da tabela)', m2, new Date(2026, 8, 1));
+  // restaura
+  a2.setValue(a2antes instanceof Date ? serialDoDia_(a2antes.getFullYear(), a2antes.getMonth(), a2antes.getDate()) : a2antes);
+  a3.setValue(a3antes instanceof Date ? serialDoDia_(a3antes.getFullYear(), a3antes.getMonth(), a3antes.getDate()) : a3antes);
+  if (m2antes === '' || m2antes === null) m2.clearContent(); else m2.setValue(m2antes);
+  SpreadsheetApp.flush();
+  L.push('restaurado: A2=' + JSON.stringify(a2.getValue()) + ' A3=' + JSON.stringify(a3.getValue()) + ' M2=' + JSON.stringify(m2.getValue()));
+  Logger.log(L.join('\n'));
+}
