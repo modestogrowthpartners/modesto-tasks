@@ -66,7 +66,11 @@ para a pergunta que faltou, o motivo calibrado que só aparece depois das
 notas e troca de lista com a faixa, e a gravação de texto e código do
 motivo. Os casos 17, 26 e 27 cobrem o CAP virando demanda fora do portal
 do cliente, a revisão sem discovery (seção oculta, painel "não aplicável")
-e o bloco do SLA com prazo e demanda.
+e o bloco do SLA com prazo e demanda. Os casos 18 a 20c cobrem o painel que
+lista as respostas e o relatório que abre ao clique (MGPI e recomendação em
+anel, radar, barras, citações, leitura da Modesto gerada pela função
+`cip-leitura` e revisada à mão, e o bloco de uso interno comercial do
+Pré-Discovery).
 
 ## `roadmap.mjs`
 

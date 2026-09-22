@@ -192,7 +192,7 @@ await page.evaluate(async ()=>{
     if(q.tipo==='pessoas'){ mgNpsPessoaNova(); mgNpsPessoa(0,'nome','Ana'); return }
     const v = q.id==='cd_economics' ? 'ROAS piso 3,5 e CAC máximo de R$ 180'
             : q.id==='cd_restricoes' ? 'Estoque limitado na linha premium'
-            : q.id==='cd_postura' ? 'Queremos provocação, não relatório' : 'x';
+            : q.id==='cd_postura' ? 'Provocativa' : 'x';
     mgNpsSet(q.id, v);
   }));
   for(let i=0;i<10;i++) mgNpsProxima();
@@ -434,12 +434,48 @@ const trocou = await page.evaluate(()=>{
   mgNpsRelatorio(p.id);
   const r = document.getElementById('mgn-relatorio');
   return {voltou, titulo:(r.querySelector('.rel-tit h1')||{}).textContent, texto:r.textContent,
-          semGrafico: !r.querySelector('.rel-radar'), perguntas: r.querySelectorAll('.rel-q').length};
+          semGrafico: !r.querySelector('.rel-radar'), perguntas: r.querySelectorAll('.rel-secoes .rel-q').length};
 });
 ok('20 voltar devolve o painel, e o relatório do Pré-Discovery é pergunta e resposta, sem gráfico',
    trocou.voltou && /Pré-Discovery/.test(trocou.titulo)
    && /CAC subindo e margem caindo no retargeting/.test(trocou.texto) && trocou.semGrafico && trocou.perguntas===12,
    JSON.stringify({voltou:trocou.voltou, titulo:trocou.titulo, perguntas:trocou.perguntas}));
+const com = await page.evaluate(async ()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
+  const r = document.getElementById('mgn-relatorio');
+  const bloco = r.querySelector('.rel-comercial');
+  const titulo = (r.querySelector('.rel-leitura h2')||{}).textContent;
+  const botaoAlto = [...bloco.querySelectorAll('.mgn-multi button')].find(b=>/Alto/.test(b.textContent));
+  botaoAlto.click();
+  await new Promise(res=>setTimeout(res,150));
+  await mgNpsComercial(p.id, 'proximo', 'Diagnóstico em duas semanas');
+  const i = __FIX.mgp_pesquisas_interno.find(x=>x.pesquisa_id===p.id);
+  const marcado = !!document.querySelector('#mgn-relatorio .rel-comercial .mgn-multi button.on');
+  return {temBloco:!!bloco, titulo, fit:i && i.dados.comercial && i.dados.comercial.fit,
+          proximo:i && i.dados.comercial && i.dados.comercial.proximo, marcado};
+});
+ok('20b o Pré-Discovery tem o bloco de uso interno comercial, guardado na tabela interna, e a leitura se chama comercial',
+   com.temBloco && com.titulo==='Leitura comercial' && com.fit==='Alto'
+   && com.proximo==='Diagnóstico em duas semanas' && com.marcado, JSON.stringify(com));
+
+const revisao = await page.evaluate(async ()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
+  mgNpsRelatorio(p.id);
+  const antes = !!document.querySelector('#mgn-relatorio .rel-leitura button');
+  mgNpsEditarLeitura(p.id);
+  const ta = document.getElementById('mgn-leitura-txt');
+  const tinhaTexto = ta && /Em três linhas/.test(ta.value);
+  ta.value = '## Em três linhas\n- Revisado pela equipe.\n## O que pesa\n- Prazo.';
+  await mgNpsSalvarLeitura(p.id);
+  await new Promise(res=>setTimeout(res,150));
+  const i = __FIX.mgp_pesquisas_interno.find(x=>x.pesquisa_id===p.id);
+  const r = document.getElementById('mgn-relatorio');
+  return {antes, tinhaTexto, guardou: /Revisado pela equipe/.test(i.dados.leitura.texto), revisadoEm: !!i.dados.leitura.revisado_em,
+          naTela: /Revisado pela equipe/.test(r.textContent), rotulo:(r.querySelector('.rel-leitura .n')||{}).textContent};
+});
+ok('20c a leitura pode ser revisada à mão, e a revisão fica guardada com data',
+   revisao.antes && revisao.tinhaTexto && revisao.guardou && revisao.revisadoEm && revisao.naTela
+   && /revisada em/.test(revisao.rotulo), JSON.stringify(revisao));
 await page.evaluate(()=>mgNpsFecharRelatorio());
 
 const carteira = await page.evaluate(()=>{

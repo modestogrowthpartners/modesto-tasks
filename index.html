@@ -28632,6 +28632,11 @@ window.mgzQuemEh        = mgzQuemEh;
 .rel-q p{font-size:13.5px;line-height:1.6;white-space:pre-wrap}
 .rel-q p.vazia{color:var(--muted2);font-style:italic}
 .rel-leitura{border-color:var(--brass)}
+.rel-editor{width:100%;min-height:320px;background:var(--bg);border:1px solid var(--line2);border-radius:10px;
+  padding:12px 14px;font-family:var(--m,ui-monospace,monospace);font-size:12.5px;line-height:1.6;color:var(--text);resize:vertical}
+.rel-campo{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:9px;padding:8px 10px;
+  font-family:inherit;font-size:13px;color:var(--text)}
+.rel-comercial .rel-qa{gap:14px}
 .rel-texto h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:14px 0 6px}
 .rel-texto h4:first-child{margin-top:0}
 .rel-texto ul{margin:0 0 4px 18px;padding:0}
@@ -28737,8 +28742,9 @@ window.mgzQuemEh        = mgzQuemEh;
       nome:'Client Discovery',
       titulo:'Client Discovery',
       chamada:'Queremos conhecer o negócio por trás dos números. Respostas curtas são suficientes; '
-            + 'onde não souber, deixe em branco. Antes do kickoff, isso permite que a Modesto chegue '
-            + 'preparada para discutir crescimento já no primeiro encontro.',
+            + 'se uma pergunta não se aplicar, escreva N/A. Você não precisa repetir o que já nos contou. '
+            + 'Antes do kickoff, isso permite que a Modesto chegue preparada para discutir crescimento '
+            + 'já no primeiro encontro.',
       tempo:'15 a 20 minutos',
       quando:'Depois do contrato, antes do kickoff',
       abas:[
@@ -28819,8 +28825,9 @@ window.mgzQuemEh        = mgzQuemEh;
            ajuda:'Além dos objetivos já definidos, o que esperam da Modesto no dia a dia?'},
           {id:'cd_parceria_excelente', rot:'Parceria excelente',
            ajuda:'O que seria uma parceria excelente para vocês?'},
-          {id:'cd_postura',            rot:'Postura esperada',
-           ajuda:'Que tipo de postura esperam da Modesto no dia a dia?'},
+          {id:'cd_postura',            rot:'Postura esperada', tipo:'lista',
+           ajuda:'Que tipo de postura esperam da Modesto no dia a dia?',
+           opcoes:['Consultiva','Analítica','Provocativa','Executora','Combinação dos estilos']},
           {id:'cd_preocupacoes',       rot:'Experiências anteriores',
            ajuda:'Existe alguma preocupação ou experiência anterior que devemos considerar?'},
           {id:'cd_feedback',           rot:'Feedback direto',
@@ -30294,6 +30301,25 @@ window.mgzQuemEh        = mgzQuemEh;
     }
   };
 
+  let EDITANDO_LEITURA = null;
+  window.mgNpsEditarLeitura = function(id){ EDITANDO_LEITURA = id || null; desenhar() };
+  window.mgNpsSalvarLeitura = async function(id){
+    const el = document.getElementById('mgn-leitura-txt'); if(!el) return;
+    const texto = String(el.value || '').trim();
+    if(!texto){ toast('O texto ficou vazio.'); return }
+    const atual = internoDe(id).leitura || {};
+    const por = (typeof ME !== 'undefined' && ME && ME.name) ? String(ME.name) : '';
+    try{
+      await salvarInterno(id, {leitura: Object.assign({}, atual, {texto, revisado_em:new Date().toISOString(), por})});
+      EDITANDO_LEITURA = null; toast('Revisão guardada.'); desenhar();
+    }catch(e){ toast('Não foi possível guardar: ' + ((e && e.message) || '')) }
+  };
+  window.mgNpsComercial = async function(id, campo, v){
+    const com = Object.assign({}, internoDe(id).comercial || {}); com[campo] = v;
+    try{ await salvarInterno(id, {comercial: com}); if(campo === 'fit') desenhar() }
+    catch(e){ toast('Não foi possível guardar: ' + ((e && e.message) || '')) }
+  };
+
   function relatorioHTML(p){
     const spec = specDe(p), r = p.respostas || {};
     const nomeEmp = (typeof clientName === 'function') ? clientName(p.client_id) : '';
@@ -30373,23 +30399,62 @@ window.mgzQuemEh        = mgzQuemEh;
 
     const lei = interno.leitura;
     const erro = interno.leitura_erro;
-    const leitura = '<section class="mgn-bloco rel-leitura"><header><h2>Leitura da Modesto</h2>'
-      + '<span class="n">' + (lei ? 'gerada em ' + esc(new Date(lei.em).toLocaleDateString('pt-BR'))
-          + (lei.por ? ' por ' + esc(String(lei.por).split(' ')[0]) : '') : 'uso interno') + '</span></header>'
+    /* o nome e a explicação seguem a aba de cada planilha: a 99 do
+       Client Discovery é o Client Intelligence Card; a do Pré-Discovery
+       alimenta o uso interno do Comercial */
+    const LEIT = {
+      mgpr:{titulo:'Leitura da Modesto', explica:'o que o cliente quis dizer, o que pesa, o que sustenta, hipóteses, perguntas para a próxima reunião e ações'},
+      client_discovery:{titulo:'Client Intelligence Card', explica:'o resumo rápido do cliente, os fatos que ele informou, as hipóteses da Modesto para revisão humana e as atenções, oportunidades e hipóteses a validar no kickoff'},
+      pre_discovery:{titulo:'Leitura comercial', explica:'fit percebido, tamanho da oportunidade, sinais de alerta, o que o diagnóstico precisa cobrir e o próximo passo'},
+    }[p.tipo] || {titulo:'Leitura da Modesto', explica:'a leitura das respostas'};
+    const editando = EDITANDO_LEITURA === p.id;
+    const leitura = '<section class="mgn-bloco rel-leitura"><header><h2>' + esc(LEIT.titulo) + '</h2>'
+      + '<span class="n">' + (lei ? (lei.revisado_em ? 'revisada em ' + esc(new Date(lei.revisado_em).toLocaleDateString('pt-BR'))
+          : 'gerada em ' + esc(new Date(lei.em).toLocaleDateString('pt-BR')))
+          + (lei.por ? ' por ' + esc(String(lei.por).split(' ')[0]) : '') : 'uso interno') + '</span>'
+      + (lei && !lendo && !editando ? '<button class="mgn-btn2" style="margin-left:auto;padding:5px 11px;font-size:12px"'
+          + ' onclick="mgNpsEditarLeitura(\'' + escJS(p.id) + '\')">revisar texto</button>' : '')
+      + '</header>'
       + '<div class="mgn-corpo">'
       + (lendo ? '<div class="mgn-vazio" style="padding:0"><span class="mg-pontinhos">lendo as respostas</span></div>'
+        : editando ? '<textarea id="mgn-leitura-txt" class="rel-editor">' + esc(lei ? lei.texto : '') + '</textarea>'
+          + '<div class="mgn-acoes"><button class="btn-p" onclick="mgNpsSalvarLeitura(\'' + escJS(p.id) + '\')">Salvar revisão</button>'
+          + '<button class="mgn-btn2" onclick="mgNpsEditarLeitura(null)">Cancelar</button>'
+          + '<span style="font-size:12px;color:var(--muted2)">Títulos começam com "## " e itens com "- ".</span></div>'
         : lei ? '<div class="rel-texto">' + leituraHTML(lei.texto) + '</div>'
-        : '<div class="mgn-vazio" style="padding:0">Ainda sem leitura. O botão acima manda as respostas para a IA, que devolve o que o '
-          + 'cliente quis dizer, o que pesa, o que sustenta, hipóteses, perguntas para a próxima reunião e ações. '
-          + 'O texto fica guardado aqui, só para a equipe.'
+        : '<div class="mgn-vazio" style="padding:0">Ainda sem leitura. O botão acima manda as respostas para a IA, que devolve '
+          + esc(LEIT.explica) + '. O texto fica guardado aqui, só para a equipe, e pode ser revisado à mão.'
           + (erro ? '<br><br><b style="color:var(--danger)">Última tentativa falhou:</b> ' + esc(erro.erro || '') : '')
           + '</div>')
+      + '</div></section>';
+
+    /* Pré-Discovery: a aba 02_Uso_Interno_Comercial, preenchida pelo Comercial */
+    const com = interno.comercial || {};
+    const time = (typeof TEAM !== 'undefined' ? TEAM : []).slice()
+      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt'));
+    const campo = (k, rot, html) => '<div class="rel-q"><div class="rot">' + esc(rot) + '</div>' + html + '</div>';
+    const comercial = p.tipo !== 'pre_discovery' ? '' :
+      '<section class="mgn-bloco rel-comercial"><header><h2>Uso interno comercial</h2>'
+      + '<span class="n">preenchido pelo Comercial após a conversa</span></header>'
+      + '<div class="mgn-corpo rel-qa">'
+      + campo('fit', 'Fit percebido', '<div class="mgn-multi">' + ['Alto','Médio','Baixo'].map(o =>
+          '<button type="button" class="' + (com.fit === o ? 'on' : '') + '" onclick="mgNpsComercial(\'' + escJS(p.id) + '\',\'fit\',\'' + escJS(o) + '\')">'
+          + (com.fit === o ? '✓ ' : '') + esc(o) + '</button>').join('') + '</div>')
+      + campo('oportunidade', 'Tamanho de oportunidade (estimativa)', '<input type="text" class="rel-campo" value="' + esc(com.oportunidade || '') + '"'
+          + ' placeholder="Ex.: fee de R$ 15 mil/mês, mídia de R$ 80 mil/mês" onchange="mgNpsComercial(\'' + escJS(p.id) + '\',\'oportunidade\',this.value)">')
+      + campo('alerta', 'Sinal de alerta comercial', '<input type="text" class="rel-campo" value="' + esc(com.alerta || '') + '"'
+          + ' placeholder="O que pode travar a proposta" onchange="mgNpsComercial(\'' + escJS(p.id) + '\',\'alerta\',this.value)">')
+      + campo('proximo', 'Próximo passo recomendado', '<input type="text" class="rel-campo" value="' + esc(com.proximo || '') + '"'
+          + ' placeholder="Ex.: diagnóstico em duas semanas" onchange="mgNpsComercial(\'' + escJS(p.id) + '\',\'proximo\',this.value)">')
+      + campo('responsavel', 'Responsável Modesto', '<select class="rel-campo" onchange="mgNpsComercial(\'' + escJS(p.id) + '\',\'responsavel_id\',this.value)">'
+          + '<option value="">Escolha</option>' + time.map(u => '<option value="' + esc(u.id) + '"' + (String(com.responsavel_id || '') === String(u.id) ? ' selected' : '') + '>'
+          + esc(u.nome || '') + '</option>').join('') + '</select>')
       + '</div></section>';
 
     return '<div class="mgn-rel" id="mgn-relatorio">'
       + '<div class="mgn-so-print">' + esc(nomeEmp) + ' · ' + esc(spec.nome)
         + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + ' · respondida em ' + esc(quando) + '</div>'
-      + topo + corpo + anexos + leitura + '</div>';
+      + topo + corpo + anexos + comercial + leitura + '</div>';
   }
 
   /* a folha do relatório: o mesmo Salvar em PDF do retorno. A classe
