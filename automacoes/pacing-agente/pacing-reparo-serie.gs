@@ -362,12 +362,16 @@ function testarEmailMeuRodape() { testarEmailConta('MEU RODAPE'); }
  *   3. gravação real: um Date em A2, um número em A3 e um Date em M2 (fora da
  *      tabela), com releitura depois do flush. Restaura tudo no fim.
  * Cada passo está em try/catch: se um quebrar, o log diz qual, e segue.
+ * AUTOSSUFICIENTE: não depende de nada deste arquivo, para poder ser colada
+ * sozinha num arquivo (21/09, 21:17: ReferenceError ao colar só ela).
  */
 function diagnosticarSerieDiaria() {
   const ss = SpreadsheetApp.getActive();
-  const aba = ss.getSheetByName(REPARO_SERIE.ABA_SERIE);
+  const aba = ss.getSheetByName('SERIE DIARIA');
+  if (!aba) throw new Error('aba "SERIE DIARIA" não encontrada');
   const ultima = aba.getLastRow();
   const n = ultima - 1;
+  const serialDia = function (d) { return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000); };
   const passo = function (nome, fn) {
     try { Logger.log('[' + nome + '] ' + fn()); }
     catch (e) { Logger.log('[' + nome + '] QUEBROU: ' + (e && e.message ? e.message : e)); }
@@ -434,7 +438,7 @@ function diagnosticarSerieDiaria() {
     passo('4 restaurar ' + a1, function () {
       const rng = aba.getRange(a1);
       if (antes === null) return 'nada a restaurar (o teste nem leu a célula)';
-      if (antes instanceof Date) rng.setValue(serialDoDia_(antes.getFullYear(), antes.getMonth(), antes.getDate()));
+      if (antes instanceof Date) rng.setValue(serialDia(antes));
       else if (antes === '' || antes === undefined) rng.clearContent();
       else rng.setValue(antes);
       SpreadsheetApp.flush();
