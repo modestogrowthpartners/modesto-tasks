@@ -28495,12 +28495,33 @@ window.mgzQuemEh        = mgzQuemEh;
    Esconder "tudo menos o .content" não serve, porque o .content é neto do
    <body>: a regra apagaria o ancestral dele junto. Por isso tudo fica
    invisível e só a subárvore do retorno volta a aparecer. */
+/* A folha de papel da Modesto. Na hora de imprimir, o bloco é envolvido
+   por uma tabela (mgn-papel): thead e tfoot se repetem em toda página, e
+   é assim que o cabeçalho com a logo e o rodapé aparecem em cada folha
+   sem depender do cabeçalho do navegador. A marca d'água é fixa, uma por
+   página. @page sem margem tira a data e a URL que o navegador imprime. */
 @media print{
+  @page{size:A4;margin:0}
   html,body{height:auto !important;overflow:visible !important;background:#fff !important}
   .main,.content,.view{overflow:visible !important;height:auto !important}
   body *{visibility:hidden}
-  .mgn-snap,.mgn-snap *,.mgn-folha,.mgn-folha *{visibility:visible}
-  .mgn-snap,.mgn-folha{position:absolute;left:0;top:0;width:100%;padding:0;max-width:none}
+  .mgn-papel,.mgn-papel *{visibility:visible}
+  .mgn-papel{position:absolute;left:0;top:0;width:100%;border-collapse:collapse;background:#fff;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:var(--font-b)}
+  .mgn-papel > thead > tr > td,.mgn-papel > tbody > tr > td,.mgn-papel > tfoot > tr > td{padding:0 14mm;border:0}
+  .mgn-papel > thead > tr > td{padding-top:9mm}
+  .mgn-papel-cab{display:flex;align-items:center;justify-content:space-between;gap:10mm;
+    border-bottom:1.2px solid #C2A15B;padding-bottom:3.5mm;margin-bottom:7mm}
+  .mgn-papel-cab img{height:11mm;width:auto;display:block}
+  .mgn-papel-cab span{font-size:9pt;color:#6b6456;letter-spacing:.06em;text-transform:uppercase;text-align:right}
+  .mgn-papel-pe{border-top:1px solid #e4dfd3;margin-top:7mm;padding:3.5mm 0 7mm;font-size:8.5pt;color:#8a8270;
+    display:flex;justify-content:space-between;gap:8mm}
+  .mgn-papel-marca{position:fixed;left:50%;top:50%;width:150mm;height:52mm;transform:translate(-50%,-50%);
+    background:url(assets/marca-dagua.png) center/contain no-repeat;pointer-events:none}
+  .mgn-snap,.mgn-folha,.mgn-snap *,.mgn-folha *{visibility:visible}
+  /* a linha de cabeçalho antiga repetiria o que o thead já diz */
+  .mgn-papel .mgn-so-print{display:none !important}
+  .mgn-snap,.mgn-folha{position:static;width:100%;padding:0;max-width:none}
   .mgn-snap .acoes{display:none !important}
   .mgn-snap .hero,.mgn-snap .it{border:1px solid #ddd;break-inside:avoid;box-shadow:none}
   /* a folha das respostas: sem abas nem botões, e com o cabeçalho que só
@@ -29753,7 +29774,7 @@ window.mgzQuemEh        = mgzQuemEh;
       + it('Nosso compromisso', s.compromisso)
       + it('Próxima revisão', s.proxima)
       + '<div class="acoes">'
-        + '<button class="btn-p" onclick="window.print()">Salvar em PDF</button>'
+        + '<button class="btn-p" onclick="mgNpsImprimirRetorno()">Salvar em PDF</button>'
         + '<button class="mgn-btn2" onclick="mgNpsFecharSnap()">Voltar</button>'
       + '</div>'
       + '</div>';
@@ -30460,12 +30481,49 @@ window.mgzQuemEh        = mgzQuemEh;
   /* a folha do relatório: o mesmo Salvar em PDF do retorno. A classe
      mgn-folha só existe durante a impressão; a folha de estilo de papel
      esconde o resto da tela e mostra o cabeçalho de papel. */
-  window.mgNpsImprimirRespostas = function(){
-    const sec = document.getElementById('mgn-relatorio'); if(!sec) return;
+  /* Envolve o bloco numa tabela só durante a impressão: thead (logo e
+     título), tbody (o bloco) e tfoot (rodapé) se repetem em toda página,
+     e a marca d'água é fixa. Depois desfaz e devolve o bloco ao lugar. */
+  function imprimirComMarca(sec, cab, pe){
+    if(!sec) return;
+    const pai = sec.parentNode, prox = sec.nextSibling;
+    const t = document.createElement('table'); t.className = 'mgn-papel';
+    t.innerHTML = '<thead><tr><td><div class="mgn-papel-cab">'
+      + '<img src="assets/logo.png" alt="Modesto Growth Partners">'
+      + '<span>' + esc(cab) + '</span></div></td></tr></thead>'
+      + '<tfoot><tr><td><div class="mgn-papel-pe"><span>Modesto Growth Partners · modestogrowth.com.br</span>'
+      + '<span>' + esc(pe) + '</span></div></td></tr></tfoot>'
+      + '<tbody><tr><td class="mgn-papel-corpo"></td></tr></tbody>';
+    const corpo = t.querySelector('.mgn-papel-corpo');
+    const marca = document.createElement('div'); marca.className = 'mgn-papel-marca'; marca.setAttribute('aria-hidden', 'true');
+    corpo.appendChild(marca);
+    corpo.appendChild(sec);
+    pai.insertBefore(t, prox);
     sec.classList.add('mgn-folha');
-    const tirar = ()=>{ sec.classList.remove('mgn-folha'); window.removeEventListener('afterprint', tirar) };
+    let feito = false;
+    const tirar = ()=>{
+      if(feito) return; feito = true;
+      sec.classList.remove('mgn-folha');
+      try{ pai.insertBefore(sec, t); t.remove() }catch(e){}
+      window.removeEventListener('afterprint', tirar);
+    };
     window.addEventListener('afterprint', tirar);
     try{ window.print() }finally{ setTimeout(tirar, 1500) }
+  }
+  window.mgNpsImprimirRespostas = function(){
+    const sec = document.getElementById('mgn-relatorio'); if(!sec) return;
+    const p = LISTA.find(x => x.id === RELATORIO_ID);
+    const nomeEmp = p && typeof clientName === 'function' ? clientName(p.client_id) : '';
+    const quando = p && p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '';
+    imprimirComMarca(sec, 'Customer Intelligence Program · uso interno',
+      (nomeEmp ? nomeEmp + ' · ' : '') + (p ? specDe(p).nome : 'Relatório') + (quando ? ' · ' + quando : ''));
+  };
+  window.mgNpsImprimirRetorno = function(){
+    const sec = document.querySelector('.mgn-snap'); if(!sec) return;
+    const p = SNAP;
+    const nomeEmp = p && typeof clientName === 'function' ? clientName(p.client_id) : '';
+    imprimirComMarca(sec, 'Revisão de Parceria · o seu retorno',
+      (nomeEmp ? nomeEmp + ' · ' : '') + 'gerado em ' + new Date().toLocaleDateString('pt-BR'));
   };
 
   /* o anexo vive no bucket privado; abre por URL assinada, como os documentos */
