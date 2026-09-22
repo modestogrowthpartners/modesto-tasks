@@ -1,6 +1,6 @@
 /**
  * =====================================================================
- *  E-MAIL POR CONTA  |  conta.gs  ·  v3.3 (22/09/2026)
+ *  E-MAIL POR CONTA  |  conta.gs  ·  v3.4 (22/09/2026)
  *  Modesto Growth Partners
  * =====================================================================
  *
@@ -22,6 +22,12 @@
  *  ideal da meta x projeção, o mesmo desenho do pacing) e Slack com o mesmo
  *  conteúdo do e-mail executivo: blocos curtos por conta + gráfico de pacing
  *  em imagem (enviarSlackVisual_, precisa de SLACK_BOT_TOKEN com files:write).
+ *
+ *  v3.4 (22/09/2026): o Slack vira o espelho do e-mail executivo: "N contas
+ *  para olhar hoje", placar das contas citadas com status por plataforma, e
+ *  uma seção por conta crítica com verba, alertas e o gráfico de pacing na
+ *  própria mensagem (image block com slack_file). Sem crítico, placar da
+ *  carteira. Sem files:write, sai sem gráfico e avisa na aba ALERTAS.
  *
  *  Layout: cabeçalho · cards (só os que existem) · Boletim de ontem · Ontem ·
  *  "No total, estou na meta?" · 3 faixas de ação · Pacing do mês · Receita do
@@ -645,10 +651,14 @@ function boletimOntem_(c, vs, plat, ont, datas, moeda, fmtKint, x) {
 }
 
 // ---------------------------------------------------------------------
-//  SLACK VISUAL: o mesmo conteúdo do e-mail executivo, com gráfico
-//  Chamado por enviar_ (Código.gs) no lugar do texto longo. Precisa de
-//  SLACK_BOT_TOKEN (escopos chat:write e files:write) e do bot no canal.
-//  Sem token, cai no texto antigo pelo webhook (postarNoCanalPacing_).
+//  SLACK VISUAL (v3.4): espelho do e-mail executivo "Contas para olhar hoje"
+//  Mesma estrutura do montarHtmlExecutivo_: cabeçalho, placar das contas
+//  citadas com status por plataforma, e uma seção por conta crítica com
+//  verba, alertas críticos e o gráfico de pacing do mês (g1) na própria
+//  mensagem (image block com slack_file). Sem crítico: placar da carteira.
+//  Precisa de SLACK_BOT_TOKEN (chat:write + files:write) e do bot no canal.
+//  Sem files:write, sai o texto sem gráfico e o motivo vai para o log e para
+//  a aba ALERTAS. Sem token, cai no texto antigo pelo webhook.
 // ---------------------------------------------------------------------
 const SLACK_CANAL_PADRAO = 'C0BG2NK56UC';   // #controle_pacing_diário
 
@@ -661,67 +671,112 @@ function enviarSlackVisual_(ss, crit, aten, painel, datas, url, alertas) {
     return;
   }
   const serie = (typeof lerSerie_ === 'function') ? lerSerie_(ss, datas) : {};
-  const blocos = montarBlocosSlack_(crit, aten, painel, datas, url);
-  try {
-    slackPostBlocks_(token, canal, blocos.texto, blocos.blocks);
-  } catch (e) {
-    if (alertas) alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack não postado', 'chat.postMessage falhou: ' + e.message, 'slack_erro'));
-    Logger.log('Slack blocks falhou: %s', e.message);
-    if (typeof postarNoCanalPacing_ === 'function') postarNoCanalPacing_(montarTextoSlack_(crit, aten, [], datas, url), alertas);
-    return;
-  }
-  // Gráfico de pacing das contas com crítico (ou, sem crítico, das que estão em atenção), no máximo 5
-  const nomesCrit = {}; crit.forEach(a => { nomesCrit[a.conta] = true; });
-  const nomesAten = {}; aten.forEach(a => { nomesAten[a.conta] = true; });
-  let contas = painel.contas.filter(c => nomesCrit[c.nome]);
-  if (!contas.length) contas = painel.contas.filter(c => nomesAten[c.nome]);
-  contas.slice(0, 5).forEach(c => {
-    try {
-      const vs = (c.veiculos || []).filter(v => !v.inconsistente);
-      if (!vs.length) return;
-      const moeda = CONTA_MOEDA[c.nome] || 'R$';
-      const soma = k => vs.reduce((a, v) => a + (Number(v[k]) || 0), 0);
-      const g = graficosConta_(c, datas, serie[c.nome] || {}, vs, {}, moeda, { budget: soma('budget'), investido: soma('investido'), projConta: soma('proj'), metaRoas: 0 }, ['g1']);
-      if (!g.g1) return;
-      const budget = soma('budget'), investido = soma('investido');
-      const legenda = c.nome + ' · pacing do mês · ' + (budget ? Math.round(investido / budget * 100) + '% da verba com ' + Math.round(datas.pctMes * 100) + '% do mês' : 'sem verba fixa') +
-        (nomesCrit[c.nome] ? ' · ' + crit.filter(a => a.conta === c.nome).length + ' crítico(s)' : '');
-      slackUploadPng_(token, canal, g.g1, c.nome + ' ' + fmtIso_(datas.ontem) + '.png', legenda);
-    } catch (e) { Logger.log('Slack gráfico %s: %s', c.nome, e.message); }
+  const m = montarBlocosSlack_(crit, aten, painel, datas, url, serie);
+
+  // 1) sobe os gráficos (sem canal: o arquivo só é compartilhado quando a mensagem sai)
+  const ids = {};
+  let erroUpload = '';
+  Object.keys(m.imagens).forEach(k => {
+    try { ids[k] = slackUploadPng_(token, null, m.imagens[k], k + '.png', ''); }
+    catch (e) { erroUpload = e.message; Logger.log('Slack upload %s: %s', k, e.message); }
   });
+
+  // 2) posta a mensagem com as imagens embutidas; se o Slack recusar os image blocks,
+  //    posta só o texto e manda cada gráfico como arquivo logo abaixo
+  let blocks = m.blocks.map(b => (b.type === 'image' && ids[b.slack_key]) ? { type: 'image', slack_file: { id: ids[b.slack_key] }, alt_text: b.alt_text, title: b.title } : b)
+    .filter(b => b.type !== 'image' || b.slack_file);
+  if (erroUpload) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: 'Gráficos não enviados: ' + erroUpload + ' (confira o escopo files:write do bot).' }] });
+  try {
+    slackPostBlocks_(token, canal, m.texto, blocks);
+  } catch (e) {
+    Logger.log('Slack blocks com imagem falhou (%s); tentando sem imagem.', e.message);
+    try {
+      slackPostBlocks_(token, canal, m.texto, m.blocks.filter(b => b.type !== 'image'));
+      Object.keys(m.imagens).forEach(k => { try { slackUploadPng_(token, canal, m.imagens[k], k + '.png', m.legendas[k] || k); } catch (e2) { Logger.log('Slack gráfico %s: %s', k, e2.message); } });
+    } catch (e2) {
+      if (alertas) alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack não postado', 'chat.postMessage falhou: ' + e2.message, 'slack_erro'));
+      if (typeof postarNoCanalPacing_ === 'function') postarNoCanalPacing_(montarTextoSlack_(crit, aten, [], datas, url), alertas);
+      return;
+    }
+  }
+  if (erroUpload && alertas) alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack sem gráficos', 'Upload falhou: ' + erroUpload + '. Confira o escopo files:write do bot.', 'slack_upload'));
 }
 
-/** Blocos curtos: placar da carteira, uma linha por conta com bolinhas por plataforma, críticos com o número. */
-function montarBlocosSlack_(crit, aten, painel, datas, url) {
+/**
+ * Blocos do Slack no mesmo desenho do e-mail executivo.
+ * @return {{texto: string, blocks: Array, imagens: Object, legendas: Object}}
+ *   blocks traz image blocks provisórios {type:'image', slack_key, alt_text, title}
+ *   que enviarSlackVisual_ troca pelo id do arquivo depois do upload.
+ */
+function montarBlocosSlack_(crit, aten, painel, datas, url, serie) {
+  serie = serie || {};
   const bola = sev => sev === 'ok' ? ':large_green_circle:' : sev === 'aten' ? ':large_yellow_circle:' : sev === 'crit' ? ':red_circle:' : ':white_circle:';
-  const blocks = [];
-  blocks.push({ type: 'header', text: { type: 'plain_text', text: 'Pacing · ' + datas.labelOntem + ' · dia ' + datas.diasDecorridos + ' de ' + datas.diasNoMes } });
-  blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: crit.length + ' crítico(s) · ' + aten.length + ' atenção · <' + url + '|planilha> · e-mail por cliente sai em seguida' }] });
-  blocks.push({ type: 'divider' });
-  const linhas = painel.contas.filter(c => (c.veiculos || []).length).map(c => {
+  const sec = txt => ({ type: 'section', text: { type: 'mrkdwn', text: txt } });
+  const ctx = txt => ({ type: 'context', elements: [{ type: 'mrkdwn', text: txt }] });
+  const div = () => ({ type: 'divider' });
+  const pctMes = Math.round(datas.pctMes * 100);
+
+  // Agrupa críticos por conta, na ordem do PAINEL; o que não é conta vira "Sistema".
+  const porConta = {}; const sistema = [];
+  const nomes = painel.contas.map(c => c.nome);
+  crit.forEach(a => { if (nomes.indexOf(a.conta) >= 0) (porConta[a.conta] = porConta[a.conta] || []).push(a); else sistema.push(a); });
+  const contasCit = painel.contas.filter(c => porConta[c.nome]);
+
+  const chips = c => (c.veiculos || []).filter(v => !v.inconsistente).map(v => {
+    const p = plataformaCanonica_(v.nome); const sv = v.budget ? sevInvest_(v.status) : 'na';
+    return bola(sv) + ' ' + p + ' ' + (v.budget ? rotuloStatusCurto_(v.status).split(' (')[0] : 'sem verba');
+  }).join('   ');
+
+  const blocks = [], imagens = {}, legendas = {};
+  const nCont = contasCit.length + (sistema.length ? 1 : 0);
+  blocks.push({ type: 'header', text: { type: 'plain_text', text: nCont ? nCont + ' conta' + (nCont === 1 ? '' : 's') + ' para olhar hoje' : 'Nenhuma conta para olhar hoje' } });
+  blocks.push(ctx('Dados de ' + datas.labelOntem + ' · dia ' + datas.diasDecorridos + ' de ' + datas.diasNoMes + ' (' + pctMes + '% do mês) · ' +
+    crit.length + ' crítico(s) · ' + aten.length + ' atenção · só o que precisa de ação hoje; o resto está no e-mail de cada cliente · <' + url + '|abrir planilha>'));
+  blocks.push(div());
+
+  // Placar: contas citadas (sem crítico, a carteira inteira, para não sair vazio)
+  const placar = (contasCit.length ? contasCit : painel.contas.filter(c => (c.veiculos || []).length)).map(c =>
+    bola(contasCit.length ? 'crit' : severidadeConta_(c)) + ' *' + c.nome + '*' + (c.responsavel ? ' · ' + c.responsavel : '') +
+    (porConta[c.nome] ? ' · ' + porConta[c.nome].length + ' crítico(s)' : '') + '\n        ' + chips(c));
+  if (sistema.length) placar.push(bola('crit') + ' *Sistema* · ' + sistema.length + ' crítico(s)');
+  for (let i = 0; i < placar.length; i += 6) blocks.push(sec(placar.slice(i, i + 6).join('\n')));
+
+  // Uma seção por conta citada: verba, alertas críticos, gráfico de pacing (até 8 contas)
+  contasCit.slice(0, 8).forEach((c, i) => {
     const vs = (c.veiculos || []).filter(v => !v.inconsistente);
-    const sevC = severidadeConta_(c);
-    const plats = vs.map(v => { const p = plataformaCanonica_(v.nome); const sv = v.budget ? sevInvest_(v.status) : 'na';
-      return bola(sv) + ' ' + p + ' ' + (v.budget ? Math.round(v.investido / v.budget * 100) + '%' : 'sem verba'); }).join('  ');
-    return bola(sevC) + ' *' + c.nome + '*  ' + plats;
-  });
-  // Slack limita cada section a 3000 caracteres: quebra em blocos de 8 contas
-  for (let i = 0; i < linhas.length; i += 8) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: linhas.slice(i, i + 8).join('\n') } });
-  if (crit.length) {
-    blocks.push({ type: 'divider' });
-    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: '*Ação hoje*' } });
-    const itens = crit.slice(0, 8).map(a => {
+    const moeda = CONTA_MOEDA[c.nome] || 'R$';
+    const fmtKint = v => { v = Number(v) || 0; return Math.abs(v) >= 1000 ? moeda + ' ' + Math.round(v / 1000) + 'k' : brl_(v).replace('R$', moeda); };
+    const soma = k => vs.reduce((a, v) => a + (Number(v[k]) || 0), 0);
+    const budget = soma('budget'), investido = soma('investido');
+    blocks.push(div());
+    blocks.push(sec('*' + c.nome + '*\n' + (budget ? fmtKint(investido) + ' de ' + fmtKint(budget) + ' (' + Math.round(investido / budget * 100) + '% da verba com ' + pctMes + '% do mês)' : fmtKint(investido) + ' investidos · sem verba fixa') +
+      (c.credito ? ' · CRÉDITO DA AGÊNCIA' : '')));
+    const itens = porConta[c.nome].map(a => {
+      const plat = a.titulo.indexOf(' / ') >= 0 ? a.titulo.split(' / ').pop() : '';
       const tit = a.titulo.split(':')[0].replace(/ \[.*\]/, '');
-      const plat = a.titulo.indexOf(' / ') >= 0 ? ' · ' + a.titulo.split(' / ').pop() : '';
-      return ':red_circle: *' + a.conta + plat + '* · ' + tit.toLowerCase() + (a.persistencia && a.persistencia !== 'NOVO' ? ' _(' + a.persistencia + ')_' : '') + '\n      ' + String(a.detalhe).substring(0, 220);
+      return ':red_circle: *' + tit + '*' + (plat ? ' · ' + plat : '') + (a.persistencia && a.persistencia !== 'NOVO' ? ' _(' + a.persistencia + ')_' : '') + '\n        ' + String(a.detalhe).substring(0, 400);
     });
-    for (let i = 0; i < itens.length; i += 4) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: itens.slice(i, i + 4).join('\n') } });
-    if (crit.length > 8) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: '+ ' + (crit.length - 8) + ' crítico(s) na aba ALERTAS' }] });
-  } else {
-    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: ':large_green_circle: Nenhum crítico. Ajustes do dia estão no e-mail de cada cliente.' } });
+    for (let j = 0; j < itens.length; j += 4) blocks.push(sec(itens.slice(j, j + 4).join('\n')));
+    try {
+      const g = graficosConta_(c, datas, serie[c.nome] || {}, vs, {}, moeda, { budget: budget, investido: investido, projConta: soma('proj'), metaRoas: 0 }, ['g1']);
+      if (g.g1) {
+        const k = 'pacing-' + (i + 1) + '-' + c.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + fmtIso_(datas.ontem);
+        imagens[k] = g.g1;
+        legendas[k] = c.nome + ' · pacing do mês · acumulado x ideal x projeção';
+        blocks.push({ type: 'image', slack_key: k, alt_text: legendas[k], title: { type: 'plain_text', text: 'Pacing do mês · acumulado x ideal x projeção' } });
+      }
+    } catch (e) { Logger.log('Gráfico Slack de %s: %s', c.nome, e.message); }
+  });
+  if (contasCit.length > 8) blocks.push(ctx('+ ' + (contasCit.length - 8) + ' conta(s) com crítico na aba ALERTAS'));
+
+  if (sistema.length) {
+    blocks.push(div());
+    blocks.push(sec('*Sistema*\n' + sistema.slice(0, 6).map(a => ':red_circle: *' + a.titulo + '*\n        ' + String(a.detalhe).substring(0, 300)).join('\n')));
   }
-  const texto = 'Pacing ' + datas.labelOntem + ': ' + crit.length + ' crítico(s), ' + aten.length + ' atenção';
-  return { texto: texto, blocks: blocks };
+  blocks.push(ctx('Só alertas críticos. Atenção e informativos ficam na aba ALERTAS e no e-mail de cada cliente, que sai em seguida.'));
+
+  const texto = nCont ? nCont + ' conta(s) para olhar hoje · pacing ' + datas.labelOntem + ' · ' + crit.length + ' crítico(s)' : 'Pacing ' + datas.labelOntem + ': nenhuma conta para olhar hoje';
+  return { texto: texto, blocks: blocks, imagens: imagens, legendas: legendas };
 }
 
 function slackPostBlocks_(token, canal, texto, blocks) {
@@ -734,7 +789,11 @@ function slackPostBlocks_(token, canal, texto, blocks) {
   return body.ts;
 }
 
-/** Sobe um PNG no canal (files.getUploadURLExternal + files.completeUploadExternal). Exige escopo files:write. */
+/**
+ * Sobe um PNG (files.getUploadURLExternal + files.completeUploadExternal). Exige files:write.
+ * Com canal, publica no canal com o comentário; sem canal, só sobe e devolve o id
+ * para usar num image block (slack_file). @return {string} id do arquivo
+ */
 function slackUploadPng_(token, canal, blob, nome, comentario) {
   const bytes = blob.getBytes();
   const r1 = UrlFetchApp.fetch('https://slack.com/api/files.getUploadURLExternal', {
@@ -744,12 +803,15 @@ function slackUploadPng_(token, canal, blob, nome, comentario) {
   if (!b1.ok) throw new Error('getUploadURLExternal: ' + b1.error);
   const r2 = UrlFetchApp.fetch(b1.upload_url, { method: 'post', contentType: 'image/png', payload: bytes, muteHttpExceptions: true });
   if (r2.getResponseCode() >= 300) throw new Error('upload ' + r2.getResponseCode());
+  const corpo = { files: [{ id: b1.file_id, title: nome }] };
+  if (canal) { corpo.channel_id = canal; corpo.initial_comment = comentario || ''; }
   const r3 = UrlFetchApp.fetch('https://slack.com/api/files.completeUploadExternal', {
     method: 'post', contentType: 'application/json; charset=utf-8', headers: { Authorization: 'Bearer ' + token },
-    payload: JSON.stringify({ files: [{ id: b1.file_id, title: nome }], channel_id: canal, initial_comment: comentario }), muteHttpExceptions: true
+    payload: JSON.stringify(corpo), muteHttpExceptions: true
   });
   const b3 = JSON.parse(r3.getContentText());
   if (!b3.ok) throw new Error('completeUploadExternal: ' + b3.error);
+  return b1.file_id;
 }
 
 /**
@@ -772,7 +834,8 @@ function testarSlackVisual() {
   props.setProperty('SLACK_CANAL_ID', canalTeste);
   try { enviarSlackVisual_(ss, crit, aten, painel, datas, ss.getUrl(), alertas); }
   finally { if (original) props.setProperty('SLACK_CANAL_ID', original); else props.deleteProperty('SLACK_CANAL_ID'); }
-  Logger.log('Slack visual de teste enviado para ' + canalTeste + ' (' + crit.length + ' críticos, ' + aten.length + ' atenção).');
+  const extras = alertas.filter(a => a.chave === 'slack_erro' || a.chave === 'slack_upload');
+  Logger.log('Slack visual de teste enviado para ' + canalTeste + ' (' + crit.length + ' críticos, ' + aten.length + ' atenção).' + (extras.length ? '\nPROBLEMA: ' + extras.map(a => a.titulo + ': ' + a.detalhe).join('\n') : ''));
 }
 
 function nomeCurto_(n) { n = String(n || ''); return n.length > 44 ? n.substring(0, 43) + '…' : n; }
