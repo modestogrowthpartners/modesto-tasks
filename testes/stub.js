@@ -44,7 +44,7 @@
       {id:'pc-2', conta:'Cliente Um Ads', client_id:CID, dia:'2026-09-03', mes:'2026-09', moeda:'BRL',
        dias_fechados:3, dias_no_mes:30, receita:60000, pedidos:30, conversoes:38, roas:4.0, roas_piso:3.5,
        canais:[{canal:'Meta Ads', investido:9000},{canal:'Google Ads', investido:6000}]}],
-    mgp_pesquisas:[],
+    mgp_pesquisas:[], mgp_pesquisas_interno:[], mgp_cip_textos:[], email_fila:[],
     assistant_messages:[], assistant_actions:[]
   };
   /* persiste entre recargas, para dar sentido ao teste de persistência:
@@ -54,6 +54,7 @@
     const sc = localStorage.getItem('__stub_channels'); if(sc) FIX.channels = JSON.parse(sc);
     const sb2 = localStorage.getItem('__stub_members'); if(sb2) FIX.channel_members = JSON.parse(sb2);
     const sp = localStorage.getItem('__stub_pesquisas'); if(sp) FIX.mgp_pesquisas = JSON.parse(sp);
+    const si = localStorage.getItem('__stub_interno');   if(si) FIX.mgp_pesquisas_interno = JSON.parse(si);
     const sj = localStorage.getItem('__stub_clients');   if(sj) FIX.clients = JSON.parse(sj);
   }catch(e){}
   function persistir(){
@@ -62,6 +63,7 @@
       localStorage.setItem('__stub_channels', JSON.stringify(FIX.channels));
       localStorage.setItem('__stub_members', JSON.stringify(FIX.channel_members));
       localStorage.setItem('__stub_pesquisas', JSON.stringify(FIX.mgp_pesquisas));
+      localStorage.setItem('__stub_interno',   JSON.stringify(FIX.mgp_pesquisas_interno));
       localStorage.setItem('__stub_clients',   JSON.stringify(FIX.clients));
     }catch(e){}
   }

@@ -90,7 +90,7 @@ ok('4  a equipe envia Pré-Discovery e Client Discovery',
    JSON.stringify(enviados));
 
 /* =====================================================================
-   FASE 2 — o cliente responde
+   FASE 2 — o cliente responde, no formulário estilo Google Forms
    ===================================================================== */
 await entrar('cliente');
 
@@ -102,19 +102,47 @@ ok('5  o cliente vê as pesquisas logo abaixo do cabeçalho',
    bloco.titulos[0]==='Pesquisas' && bloco.titulos.includes('Demandas em aberto'),
    JSON.stringify(bloco.titulos));
 
-/* responde o Pré-Discovery */
+/* abre o Pré-Discovery: cabeçalho com faixa, um cartão por pergunta,
+   asterisco no obrigatório, Enviar já na primeira (e única) página */
 const abriuForm = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
   mgNpsResponder(p.id);
-  return {titulo:(document.querySelector('#v-portal .mgn-cab h1')||{}).textContent,
-          perguntas: document.querySelectorAll('#v-portal .mgn-p').length};
+  const pe = document.querySelector('#v-portal .gf-pe');
+  return {titulo:(document.querySelector('#v-portal .gf-cabeca h1')||{}).textContent,
+          aviso:(document.querySelector('#v-portal .gf-cabeca .obrig')||{}).textContent,
+          cartoes: document.querySelectorAll('#v-portal .gf-q').length,
+          asteriscos: document.querySelectorAll('#v-portal .gf-q .ast').length,
+          botoes:[...pe.querySelectorAll('button')].map(b=>b.textContent.trim()),
+          pagina:(pe.querySelector('.gf-prog span')||{}).textContent};
 });
-ok('6  o formulário do Pré-Discovery abre dentro da página do cliente',
-   abriuForm.titulo==='Pré-Discovery' && abriuForm.perguntas===13, JSON.stringify(abriuForm));
+ok('6  o Pré-Discovery abre como um Forms: cabeçalho, cartões, asterisco e Enviar no pé',
+   abriuForm.titulo==='Pré-Discovery' && /Indica uma pergunta obrigat/.test(abriuForm.aviso)
+   && abriuForm.cartoes===13 && abriuForm.asteriscos===12
+   && abriuForm.botoes.includes('Enviar') && !abriuForm.botoes.includes('Próxima')
+   && abriuForm.pagina==='Página 1 de 1', JSON.stringify(abriuForm));
 
-await page.evaluate(async ()=>{
+/* tenta enviar pela metade: o cartão em branco é marcado e nada é gravado */
+const barrou = await page.evaluate(async ()=>{
   mgNpsSet('pd_dor', 'CAC subindo e margem caindo no retargeting');
-  mgNpsSet('pd_objetivo', 'Dobrar a receita nova em 12 meses');
+  await mgNpsEnviarResposta();
+  await new Promise(r=>setTimeout(r,80));
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
+  const erros = [...document.querySelectorAll('#v-portal .gf-q.erro')];
+  return {status:p.status, marcados:erros.length,
+          primeiro: erros[0] ? erros[0].id : '',
+          msg:(document.querySelector('#v-portal .gf-q.erro .msg-erro')||{}).textContent,
+          dorLimpa: !document.getElementById('gfq-pd_dor').classList.contains('erro')};
+});
+ok('7  enviar com pergunta obrigatória em branco marca o cartão e não grava',
+   barrou.status==='enviado' && barrou.marcados===11 && barrou.primeiro==='gfq-pd_objetivo'
+   && /Esta é uma pergunta obrigatória/.test(barrou.msg) && barrou.dorLimpa, JSON.stringify(barrou));
+
+/* preenche o resto e envia */
+await page.evaluate(async ()=>{
+  mgNpsEspelho('pre_discovery').abas[0].perguntas.forEach(q=>{
+    if(q.id==='pd_dor') return;
+    mgNpsSet(q.id, q.id==='pd_objetivo' ? 'Dobrar a receita nova em 12 meses' : 'resposta de teste');
+  });
   await mgNpsEnviarResposta();
 });
 await page.waitForTimeout(500);
@@ -122,29 +150,57 @@ const pdSalvo = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
   return {status:p.status, dor:p.respostas.pd_dor, temData:!!p.respondido_em};
 });
-ok('7  a resposta do cliente é gravada e a pesquisa fecha',
+ok('7b responder tudo grava e fecha a pesquisa',
    pdSalvo.status==='respondido' && pdSalvo.temData
    && pdSalvo.dor==='CAC subindo e margem caindo no retargeting', JSON.stringify(pdSalvo));
 
-/* o Client Discovery abre com o que ele já contou */
+/* o Client Discovery abre na seção 1 com o que ele já contou, e só anda com Próxima */
 const recap = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='client_discovery');
   mgNpsResponder(p.id);
-  return {aba:(document.querySelector('#v-portal .mgn-abas button.on')||{}).textContent,
+  return {secao:(document.querySelector('#v-portal .gf-sec .faixa')||{}).textContent,
+          titulo:(document.querySelector('#v-portal .gf-sec h2')||{}).textContent,
           itens:[...document.querySelectorAll('#v-portal .mgn-recap .it b')].map(b=>b.textContent),
-          texto:(document.querySelector('#v-portal .mgn-recap .it span')||{}).textContent};
+          texto:(document.querySelector('#v-portal .mgn-recap .it span')||{}).textContent,
+          botoes:[...document.querySelectorAll('#v-portal .gf-pe button')].map(b=>b.textContent.trim())};
 });
-ok('8  o Client Discovery abre com as respostas do Pré-Discovery',
-   /O que você já nos contou/.test(recap.aba) && recap.itens.includes('Principal dor')
-   && recap.texto==='Dobrar a receita nova em 12 meses', JSON.stringify(recap).slice(0,200));
+ok('8  o Client Discovery abre na seção "O que você já nos contou" com as respostas do Pré-Discovery',
+   /Seção 1 de 9/.test(recap.secao) && /O que você já nos contou/.test(recap.titulo)
+   && recap.itens.includes('Principal dor') && recap.texto==='Dobrar a receita nova em 12 meses'
+   && recap.botoes.join('|')==='Próxima', JSON.stringify(recap).slice(0,240));
 
+/* Próxima com a seção em branco não avança; preenchida, avança */
+const anda = await page.evaluate(async ()=>{
+  mgNpsProxima();                     /* recap: nada obrigatório, vai para Negócio */
+  const s2 = (document.querySelector('#v-portal .gf-sec .faixa')||{}).textContent;
+  mgNpsProxima();                     /* Negócio em branco: fica */
+  const ficou = (document.querySelector('#v-portal .gf-sec .faixa')||{}).textContent;
+  const marcados = document.querySelectorAll('#v-portal .gf-q.erro').length;
+  mgNpsEspelho('client_discovery').abas[1].perguntas.forEach(q=>mgNpsSet(q.id,'x'));
+  mgNpsProxima();
+  const s3 = (document.querySelector('#v-portal .gf-sec .faixa')||{}).textContent;
+  return {s2, ficou, marcados, s3, voltar:[...document.querySelectorAll('#v-portal .gf-pe button')].map(b=>b.textContent.trim())};
+});
+ok('8b Próxima só avança com a seção completa, e marca o que falta',
+   /Seção 2 de 9/.test(anda.s2) && anda.ficou===anda.s2 && anda.marcados===4
+   && /Seção 3 de 9/.test(anda.s3) && anda.voltar.join('|')==='Voltar|Próxima', JSON.stringify(anda));
+
+/* preenche o resto e envia pela última seção */
 await page.evaluate(async ()=>{
-  mgNpsSet('cd_economics', 'ROAS piso 3,5 e CAC máximo de R$ 180');
-  mgNpsSet('cd_restricoes', 'Estoque limitado na linha premium');
-  mgNpsSet('cd_postura', 'Queremos provocação, não relatório');
+  const spec = mgNpsEspelho('client_discovery');
+  spec.abas.forEach(a=>(a.perguntas||[]).forEach(q=>{
+    if(q.tipo==='pessoas'){ mgNpsPessoaNova(); mgNpsPessoa(0,'nome','Ana'); return }
+    const v = q.id==='cd_economics' ? 'ROAS piso 3,5 e CAC máximo de R$ 180'
+            : q.id==='cd_restricoes' ? 'Estoque limitado na linha premium'
+            : q.id==='cd_postura' ? 'Queremos provocação, não relatório' : 'x';
+    mgNpsSet(q.id, v);
+  }));
+  for(let i=0;i<10;i++) mgNpsProxima();
   await mgNpsEnviarResposta();
 });
 await page.waitForTimeout(500);
+const cdSalvo = await page.evaluate(()=>(__FIX.mgp_pesquisas.find(x=>x.tipo==='client_discovery')||{}).status);
+ok('8c o Client Discovery inteiro é enviado pela última seção', cdSalvo==='respondido', cdSalvo);
 
 /* =====================================================================
    FASE 3 — a equipe manda a revisão de 60 dias
@@ -157,53 +213,103 @@ await page.waitForTimeout(500);
 
 const cont = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
-  return {itens:(p.interno.continuidade||[]).map(c=>({i:c.item, ini:c.inicio, r:c.responsavel})),
-          proxima:p.proxima_em};
+  const i = __FIX.mgp_pesquisas_interno.find(x=>x.pesquisa_id===p.id);
+  return {itens:((i&&i.dados.continuidade)||[]).map(c=>({i:c.item, ini:c.inicio, r:c.responsavel})),
+          proxima:p.proxima_em, comDiscovery:p.com_discovery, internoNaLinha:'interno' in p};
 });
-ok('9  a revisão nasce com a continuidade do discovery já preenchida',
+ok('9  a revisão nasce com a continuidade na tabela interna, e nada interno na linha do cliente',
    cont.itens.length===5
    && cont.itens[0].ini==='CAC subindo e margem caindo no retargeting'
    && cont.itens[2].ini==='ROAS piso 3,5 e CAC máximo de R$ 180'
-   && cont.itens[0].r==='Customer Success' && !!cont.proxima, JSON.stringify(cont).slice(0,220));
+   && cont.itens[0].r==='Customer Success' && !!cont.proxima
+   && cont.comDiscovery===true && !cont.internoNaLinha, JSON.stringify(cont).slice(0,260));
 
 /* =====================================================================
-   FASE 4 — o cliente responde a revisão e recebe o retorno
+   FASE 4 — o cliente responde a revisão: nota, depois motivo calibrado
    ===================================================================== */
 await entrar('cliente');
-await page.evaluate(async ()=>{
+const motivo = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
   mgNpsResponder(p.id);
+  const escondido = !document.getElementById('gfq-confianca_motivo');
+  mgNpsSet('confianca_recomendacoes',9);
+  const soUmaNota = !document.getElementById('gfq-confianca_motivo');
+  mgNpsSet('confianca_seguranca',9);
+  const alta = [...document.querySelectorAll('#gfq-confianca_motivo .gf-opc button span')].map(b=>b.textContent);
+  document.querySelector('#gfq-confianca_motivo .gf-opc button').click();
+  const r1 = __COPIA = null;
+  const escolhido = (document.querySelector('#gfq-confianca_motivo .gf-opc button.on span')||{}).textContent;
+  /* cai para a faixa baixa: a lista muda e a escolha anterior some */
+  mgNpsSet('confianca_seguranca',3);
+  const baixa = [...document.querySelectorAll('#gfq-confianca_motivo .gf-opc button span')].map(b=>b.textContent);
+  const limpou = !document.querySelector('#gfq-confianca_motivo .gf-opc button.on');
+  mgNpsSet('confianca_seguranca',9);
+  return {escondido, soUmaNota, alta, escolhido, baixa, limpou,
+          secoes:(document.querySelector('#v-portal .gf-prog span')||{}).textContent};
+});
+ok('9b o motivo só aparece depois das notas, muda com a faixa e some se a faixa muda',
+   motivo.escondido && motivo.soUmaNota && motivo.alta.length===5 && motivo.baixa.length===5
+   && motivo.alta[1]==='Sinto que o time pensa no nosso negócio como se fosse deles.'
+   && motivo.baixa[0]==='Sinto que as recomendações não vêm acompanhadas de dados ou explicação suficiente.'
+   && motivo.escolhido===motivo.alta[0] && motivo.limpou && motivo.secoes==='Página 1 de 7',
+   JSON.stringify(motivo).slice(0,300));
+
+/* responde tudo pelo fluxo real: nota, motivo (primeira opção da faixa), Próxima */
+await page.evaluate(async ()=>{
+  const clicaMotivo = id => document.querySelector('#gfq-' + id + ' .gf-opc button').click();
   /* Confiança avg(9,9)=9 · Valor 9 · Execução avg(6,7,6,5)=6 · Impacto 9 ·
      Futuro 8  ->  MGPI (9+9+6+9+8)/5 = 8,2 */
-  mgNpsSet('confianca_recomendacoes',9); mgNpsSet('confianca_seguranca',9);
-  mgNpsSet('valor_entende',9);
+  clicaMotivo('confianca_motivo'); mgNpsProxima();
+  mgNpsSet('valor_entende',9); mgNpsSet('valor_percepcao','Parceiro estratégico'); clicaMotivo('valor_motivo'); mgNpsProxima();
   mgNpsSet('exec_comunicacao',6); mgNpsSet('exec_organizacao',7);
-  mgNpsSet('exec_prazos',6);      mgNpsSet('exec_proatividade',5);
-  mgNpsSet('impacto_evolucao',9); mgNpsSet('futuro_potencial',8);
-  mgNpsMulti('temas','IA'); mgNpsMulti('temas','Growth');
-  mgNpsSet('nps_nota',9); mgNpsSet('nps_motivo','Time presente, mas prazo escorrega');
+  mgNpsSet('exec_prazos',6);      mgNpsSet('exec_proatividade',5); clicaMotivo('exec_motivo'); mgNpsProxima();
+  mgNpsSet('impacto_evolucao',9); clicaMotivo('impacto_motivo'); mgNpsProxima();
+  mgNpsSet('futuro_potencial',8); clicaMotivo('futuro_motivo');
+  mgNpsMulti('temas','IA'); mgNpsMulti('temas','Growth'); mgNpsProxima();
+  mgNpsSet('continuidade_endereca','Parcialmente'); mgNpsProxima();
+  mgNpsSet('nps_nota',9);
+  window.__antesDoEnvio = (document.querySelector('#v-portal .gf-prog span')||{}).textContent;
+  await mgNpsEnviarResposta();   /* falta o motivo do NPS: fica e marca */
+  await new Promise(r=>setTimeout(r,80));
+  window.__barrado = {marcado: !!document.querySelector('#gfq-nps_motivo.erro'),
+                      status: __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr').status};
+  clicaMotivo('nps_motivo');
   await mgNpsEnviarResposta();
 });
 await page.waitForTimeout(600);
+const enviou = await page.evaluate(()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
+  return {antes:window.__antesDoEnvio, barrado:window.__barrado, status:p.status,
+          motivoExec:p.respostas.exec_motivo, codExec:p.respostas.exec_motivo_cod,
+          motivoNps:p.respostas.nps_motivo, percepcao:p.respostas.valor_percepcao};
+});
+ok('9c a última seção só envia com o motivo do NPS; grava texto e código do motivo',
+   enviou.antes==='Página 7 de 7' && enviou.barrado.marcado && enviou.barrado.status==='enviado'
+   && enviou.status==='respondido'
+   && enviou.motivoExec==='Tivemos atrasos que impactaram o cronograma.' && enviou.codExec==='execucao:baixa:1'
+   && enviou.motivoNps==='Já recomendei a Modesto para outras empresas do meu círculo.'
+   && enviou.percepcao==='Parceiro estratégico', JSON.stringify(enviou).slice(0,300));
 
 const snap = await page.evaluate(()=>({
   titulos:[...document.querySelectorAll('#v-portal .mgn-snap .it h3')].map(h=>h.textContent),
-  fortes:(document.querySelector('#v-portal .mgn-snap .it p')||{}).textContent,
   corpo:(document.querySelector('#v-portal .mgn-snap')||{}).textContent||'',
 }));
-ok('10 o cliente recebe o retorno na hora, com os cinco blocos',
-   snap.titulos.join('|')==='Principais pontos fortes percebidos|Oportunidades identificadas|'
-     +'Temas que você destacou para gerar mais valor|Nosso compromisso|Próxima revisão',
+ok('10 o cliente recebe o retorno na hora, no formato da aba 02: um bloco por pilar, temas, recomendação, compromisso e próxima revisão',
+   snap.titulos.join('|')==='Confiança|Valor estratégico|Excelência na execução|Impacto nos resultados|Futuro da parceria|'
+     +'Temas que você destacou para gerar mais valor|Sobre sua recomendação|Nosso compromisso|Próxima revisão',
    JSON.stringify(snap.titulos));
 
-ok('11 o retorno não mostra nota nem classificação',
-   !/8,2|8\.2|MGPI|Silver|Gold|Platinum|Bronze|Recovery|Farol/i.test(snap.corpo),
+ok('11 o retorno não mostra nota, MGPI, classificação nem farol',
+   !/8,2|8\.2|MGPI|Silver|Gold|Platinum|Bronze|Recovery|Farol|Próximo passo/i.test(snap.corpo),
    snap.corpo.slice(0,160));
 
-ok('12 o retorno traz os pilares fortes e os fracos, cada um no seu lugar',
-   /Confiança na condução estratégica/.test(snap.corpo)
-   && /Revisar processos, prazos e cadência/.test(snap.corpo)
+ok('12 cada bloco ecoa a frase escolhida e responde com o texto da faixa',
+   /Tivemos atrasos que impactaram o cronograma\./.test(snap.corpo)
+   && /Esse feedback vai direto para o time responsável/.test(snap.corpo)
+   && /Sinto que o time pensa no nosso negócio como se fosse deles|As decisões costumam ser bem embasadas/.test(snap.corpo)
+   && /Ficamos felizes em ler isso/.test(snap.corpo)
    && /IA · Growth/.test(snap.corpo)
+   && /Muito obrigado! Ficamos muito felizes/.test(snap.corpo)
    && /Próxima revisão prevista/.test(snap.corpo), snap.corpo.slice(0,220));
 
 /* =====================================================================
@@ -236,6 +342,28 @@ ok('16 o alerta sai só no pilar abaixo de 8',
    painel.alertas.filter(a=>a.startsWith('⚠️')).length===1
    && painel.alertas.some(a=>/⚠️ Excelência/.test(a)), JSON.stringify(painel.alertas));
 
+/* ---- 17. CAP pré-carregado, sem SLA (NPS 9, MGPI 8,2) ---- */
+const cap = await page.evaluate(async ()=>{
+  const sec = document.querySelector('#v-nps .mgn-cap');
+  const linhas = [...(sec ? sec.querySelectorAll('tbody tr') : [])];
+  const semSla = ![...document.querySelectorAll('#v-nps .mgn-bloco h2')].some(h=>/SLA de contato/.test(h.textContent));
+  const antes = __FIX.tasks.length;
+  await mgNpsCapDemanda(0);
+  await new Promise(r=>setTimeout(r,200));
+  const nova = __FIX.tasks[__FIX.tasks.length-1];
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
+  const i = __FIX.mgp_pesquisas_interno.find(x=>x.pesquisa_id===p.id);
+  return {linhas:linhas.length, pilar:linhas[0] ? linhas[0].querySelector('b').textContent : '',
+          acao:linhas[0] ? linhas[0].querySelector('.cap-acao').value : '', semSla,
+          criou: __FIX.tasks.length===antes+1, titulo:nova.title, clienteInterno: nova.client_id==null,
+          guardou: !!(i && i.dados.cap && i.dados.cap[0].task_id)};
+});
+ok('17 o CAP nasce só com o pilar abaixo de 8, com a ação da planilha, e vira demanda fora do portal do cliente',
+   cap.linhas===1 && cap.pilar==='Excelência na execução'
+   && /Revisar SLAs internos de comunicação e prazos/.test(cap.acao) && cap.semSla
+   && cap.criou && cap.titulo==='CAP · Cliente Um · Excelência na execução' && cap.clienteInterno && cap.guardou,
+   JSON.stringify(cap));
+
 /* ---- as respostas do cliente, na tela da equipe ---- */
 const resp = await page.evaluate(()=>{
   const sec = document.getElementById('mgn-respostas');
@@ -244,16 +372,19 @@ const resp = await page.evaluate(()=>{
     abas: [...(sec ? sec.querySelectorAll('.mgn-abas button') : [])].map(b=>b.textContent.trim()),
     ativa: (sec ? (sec.querySelector('.mgn-abas button.on')||{}).textContent : '' ) || '',
     texto: sec ? sec.textContent : '',
+    palavras: (document.querySelector('#v-nps .mgn-bloco h2 + .n')||{}).textContent,
+    corpo: document.getElementById('v-nps').textContent,
   };
 });
 ok('18 as respostas do cliente aparecem no painel da equipe, sem abrir o formulário',
    resp.existe && resp.abas.length === 3
-   && /Revis\u00e3o de Parceria/.test(resp.ativa), JSON.stringify({abas:resp.abas, ativa:resp.ativa}));
+   && /Revisão de Parceria/.test(resp.ativa), JSON.stringify({abas:resp.abas, ativa:resp.ativa}));
 
-ok('19 o bloco mostra pergunta e resposta, e marca o que ficou em branco',
-   /Time presente, mas prazo escorrega/.test(resp.texto)
-   && /IA/.test(resp.texto)
-   && /n\u00e3o respondida/.test(resp.texto), resp.texto.slice(0, 200));
+const c19 = {motivoNps:/Já recomendei a Modesto para outras empresas/.test(resp.texto), temaIA:/IA/.test(resp.texto),
+   motivoExec:/Tivemos atrasos que impactaram o cronograma/.test(resp.corpo),
+   palavras:/As decisões costumam ser bem embasadas e isso me dá segurança/.test(resp.corpo)};
+ok('19 o bloco mostra pergunta e resposta, e "nas palavras do cliente" traz o motivo de cada pilar',
+   Object.values(c19).every(Boolean), JSON.stringify(c19) + ' ' + resp.texto.slice(0, 120));
 
 const trocou = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
@@ -262,7 +393,7 @@ const trocou = await page.evaluate(()=>{
   return {ativa:(sec.querySelector('.mgn-abas button.on')||{}).textContent, texto:sec.textContent};
 });
 ok('20 trocar de aba mostra as respostas daquela pesquisa',
-   /Pr\u00e9-Discovery/.test(trocou.ativa)
+   /Pré-Discovery/.test(trocou.ativa)
    && /CAC subindo e margem caindo no retargeting/.test(trocou.texto),
    JSON.stringify({ativa:trocou.ativa}));
 
@@ -330,6 +461,57 @@ ok('25 o envio pendente tem "excluir envio", cancelar não apaga, confirmar apag
    excluir.rodada === 2 && excluir.temBotao && !excluir.respondidaTemExcluir && excluir.cancelarNaoApaga
    && excluir.sumiuDoBanco && excluir.sumiuDaTela && excluir.respondidaFica
    && excluir.depois === excluir.antes - 1, JSON.stringify(excluir));
+
+/* ---- 26. cliente sem discovery: a revisão sai sem a seção, o painel diz "não aplicável",
+        e o SLA aparece quando a nota cai ---- */
+await page.evaluate(()=>{
+  __FIX.clients.push({id:'c-2', nome:'Cliente Dois', logo_url:null, resumo:'', plano_midia:false, jornada:{}});
+  CLIENTS.push({id:'c-2', nome:'Cliente Dois'});
+});
+const semDisc = await page.evaluate(async ()=>{
+  mgNpsCliente('c-2');
+  let perguntou = null; window.confirm = m => { perguntou = m; return true };
+  await mgNpsEnviarPesquisa('mgpr');
+  await new Promise(r=>setTimeout(r,200));
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr' && x.client_id==='c-2');
+  /* o cliente respondeu com nota baixa; o gatilho do banco (que o dublê não tem) teria gravado o SLA */
+  p.status='respondido'; p.respondido_em=new Date().toISOString();
+  p.respostas={confianca_recomendacoes:4, confianca_seguranca:5, valor_entende:5, exec_comunicacao:6,
+               exec_organizacao:6, exec_prazos:5, exec_proatividade:5, impacto_evolucao:5, futuro_potencial:5,
+               nps_nota:4, nps_motivo:'Recomendaria, mas com ressalvas importantes.', nps_motivo_cod:'nps:baixa:5'};
+  __FIX.mgp_pesquisas_interno.push({pesquisa_id:p.id, dados:{sla:{task_id:'t-1', prazo:'2026-09-24', mgpi:5.05, nps:4}}});
+  localStorage.setItem('__stub_pesquisas', JSON.stringify(__FIX.mgp_pesquisas));
+  localStorage.setItem('__stub_interno', JSON.stringify(__FIX.mgp_pesquisas_interno));
+  return {perguntou:/não tem Pré-Discovery nem Client Discovery/.test(perguntou||''), comDiscovery:p.com_discovery, id:p.id};
+});
+await page.evaluate(()=>showView('nps'));
+await page.evaluate(async ()=>{ await renderNps(); });
+await entrar('admin');
+await page.evaluate(()=>showView('nps'));
+await page.waitForTimeout(400);
+const painel2 = await page.evaluate(()=>{
+  mgNpsCliente('c-2');
+  const t = document.getElementById('v-nps').textContent;
+  const cap = [...document.querySelectorAll('#v-nps .mgn-cap tbody tr b')].map(b=>b.textContent);
+  return {naoAplicavel:/Não aplicável: cliente sem discovery inicial/.test(t),
+          sla:/SLA de contato/.test(t) && /até 24\/09\/2026/.test(t) && /abrir demanda/.test(t),
+          cap, classif:/Recovery Partnership/.test(t)};
+});
+ok('26 sem discovery a revisão sai sem a seção, o painel marca "não aplicável", e o SLA aparece com prazo e demanda',
+   semDisc.perguntou && semDisc.comDiscovery===false && painel2.naoAplicavel && painel2.sla
+   && painel2.cap.length===6 && painel2.cap[5]==='NPS' && painel2.classif,
+   JSON.stringify({semDisc, painel2}));
+
+/* o cliente dessa empresa veria 6 seções, não 7 */
+const seisSecoes = await page.evaluate((id)=>{
+  mgNpsAbrir(id, true);
+  const faixas = [...document.querySelectorAll('#v-nps .gf-sec .faixa')].map(f=>f.textContent);
+  const temContinuidade = [...document.querySelectorAll('#v-nps .gf-sec h2')].some(h=>/Continuidade/.test(h.textContent));
+  mgNpsFechar();
+  return {n:faixas.length, ultima:faixas[faixas.length-1], temContinuidade};
+}, semDisc.id);
+ok('27 o formulário dessa revisão tem 6 seções, sem a de continuidade',
+   seisSecoes.n===6 && /Seção 6 de 6/.test(seisSecoes.ultima) && !seisSecoes.temContinuidade, JSON.stringify(seisSecoes));
 
 /* =====================================================================
    FASE 6 — o que o cliente não alcança

@@ -60,6 +60,14 @@ cobrem o Salvar em PDF das respostas (a folha de papel mostra só o bloco) e
 o "excluir envio" de uma pesquisa pendente: cancelar não apaga, confirmar
 apaga, e a respondida fica.
 
+Com a V2 do CIP o formulário virou um Forms: os casos 6 a 9c cobrem seção
+por página, Próxima que só avança com a seção completa, Enviar que volta
+para a pergunta que faltou, o motivo calibrado que só aparece depois das
+notas e troca de lista com a faixa, e a gravação de texto e código do
+motivo. Os casos 17, 26 e 27 cobrem o CAP virando demanda fora do portal
+do cliente, a revisão sem discovery (seção oculta, painel "não aplicável")
+e o bloco do SLA com prazo e demanda.
+
 ## `roadmap.mjs`
 
 A jornada do cliente nas três frentes: as etapas oferecidas no cadastro da

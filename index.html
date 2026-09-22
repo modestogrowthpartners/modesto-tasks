@@ -28509,6 +28509,91 @@ window.mgzQuemEh        = mgzQuemEh;
 }
 .mgn-so-print{display:none;padding:10px 20px 0;font-size:13px;color:#444}
 .mgn-excluir:hover{border-color:#b4413c;color:#b4413c}
+
+/* ---- o formulário, no modelo do Google Forms ----
+   Cabeçalho com faixa de cor, um cartão por pergunta, seção por página,
+   asterisco no obrigatório, cartão marcado em vermelho quando falta. */
+.gf{max-width:760px;margin:0 auto;padding:22px 16px 150px;display:flex;flex-direction:column;gap:12px}
+.gf-card{background:var(--card);border:1px solid var(--line2);border-radius:10px;padding:22px 24px;position:relative}
+.gf-cabeca{border-top:10px solid var(--brass);padding-top:20px}
+.gf-cabeca h1{font-family:var(--font-d);font-size:30px;font-weight:500;line-height:1.25;margin:0 0 10px}
+.gf-cabeca p{font-size:14px;color:var(--muted);line-height:1.65}
+.gf-cabeca .meta{margin-top:12px;font-size:12.5px;color:var(--muted2)}
+.gf-cabeca .obrig{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--danger)}
+.gf-sec{padding-top:0;overflow:hidden}
+.gf-sec .faixa{margin:0 -24px 16px;padding:7px 24px;background:var(--brass);color:#fff;
+  font-size:11.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.gf-sec h2{font-family:var(--font-d);font-size:22px;font-weight:500;line-height:1.3;margin:0}
+.gf-sec p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:6px}
+.gf-q .rot{font-size:15px;font-weight:500;line-height:1.5;margin-bottom:6px}
+.gf-q .rot .ast{color:var(--danger);margin-left:5px}
+.gf-q .ajuda{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:6px}
+.gf-q .rot + .gf-escala,.gf-q .rot + .gf-opc,.gf-q .rot + input,.gf-q .rot + textarea,
+.gf-q .ajuda + .gf-escala,.gf-q .ajuda + .gf-opc{margin-top:14px}
+.gf-q.erro{border-color:var(--danger)}
+.gf-q .msg-erro{display:flex;align-items:center;gap:8px;color:var(--danger);font-size:13px;margin-top:14px}
+.gf-q .msg-erro span{font-size:15px}
+.gf-q input[type=text],.gf-q textarea{width:100%;background:none;border:0;border-bottom:1px solid var(--line2);
+  border-radius:0;padding:8px 0;font-family:inherit;font-size:14px;color:var(--text);resize:none;margin-top:8px}
+.gf-q input[type=text]{max-width:60%}
+.gf-q input[type=text]:focus,.gf-q textarea:focus{outline:none;border-bottom:2px solid var(--brass);padding-bottom:7px}
+.gf-q textarea{min-height:64px;line-height:1.6;field-sizing:content}
+.gf-escala{display:flex;align-items:flex-end;gap:10px}
+.gf-escala .fim{font-size:13px;color:var(--muted);padding-bottom:9px;white-space:nowrap}
+.gf-escala .pts{display:flex;flex:1;justify-content:space-between;min-width:0;gap:2px}
+.gf-escala .pt{display:flex;flex-direction:column;align-items:center;gap:9px;background:none;border:0;
+  cursor:pointer;color:var(--text);padding:2px;min-width:24px;font-family:inherit;font-size:13.5px}
+.gf-escala .pt i{width:20px;height:20px;border-radius:50%;border:2px solid var(--muted2);display:block;position:relative;
+  transition:border-color .15s}
+.gf-escala .pt:hover i{border-color:var(--brass)}
+.gf-escala .pt.on i{border-color:var(--brass)}
+.gf-escala .pt.on i::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--brass)}
+.gf-opc{display:flex;flex-direction:column;gap:2px}
+.gf-opc button{display:flex;align-items:flex-start;gap:13px;background:none;border:0;padding:9px 8px;margin:0 -8px;
+  border-radius:8px;text-align:left;font-family:inherit;font-size:14px;color:var(--text);cursor:pointer;line-height:1.5}
+.gf-opc button:hover{background:var(--card2)}
+.gf-opc button i{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--muted2);position:relative;margin-top:1px}
+.gf-opc button.on i{border-color:var(--brass)}
+.gf-opc button.on i::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--brass)}
+.gf-opc.caixa button i{border-radius:4px}
+.gf-opc.caixa button.on i{background:var(--brass);border-color:var(--brass)}
+.gf-opc.caixa button.on i::after{inset:auto;border-radius:0;background:none;width:5px;height:10px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);left:5px;top:1px}
+.gf-q button:disabled,.gf-q input:disabled,.gf-q textarea:disabled,.gf-q select:disabled{cursor:default;opacity:.85}
+.gf-pe{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0 0}
+.gf-pe .btn-p{padding:10px 26px}
+.gf-volta{background:var(--card);border:1px solid var(--line2);border-radius:6px;padding:9px 20px;
+  font-family:inherit;font-size:14px;color:var(--brass2);cursor:pointer}
+.gf-volta:hover{background:var(--card2)}
+.gf-prog{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
+.gf-prog .barra{width:120px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;display:block}
+.gf-prog .barra i{display:block;height:100%;background:var(--brass);transition:width .3s}
+.gf-rodape-links{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.gf-limpar{background:none;border:0;color:var(--brass2);font-family:inherit;font-size:13.5px;cursor:pointer;padding:4px 0}
+.gf-limpar:hover{text-decoration:underline}
+@media(max-width:640px){
+  .gf{padding:12px 10px 150px}
+  .gf-card{padding:18px 16px}
+  .gf-sec .faixa{margin:0 -16px 14px;padding-inline:16px}
+  .gf-cabeca h1{font-size:24px}
+  .gf-q input[type=text]{max-width:100%}
+  .gf-escala{flex-direction:column;align-items:stretch;gap:6px}
+  .gf-escala .fim{padding:0}
+  .gf-escala .pts{flex-wrap:wrap;justify-content:flex-start;gap:6px}
+  .gf-escala .pt{min-width:40px}
+  .gf-prog{margin-left:0;width:100%}
+}
+/* o retorno ecoa a frase escolhida e responde a ela */
+.mgn-snap .it.eco p{margin-top:6px}
+.mgn-snap .it.eco p + p{margin-top:12px}
+.mgn-snap .it.eco p span{display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--muted2);margin-bottom:3px}
+.mgn-snap .it.eco .destacou{font-style:italic;color:var(--muted)}
+/* CAP */
+.mgn-cap input[type=text],.mgn-cap input[type=date],.mgn-cap select{width:100%;background:var(--bg);
+  border:1px solid var(--line2);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px;color:var(--text)}
+.mgn-cap tr.feito td{opacity:.55;text-decoration:line-through}
+.mgn-cap tr.feito td:last-child{text-decoration:none}
 </style>
 
 <script>
@@ -28708,51 +28793,76 @@ window.mgzQuemEh        = mgzQuemEh;
       nome:'Revisão de Parceria',
       titulo:'Revisão de Parceria',
       chamada:'Mais do que medir satisfação, esta revisão busca entender como você percebe a Modesto '
-            + 'como parceira estratégica. Assim que você concluir, recebe de volta os destaques da '
-            + 'sua avaliação e os nossos compromissos para o próximo ciclo.',
+            + 'como parceira estratégica. Sempre que possível, escolha entre as opções sugeridas: é mais '
+            + 'rápido do que digitar, e ainda assim queremos ouvir sua voz. Assim que você concluir, '
+            + 'recebe de volta os destaques da sua avaliação.',
       tempo:'3 a 5 minutos',
       quando:'60 dias após o início, e a cada trimestre',
       abas:[
-        {id:'confianca', titulo:'Confiança', perguntas:[
+        {id:'confianca', titulo:'Confiança',
+         descricao:'Sobre a segurança que você sente nas recomendações e decisões da Modesto.',
+         perguntas:[
           {id:'confianca_recomendacoes', tipo:'nota',
            rot:'Quanto você confia nas recomendações estratégicas da Modesto?'},
           {id:'confianca_seguranca', tipo:'nota',
            rot:'Você sente segurança nas decisões sugeridas pela nossa equipe?'},
+          {id:'confianca_motivo', tipo:'motivo', area:'confianca',
+           dependeDe:['confianca_recomendacoes','confianca_seguranca'],
+           rot:'O que mais influenciou essa nota?'},
         ]},
-        {id:'valor', titulo:'Valor estratégico', perguntas:[
+        {id:'valor', titulo:'Valor estratégico',
+         descricao:'Sobre o quanto a Modesto entende o seu negócio e o papel que ela ocupa hoje.',
+         perguntas:[
           {id:'valor_entende', tipo:'nota',
            rot:'A Modesto entende seu negócio e seus objetivos?'},
           {id:'valor_percepcao', tipo:'lista', rot:'Hoje você percebe a Modesto como:',
-           opcoes:['Fornecedora de execução','Parceira de performance','Parceira estratégica de crescimento']},
+           opcoes:['Apenas um fornecedor','Agência de mídia','Parceiro estratégico','Extensão da minha equipe']},
+          {id:'valor_motivo', tipo:'motivo', area:'valor', dependeDe:['valor_entende'],
+           rot:'O que mais influenciou essa nota?'},
         ]},
-        {id:'execucao', titulo:'Excelência na execução', perguntas:[
+        {id:'execucao', titulo:'Excelência na execução',
+         descricao:'Dê uma nota de 0 a 10 para cada item.',
+         perguntas:[
           {id:'exec_comunicacao', tipo:'nota', rot:'Comunicação'},
           {id:'exec_organizacao', tipo:'nota', rot:'Organização'},
           {id:'exec_prazos',      tipo:'nota', rot:'Cumprimento de prazos'},
           {id:'exec_proatividade',tipo:'nota', rot:'Proatividade'},
+          {id:'exec_motivo', tipo:'motivo', area:'execucao',
+           dependeDe:['exec_comunicacao','exec_organizacao','exec_prazos','exec_proatividade'],
+           rot:'O que mais influenciou essas notas?'},
         ]},
         {id:'impacto', titulo:'Impacto nos resultados', perguntas:[
           {id:'impacto_evolucao', tipo:'nota',
            rot:'Você percebe evolução dos resultados desde o início da parceria ou da última revisão?'},
+          {id:'impacto_motivo', tipo:'motivo', area:'impacto', dependeDe:['impacto_evolucao'],
+           rot:'O que mais influenciou essa nota?'},
         ]},
         {id:'futuro', titulo:'Futuro da parceria', perguntas:[
           {id:'futuro_potencial', tipo:'nota',
-           rot:'Você sente que a parceria tem potencial de evoluir e gerar ainda mais valor nos próximos meses?'},
-          {id:'temas', tipo:'multi', rot:'Em quais temas poderíamos gerar ainda mais valor?', opcoes:TEMAS},
+           rot:'Você sente que a parceria com a Modesto tem potencial de evoluir e gerar ainda mais valor nos próximos meses?'},
+          {id:'futuro_motivo', tipo:'motivo', area:'futuro', dependeDe:['futuro_potencial'],
+           rot:'O que mais influenciou essa nota?'},
+          {id:'temas', tipo:'multi', opcional:true, rot:'Em quais temas poderíamos gerar ainda mais valor?',
+           ajuda:'Marque quantos quiser.', opcoes:TEMAS},
           {id:'temas_outro', tipo:'curto', rot:'Outro tema', opcional:true,
            ajuda:'Se houver algum tema fora da lista acima.'},
         ]},
-        {id:'continuidade', titulo:'Continuidade do discovery', perguntas:[
+        {id:'continuidade', titulo:'Continuidade do discovery', soComDiscovery:true,
+         descricao:'Sobre o que foi levantado no Pré-Discovery e no Client Discovery, no início da parceria.',
+         perguntas:[
           {id:'continuidade_endereca', tipo:'lista',
-           rot:'As prioridades identificadas no início da parceria (Pré-Discovery e Client Discovery) estão sendo endereçadas pela Modesto?',
-           opcoes:['Sim, integralmente','Em parte','Não']},
-          {id:'continuidade_pendencia',
+           rot:'As prioridades identificadas no início da parceria estão sendo endereçadas pela Modesto?',
+           opcoes:['Totalmente','Parcialmente','Ainda não','Não sei dizer']},
+          {id:'continuidade_pendencia', opcional:true,
            rot:'Há algo levantado no início da parceria que ainda não recebeu atenção?'},
         ]},
         {id:'nps', titulo:'Recomendação', perguntas:[
           {id:'nps_nota', tipo:'nota',
            rot:'Em uma escala de 0 a 10, o quanto você recomendaria a Modesto?'},
-          {id:'nps_motivo', rot:'Qual foi o principal motivo da sua nota?'},
+          {id:'nps_motivo', tipo:'motivo', area:'nps', dependeDe:['nps_nota'],
+           rot:'Qual foi o principal motivo da sua nota?'},
+          {id:'nps_comentario', opcional:true, rot:'Comentário adicional',
+           ajuda:'Se quiser, conte com suas palavras o que pesou na avaliação.'},
         ]},
       ],
     },
@@ -28769,6 +28879,149 @@ window.mgzQuemEh        = mgzQuemEh;
     {id:'postura',   item:'Postura/expectativa de relacionamento',origem:'client_discovery', campo:'cd_postura',   resp:'Account Manager'},
   ];
   const SITUACOES = ['Não avaliado','Endereçado','Em andamento','Não endereçado','Não se aplica'];
+
+  /* ===================================================================
+     1b. Os textos calibrados: motivos por faixa e retornos do Snapshot
+
+     Vêm da tabela mgp_cip_textos (aba _Motivos e aba 02 da planilha V2).
+     A cópia abaixo é a mesma carga inicial: serve enquanto a tabela não
+     respondeu e como rede se ela um dia vier vazia. O que o cliente
+     escolhe é gravado com o código (área:faixa:ordem) e com o texto, para
+     a tabulação continuar valendo mesmo se a frase for reescrita.
+     =================================================================== */
+  const TEXTOS_PADRAO = [
+    {"area": "confianca", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "Sinto que as recomendações não vêm acompanhadas de dados ou explicação suficiente."},
+    {"area": "confianca", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "Já tivemos decisões sugeridas que não se confirmaram na prática."},
+    {"area": "confianca", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "Falta mais transparência sobre o porquê de cada escolha estratégica."},
+    {"area": "confianca", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "Ainda não construímos histórico suficiente para eu avaliar com segurança."},
+    {"area": "confianca", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Sinto que decisões importantes são tomadas sem nos consultar o quanto deveriam."},
+    {"area": "confianca", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "Confio na maior parte das recomendações, mas ainda questiono algumas."},
+    {"area": "confianca", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "A equipe é competente, mas às vezes falta contexto no que é sugerido."},
+    {"area": "confianca", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "Já vi bons resultados, só quero ver mais consistência ao longo do tempo."},
+    {"area": "confianca", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Confio no time, mas gostaria de entender melhor a lógica por trás das decisões."},
+    {"area": "confianca", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Estamos construindo essa confiança — o caminho está bom."},
+    {"area": "confianca", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "As decisões costumam ser bem embasadas e isso me dá segurança."},
+    {"area": "confianca", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "Sinto que o time pensa no nosso negócio como se fosse deles."},
+    {"area": "confianca", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "Já vi recomendações difíceis que se provaram certas depois."},
+    {"area": "confianca", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "A equipe é transparente até quando o resultado não é o esperado."},
+    {"area": "confianca", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Temos total liberdade para questionar e sempre recebemos boas respostas."},
+    {"area": "valor", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "Sinto que ainda tratam a gente como mais um cliente na carteira."},
+    {"area": "valor", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "Falta entendimento mais profundo do nosso modelo de negócio."},
+    {"area": "valor", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "As sugestões parecem genéricas, como se servissem para qualquer empresa."},
+    {"area": "valor", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "Ainda não vejo a Modesto puxando pauta estratégica, só executando."},
+    {"area": "valor", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Precisamos explicar o negócio de novo em quase toda reunião."},
+    {"area": "valor", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "Entendem bem o operacional, mas ainda podem aprofundar na estratégia do negócio."},
+    {"area": "valor", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "Já trazem boas ideias, mas nem sempre conectadas ao nosso momento atual."},
+    {"area": "valor", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "Sinto que entendem o negócio, mas o discurso estratégico pode evoluir."},
+    {"area": "valor", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Boa leitura do dia a dia, falta um pouco mais de visão de longo prazo."},
+    {"area": "valor", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Estão no caminho certo, mas ainda cabe mais imersão no nosso setor."},
+    {"area": "valor", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "Sinto que enxergam o negócio quase como um sócio enxergaria."},
+    {"area": "valor", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "Trazem provocações estratégicas que a gente nem tinha pensado."},
+    {"area": "valor", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "Entendem tão bem o contexto que economizamos tempo em cada reunião."},
+    {"area": "valor", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "Já indicamos a Modesto justamente por essa visão de negócio, e se confirmou."},
+    {"area": "valor", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Sentimos que são uma extensão real do nosso time de decisão."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "Tivemos atrasos que impactaram o cronograma."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "A comunicação podia ser mais clara e frequente."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "Sentimos falta de organização em alguns processos internos."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "Precisamos cobrar mais do que gostaríamos para as coisas andarem."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Alguns entregáveis vieram com qualidade abaixo do esperado."},
+    {"area": "execucao", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "No geral entregam bem, mas a comunicação pode ser mais proativa."},
+    {"area": "execucao", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "Cumprem prazos na maioria das vezes, com alguma variação."},
+    {"area": "execucao", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "Boa organização, mas ainda cabe mais antecipação de problemas."},
+    {"area": "execucao", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Execução sólida, só sinto que reagimos mais do que antecipamos juntos."},
+    {"area": "execucao", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Estão evoluindo bem nesse ponto comparado ao início da parceria."},
+    {"area": "execucao", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "Prazos são cumpridos com folga e isso facilita nosso planejamento."},
+    {"area": "execucao", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "A comunicação é clara, frequente e sem enrolação."},
+    {"area": "execucao", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "O time é proativo — muitas vezes já chega com a solução, não só o problema."},
+    {"area": "execucao", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "Organização impecável, sabemos sempre o status de tudo."},
+    {"area": "execucao", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Raramente precisamos cobrar algo, eles já se antecipam."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "Ainda não vimos evolução clara nos números desde o início."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "Os resultados até melhoraram, mas aquém do que esperávamos."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "Sinto que estamos testando muito e colhendo pouco resultado prático."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "Falta uma conexão mais clara entre as ações e o impacto no caixa."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Os números melhoraram em alguns pontos, mas pioraram em outros."},
+    {"area": "impacto", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "Já vemos evolução, mas ainda gostaríamos de um ritmo mais acelerado."},
+    {"area": "impacto", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "Os resultados são positivos, mas nem sempre no que mais importa pra gente."},
+    {"area": "impacto", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "Boa evolução geral, com espaço para melhorar consistência mês a mês."},
+    {"area": "impacto", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Percebo impacto real, só quero entender melhor como isso escala."},
+    {"area": "impacto", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Estamos no caminho certo, mas o resultado ainda não é 'uau'."},
+    {"area": "impacto", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "Os números falam por si — a evolução é nítida desde que começamos."},
+    {"area": "impacto", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "Já superamos as metas que tínhamos no início da parceria."},
+    {"area": "impacto", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "O impacto no negócio foi além do que esperávamos."},
+    {"area": "impacto", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "Conseguimos crescer com consistência, mês após mês."},
+    {"area": "impacto", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Hoje uso esses resultados como referência para o resto do negócio."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "Não estou seguro sobre o potencial de crescimento dessa parceria."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "Sinto que já exploramos o que era possível e falta fôlego novo."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "Preciso ver mais iniciativa em trazer novas frentes de trabalho."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "Ainda não enxergo com clareza os próximos passos da parceria."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Tenho dúvidas se a Modesto está preparada para acompanhar nosso próximo estágio."},
+    {"area": "futuro", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "Vejo potencial de crescer, mas falta um plano mais claro pra isso."},
+    {"area": "futuro", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "Estou otimista, só quero ver mais ousadia nas próximas frentes."},
+    {"area": "futuro", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "A parceria tem espaço pra evoluir, e sinto abertura pra isso acontecer."},
+    {"area": "futuro", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Bom momento, ainda dá pra explorar mais oportunidades juntos."},
+    {"area": "futuro", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Confio no potencial, mas ainda não vi o plano dos próximos passos."},
+    {"area": "futuro", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "Vejo essa parceria crescendo junto com a empresa nos próximos anos."},
+    {"area": "futuro", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "Já estamos planejando novas frentes juntos, o que me deixa animado."},
+    {"area": "futuro", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "Sinto que ainda tem muita coisa boa pela frente com a Modesto."},
+    {"area": "futuro", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "A Modesto já se tornou parte do nosso planejamento de longo prazo."},
+    {"area": "futuro", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Enxergo a Modesto como parceira estratégica pros próximos ciclos do negócio."},
+    {"area": "nps", "faixa": "baixa", "tipo": "motivo", "ordem": 1, "texto": "No momento não me sinto confortável em recomendar, por experiências recentes."},
+    {"area": "nps", "faixa": "baixa", "tipo": "motivo", "ordem": 2, "texto": "Ainda existem pontos em aberto que pesam na minha avaliação geral."},
+    {"area": "nps", "faixa": "baixa", "tipo": "motivo", "ordem": 3, "texto": "Prefiro esperar resolver algumas questões antes de recomendar com confiança."},
+    {"area": "nps", "faixa": "baixa", "tipo": "motivo", "ordem": 4, "texto": "A experiência até aqui não correspondeu ao que esperávamos ao contratar."},
+    {"area": "nps", "faixa": "baixa", "tipo": "motivo", "ordem": 5, "texto": "Recomendaria, mas com ressalvas importantes."},
+    {"area": "nps", "faixa": "media", "tipo": "motivo", "ordem": 1, "texto": "É uma boa parceria, mas ainda não é motivo de recomendação espontânea."},
+    {"area": "nps", "faixa": "media", "tipo": "motivo", "ordem": 2, "texto": "Recomendaria, mas com algumas ressalvas pontuais."},
+    {"area": "nps", "faixa": "media", "tipo": "motivo", "ordem": 3, "texto": "Estou satisfeito, só não é (ainda) um 'sim' automático."},
+    {"area": "nps", "faixa": "media", "tipo": "motivo", "ordem": 4, "texto": "Boa experiência geral, com espaço claro de evolução."},
+    {"area": "nps", "faixa": "media", "tipo": "motivo", "ordem": 5, "texto": "Recomendaria dependendo do perfil e do momento da empresa."},
+    {"area": "nps", "faixa": "alta", "tipo": "motivo", "ordem": 1, "texto": "Já recomendei a Modesto para outras empresas do meu círculo."},
+    {"area": "nps", "faixa": "alta", "tipo": "motivo", "ordem": 2, "texto": "É a parceria que eu cito como referência quando falam de agência de growth."},
+    {"area": "nps", "faixa": "alta", "tipo": "motivo", "ordem": 3, "texto": "Recomendaria sem pensar duas vezes."},
+    {"area": "nps", "faixa": "alta", "tipo": "motivo", "ordem": 4, "texto": "A experiência supera o que eu esperava de uma agência."},
+    {"area": "nps", "faixa": "alta", "tipo": "motivo", "ordem": 5, "texto": "Sinto orgulho de falar que trabalhamos com a Modesto."},
+    {"area": "confianca", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Entendemos, e é exatamente esse tipo de sinal que essa revisão existe para captar. Vamos aprofundar o racional por trás das nossas próximas recomendações, com mais dados e contexto."},
+    {"area": "confianca", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Obrigado pela honestidade — é isso que nos ajuda a evoluir. Vamos manter a consistência e trazer mais clareza sobre a lógica das próximas decisões."},
+    {"area": "confianca", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Ficamos felizes em ler isso. Vamos manter esse padrão e seguir sendo transparentes, inclusive quando o resultado não sai como planejado."},
+    {"area": "valor", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Registramos esse ponto com atenção. Vamos aprofundar nosso entendimento do seu negócio e trazer discussões mais estratégicas nas próximas reuniões."},
+    {"area": "valor", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Vamos usar esse retorno para elevar o nível das nossas discussões estratégicas nos próximos ciclos."},
+    {"area": "valor", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Esse é exatamente o tipo de parceria que buscamos construir. Vamos continuar trazendo provocações estratégicas para o negócio."},
+    {"area": "execucao", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Esse feedback vai direto para o time responsável. Vamos revisar nossos processos internos e a cadência de comunicação já nas próximas semanas."},
+    {"area": "execucao", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Vamos trabalhar para sermos ainda mais proativos e antecipar pontos antes que virem pauta de reunião."},
+    {"area": "execucao", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Ótimo saber! Vamos manter esse padrão de organização e comunicação."},
+    {"area": "impacto", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Entendido. Vamos revisar com o time estratégico como acelerar a conexão entre as ações em andamento e o resultado no seu negócio."},
+    {"area": "impacto", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Vamos trabalhar para acelerar o ritmo de evolução dos resultados nos próximos meses."},
+    {"area": "impacto", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Excelente! Vamos manter o ritmo e buscar os próximos patamares de resultado."},
+    {"area": "futuro", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Vamos trazer uma conversa dedicada sobre os próximos passos da parceria — sua visão é fundamental para isso."},
+    {"area": "futuro", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Vamos estruturar com mais clareza as próximas frentes de trabalho para os próximos meses."},
+    {"area": "futuro", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Ótimo! Vamos continuar planejando os próximos passos juntos."},
+    {"area": "nps", "faixa": "baixa", "tipo": "retorno", "ordem": 1, "texto": "Obrigado pela honestidade. Esse tipo de resposta merece uma conversa direta."},
+    {"area": "nps", "faixa": "media", "tipo": "retorno", "ordem": 1, "texto": "Obrigado pelo retorno. Vamos usar isso para elevar ainda mais a experiência com a Modesto."},
+    {"area": "nps", "faixa": "alta", "tipo": "retorno", "ordem": 1, "texto": "Muito obrigado! Ficamos muito felizes com essa avaliação e vamos seguir com o mesmo nível de entrega."}
+  ];
+  let TEXTOS = TEXTOS_PADRAO;
+
+  /* a faixa da planilha: < 7 baixa, < 9 média, senão alta */
+  function faixaDe(n){ return n == null ? null : n < 7 ? 'baixa' : n < 9 ? 'media' : 'alta' }
+  function motivosDe(area, faixa){
+    return TEXTOS.filter(t => t.tipo === 'motivo' && t.area === area && t.faixa === faixa)
+      .sort((a, b) => a.ordem - b.ordem)
+      .map(t => ({codigo: area + ':' + faixa + ':' + t.ordem, texto: t.texto}));
+  }
+  function retornoDe(area, faixa){
+    const t = TEXTOS.filter(x => x.tipo === 'retorno' && x.area === area && x.faixa === faixa)
+      .sort((a, b) => a.ordem - b.ordem)[0];
+    return t ? t.texto : '';
+  }
+  /* pilar → chave do motivo e texto do CAP, como na aba 03 */
+  const PILAR_META = {
+    confianca: {motivo:'confianca_motivo', cap:'Reforçar transparência: enviar racional por trás das últimas recomendações estratégicas.'},
+    valor:     {motivo:'valor_motivo',     cap:'Agendar sessão de benchmarking + aprofundamento de negócio com o cliente.'},
+    execucao:  {motivo:'exec_motivo',      cap:'Revisar SLAs internos de comunicação e prazos com o time de conta.'},
+    impacto:   {motivo:'impacto_motivo',   cap:'Preparar apresentação de indicadores de impacto para a próxima reunião.'},
+    futuro:    {motivo:'futuro_motivo',    cap:'Agendar reunião executiva para alinhar próximos passos da parceria.'},
+  };
+  const CAP_NPS = 'Contato do Customer Success em até 2 dias úteis (detrator).';
 
   /* ===================================================================
      2. O cálculo — o mesmo da planilha, célula por célula
@@ -28872,36 +29125,36 @@ window.mgzQuemEh        = mgzQuemEh;
     return d;
   }
 
-  /* O retorno que o cliente recebe. Sem nota e sem classificação: o pedido
-     foi explícito, e a classificação é linguagem interna. */
+  /* O retorno que o cliente recebe: a aba 02_Snapshot_Cliente, célula por
+     célula. Para cada pilar, a frase que ele escolheu e o retorno da faixa
+     da nota. Sem nota, sem MGPI, sem classificação, sem farol: isso é
+     regra de negócio confirmada para esta fase, e fica só no painel. */
   function snapshot(p, nomeCliente, nomePessoa){
     const r  = p.respostas || {};
     const pl = pilares(r);
-    const respondeu = pl.some(x => x.v != null);
-    const fortes = pl.filter(x => x.v != null && x.v >= 8).map(x => x.forte);
-    const fracos = pl.filter(x => x.v != null && x.v <  8);
-    const temas  = temasDe(r);
+    const blocos = pl.map(x=>{
+      const meta = PILAR_META[x.id];
+      const motivo = String(r[meta.motivo] || '').trim();
+      if(!motivo) return null;
+      return {rot:x.rot, destacou:motivo, retorno:retornoDe(x.id, faixaDe(x.v))};
+    }).filter(Boolean);
 
-    /* Compromisso calibrado pelo que ele mesmo pontuou baixo. Sem pilar
-       baixo, ficam as três frases padrão da planilha. */
-    const compromisso = fracos.length
-      ? fracos.slice(0, 3).map(x => '✓ ' + x.fraco)
-      : ['✓ Compartilhar benchmarking e boas práticas de mercado no próximo ciclo.',
-         '✓ Revisar nossa agenda de reuniões executivas com você.',
-         '✓ Incorporar este feedback ao nosso plano de melhoria contínua.'];
-
-    const prox = proximaRevisao(p);
+    const nota   = num(r.nps_nota);
+    const motivo = String(r.nps_motivo || '').trim();
+    const prox   = proximaRevisao(p);
     return {
       saudacao: 'Obrigado' + (nomePessoa ? ', ' + nomePessoa : '') + ', por participar da nossa Revisão de Parceria.',
       linha: 'Sua opinião é fundamental para continuarmos evoluindo juntos'
            + (nomeCliente ? ', ' + nomeCliente : '') + '.',
-      fortes: fortes.length ? fortes.join('\n')
-        : (respondeu ? 'Nesta rodada nenhum pilar ficou acima de 8. Vamos tratar isso como prioridade.'
-                     : 'Assim que suas respostas forem processadas, você verá os destaques aqui.'),
-      oportunidades: fracos.length ? fracos.map(x => x.fraco).join('\n')
-        : (respondeu ? 'Nenhuma oportunidade crítica apontada nesta rodada.' : '—'),
-      temas: temas.length ? temas.join(' · ') : 'Nenhum tema específico apontado nesta rodada.',
-      compromisso: compromisso.join('\n'),
+      blocos,
+      temas: temasDe(r).length ? temasDe(r).join(' · ') : 'Nenhum tema específico apontado nesta rodada.',
+      nps: motivo ? {destacou: motivo, retorno: retornoDe('nps', faixaDe(nota))} : null,
+      proximoPasso: (nota != null && nota < 7)
+        ? 'Combinado: nosso time vai entrar em contato em até 2 dias úteis para conversarmos com calma sobre os pontos que você trouxe.'
+        : '',
+      compromisso: ['✓ Compartilhar benchmarking e boas práticas de mercado no próximo ciclo.',
+                    '✓ Revisar nossa agenda de reuniões executivas com você.',
+                    '✓ Incorporar este feedback ao nosso plano de melhoria contínua.'].join('\n'),
       proxima: prox ? ('Próxima revisão prevista: ' + mesAno(prox))
                     : 'Próxima revisão prevista: em aproximadamente 3 meses.',
     };
@@ -28914,8 +29167,9 @@ window.mgzQuemEh        = mgzQuemEh;
   let LIDO    = false;
   let ERRO    = null;
   let CLI     = null;    /* empresa escolhida no painel da equipe       */
-  let FORM    = null;    /* {pesquisa, aba, salvando} enquanto responde  */
+  let FORM    = null;    /* {pesquisa, pagina, salvando} enquanto responde */
   let SNAP    = null;    /* pesquisa cujo retorno está aberto            */
+  let INTERNO = {};      /* pesquisa_id → leitura interna (só a equipe)  */
 
   function semTabela(m){
     return /relation .*mgp_pesquisas|does not exist|schema cache|could not find the table/i.test(String(m||''));
@@ -28934,6 +29188,32 @@ window.mgzQuemEh        = mgzQuemEh;
     }finally{
       LIDO = true;
     }
+    /* os textos calibrados: a tabela manda; sem ela, fica a carga embutida */
+    try{
+      const {data} = await sb.from('mgp_cip_textos').select('*').order('ordem');
+      if(Array.isArray(data) && data.length) TEXTOS = data;
+    }catch(e){}
+    /* a leitura interna só existe para a equipe; o cliente nem pergunta */
+    if(typeof isAdmin === 'function' && isAdmin()){
+      try{
+        const {data} = await sb.from('mgp_pesquisas_interno').select('*');
+        INTERNO = {};
+        (data || []).forEach(x => { INTERNO[x.pesquisa_id] = x.dados || {} });
+      }catch(e){}
+    }
+  }
+  function internoDe(id){ return INTERNO[id] || {} }
+  /* grava um pedaço da leitura interna; insere na primeira vez */
+  async function salvarInterno(id, pedaco){
+    const existia = Object.prototype.hasOwnProperty.call(INTERNO, id);
+    const dados = Object.assign({}, INTERNO[id] || {}, pedaco);
+    const q = existia
+      ? sb.from('mgp_pesquisas_interno').update({dados}).eq('pesquisa_id', id).select().single()
+      : sb.from('mgp_pesquisas_interno').insert({pesquisa_id:id, dados}).select().single();
+    const {error} = await q;
+    if(error) throw error;
+    INTERNO[id] = dados;
+    return dados;
   }
   function doCliente(cid, tipo){
     return LISTA.filter(p => p.client_id === cid && (!tipo || p.tipo === tipo))
@@ -28949,22 +29229,32 @@ window.mgzQuemEh        = mgzQuemEh;
     if(i >= 0) LISTA[i] = data; else LISTA.push(data);
     return data;
   }
-  async function enviar(cid, tipo){
+  /* a empresa passou pelo discovery? É o que decide se a revisão traz a
+     seção de continuidade. Cliente antigo, sem os dois primeiros
+     formulários, não recebe pergunta sobre algo que não existe. */
+  function temDiscovery(cid){
+    return respondidas(cid, 'pre_discovery').length > 0 || respondidas(cid, 'client_discovery').length > 0;
+  }
+  async function enviar(cid, tipo, comDiscovery){
     const anterior = ultima(cid, tipo);
     const rodada = anterior ? anterior.rodada + 1 : 1;
     const linha = {
       client_id: cid, tipo, rodada, status:'enviado',
-      respostas:{}, anexos:[], interno:{},
+      respostas:{}, anexos:[],
       criado_por: (typeof ME !== 'undefined' && ME) ? ME.id : null,
     };
     if(tipo === 'mgpr'){
       const d = new Date(); d.setMonth(d.getMonth() + 3);
       linha.proxima_em = d.toISOString().slice(0, 10);
-      linha.interno = {continuidade: continuidadeInicial(cid)};
+      linha.com_discovery = comDiscovery !== false;
     }
     const {data, error} = await sb.from('mgp_pesquisas').insert(linha).select().single();
     if(error) throw error;
     LISTA.push(data);
+    if(tipo === 'mgpr' && linha.com_discovery){
+      try{ await salvarInterno(data.id, {continuidade: continuidadeInicial(cid)}) }
+      catch(e){ console.warn('[nps · continuidade]', e) }
+    }
     return data;
   }
   /* A coluna "situação no início" da aba 04 deixa de ser copiada na mão:
@@ -28979,96 +29269,139 @@ window.mgzQuemEh        = mgzQuemEh;
   }
 
   /* ===================================================================
-     4. O formulário — um só, para os três questionários
+     4. O formulário, no modelo do Google Forms
+
+     Um cartão de cabeçalho, um cartão por pergunta, uma seção por
+     página. A pessoa só anda com Voltar e Próxima, no pé da página, e
+     o Enviar só existe na última seção. Pergunta obrigatória tem
+     asterisco; ao avançar com uma em branco, o cartão fica marcado e a
+     página rola até ele, com "Esta é uma pergunta obrigatória". No
+     Enviar, a checagem cobre todas as seções: se faltou algo lá atrás,
+     o formulário volta para a seção certa em vez de aceitar pela metade.
+
+     Nota e motivo: o cartão do motivo só aparece depois que as notas de
+     que ele depende foram dadas, porque as cinco opções mudam com a
+     faixa (0 a 6, 7 a 8, 9 a 10). Trocar a nota para outra faixa limpa
+     o motivo escolhido, que já não vale.
      =================================================================== */
   function specDe(p){ return FORMS[p.tipo] || FORMS.mgpr }
 
+  /* as seções que este envio mostra: a continuidade some quando a
+     empresa não passou pelo discovery */
+  function paginasDe(p){
+    return specDe(p).abas.filter(a => !(a.soComDiscovery && p.com_discovery === false));
+  }
   function perguntasDe(spec){
     return spec.abas.reduce((l, a) => l.concat(a.perguntas || []), []);
-  }
-  function respondidasNaAba(aba, r){
-    const ps = (aba.perguntas || []).filter(p => !p.opcional);
-    if(!ps.length) return {feitas:0, total:0};
-    const feitas = ps.filter(p => preenchida(r[p.id])).length;
-    return {feitas, total:ps.length};
   }
   function preenchida(v){
     if(v == null) return false;
     if(Array.isArray(v)) return v.length > 0;
     return String(v).trim() !== '';
   }
+  /* a nota média das perguntas de que o motivo depende, e a faixa dela */
+  function faixaDoMotivo(q, r){
+    const notas = (q.dependeDe || []).map(k => num(r[k]));
+    if(notas.some(n => n == null)) return null;
+    return faixaDe(media(notas));
+  }
+  function visivel(q, r){
+    if(q.tipo !== 'motivo') return true;
+    return faixaDoMotivo(q, r) != null;
+  }
+  function obrigatoria(q, r){ return !q.opcional && visivel(q, r) }
+  function faltandoNaPagina(aba, r){
+    return (aba.perguntas || []).filter(q => obrigatoria(q, r) && !preenchida(r[q.id])).map(q => q.id);
+  }
 
-  function campoHTML(q, r){
+  function campoHTML(q, r, erro, bloqueado){
     const v = r[q.id];
-    const rot = '<label for="mgn-' + esc(q.id) + '">' + esc(q.rot)
-      + (q.opcional ? ' <span class="opc">opcional</span>' : '') + '</label>';
+    const obrig = !q.opcional;
+    const rot = '<div class="rot">' + esc(q.rot) + (obrig ? '<span class="ast" aria-hidden="true">*</span>' : '') + '</div>';
     const ajuda = q.ajuda ? '<div class="ajuda">' + esc(q.ajuda) + '</div>' : '';
     const set = "mgNpsSet('" + escJS(q.id) + "', this.value)";
+    const off = bloqueado ? ' disabled' : '';
 
     let corpo;
     if(q.tipo === 'nota'){
       const atual = num(v);
-      corpo = '<div class="mgn-notas">'
+      corpo = '<div class="gf-escala"><span class="fim">Nada</span><div class="pts">'
         + Array.from({length:11}, (_, i) =>
-            '<button type="button" class="' + (atual === i ? 'on' : '') + '"'
-            + ' onclick="mgNpsSet(\'' + escJS(q.id) + '\', ' + i + ')">' + i + '</button>').join('')
-        + '</div><div class="mgn-escala"><span>0 · nada</span><span>10 · totalmente</span></div>';
+            '<button type="button" class="pt' + (atual === i ? ' on' : '') + '"' + off
+            + ' aria-label="' + i + '" onclick="mgNpsSet(\'' + escJS(q.id) + '\', ' + i + ')">'
+            + '<span>' + i + '</span><i></i></button>').join('')
+        + '</div><span class="fim">Totalmente</span></div>';
+    }else if(q.tipo === 'motivo'){
+      const faixa = faixaDoMotivo(q, r);
+      const cod = String(r[q.id + '_cod'] || '');
+      corpo = '<div class="gf-opc">'
+        + motivosDe(q.area, faixa).map(o =>
+            '<button type="button" class="' + (cod === o.codigo ? 'on' : '') + '"' + off
+            + ' onclick="mgNpsMotivo(\'' + escJS(q.id) + '\', \'' + escJS(o.codigo) + '\')">'
+            + '<i></i><span>' + esc(o.texto) + '</span></button>').join('')
+        + '</div>';
     }else if(q.tipo === 'lista'){
-      corpo = '<select id="mgn-' + esc(q.id) + '" onchange="' + set + '">'
-        + '<option value="">Selecione</option>'
-        + (q.opcoes || []).map(o => '<option value="' + esc(o) + '"'
-            + (String(v || '') === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('')
-        + '</select>';
+      corpo = '<div class="gf-opc">'
+        + (q.opcoes || []).map(o =>
+            '<button type="button" class="' + (String(v || '') === o ? 'on' : '') + '"' + off
+            + ' onclick="mgNpsSet(\'' + escJS(q.id) + '\', \'' + escJS(o) + '\')">'
+            + '<i></i><span>' + esc(o) + '</span></button>').join('')
+        + '</div>';
     }else if(q.tipo === 'multi'){
       const marcados = Array.isArray(v) ? v.map(String) : [];
-      corpo = '<div class="mgn-multi">'
-        + (q.opcoes || []).map(o => '<button type="button" class="' + (marcados.includes(o) ? 'on' : '') + '"'
+      corpo = '<div class="gf-opc caixa">'
+        + (q.opcoes || []).map(o =>
+            '<button type="button" class="' + (marcados.includes(o) ? 'on' : '') + '"' + off
             + ' onclick="mgNpsMulti(\'' + escJS(q.id) + '\', \'' + escJS(o) + '\')">'
-            + (marcados.includes(o) ? '✓ ' : '') + esc(o) + '</button>').join('')
+            + '<i></i><span>' + esc(o) + '</span></button>').join('')
         + '</div>';
     }else if(q.tipo === 'curto'){
-      corpo = '<input type="text" id="mgn-' + esc(q.id) + '" value="' + esc(v || '') + '"'
-        + ' oninput="' + set + '" maxlength="200">';
+      corpo = '<input type="text" id="mgn-' + esc(q.id) + '" value="' + esc(v || '') + '"' + off
+        + ' placeholder="Sua resposta" oninput="' + set + '" maxlength="200">';
     }else if(q.tipo === 'pessoas'){
-      corpo = pessoasHTML(Array.isArray(v) ? v : []);
+      corpo = pessoasHTML(Array.isArray(v) ? v : [], bloqueado);
     }else{
-      corpo = '<textarea id="mgn-' + esc(q.id) + '" oninput="' + set + '"'
-        + ' placeholder="Resposta curta já ajuda">' + esc(v || '') + '</textarea>';
+      corpo = '<textarea id="mgn-' + esc(q.id) + '" oninput="' + set + '"' + off
+        + ' placeholder="Sua resposta">' + esc(v || '') + '</textarea>';
     }
-    return '<div class="mgn-p">' + rot + ajuda + corpo + '</div>';
+    const msg = erro ? '<div class="msg-erro"><span>ⓘ</span>Esta é uma pergunta obrigatória</div>' : '';
+    return '<div class="gf-card gf-q' + (erro ? ' erro' : '') + '" id="gfq-' + esc(q.id) + '">'
+      + rot + ajuda + corpo + msg + '</div>';
   }
 
-  function pessoasHTML(l){
+  function pessoasHTML(l, bloqueado){
+    const off = bloqueado ? ' disabled' : '';
     const linha = (p, i) =>
       '<div class="lin">'
-      + '<input type="text" placeholder="Nome"  value="' + esc(p.nome  || '') + '" oninput="mgNpsPessoa(' + i + ',\'nome\',this.value)">'
-      + '<input type="text" placeholder="Cargo" value="' + esc(p.cargo || '') + '" oninput="mgNpsPessoa(' + i + ',\'cargo\',this.value)">'
-      + '<input type="text" placeholder="Responsabilidade no projeto" value="' + esc(p.resp || '') + '" oninput="mgNpsPessoa(' + i + ',\'resp\',this.value)">'
-      + '<select onchange="mgNpsPessoa(' + i + ',\'decide\',this.value)">'
+      + '<input type="text" placeholder="Nome"  value="' + esc(p.nome  || '') + '"' + off + ' oninput="mgNpsPessoa(' + i + ',\'nome\',this.value)">'
+      + '<input type="text" placeholder="Cargo" value="' + esc(p.cargo || '') + '"' + off + ' oninput="mgNpsPessoa(' + i + ',\'cargo\',this.value)">'
+      + '<input type="text" placeholder="Responsabilidade no projeto" value="' + esc(p.resp || '') + '"' + off + ' oninput="mgNpsPessoa(' + i + ',\'resp\',this.value)">'
+      + '<select' + off + ' onchange="mgNpsPessoa(' + i + ',\'decide\',this.value)">'
         + ['','Aprova','Consulta','Executa'].map(o => '<option value="' + esc(o) + '"'
             + (String(p.decide || '') === o ? ' selected' : '') + '>' + esc(o || 'Papel') + '</option>').join('')
         + '</select>'
-      + '<input type="text" placeholder="E-mail" value="' + esc(p.contato || '') + '" oninput="mgNpsPessoa(' + i + ',\'contato\',this.value)">'
-      + '<button type="button" class="x" title="Remover" onclick="mgNpsPessoaFora(' + i + ')">×</button>'
+      + '<input type="text" placeholder="E-mail" value="' + esc(p.contato || '') + '"' + off + ' oninput="mgNpsPessoa(' + i + ',\'contato\',this.value)">'
+      + (bloqueado ? '<span></span>' : '<button type="button" class="x" title="Remover" onclick="mgNpsPessoaFora(' + i + ')">×</button>')
       + '</div>';
     return '<div class="mgn-gente">'
       + (l.length ? l.map(linha).join('') : '')
-      + '<button type="button" class="mgn-up" onclick="mgNpsPessoaNova()">＋ Adicionar pessoa</button>'
+      + (bloqueado ? '' : '<button type="button" class="mgn-up" onclick="mgNpsPessoaNova()">＋ Adicionar pessoa</button>')
       + '</div>';
   }
 
-  function anexosHTML(p){
+  function anexosHTML(p, bloqueado){
     const l = p.anexos || [];
-    return '<div class="mgn-p"><label>Materiais</label>'
+    return '<div class="gf-card gf-q"><div class="rot">Materiais</div>'
       + '<div class="ajuda">Se houver relatórios, dashboards, planilhas ou apresentações que ajudem, '
       + 'envie junto. Nada aqui é obrigatório.</div>'
       + '<div class="mgn-anexos">'
       + l.map((a, i) => '<div class="mgn-anexo"><span>📎</span>'
           + '<span class="nm">' + esc(a.nome || 'arquivo') + '</span>'
-          + '<button type="button" class="x" title="Remover" onclick="mgNpsAnexoFora(' + i + ')">×</button></div>').join('')
+          + (bloqueado ? '' : '<button type="button" class="x" title="Remover" onclick="mgNpsAnexoFora(' + i + ')">×</button>')
+          + '</div>').join('')
       + '</div>'
-      + '<label class="mgn-up" style="margin-top:' + (l.length ? '10px' : '0') + '">⬆ Anexar arquivo'
-      + '<input type="file" multiple hidden onchange="mgNpsAnexar(this)"></label>'
+      + (bloqueado ? '' : '<label class="mgn-up" style="margin-top:' + (l.length ? '10px' : '0') + '">⬆ Anexar arquivo'
+          + '<input type="file" multiple hidden onchange="mgNpsAnexar(this)"></label>')
       + '</div>';
   }
 
@@ -29076,21 +29409,21 @@ window.mgzQuemEh        = mgzQuemEh;
     const fonte = ultima(p.client_id, aba.recap);
     const spec  = FORMS[aba.recap];
     if(!fonte || fonte.status !== 'respondido'){
-      return '<div class="mgn-vazio" style="padding:20px 0">'
+      return '<div class="gf-card"><div class="mgn-vazio" style="padding:4px 0">'
         + 'Ainda não temos um ' + esc(spec.nome) + ' respondido por aqui. '
-        + 'Siga para as próximas abas normalmente.</div>';
+        + 'Siga para a próxima seção normalmente.</div></div>';
     }
     const r = fonte.respostas || {};
     const itens = perguntasDe(spec).filter(q => preenchida(r[q.id]));
     if(!itens.length){
-      return '<div class="mgn-vazio" style="padding:20px 0">'
-        + 'O ' + esc(spec.nome) + ' foi enviado, mas ficou sem respostas.</div>';
+      return '<div class="gf-card"><div class="mgn-vazio" style="padding:4px 0">'
+        + 'O ' + esc(spec.nome) + ' foi enviado, mas ficou sem respostas.</div></div>';
     }
-    return '<div class="ajuda" style="margin-bottom:14px">' + esc(aba.nota || '') + '</div>'
+    return '<div class="gf-card"><div class="ajuda" style="margin-bottom:14px">' + esc(aba.nota || '') + '</div>'
       + '<div class="mgn-recap">'
       + itens.map(q => '<div class="it"><b>' + esc(q.rot) + '</b><span>'
           + esc(valorTexto(r[q.id])) + '</span></div>').join('')
-      + '</div>';
+      + '</div></div>';
   }
   function valorTexto(v){
     if(Array.isArray(v)){
@@ -29104,57 +29437,103 @@ window.mgzQuemEh        = mgzQuemEh;
     return String(v == null ? '' : v);
   }
 
+  function secaoHTML(aba, i, total, p, r, bloqueado){
+    const cab = total > 1
+      ? '<div class="gf-card gf-sec"><div class="faixa">Seção ' + (i + 1) + ' de ' + total + '</div>'
+        + '<h2>' + esc(aba.titulo) + '</h2>'
+        + (aba.descricao ? '<p>' + esc(aba.descricao) + '</p>' : '') + '</div>'
+      : '';
+    const miolo = aba.recap
+      ? recapHTML(aba, p)
+      : (aba.perguntas || []).filter(q => visivel(q, r))
+          .map(q => campoHTML(q, r, FORM.erros.has(q.id), bloqueado)).join('');
+    return cab + miolo;
+  }
+
   function formHTML(){
     const p = FORM.pesquisa;
     const spec = specDe(p);
     const r = p.respostas || {};
-    const aba = spec.abas.find(a => a.id === FORM.aba) || spec.abas[0];
+    const paginas = paginasDe(p);
     const bloqueado = FORM.somenteLeitura;
+    if(FORM.pagina >= paginas.length) FORM.pagina = paginas.length - 1;
+    if(FORM.pagina < 0) FORM.pagina = 0;
+    const ultima_ = FORM.pagina === paginas.length - 1;
 
-    const abas = '<div class="mgn-abas">' + spec.abas.map(a=>{
-      const c = a.recap ? null : respondidasNaAba(a, r);
-      const completa = c && c.total && c.feitas === c.total;
-      return '<button class="' + (a.id === aba.id ? 'on' : '') + '"'
-        + ' onclick="mgNpsAba(\'' + escJS(a.id) + '\')">' + esc(a.titulo)
-        + (completa ? '<span class="ok">✓</span>' : '') + '</button>';
-    }).join('') + '</div>';
+    const cabeca = '<div class="gf-card gf-cabeca">'
+      + '<h1>' + esc(spec.titulo) + '</h1>'
+      + '<p>' + esc(spec.chamada) + '</p>'
+      + '<div class="meta">Tempo estimado: ' + esc(spec.tempo) + ' · ' + esc(spec.quando)
+      + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</div>'
+      + (bloqueado
+          ? '<div class="obrig" style="color:var(--muted)">Esta pesquisa já foi respondida'
+            + (p.respondido_em ? ' em ' + new Date(p.respondido_em).toLocaleDateString('pt-BR') : '')
+            + '. As respostas ficam como registro.</div>'
+          : '<div class="obrig">* Indica uma pergunta obrigatória</div>')
+      + '</div>';
 
-    const miolo = aba.recap
-      ? recapHTML(aba, p)
-      : (aba.perguntas || []).map(q => campoHTML(q, r)).join('')
-        + (aba.id === spec.abas[spec.abas.length - 1].id ? anexosHTML(p) : '');
+    /* respondida: tudo numa página só, como a visão de resposta do Forms */
+    const corpo = bloqueado
+      ? paginas.map((a, i) => secaoHTML(a, i, paginas.length, p, r, true)).join('')
+        + anexosHTML(p, true)
+      : secaoHTML(paginas[FORM.pagina], FORM.pagina, paginas.length, p, r, false)
+        + (ultima_ ? anexosHTML(p, false) : '');
 
-    const todas = perguntasDe(spec).filter(q => !q.opcional);
-    const feitas = todas.filter(q => preenchida(r[q.id])).length;
-    const falta = todas.length - feitas;
-
-    const rodape = bloqueado ? ''
-      : '<div class="mgn-rodape">'
-        + '<span class="cont">' + feitas + ' de ' + todas.length + ' perguntas respondidas'
-        + (falta ? ' · dá para enviar mesmo assim' : '') + '</span>'
-        + '<button class="mgn-btn2" onclick="mgNpsFechar()">Sair sem enviar</button>'
-        + '<button class="btn-p" onclick="mgNpsEnviarResposta()"'
-        + (FORM.salvando ? ' disabled' : '') + '>'
-        + (FORM.salvando ? 'enviando…' : 'Enviar respostas') + '</button>'
+    const pe = bloqueado
+      ? '<div class="gf-pe"><button type="button" class="gf-volta" onclick="mgNpsFechar()">← Voltar</button></div>'
+      : '<div class="gf-pe">'
+        + (FORM.pagina > 0 ? '<button type="button" class="gf-volta" onclick="mgNpsVoltar()">Voltar</button>' : '')
+        + (ultima_
+            ? '<button type="button" class="btn-p" onclick="mgNpsEnviarResposta()"' + (FORM.salvando ? ' disabled' : '') + '>'
+              + (FORM.salvando ? 'Enviando…' : 'Enviar') + '</button>'
+            : '<button type="button" class="btn-p" onclick="mgNpsProxima()">Próxima</button>')
+        + '<div class="gf-prog"><span>Página ' + (FORM.pagina + 1) + ' de ' + paginas.length + '</span>'
+          + '<span class="barra"><i style="width:' + Math.round(100 * (FORM.pagina + 1) / paginas.length) + '%"></i></span></div>'
+        + '</div>'
+        + '<div class="gf-rodape-links">'
+        + '<button type="button" class="gf-limpar" onclick="mgNpsFechar()">Sair sem enviar</button>'
+        + '<button type="button" class="gf-limpar" onclick="mgNpsLimpar()">Limpar formulário</button>'
         + '</div>';
 
-    return '<div class="mgn-form">'
-      + '<div class="mgn-cab"><div style="flex:1;min-width:220px">'
-        + '<h1>' + esc(spec.titulo) + '</h1>'
-        + '<p>' + esc(spec.chamada) + '</p>'
-        + '<p style="margin-top:8px;font-size:12.5px;color:var(--muted2)">Tempo estimado: '
-        + esc(spec.tempo) + ' · ' + esc(spec.quando)
-        + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</p>'
-        + '</div>'
-        + '<button class="voltar" onclick="mgNpsFechar()">← Voltar</button></div>'
-      + abas
-      + '<div class="mgn-bloco"><div class="mgn-corpo" style="gap:0">' + miolo + '</div></div>'
-      + (bloqueado
-          ? '<div class="mgn-vazio">Esta pesquisa já foi respondida. As respostas ficam como registro.</div>'
-          : '')
-      + rodape
-      + '</div>';
+    return '<div class="gf" id="mgn-gf">' + cabeca + corpo + pe + '</div>';
   }
+
+  /* ---- navegação ---- */
+  function rolarAte(el){
+    try{ if(el) el.scrollIntoView({behavior:'smooth', block:'center'}) }catch(e){}
+  }
+  function apontarErros(ids){
+    FORM.erros = new Set(ids);
+    desenhar();
+    setTimeout(()=>rolarAte(document.querySelector('.gf-q.erro')), 30);
+  }
+  window.mgNpsProxima = function(){
+    if(!FORM || FORM.somenteLeitura) return;
+    const paginas = paginasDe(FORM.pesquisa);
+    const falta = faltandoNaPagina(paginas[FORM.pagina], FORM.pesquisa.respostas || {});
+    if(falta.length){ apontarErros(falta); return }
+    FORM.erros = new Set();
+    FORM.pagina = Math.min(FORM.pagina + 1, paginas.length - 1);
+    desenhar();
+    setTimeout(()=>rolarAte(document.getElementById('mgn-gf')), 30);
+  };
+  window.mgNpsVoltar = function(){
+    if(!FORM) return;
+    FORM.erros = new Set();
+    FORM.pagina = Math.max(FORM.pagina - 1, 0);
+    desenhar();
+    setTimeout(()=>rolarAte(document.getElementById('mgn-gf')), 30);
+  };
+  window.mgNpsLimpar = function(){
+    if(!FORM || FORM.somenteLeitura) return;
+    if(!confirm('Limpar o formulário? Todas as respostas desta pesquisa serão apagadas.')) return;
+    FORM.pesquisa.respostas = {};
+    FORM.pesquisa.anexos = [];
+    FORM.erros = new Set();
+    FORM.pagina = 0;
+    FORM.sujo = false;
+    desenhar();
+  };
 
   /* ---- edição ---- */
   function mexer(fn){
@@ -29163,11 +29542,39 @@ window.mgzQuemEh        = mgzQuemEh;
     fn(FORM.pesquisa.respostas);
     FORM.sujo = true;
   }
+  function tirarErro(id){
+    if(!FORM || !FORM.erros.has(id)) return;
+    FORM.erros.delete(id);
+    const el = document.getElementById('gfq-' + id);
+    if(el){ el.classList.remove('erro'); const m = el.querySelector('.msg-erro'); if(m) m.remove() }
+  }
   window.mgNpsSet = function(id, v){
-    mexer(r => { r[id] = v });
-    /* nota e lista precisam repintar; texto não, senão o cursor pula */
+    mexer(r => {
+      r[id] = v;
+      /* mudou de faixa: o motivo escolhido era de outra lista */
+      perguntasDe(specDe(FORM.pesquisa)).filter(q => q.tipo === 'motivo' && (q.dependeDe || []).includes(id))
+        .forEach(q => {
+          const faixa = faixaDoMotivo(q, r);
+          const cod = String(r[q.id + '_cod'] || '');
+          if(cod && (!faixa || cod.indexOf(q.area + ':' + faixa + ':') !== 0)){
+            delete r[q.id]; delete r[q.id + '_cod'];
+          }
+        });
+    });
+    if(preenchida(v)) tirarErro(id);
+    /* nota e lista repintam (são botões); texto não, senão o cursor pula */
     const q = FORM ? perguntasDe(specDe(FORM.pesquisa)).find(x => x.id === id) : null;
-    if(q && (q.tipo === 'nota')) desenhar();
+    if(q && (q.tipo === 'nota' || q.tipo === 'lista')) desenhar();
+  };
+  window.mgNpsMotivo = function(id, codigo){
+    const q = FORM ? perguntasDe(specDe(FORM.pesquisa)).find(x => x.id === id) : null;
+    if(!q) return;
+    const faixa = faixaDoMotivo(q, FORM.pesquisa.respostas || {});
+    const o = motivosDe(q.area, faixa).find(x => x.codigo === codigo);
+    if(!o) return;
+    mexer(r => { r[id] = o.texto; r[id + '_cod'] = o.codigo });
+    tirarErro(id);
+    desenhar();
   };
   window.mgNpsMulti = function(id, o){
     mexer(r => {
@@ -29178,7 +29585,6 @@ window.mgzQuemEh        = mgzQuemEh;
     });
     desenhar();
   };
-  window.mgNpsAba = function(id){ if(FORM){ FORM.aba = id; desenhar() } };
   function pessoas(){
     const r = FORM.pesquisa.respostas || {};
     return Array.isArray(r.cd_pessoas) ? r.cd_pessoas.slice() : [];
@@ -29190,6 +29596,7 @@ window.mgzQuemEh        = mgzQuemEh;
       l[i] = Object.assign({}, l[i], {[campo]: v});
       r.cd_pessoas = l;
     });
+    tirarErro('cd_pessoas');
   };
   window.mgNpsPessoaNova = function(){
     mexer(r => { r.cd_pessoas = pessoas().concat([{nome:'',cargo:'',resp:'',decide:'',contato:''}]) });
@@ -29233,12 +29640,25 @@ window.mgzQuemEh        = mgzQuemEh;
     FORM = null; desenhar();
   };
   window.mgNpsEnviarResposta = async function(){
-    if(!FORM || FORM.salvando) return;
+    if(!FORM || FORM.salvando || FORM.somenteLeitura) return;
     const p = FORM.pesquisa;
+    const r = p.respostas || {};
+    /* a checagem cobre todas as seções: faltou lá atrás, volta para lá */
+    const paginas = paginasDe(p);
+    for(let i = 0; i < paginas.length; i++){
+      const falta = faltandoNaPagina(paginas[i], r);
+      if(falta.length){
+        FORM.pagina = i;
+        apontarErros(falta);
+        toast(falta.length === 1 ? 'Falta responder 1 pergunta obrigatória.'
+                                 : 'Faltam ' + falta.length + ' perguntas obrigatórias nesta seção.');
+        return;
+      }
+    }
     FORM.salvando = true; desenhar();
     try{
       const salvo = await salvar(p.id, {
-        respostas: p.respostas || {},
+        respostas: r,
         anexos: p.anexos || [],
         status: 'respondido',
         respondido_em: new Date().toISOString(),
@@ -29247,6 +29667,7 @@ window.mgzQuemEh        = mgzQuemEh;
       SNAP = (salvo.tipo === 'mgpr') ? salvo : null;
       if(!SNAP) toast('Respostas enviadas. Obrigado!');
       desenhar();
+      setTimeout(()=>rolarAte(document.querySelector('.mgn-snap, #v-portal')), 30);
     }catch(e){
       FORM.salvando = false;
       toast('Não foi possível enviar: ' + ((e && e.message) || ''));
@@ -29262,12 +29683,17 @@ window.mgzQuemEh        = mgzQuemEh;
     const pessoa  = (typeof ME !== 'undefined' && ME && ME.name) ? String(ME.name).split(' ')[0] : '';
     const s = snapshot(p, nomeEmp, (typeof isAdmin === 'function' && isAdmin()) ? '' : pessoa);
     const it = (t, c) => '<div class="it"><h3>' + esc(t) + '</h3><p>' + esc(c) + '</p></div>';
+    const eco = (t, b) => '<div class="it eco"><h3>' + esc(t) + '</h3>'
+      + '<p class="destacou"><span>O que você destacou</span>' + esc(b.destacou) + '</p>'
+      + (b.retorno ? '<p class="retorno"><span>Nosso retorno</span>' + esc(b.retorno) + '</p>' : '')
+      + '</div>';
 
     return '<div class="mgn-snap">'
       + '<div class="hero"><h1>' + esc(s.saudacao) + '</h1><p>' + esc(s.linha) + '</p></div>'
-      + it('Principais pontos fortes percebidos', s.fortes)
-      + it('Oportunidades identificadas', s.oportunidades)
+      + s.blocos.map(b => eco(b.rot, b)).join('')
       + it('Temas que você destacou para gerar mais valor', s.temas)
+      + (s.nps ? eco('Sobre sua recomendação', s.nps) : '')
+      + (s.proximoPasso ? it('Próximo passo', s.proximoPasso) : '')
       + it('Nosso compromisso', s.compromisso)
       + it('Próxima revisão', s.proxima)
       + '<div class="acoes">'
@@ -29277,6 +29703,11 @@ window.mgzQuemEh        = mgzQuemEh;
       + '</div>';
   }
   window.mgNpsFecharSnap = function(){ SNAP = null; desenhar() };
+  /* para teste e depuração: o questionário e as opções calibradas, em cópia */
+  window.mgNpsEspelho = function(tipo, area, faixa){
+    if(area) return motivosDe(area, faixa);
+    return JSON.parse(JSON.stringify(FORMS[tipo] || FORMS.mgpr));
+  };
   window.mgNpsVerRetorno = function(id){
     SNAP = LISTA.find(p => p.id === id) || null;
     desenhar();
@@ -29413,21 +29844,34 @@ window.mgzQuemEh        = mgzQuemEh;
         + (m != null ? '<div class="mgn-alerta ok" style="background:var(--card2);border-color:var(--line2)">'
             + '<b>Ação recomendada:</b> ' + esc(acaoRecomendada(m)) + '</div>' : '')
         + '</div></section>'
-      + (temas.length || r.nps_motivo || r.continuidade_pendencia
-          ? '<section class="mgn-bloco"><header><h2>Nas palavras do cliente</h2></header>'
-            + '<table class="mgn-tab"><tbody>'
-            + (temas.length ? '<tr><td><b>Temas de interesse</b></td><td>' + esc(temas.join(' · ')) + '</td></tr>' : '')
-            + (r.continuidade_endereca ? '<tr><td><b>Discovery endereçado</b></td><td>'
-                + esc(r.continuidade_endereca) + '</td></tr>' : '')
-            + (r.continuidade_pendencia ? '<tr><td><b>Pendência apontada</b></td><td>'
-                + esc(r.continuidade_pendencia) + '</td></tr>' : '')
-            + (r.nps_motivo ? '<tr><td><b>Motivo da nota</b></td><td>' + esc(r.nps_motivo) + '</td></tr>' : '')
-            + '</tbody></table></section>'
-          : '');
+      + '<section class="mgn-bloco"><header><h2>Nas palavras do cliente</h2>'
+        + '<span class="n">motivo escolhido por pilar</span></header>'
+        + '<table class="mgn-tab"><tbody>'
+        + pl.map(x => '<tr><td style="width:34%"><b>' + esc(x.rot) + '</b></td><td>'
+            + (r[PILAR_META[x.id].motivo] ? esc(r[PILAR_META[x.id].motivo])
+               : '<span style="color:var(--muted2)">sem motivo escolhido</span>') + '</td></tr>').join('')
+        + '<tr><td><b>Recomendação</b></td><td>' + (r.nps_motivo ? esc(r.nps_motivo)
+            : '<span style="color:var(--muted2)">sem motivo escolhido</span>') + '</td></tr>'
+        + (temas.length ? '<tr><td><b>Temas de interesse</b></td><td>' + esc(temas.join(' · ')) + '</td></tr>' : '')
+        + (r.continuidade_endereca ? '<tr><td><b>Discovery endereçado</b></td><td>'
+            + esc(r.continuidade_endereca) + '</td></tr>' : '')
+        + (r.continuidade_pendencia ? '<tr><td><b>Pendência apontada</b></td><td>'
+            + esc(r.continuidade_pendencia) + '</td></tr>' : '')
+        + (r.nps_comentario ? '<tr><td><b>Comentário adicional</b></td><td style="white-space:pre-wrap">'
+            + esc(r.nps_comentario) + '</td></tr>' : '')
+        + '</tbody></table></section>'
+      + slaHTML(p) + capHTML(p);
   }
 
   function continuidadeHTML(p){
-    const l = (p.interno && p.interno.continuidade) || [];
+    if(p.com_discovery === false){
+      return '<section class="mgn-bloco"><header><h2>Continuidade do discovery</h2>'
+        + '<span class="n">não aplicável</span></header>'
+        + '<div class="mgn-vazio"><b>Não aplicável: cliente sem discovery inicial.</b><br>'
+        + 'Esta empresa não passou pelo Pré-Discovery nem pelo Client Discovery, então a revisão '
+        + 'foi enviada sem a seção de continuidade. Não é pendência do time.</div></section>';
+    }
+    const l = internoDe(p.id).continuidade || [];
     if(!l.length){
       return '<section class="mgn-bloco"><header><h2>Continuidade do discovery</h2></header>'
         + '<div class="mgn-vazio">Esta revisão não trouxe itens do discovery. '
@@ -29456,12 +29900,126 @@ window.mgzQuemEh        = mgzQuemEh;
   }
   window.mgNpsContinuidade = async function(i, campo, v){
     const p = LISTA.find(x => x.id === PAINEL_ID); if(!p) return;
-    const l = ((p.interno && p.interno.continuidade) || []).slice();
+    const l = (internoDe(p.id).continuidade || []).slice();
     if(!l[i]) return;
     l[i] = Object.assign({}, l[i], {[campo]: v});
-    const interno = Object.assign({}, p.interno || {}, {continuidade:l});
-    try{ await salvar(p.id, {interno}); desenhar() }
+    try{ await salvarInterno(p.id, {continuidade:l}); desenhar() }
     catch(e){ toast('Não foi possível salvar: ' + ((e && e.message) || '')) }
+  };
+
+  /* ---------------------------------------------------------------------
+     SLA e CAP, as duas coisas que a aba 03 pede depois dos alertas
+
+     O SLA nasce no banco quando a revisão volta com NPS < 7 ou MGPI < 7:
+     o gatilho abre a demanda e grava aqui o prazo e o id dela. O CAP é
+     pré-carregado a partir dos pilares abaixo de 8 (e do NPS detrator),
+     com a ação sugerida da planilha; o time só define responsável e
+     prazo, e pode virar cada linha em demanda.
+     --------------------------------------------------------------------- */
+  function slaHTML(p){
+    const sla = internoDe(p.id).sla;
+    const m = mgpi(p.respostas), n = num((p.respostas || {}).nps_nota);
+    const cai = (n != null && n < 7) || (m != null && m < 7);
+    if(!sla && !cai) return '';
+    const prazo = sla && sla.prazo ? fmtDate(String(sla.prazo).slice(0, 10)) : '2 dias úteis';
+    return '<section class="mgn-bloco"><header><h2>SLA de contato</h2>'
+      + '<span class="n">' + esc(n != null && n < 7 ? 'NPS detrator' : 'MGPI abaixo de 7') + '</span></header>'
+      + '<div class="mgn-corpo"><div class="mgn-alerta" style="border-color:var(--danger)">'
+      + '🔴 <b>Contato do Customer Success até ' + esc(prazo) + '.</b> '
+      + (sla && sla.task_id
+          ? 'A demanda foi aberta automaticamente para quem enviou a revisão. '
+            + '<button class="mgn-btn2" style="padding:4px 10px;font-size:12px;margin-left:6px"'
+            + ' onclick="mgNpsAbrirDemanda(\'' + escJS(sla.task_id) + '\')">abrir demanda</button>'
+          : 'A demanda automática não foi encontrada para esta revisão; abra o contato pelo CAP abaixo.')
+      + '</div></div></section>';
+  }
+  window.mgNpsAbrirDemanda = function(id){
+    try{ if(typeof showView === 'function') showView('board') }catch(e){}
+    try{ if(typeof openDetail === 'function') openDetail(id) }catch(e){}
+  };
+
+  function capPadrao(p){
+    const r = p.respostas || {};
+    const l = pilares(r).filter(x => x.v != null && x.v < 8)
+      .map(x => ({id:x.id, rot:x.rot, acao:PILAR_META[x.id].cap, responsavel_id:'', prazo:'', feito:false, task_id:null}));
+    const n = num(r.nps_nota);
+    if(n != null && n < 7) l.push({id:'nps', rot:'NPS', acao:CAP_NPS, responsavel_id:'', prazo:'', feito:false, task_id:null});
+    return l;
+  }
+  function capDe(p){
+    const salvo = internoDe(p.id).cap;
+    return Array.isArray(salvo) ? salvo : capPadrao(p);
+  }
+  function capHTML(p){
+    const l = capDe(p);
+    const time = (typeof TEAM !== 'undefined' ? TEAM : []).slice()
+      .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt'));
+    if(!l.length){
+      return '<section class="mgn-bloco"><header><h2>Customer Action Plan (CAP)</h2></header>'
+        + '<div class="mgn-vazio">Nenhum pilar abaixo de 8 e recomendação fora da faixa de detrator: '
+        + 'esta rodada não pede plano de ação.</div></section>';
+    }
+    const linha = (c, i) => '<tr class="' + (c.feito ? 'feito' : '') + '">'
+      + '<td style="width:15%"><b>' + esc(c.rot) + '</b></td>'
+      + '<td><input type="text" class="cap-acao" value="' + esc(c.acao || '') + '"'
+        + ' onchange="mgNpsCap(' + i + ',\'acao\',this.value)"></td>'
+      + '<td class="oculta-cel" style="width:16%"><select onchange="mgNpsCap(' + i + ',\'responsavel_id\',this.value)">'
+        + '<option value="">Responsável</option>'
+        + time.map(u => '<option value="' + esc(u.id) + '"' + (String(c.responsavel_id || '') === String(u.id) ? ' selected' : '') + '>'
+            + esc(u.nome || '') + '</option>').join('')
+        + '</select></td>'
+      + '<td class="oculta-cel" style="width:13%"><input type="date" value="' + esc(c.prazo || '') + '"'
+        + ' onchange="mgNpsCap(' + i + ',\'prazo\',this.value)"></td>'
+      + '<td class="n" style="white-space:nowrap">'
+        + '<label style="font-size:12px;margin-right:8px"><input type="checkbox"' + (c.feito ? ' checked' : '')
+          + ' onchange="mgNpsCap(' + i + ',\'feito\',this.checked)"> feito</label>'
+        + (c.task_id
+            ? '<button class="mgn-btn2" style="padding:4px 10px;font-size:12px" onclick="mgNpsAbrirDemanda(\'' + escJS(c.task_id) + '\')">demanda</button>'
+            : '<button class="mgn-btn2" style="padding:4px 10px;font-size:12px" onclick="mgNpsCapDemanda(' + i + ')">virar demanda</button>')
+      + '</td></tr>';
+    return '<section class="mgn-bloco mgn-cap"><header><h2>Customer Action Plan (CAP)</h2>'
+      + '<span class="n">pré-carregado por alerta</span></header>'
+      + '<table class="mgn-tab"><thead><tr><th>Pilar</th><th>Ação</th>'
+      + '<th class="oculta-cel">Responsável</th><th class="oculta-cel">Prazo</th><th class="n"></th></tr></thead>'
+      + '<tbody>' + l.map(linha).join('') + '</tbody></table></section>';
+  }
+  window.mgNpsCap = async function(i, campo, v){
+    const p = LISTA.find(x => x.id === PAINEL_ID); if(!p) return;
+    const l = capDe(p).map(x => Object.assign({}, x));
+    if(!l[i]) return;
+    l[i][campo] = v;
+    try{ await salvarInterno(p.id, {cap:l}); if(campo === 'feito') desenhar() }
+    catch(e){ toast('Não foi possível salvar o CAP: ' + ((e && e.message) || '')) }
+  };
+  /* a demanda do CAP vai para a empresa interna, como a do SLA: com o
+     client_id do cliente ela apareceria no portal dele */
+  function empresaInterna(){
+    const c = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(x => /^Modesto \(Interno\)/i.test(String(x.nome || '')));
+    return c ? c.id : null;
+  }
+  window.mgNpsCapDemanda = async function(i){
+    const p = LISTA.find(x => x.id === PAINEL_ID); if(!p) return;
+    const l = capDe(p).map(x => Object.assign({}, x));
+    const c = l[i]; if(!c || c.task_id) return;
+    const nomeEmp = (typeof clientName === 'function') ? clientName(p.client_id) : '';
+    const linha = {
+      client_id: empresaInterna(),
+      title: 'CAP · ' + nomeEmp + ' · ' + c.rot,
+      description: (c.acao || '') + '\n\nOrigem: Revisão de Parceria (rodada ' + p.rodada + ') de ' + nomeEmp + '.',
+      status: 'Não iniciado', priority: 'Alta',
+      due: c.prazo || null,
+      owner_id: c.responsavel_id || null,
+      assignees: [], assignee_ids: [],
+    };
+    try{
+      const {data, error} = await sb.from('tasks').insert(linha).select('id').single();
+      if(error) throw error;
+      c.task_id = data.id;
+      await salvarInterno(p.id, {cap:l});
+      toast('Demanda criada para ' + c.rot + '.');
+      if(typeof refresh === 'function'){ try{ refresh() }catch(e){} }
+      desenhar();
+    }catch(e){ toast('Não foi possível criar a demanda: ' + ((e && e.message) || '')) }
   };
 
   function historicoHTML(cid){
@@ -29470,7 +30028,7 @@ window.mgzQuemEh        = mgzQuemEh;
     return '<section class="mgn-bloco"><header><h2>Histórico do MGPI</h2>'
       + '<span class="n">' + l.length + '</span></header>'
       + '<table class="mgn-tab"><thead><tr><th>Rodada</th><th class="n oculta-cel">Data</th>'
-      + '<th class="n">MGPI</th><th class="n oculta-cel">Nota NPS</th><th>Farol</th>'
+      + '<th class="n">MGPI</th><th class="n oculta-cel">Nota NPS</th><th class="oculta-cel">Classificação</th><th>Farol</th>'
       + '<th class="n">Variação</th></tr></thead><tbody>'
       + l.map((p, i)=>{
           const m = mgpi(p.respostas);
@@ -29482,6 +30040,7 @@ window.mgzQuemEh        = mgzQuemEh;
               + esc(p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—') + '</td>'
             + '<td class="n">' + esc(nota2(m)) + '</td>'
             + '<td class="n oculta-cel">' + esc(String(num((p.respostas||{}).nps_nota) ?? '—')) + '</td>'
+            + '<td class="oculta-cel">' + esc(classificacao(m) || '—') + '</td>'
             + '<td><span class="mgn-farol ' + f.k + '">' + esc(f.rot) + '</span></td>'
             + '<td class="n" style="color:' + (dif == null ? 'var(--muted2)' : dif >= 0 ? '#2E9E6B' : 'var(--danger)') + '">'
               + (dif == null ? '—' : (dif >= 0 ? '+' : '') + nota2(dif)) + '</td></tr>';
@@ -29643,8 +30202,17 @@ window.mgzQuemEh        = mgzQuemEh;
     if(ja && ja.status === 'enviado'
        && !confirm('Já existe um ' + FORMS[tipo].nome + ' aguardando resposta desta empresa.\n\n'
                  + 'Enviar outro assim mesmo?')) return;
+    /* revisão para empresa sem discovery: a seção de continuidade sai,
+       e quem envia fica sabendo antes, não depois */
+    let comDiscovery = true;
+    if(tipo === 'mgpr' && !temDiscovery(CLI)){
+      if(!confirm('Esta empresa não tem Pré-Discovery nem Client Discovery respondido.\n\n'
+                + 'A seção "Continuidade do discovery" vai ficar de fora desta revisão, '
+                + 'e o painel vai marcá-la como não aplicável.\n\nEnviar assim?')) return;
+      comDiscovery = false;
+    }
     try{
-      await enviar(CLI, tipo);
+      await enviar(CLI, tipo, comDiscovery);
       toast(FORMS[tipo].nome + ' enviado. O cliente vê na página de Início dele.');
       desenhar();
     }catch(e){ toast('Não foi possível enviar: ' + ((e && e.message) || '')) }
@@ -29676,8 +30244,7 @@ window.mgzQuemEh        = mgzQuemEh;
   window.mgNpsAbrir = function(id, somenteLeitura){
     const p = LISTA.find(x => x.id === id); if(!p) return;
     FORM = {
-      pesquisa: JSON.parse(JSON.stringify(p)),
-      aba: specDe(p).abas[0].id,
+      pesquisa: JSON.parse(JSON.stringify(p)), pagina: 0, erros: new Set(),
       somenteLeitura: !!somenteLeitura || p.status === 'respondido',
       sujo:false, salvando:false,
     };
@@ -29763,10 +30330,11 @@ window.mgzQuemEh        = mgzQuemEh;
   }
   window.mgNpsResponder = function(id){
     const p = LISTA.find(x => x.id === id); if(!p) return;
-    FORM = {pesquisa: JSON.parse(JSON.stringify(p)), aba: specDe(p).abas[0].id,
+    FORM = {pesquisa: JSON.parse(JSON.stringify(p)), pagina: 0, erros: new Set(),
             somenteLeitura: p.status === 'respondido', sujo:false, salvando:false};
     SNAP = null;
     desenhar();
+    setTimeout(()=>rolarAte(document.getElementById('mgn-gf')), 30);
   };
   window.mgNpsResposta = function(id){
     const p = LISTA.find(x => x.id === id); if(!p) return;
@@ -29822,6 +30390,10 @@ window.mgzQuemEh        = mgzQuemEh;
   let primeiraLeitura = false;
   async function abrirTela(){
     if(!primeiraLeitura){ primeiraLeitura = true; await carregar() }
+    /* o CAP escolhe responsável entre a equipe */
+    if(typeof TEAM !== 'undefined' && !TEAM.length && typeof loadTeam === 'function'){
+      try{ await loadTeam() }catch(e){}
+    }
     desenhar();
   }
 
@@ -29903,7 +30475,7 @@ window.mgzQuemEh        = mgzQuemEh;
     /* com formulário ou retorno aberto, a página é deles: se o portal se
        redesenhou por baixo, devolve o que o cliente estava preenchendo */
     if(FORM || SNAP){
-      if(!alvo.querySelector('.mgn-form, .mgn-snap')){
+      if(!alvo.querySelector('.gf, .mgn-snap')){
         alvo.innerHTML = FORM ? formHTML() : snapshotHTML(SNAP);
       }
       return;
