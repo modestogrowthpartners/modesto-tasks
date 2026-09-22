@@ -461,9 +461,11 @@ textarea.fld{min-height:80px;resize:vertical}
 @keyframes rocketFly{0%{transform:translateY(0) translateX(0) rotate(-40deg);opacity:0}12%{opacity:1}100%{transform:translateY(-118vh) translateX(var(--dx,0)) rotate(-40deg);opacity:0}}
 .confetti{position:fixed;top:-18px;width:9px;height:15px;border-radius:2px;animation:confFall 1.8s linear forwards;will-change:transform}
 @keyframes confFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(110vh) rotate(760deg);opacity:0}}
-/* transição fluida ao trocar de aba */
-.view.on{animation:viewIn .34s cubic-bezier(.22,.61,.36,1)}
-@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* transição ao trocar de aba: só opacidade, que o compositor resolve
+   sozinho. Deslocar a vista inteira por transform criava uma camada do
+   tamanho da página e repintava tudo a cada quadro da animação. */
+.view.on{animation:viewIn .18s ease-out}
+@keyframes viewIn{from{opacity:0}to{opacity:1}}
 .nav-i{transition:background .15s ease,color .15s ease}
 @media (prefers-reduced-motion:reduce){.gline{animation:none;stroke-dashoffset:0}.timer-btn.run .d{animation:none}.rocket,.confetti{display:none}.view.on{animation:none}}
 @media(max-width:720px){.side{position:fixed;z-index:40;transform:translateX(-100%);transition:.2s}.side.open{transform:none}}
@@ -642,13 +644,14 @@ button,.nav-i,.asg-chip,.acc,.tchip,.timer-btn,.mini-btn,.cbadge,.seg>button,.to
 .bg-line2{stroke-dasharray:300}
 @keyframes bgflow{to{stroke-dashoffset:-840}}
 @keyframes bgflow2{to{stroke-dashoffset:600}}
-.bg-marks{animation:bgdrift 22s ease-in-out infinite alternate}
-@keyframes bgdrift{0%{transform:translate(0,0)}100%{transform:translate(-24px,-40px)}}
-.bg-marks text{animation:bgpulse 6s ease-in-out infinite}
-.bg-marks text:nth-child(2){animation-delay:1.5s}
-.bg-marks text:nth-child(3){animation-delay:3s}
-.bg-marks text:nth-child(4){animation-delay:4.5s}
-@keyframes bgpulse{0%,100%{opacity:.045}50%{opacity:.09}}
+/* A marca de fundo era animada: o grupo derivava por transform e cada
+   letra pulsava por opacity. Dentro de SVG nada disso vai para o
+   compositor: a tela inteira era repintada em todo quadro, o tempo
+   todo, e era isso que aparecia como "tique" ao trocar de aba em
+   telas grandes. A marca fica parada; os pontos que sobem continuam,
+   porque sao HTML com will-change e o compositor os move sozinho. */
+.bg-marks{transform:translate(-12px,-20px)}
+.bg-marks text{opacity:.065}
 /* Os pontos subindo eram círculos SVG animados por transform: em SVG
    isso também passa pelo layout. Agora são elementos HTML com
    will-change, que o compositor move sozinho, sem tocar a thread
@@ -4729,8 +4732,9 @@ body.mg-inicio #mg-subnav{display:none!important}
 .mg-seg button:active{transform:scale(.97)}
 #mg-subnav .conta{font-size:12px;color:var(--muted);margin-left:2px}
 
-/* o conteúdo das três telas entra suave ao trocar */
-body.mg-tasks .view.on{animation:mgSobe .3s cubic-bezier(.22,1,.36,1) both}
+/* o conteúdo das três telas entra suave ao trocar: a mesma entrada só
+   por opacidade das outras vistas, sem deslocar a tela */
+body.mg-tasks .view.on{animation:viewIn .18s ease-out}
 </style>
 <script>
 /* =====================================================================
@@ -7401,7 +7405,7 @@ renderHome = function(){
    ===================================================================== */
 
 /* ---------- 1. páginas centralizadas ---------- */
-:root{ --mg-larg:1180px }
+:root{ --mg-larg:1440px }
 body:not(.mg-inicio) .content > .view.on:not(#v-board):not(#v-home):not(#v-chat){
   max-width:var(--mg-larg); margin-left:auto; margin-right:auto; width:100%;
 }
@@ -8268,7 +8272,7 @@ body.mg-sem-anim .bg-anim *{animation:none!important}
 }
 
 /* ---------- 4. plano de mídia ---------- */
-.mg-pm{max-width:1080px;margin:0 auto}
+.mg-pm{max-width:var(--mg-larg,1440px);margin:0 auto}
 .mg-pm-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
   padding-bottom:17px;border-bottom:1px solid var(--line);margin-bottom:6px}
 .mg-pm-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
@@ -9392,7 +9396,7 @@ function mgAvisoPlanoFalhou(motivo){
    Lê a tabela `pacing`, alimentada pelo Apps Script que hoje monta o
    relatório do Slack.
    ===================================================================== */
-.mg-pc{max-width:1080px;margin:0 auto}
+.mg-pc{max-width:var(--mg-larg,1440px);margin:0 auto}
 .mg-pc-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
   padding-bottom:16px;border-bottom:1px solid var(--line)}
 .mg-pc-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
@@ -9739,7 +9743,7 @@ body.mg-contraste{--muted:#5d574a;--muted2:#6f6858;--line:rgba(26,26,24,.18);--l
 body.mg-contraste.theme-dark{--muted:#c9c2b2;--muted2:#b3ab99;--line:rgba(236,231,219,.22);--line2:rgba(236,231,219,.34)}
 body.mg-contraste .card-t,body.mg-contraste .mg-atalho{border-width:1.5px}
 body.mg-larg-estreita{--mg-larg:900px}
-body.mg-larg-larga{--mg-larg:1440px}
+body.mg-larg-larga{--mg-larg:1680px}
 body.mg-larg-total{--mg-larg:100%}
 
 .mg-fundo-previa{display:flex;gap:10px;align-items:center;margin-top:10px}
@@ -11655,7 +11659,7 @@ setTimeout(mgFDesenhar, 1400);
 .card-t .mg-clipe{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:3px}
 
 /* ---------- 2. projetos ---------- */
-.mg-pj{max-width:1080px;margin:0 auto}
+.mg-pj{max-width:var(--mg-larg,1440px);margin:0 auto}
 .mg-pj-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
   padding-bottom:16px;border-bottom:1px solid var(--line)}
 .mg-pj-cab .tit{font-family:var(--font-d);font-size:25px;font-weight:500;letter-spacing:-.3px}
@@ -14752,7 +14756,7 @@ body .mg-atalho .ic-wrap,body .mg-atalho .ico{width:36px;height:36px;font-size:1
 }
 
 /* ---------- 3. projetos dentro de Demandas ---------- */
-.mg-pj2{max-width:1080px;margin:0 auto}
+.mg-pj2{max-width:var(--mg-larg,1440px);margin:0 auto}
 .mg-pj2-topo{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
   padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:6px}
 .mg-pj2-topo .t{font-family:var(--font-d);font-size:21px;font-weight:500}
@@ -16226,7 +16230,7 @@ function mgFAtualizarMarcas(){
    Ele pode olhar, comentar e abrir novas demandas. Mudar status,
    responsável ou prazo continua com a equipe.
    ===================================================================== */
-.mg-cd{max-width:1180px;margin:0 auto}
+.mg-cd{max-width:var(--mg-larg,1440px);margin:0 auto}
 .mg-cd-cab{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;
   padding-bottom:16px;border-bottom:1px solid var(--line)}
 .mg-cd-cab .tit{font-family:var(--font-d);font-size:24px;font-weight:500;letter-spacing:-.3px}
@@ -22610,7 +22614,7 @@ window.MGKronos = MGKronos;
    SEÇÃO · PORTAL DO CLIENTE · uma página só
    ===================================================================== */
 #v-portal{padding:0}
-.mgp-portal{max-width:1080px;margin:0 auto;padding:26px 22px 120px;
+.mgp-portal{max-width:var(--mg-larg,1440px);margin:0 auto;padding:26px 22px 120px;
   display:flex;flex-direction:column;gap:30px}
 
 .mgp-cab{display:flex;align-items:center;gap:16px}
@@ -28341,7 +28345,7 @@ window.mgzQuemEh        = mgzQuemEh;
    SEÇÃO · MGP NPS · estilo
    ===================================================================== */
 #v-nps{padding:0}
-.mgn{max-width:1120px;margin:0 auto;padding:24px 22px 120px;display:flex;flex-direction:column;gap:22px}
+.mgn{max-width:var(--mg-larg,1440px);margin:0 auto;padding:24px 22px 120px;display:flex;flex-direction:column;gap:22px}
 .mgn-topo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .mgn-topo h1{font-family:var(--font-d);font-size:24px;font-weight:500;flex:1;min-width:180px}
 .mgn-topo select{background:var(--card);border:1px solid var(--line2);border-radius:10px;
@@ -28466,7 +28470,7 @@ window.mgzQuemEh        = mgzQuemEh;
 .mgn-recap .it span{font-size:13px;color:var(--muted);line-height:1.65;white-space:pre-wrap}
 
 /* ---- snapshot do cliente ---- */
-.mgn-snap{max-width:780px;margin:0 auto;padding:26px 20px 140px;display:flex;flex-direction:column;gap:18px}
+.mgn-snap{max-width:1040px;margin:0 auto;padding:26px 20px 140px;display:flex;flex-direction:column;gap:18px}
 .mgn-snap .hero{background:var(--card);border:1px solid var(--line2);border-radius:18px;padding:26px 26px}
 .mgn-snap .hero h1{font-family:var(--font-d);font-size:23px;font-weight:500;margin-bottom:8px;line-height:1.35}
 .mgn-snap .hero p{font-size:13.5px;color:var(--muted);line-height:1.7}
@@ -28513,7 +28517,7 @@ window.mgzQuemEh        = mgzQuemEh;
 /* ---- o formulário, no modelo do Google Forms ----
    Cabeçalho com faixa de cor, um cartão por pergunta, seção por página,
    asterisco no obrigatório, cartão marcado em vermelho quando falta. */
-.gf{max-width:760px;margin:0 auto;padding:22px 16px 150px;display:flex;flex-direction:column;gap:12px}
+.gf{max-width:980px;margin:0 auto;padding:22px 16px 150px;display:flex;flex-direction:column;gap:12px}
 .gf-card{background:var(--card);border:1px solid var(--line2);border-radius:10px;padding:22px 24px;position:relative}
 .gf-cabeca{border-top:10px solid var(--brass);padding-top:20px}
 .gf-cabeca h1{font-family:var(--font-d);font-size:30px;font-weight:500;line-height:1.25;margin:0 0 10px}
@@ -28594,6 +28598,51 @@ window.mgzQuemEh        = mgzQuemEh;
   border:1px solid var(--line2);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px;color:var(--text)}
 .mgn-cap tr.feito td{opacity:.55;text-decoration:line-through}
 .mgn-cap tr.feito td:last-child{text-decoration:none}
+
+/* ---- o relatório de uma resposta ---- */
+.mgn-rel{display:flex;flex-direction:column;gap:18px}
+.rel-topo{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.rel-tit{flex:1;min-width:220px}
+.rel-tit .et{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2)}
+.rel-tit h1{font-family:var(--font-d);font-size:26px;font-weight:500;line-height:1.25;margin-top:2px}
+.rel-acoes{display:flex;gap:10px;flex-wrap:wrap}
+.rel-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.rel-kpis > *{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:18px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;justify-content:center}
+.rel-kpis .rot{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted2)}
+.rel-kpis .sub{font-size:12.5px;color:var(--muted);line-height:1.5}
+.rel-perc b{font-family:var(--font-d);font-size:22px;font-weight:500;line-height:1.25}
+.rel-perc .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.rel-perc .chips span{font-size:11.5px;background:rgba(194,161,91,.14);color:var(--brass2);border-radius:999px;padding:3px 10px}
+.rel-grade{display:grid;grid-template-columns:minmax(300px,1fr) minmax(300px,1.4fr);gap:18px}
+.rel-radar{width:100%;max-width:420px;height:auto}
+.rel-barras{display:flex;flex-direction:column;gap:9px}
+.rel-barra{display:flex;align-items:center;gap:12px;font-size:12.5px}
+.rel-barra .rot{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rel-barra .bar{width:38%;height:10px;border-radius:6px;background:var(--line);overflow:hidden;flex:none}
+.rel-barra .bar i{display:block;height:100%;border-radius:6px}
+.rel-barra .v{width:26px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;flex:none}
+.rel-citas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.rel-cita{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:13px 15px}
+.rel-cita .rot{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2);margin-bottom:6px}
+.rel-cita p{font-size:13.5px;line-height:1.6;font-style:italic}
+.rel-evol{width:100%;max-width:640px;height:auto}
+.rel-secoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
+.rel-qa{gap:12px}
+.rel-q .rot{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.rel-q p{font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.rel-q p.vazia{color:var(--muted2);font-style:italic}
+.rel-leitura{border-color:var(--brass)}
+.rel-texto h4{font-family:var(--font-d);font-size:16px;font-weight:500;margin:14px 0 6px}
+.rel-texto h4:first-child{margin-top:0}
+.rel-texto ul{margin:0 0 4px 18px;padding:0}
+.rel-texto li{font-size:13.5px;line-height:1.65;margin:3px 0}
+.rel-texto p{font-size:13.5px;line-height:1.65;margin:4px 0}
+@media(max-width:900px){.rel-grade{grid-template-columns:1fr}.rel-barra .bar{width:30%}}
+@media print{
+  .mgn-rel .rel-acoes,.mgn-rel .rel-topo > .mgn-btn2{display:none !important}
+  .mgn-rel .mgn-bloco,.mgn-rel .rel-kpis > *{border:1px solid #ddd;break-inside:avoid;box-shadow:none}
+  .rel-grade{grid-template-columns:1fr 1fr}
+}
 </style>
 
 <script>
@@ -29788,7 +29837,7 @@ window.mgzQuemEh        = mgzQuemEh;
       ? (p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—')
       : (p.enviado_em ? new Date(p.enviado_em).toLocaleDateString('pt-BR') : '—');
     const acao = p.status === 'respondido'
-      ? '<button class="mgn-btn2" onclick="mgNpsLer(\'' + escJS(p.id) + '\')">ler respostas</button>'
+      ? '<button class="mgn-btn2" onclick="mgNpsRelatorio(\'' + escJS(p.id) + '\')">relatório</button>'
         + (p.tipo === 'mgpr'
             ? ' <button class="mgn-btn2" onclick="mgNpsVerRetorno(\'' + escJS(p.id) + '\')">ver retorno</button>'
             : '')
@@ -30054,99 +30103,304 @@ window.mgzQuemEh        = mgzQuemEh;
   /* ---------------------------------------------------------------------
      As respostas, na tela da equipe
 
-     Elas existiam só atrás de um botão que abria o formulário em modo de
-     leitura. Quem abre o painel de um cliente quer ler o que ele escreveu
-     sem sair do lugar, então o bloco vive aqui, com uma aba por pesquisa
-     respondida. Continua sendo aba interna: o cliente não alcança esta
-     tela, e o retorno que ele recebe é outro.
+     O painel não despeja mais as respostas cruas: mostra uma linha por
+     pesquisa respondida, e o clique abre o relatório. O relatório é o
+     documento que se lê de relance: MGPI, farol e nota em números
+     grandes, radar dos pilares, uma barra por pergunta com a cor da
+     faixa, a frase que o cliente escolheu em cada pilar, a evolução
+     entre rodadas, e no fim a leitura da Modesto, gerada pela função
+     cip-leitura e guardada na tabela interna. Sai em PDF pelo mesmo
+     Salvar em PDF do resto. Continua sendo tela interna.
      --------------------------------------------------------------------- */
+  let RELATORIO_ID = null;
+
   function respostasHTML(cid){
     const feitas = doCliente(cid).filter(p => p.status === 'respondido')
       .sort((a, b) => new Date(b.respondido_em || b.enviado_em) - new Date(a.respondido_em || a.enviado_em));
     if(!feitas.length){
-      return '<section class="mgn-bloco"><header><h2>Respostas do cliente</h2></header>'
+      return '<section class="mgn-bloco" id="mgn-respostas"><header><h2>Respostas do cliente</h2></header>'
         + '<div class="mgn-vazio">Nenhuma pesquisa respondida ainda. '
-        + 'Quando o cliente enviar, as respostas aparecem aqui, sem precisar abrir o formulário.'
+        + 'Quando o cliente enviar, o relatório de cada resposta aparece aqui.'
         + '</div></section>';
     }
-    const atual = feitas.find(p => p.id === LENDO_ID) || feitas[0];
-    const spec  = specDe(atual);
-    const r     = atual.respostas || {};
-
-    const abas = '<div class="mgn-abas" style="padding:14px 20px 0">' + feitas.map(p=>{
-      const s = specDe(p);
-      return '<button class="' + (p.id === atual.id ? 'on' : '') + '"'
-        + ' onclick="mgNpsLer(\'' + escJS(p.id) + '\')">' + esc(s.nome)
-        + (p.rodada > 1 ? ' · ' + p.rodada + 'ª' : '') + '</button>';
-    }).join('') + '</div>';
-
-    /* uma seção por aba do questionário, na ordem em que ele foi respondido.
-       Pergunta sem resposta aparece como não respondida, em vez de sumir: a
-       ausência também é informação para quem vai para o kickoff. */
-    const secoes = spec.abas.filter(a => !a.recap).map(a=>{
-      const linhas = (a.perguntas || []).map(q=>{
-        const v = r[q.id];
-        const txt = preenchida(v) ? valorTexto(v) : null;
-        return '<tr><td style="width:38%"><b>' + esc(q.rot) + '</b>'
-          + (q.opcional ? ' <span class="opc">opcional</span>' : '') + '</td>'
-          + '<td style="white-space:pre-wrap">'
-          + (txt == null
-              ? '<span style="color:var(--muted2)">não respondida</span>'
-              : esc(txt))
-          + '</td></tr>';
-      }).join('');
-      return '<div style="padding:0 0 6px"><div style="padding:14px 20px 6px;font-size:10.5px;'
-        + 'font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted2)">'
-        + esc(a.titulo) + '</div>'
-        + '<table class="mgn-tab"><tbody>' + linhas + '</tbody></table></div>';
-    }).join('');
-
-    const anexos = (atual.anexos || []).length
-      ? '<div style="padding:14px 20px"><div style="font-size:10.5px;font-weight:700;'
-        + 'letter-spacing:.6px;text-transform:uppercase;color:var(--muted2);margin-bottom:8px">'
-        + 'Materiais enviados</div><div class="mgn-anexos">'
-        + atual.anexos.map((x, i) => '<div class="mgn-anexo"><span>📎</span>'
-            + '<span class="nm">' + esc(x.nome || 'arquivo') + '</span>'
-            + '<button class="mgn-btn2" style="padding:5px 11px;font-size:12px"'
-            + ' onclick="mgNpsBaixar(\'' + escJS(atual.id) + '\', ' + i + ')">abrir</button></div>').join('')
-        + '</div></div>'
-      : '';
-
-    const quando = atual.respondido_em
-      ? new Date(atual.respondido_em).toLocaleDateString('pt-BR') : '—';
-    const nomeEmp = (typeof clientName === 'function') ? (clientName(atual.client_id) || '') : '';
-    const folhaCab = '<div class="mgn-so-print">' + esc(nomeEmp ? nomeEmp + ' · ' : '')
-      + esc(spec.nome) + (atual.rodada > 1 ? ' · ' + atual.rodada + 'ª rodada' : '')
-      + ' · respondida em ' + esc(quando) + '</div>';
-
+    const linha = p => {
+      const spec = specDe(p);
+      const quando = p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—';
+      const lida = !!internoDe(p.id).leitura;
+      const m = p.tipo === 'mgpr' ? mgpi(p.respostas) : null;
+      const f = farol(m);
+      return '<tr class="clicavel" onclick="mgNpsRelatorio(\'' + escJS(p.id) + '\')">'
+        + '<td><b>' + esc(spec.nome) + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</b>'
+        + '<br><span style="font-size:11.5px;color:var(--muted2)">respondida em ' + esc(quando)
+        + (lida ? ' · com leitura da Modesto' : ' · sem leitura ainda') + '</span></td>'
+        + '<td class="n oculta-cel">' + (p.tipo === 'mgpr'
+            ? '<span class="mgn-farol ' + f.k + '">' + esc(m == null ? 'sem nota' : 'MGPI ' + nota2(m)) + '</span>' : '') + '</td>'
+        + '<td class="n"><button class="mgn-btn2" onclick="event.stopPropagation();mgNpsRelatorio(\'' + escJS(p.id) + '\')">abrir relatório</button></td>'
+        + '</tr>';
+    };
     return '<section class="mgn-bloco" id="mgn-respostas">'
-      + '<header><h2>Respostas do cliente</h2>'
-      + '<span class="n">respondida em ' + esc(quando) + '</span>'
-      + '<button class="mgn-btn2" style="margin-left:auto;padding:6px 12px;font-size:12px"'
-      + ' onclick="mgNpsImprimirRespostas()">Salvar em PDF</button></header>'
-      + folhaCab + abas + secoes + anexos
+      + '<header><h2>Respostas do cliente</h2><span class="n">' + feitas.length + '</span></header>'
+      + '<table class="mgn-tab"><tbody>' + feitas.map(linha).join('') + '</tbody></table>'
       + '</section>';
   }
+  window.mgNpsRelatorio = function(id){
+    RELATORIO_ID = id || null;
+    desenhar();
+    try{ const c = document.querySelector('.content'); if(c) c.scrollTo({top:0}) }catch(e){}
+    try{ window.scrollTo({top:0}) }catch(e){}
+  };
+  window.mgNpsFecharRelatorio = function(){ RELATORIO_ID = null; desenhar() };
+  /* compatível com o atalho antigo: abre o relatório da pesquisa */
+  window.mgNpsLer = function(id){ window.mgNpsRelatorio(id) };
 
-  /* a folha das respostas: o mesmo Salvar em PDF do retorno, para o
-     Pré-Discovery e o Client Discovery, que não têm retorno. A classe
+  /* ---- os gráficos, em SVG puro: imprimem e não dependem de nada ---- */
+  const COR = {baixa:'#D95D39', media:'#C7871E', alta:'#2E9E6B', neutra:'#9a927f'};
+  function corDe(v){ const f = faixaDe(v); return f ? COR[f] : COR.neutra }
+
+  function svgDonut(v, rot, sub){
+    const raio = 44, circ = 2 * Math.PI * raio;
+    const pc = v == null ? 0 : Math.max(0, Math.min(1, v / 10));
+    const cor = corDe(v);
+    return '<div class="rel-donut"><svg viewBox="0 0 120 120" width="118" height="118" role="img" aria-label="' + esc(rot) + '">'
+      + '<circle cx="60" cy="60" r="' + raio + '" fill="none" stroke="var(--line)" stroke-width="12"/>'
+      + '<circle cx="60" cy="60" r="' + raio + '" fill="none" stroke="' + cor + '" stroke-width="12" stroke-linecap="round"'
+      + ' stroke-dasharray="' + (circ * pc).toFixed(1) + ' ' + circ.toFixed(1) + '" transform="rotate(-90 60 60)"/>'
+      + '<text x="60" y="66" text-anchor="middle" font-size="26" font-weight="600" fill="' + cor + '" font-family="Fraunces,Georgia,serif">'
+      + esc(v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','))) + '</text>'
+      + '</svg><div class="rot">' + esc(rot) + '</div>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+
+  const CURTO = {confianca:'Confiança', valor:'Valor', execucao:'Execução', impacto:'Impacto', futuro:'Futuro'};
+  function svgRadar(pl){
+    const n = pl.length, cx = 190, cy = 150, R = 100;
+    const ang = i => -Math.PI / 2 + i * 2 * Math.PI / n;
+    const pt = (i, v) => [cx + R * (v / 10) * Math.cos(ang(i)), cy + R * (v / 10) * Math.sin(ang(i))];
+    const anel = k => pl.map((_, i) => pt(i, k).map(x => x.toFixed(1)).join(',')).join(' ');
+    const dados = pl.map((x, i) => pt(i, x.v == null ? 0 : x.v).map(v => v.toFixed(1)).join(',')).join(' ');
+    return '<svg viewBox="0 0 380 300" class="rel-radar" role="img" aria-label="Radar dos pilares">'
+      + [2.5, 5, 7.5, 10].map(k => '<polygon points="' + anel(k) + '" fill="none" stroke="var(--line2)" stroke-width="1"/>').join('')
+      + '<polygon points="' + anel(8) + '" fill="none" stroke="' + COR.alta + '" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>'
+      + pl.map((_, i) => { const [x, y] = pt(i, 10); return '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="var(--line2)" stroke-width="1"/>' }).join('')
+      + '<polygon points="' + dados + '" fill="rgba(194,161,91,.28)" stroke="var(--brass)" stroke-width="2.5" stroke-linejoin="round"/>'
+      + pl.map((x, i) => { const [px, py] = pt(i, x.v == null ? 0 : x.v);
+          return '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="4.5" fill="' + corDe(x.v) + '" stroke="var(--card)" stroke-width="2"/>' }).join('')
+      + pl.map((x, i) => { const [lx, ly] = pt(i, 12.6);
+          const anc = Math.abs(Math.cos(ang(i))) < .2 ? 'middle' : Math.cos(ang(i)) > 0 ? 'start' : 'end';
+          return '<text x="' + lx.toFixed(1) + '" y="' + (ly + 4).toFixed(1) + '" text-anchor="' + anc + '" font-size="11" fill="var(--muted)" font-family="inherit">'
+            + esc(CURTO[x.id] || x.rot) + ' ' + esc(nota1(x.v)) + '</text>' }).join('')
+      + '</svg>';
+  }
+
+  function barrasHTML(itens){
+    return '<div class="rel-barras">' + itens.map(it => {
+      const v = it.v, pc = v == null ? 0 : Math.round(10 * v);
+      return '<div class="rel-barra"><span class="rot">' + esc(it.rot) + '</span>'
+        + '<span class="bar"><i style="width:' + pc + '%;background:' + corDe(v) + '"></i></span>'
+        + '<span class="v" style="color:' + corDe(v) + '">' + esc(v == null ? '—' : String(v)) + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function svgEvolucao(l){
+    /* MGPI por rodada; só faz sentido com duas ou mais */
+    if(l.length < 2) return '';
+    const W = 520, H = 170, px = 40, py = 18;
+    const xs = i => px + i * (W - px - 16) / (l.length - 1);
+    const ys = v => py + (H - py - 28) * (1 - v / 10);
+    const pts = l.map((p, i) => [xs(i), ys(p.m == null ? 0 : p.m)]);
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="rel-evol" role="img" aria-label="Evolução do MGPI">'
+      + [0, 5, 7, 8, 10].map(k => '<line x1="' + px + '" y1="' + ys(k).toFixed(1) + '" x2="' + (W - 16) + '" y2="' + ys(k).toFixed(1)
+          + '" stroke="' + (k === 7 ? COR.media : k === 8 ? COR.alta : 'var(--line)') + '" stroke-width="1"' + (k === 7 || k === 8 ? ' stroke-dasharray="3 4"' : '') + '/>'
+          + '<text x="' + (px - 6) + '" y="' + (ys(k) + 4).toFixed(1) + '" text-anchor="end" font-size="10" fill="var(--muted2)">' + k + '</text>').join('')
+      + '<polyline points="' + pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ') + '" fill="none" stroke="var(--brass)" stroke-width="2.5" stroke-linejoin="round"/>'
+      + pts.map((p, i) => '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="5" fill="' + corDe(l[i].m) + '" stroke="var(--card)" stroke-width="2"/>'
+          + '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] - 10).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)">' + esc(nota2(l[i].m)) + '</text>'
+          + '<text x="' + p[0].toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10.5" fill="var(--muted)">' + esc(l[i].rot) + '</text>').join('')
+      + '</svg>';
+  }
+
+  /* ---- a leitura da Modesto: texto do modelo, com títulos "## " e itens "- " ---- */
+  function leituraHTML(txt){
+    const linhas = String(txt || '').split(/\r?\n/);
+    let html = '', lista = false;
+    const fecha = () => { if(lista){ html += '</ul>'; lista = false } };
+    linhas.forEach(l => {
+      const t = l.trim();
+      if(!t) return;
+      if(/^##\s+/.test(t)){ fecha(); html += '<h4>' + esc(t.replace(/^##\s+/, '')) + '</h4>'; return }
+      if(/^[-•*]\s+/.test(t)){ if(!lista){ html += '<ul>'; lista = true } html += '<li>' + esc(t.replace(/^[-•*]\s+/, '')) + '</li>'; return }
+      fecha(); html += '<p>' + esc(t) + '</p>';
+    });
+    fecha();
+    return html;
+  }
+  /* o dossiê que vai para o modelo: perguntas e respostas com os rótulos
+     da tela, mais os números da planilha e o que o cliente disse antes */
+  function dossieDe(p){
+    const spec = specDe(p), r = p.respostas || {};
+    const nomeEmp = (typeof clientName === 'function') ? clientName(p.client_id) : '';
+    const emp = (typeof CLIENTS !== 'undefined' ? CLIENTS : []).find(c => c.id === p.client_id);
+    const L = [];
+    L.push('Cliente: ' + nomeEmp + (emp && emp.resumo ? ' (' + String(emp.resumo).slice(0, 300) + ')' : ''));
+    L.push('Pesquisa: ' + spec.nome + ', rodada ' + p.rodada + ', respondida em '
+      + (p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—') + '.');
+    if(p.tipo === 'mgpr'){
+      const pl = pilares(r), m = mgpi(r), n = num(r.nps_nota);
+      L.push('Números calculados: MGPI ' + nota2(m) + ' (' + (classificacao(m) || 'sem') + ', farol ' + farol(m).rot + ')'
+        + ', nota de recomendação ' + (n == null ? '—' : n) + ' (' + (n == null ? '' : n >= 9 ? 'promotor' : n <= 6 ? 'detrator' : 'neutro') + ').');
+      L.push('Pilares: ' + pl.map(x => x.rot + ' ' + nota1(x.v)).join('; ') + '.');
+      if(p.com_discovery === false) L.push('Cliente sem discovery inicial: a seção de continuidade não foi perguntada.');
+    }
+    spec.abas.filter(a => !a.recap).forEach(a => {
+      L.push(''); L.push('[' + a.titulo + ']');
+      (a.perguntas || []).forEach(q => {
+        if(q.tipo === 'motivo' && !preenchida(r[q.id]) && !visivel(q, r)) return;
+        const v = r[q.id];
+        L.push('- ' + q.rot + ': ' + (preenchida(v) ? valorTexto(v).replace(/\n/g, ' / ') : '(em branco)'));
+      });
+    });
+    if(p.tipo === 'mgpr'){
+      const cont = internoDe(p.id).continuidade || [];
+      if(cont.length){
+        L.push(''); L.push('[O que o cliente disse no discovery, no início da parceria]');
+        cont.forEach(c => L.push('- ' + c.item + ': ' + (c.inicio || '(não respondido)')));
+      }
+    }
+    return L.join('\n').slice(0, 23000);
+  }
+  let LENDO_IA = null;   /* id da pesquisa cuja leitura está sendo gerada */
+  window.mgNpsGerarLeitura = async function(id){
+    const p = LISTA.find(x => x.id === id); if(!p || LENDO_IA) return;
+    LENDO_IA = id; desenhar();
+    try{
+      const {data, error} = await sb.functions.invoke('cip-leitura', {body:{tipo:p.tipo, dossie:dossieDe(p)}});
+      let r = data;
+      if(error){
+        try{ const j = await error.context.json(); if(j && typeof j.ok !== 'undefined') r = j }catch(_){}
+        if(!r) r = {ok:false, codigo:'rede', erro:'Não consegui falar com o servidor: ' + ((error && error.message) || 'falha de rede') + '.'};
+      }
+      if(!r || !r.ok){
+        const msg = (r && r.erro) || 'A leitura não veio.';
+        await salvarInterno(id, {leitura_erro:{codigo:(r && r.codigo) || 'erro', erro:msg, em:new Date().toISOString()}});
+        toast(msg);
+      }else{
+        const por = (typeof ME !== 'undefined' && ME && ME.name) ? String(ME.name) : '';
+        await salvarInterno(id, {leitura:{texto:String(r.texto || ''), modelo:r.modelo || '', em:new Date().toISOString(), por}, leitura_erro:null});
+        toast('Leitura gerada e guardada.');
+      }
+    }catch(e){
+      toast('Não foi possível gerar a leitura: ' + ((e && e.message) || ''));
+    }finally{
+      LENDO_IA = null; desenhar();
+    }
+  };
+
+  function relatorioHTML(p){
+    const spec = specDe(p), r = p.respostas || {};
+    const nomeEmp = (typeof clientName === 'function') ? clientName(p.client_id) : '';
+    const quando = p.respondido_em ? new Date(p.respondido_em).toLocaleDateString('pt-BR') : '—';
+    const interno = internoDe(p.id);
+    const lendo = LENDO_IA === p.id;
+
+    const topo = '<div class="rel-topo">'
+      + '<button class="mgn-btn2" onclick="mgNpsFecharRelatorio()">← Voltar ao painel</button>'
+      + '<div class="rel-tit"><div class="et">' + esc(nomeEmp) + ' · respondida em ' + esc(quando) + '</div>'
+        + '<h1>' + esc(spec.nome) + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + '</h1></div>'
+      + '<div class="rel-acoes">'
+        + '<button class="mgn-btn2" onclick="mgNpsImprimirRespostas()">Salvar em PDF</button>'
+        + '<button class="btn-p" ' + (lendo ? 'disabled' : '') + ' onclick="mgNpsGerarLeitura(\'' + escJS(p.id) + '\')">'
+          + (lendo ? 'Gerando leitura…' : (interno.leitura ? 'Gerar leitura de novo' : 'Gerar leitura da Modesto')) + '</button>'
+      + '</div></div>';
+
+    let corpo = '';
+    if(p.tipo === 'mgpr'){
+      const pl = pilares(r), m = mgpi(r), n = num(r.nps_nota), f = farol(m);
+      const notas = spec.abas.flatMap(a => (a.perguntas || []).filter(q => q.tipo === 'nota')
+        .map(q => ({rot: q.rot.length > 46 ? a.titulo + ': ' + q.rot.slice(0, 44) + '…' : q.rot, v: num(r[q.id])})));
+      const rodadas = respondidas(p.client_id, 'mgpr').slice().sort((a, b) => a.rodada - b.rodada)
+        .map(x => ({rot: x.rodada + 'ª', m: mgpi(x.respostas)}));
+      const citacao = (rot, txt, v) => '<div class="rel-cita" style="border-left-color:' + corDe(v) + '">'
+        + '<div class="rot">' + esc(rot) + ' <span style="color:' + corDe(v) + '">' + esc(nota1(v)) + '</span></div>'
+        + '<p>' + (txt ? '“' + esc(txt) + '”' : '<span style="color:var(--muted2)">sem motivo escolhido</span>') + '</p></div>';
+
+      corpo += '<div class="rel-kpis">'
+        + svgDonut(m, 'MGPI', classificacao(m) || 'sem respostas')
+        + svgDonut(n, 'Recomendação', n == null ? '' : n >= 9 ? 'promotor' : n <= 6 ? 'detrator' : 'neutro')
+        + '<div class="rel-farol"><span class="mgn-farol ' + f.k + '" style="font-size:15px;padding:8px 14px">' + esc(f.rot) + '</span>'
+          + '<div class="rot">Farol</div><div class="sub">' + esc(acaoRecomendada(m) || '') + '</div></div>'
+        + '<div class="rel-perc"><b>' + esc(String(r.valor_percepcao || '—')) + '</b><div class="rot">Como ele nos vê hoje</div>'
+          + (temasDe(r).length ? '<div class="chips">' + temasDe(r).map(t => '<span>' + esc(t) + '</span>').join('') + '</div>' : '') + '</div>'
+        + '</div>'
+        + '<div class="rel-grade">'
+        + '<section class="mgn-bloco"><header><h2>Pilares</h2><span class="n">linha pontilhada = 8, a meta</span></header>'
+          + '<div class="mgn-corpo" style="align-items:center">' + svgRadar(pl) + '</div></section>'
+        + '<section class="mgn-bloco"><header><h2>Pergunta por pergunta</h2></header>'
+          + '<div class="mgn-corpo">' + barrasHTML(notas) + '</div></section>'
+        + '</div>'
+        + '<section class="mgn-bloco"><header><h2>Nas palavras do cliente</h2><span class="n">a frase que ele escolheu em cada pilar</span></header>'
+          + '<div class="mgn-corpo rel-citas">'
+          + pl.map(x => citacao(x.rot, r[PILAR_META[x.id].motivo], x.v)).join('')
+          + citacao('Recomendação', r.nps_motivo, n)
+          + '</div>'
+          + ((r.continuidade_endereca || r.continuidade_pendencia || r.nps_comentario)
+              ? '<table class="mgn-tab"><tbody>'
+                + (r.continuidade_endereca ? '<tr><td style="width:34%"><b>Prioridades do início endereçadas?</b></td><td>' + esc(r.continuidade_endereca) + '</td></tr>' : '')
+                + (r.continuidade_pendencia ? '<tr><td><b>Pendência apontada</b></td><td style="white-space:pre-wrap">' + esc(r.continuidade_pendencia) + '</td></tr>' : '')
+                + (r.nps_comentario ? '<tr><td><b>Comentário adicional</b></td><td style="white-space:pre-wrap">' + esc(r.nps_comentario) + '</td></tr>' : '')
+                + '</tbody></table>' : '')
+          + '</section>'
+        + (rodadas.length >= 2
+            ? '<section class="mgn-bloco"><header><h2>Evolução do MGPI</h2><span class="n">' + rodadas.length + ' rodadas</span></header>'
+              + '<div class="mgn-corpo">' + svgEvolucao(rodadas) + '</div></section>' : '');
+    }else{
+      /* discovery: texto, não nota. Uma coluna por seção, resposta por resposta. */
+      corpo += '<div class="rel-secoes">' + spec.abas.filter(a => !a.recap).map(a =>
+        '<section class="mgn-bloco"><header><h2>' + esc(a.titulo) + '</h2></header>'
+        + '<div class="mgn-corpo rel-qa">'
+        + (a.perguntas || []).map(q => {
+            const v = r[q.id];
+            return '<div class="rel-q"><div class="rot">' + esc(q.rot) + '</div>'
+              + (preenchida(v) ? '<p>' + esc(valorTexto(v)) + '</p>'
+                               : '<p class="vazia">não respondida</p>') + '</div>';
+          }).join('')
+        + '</div></section>').join('') + '</div>';
+    }
+
+    const anexos = (p.anexos || []).length
+      ? '<section class="mgn-bloco"><header><h2>Materiais enviados</h2></header><div class="mgn-corpo"><div class="mgn-anexos">'
+        + p.anexos.map((x, i) => '<div class="mgn-anexo"><span>📎</span><span class="nm">' + esc(x.nome || 'arquivo') + '</span>'
+            + '<button class="mgn-btn2" style="padding:5px 11px;font-size:12px" onclick="mgNpsBaixar(\'' + escJS(p.id) + '\', ' + i + ')">abrir</button></div>').join('')
+        + '</div></div></section>' : '';
+
+    const lei = interno.leitura;
+    const erro = interno.leitura_erro;
+    const leitura = '<section class="mgn-bloco rel-leitura"><header><h2>Leitura da Modesto</h2>'
+      + '<span class="n">' + (lei ? 'gerada em ' + esc(new Date(lei.em).toLocaleDateString('pt-BR'))
+          + (lei.por ? ' por ' + esc(String(lei.por).split(' ')[0]) : '') : 'uso interno') + '</span></header>'
+      + '<div class="mgn-corpo">'
+      + (lendo ? '<div class="mgn-vazio" style="padding:0"><span class="mg-pontinhos">lendo as respostas</span></div>'
+        : lei ? '<div class="rel-texto">' + leituraHTML(lei.texto) + '</div>'
+        : '<div class="mgn-vazio" style="padding:0">Ainda sem leitura. O botão acima manda as respostas para a IA, que devolve o que o '
+          + 'cliente quis dizer, o que pesa, o que sustenta, hipóteses, perguntas para a próxima reunião e ações. '
+          + 'O texto fica guardado aqui, só para a equipe.'
+          + (erro ? '<br><br><b style="color:var(--danger)">Última tentativa falhou:</b> ' + esc(erro.erro || '') : '')
+          + '</div>')
+      + '</div></section>';
+
+    return '<div class="mgn-rel" id="mgn-relatorio">'
+      + '<div class="mgn-so-print">' + esc(nomeEmp) + ' · ' + esc(spec.nome)
+        + (p.rodada > 1 ? ' · ' + p.rodada + 'ª rodada' : '') + ' · respondida em ' + esc(quando) + '</div>'
+      + topo + corpo + anexos + leitura + '</div>';
+  }
+
+  /* a folha do relatório: o mesmo Salvar em PDF do retorno. A classe
      mgn-folha só existe durante a impressão; a folha de estilo de papel
      esconde o resto da tela e mostra o cabeçalho de papel. */
   window.mgNpsImprimirRespostas = function(){
-    const sec = document.getElementById('mgn-respostas'); if(!sec) return;
+    const sec = document.getElementById('mgn-relatorio'); if(!sec) return;
     sec.classList.add('mgn-folha');
     const tirar = ()=>{ sec.classList.remove('mgn-folha'); window.removeEventListener('afterprint', tirar) };
     window.addEventListener('afterprint', tirar);
     try{ window.print() }finally{ setTimeout(tirar, 1500) }
-  };
-
-  window.mgNpsLer = function(id){
-    LENDO_ID = id || null;
-    desenhar();
-    try{
-      const el = document.getElementById('mgn-respostas');
-      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
-    }catch(e){}
   };
 
   /* o anexo vive no bucket privado; abre por URL assinada, como os documentos */
@@ -30195,7 +30449,7 @@ window.mgzQuemEh        = mgzQuemEh;
             + '</div></div>');
   }
 
-  window.mgNpsCliente = function(cid){ CLI = cid || null; LENDO_ID = null; desenhar() };
+  window.mgNpsCliente = function(cid){ CLI = cid || null; LENDO_ID = null; RELATORIO_ID = null; desenhar() };
   window.mgNpsEnviarPesquisa = async function(tipo){
     if(!CLI) return;
     const ja = ultima(CLI, tipo);
@@ -30277,7 +30531,8 @@ window.mgzQuemEh        = mgzQuemEh;
       miolo = '<div class="mgn-bloco"><div class="mgn-vazio">'
         + '<span class="mg-pontinhos">carregando</span></div></div>';
     }else{
-      miolo = CLI ? painelHTML(CLI) : visaoGeralHTML();
+      const rel = RELATORIO_ID ? LISTA.find(x => x.id === RELATORIO_ID) : null;
+      miolo = rel ? relatorioHTML(rel) : CLI ? painelHTML(CLI) : visaoGeralHTML();
     }
 
     return '<div class="mgn">'
@@ -30413,7 +30668,7 @@ window.mgzQuemEh        = mgzQuemEh;
       return;
     }
     /* sair da aba limpa o que estava aberto, senão voltar traz o formulário */
-    if(VIEW === 'nps'){ FORM = null; SNAP = null }
+    if(VIEW === 'nps'){ FORM = null; SNAP = null; RELATORIO_ID = null }
     return _sv(v);
   };
   const _rd = render;

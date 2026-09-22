@@ -364,38 +364,83 @@ ok('17 o CAP nasce só com o pilar abaixo de 8, com a ação da planilha, e vira
    && cap.criou && cap.titulo==='CAP · Cliente Um · Excelência na execução' && cap.clienteInterno && cap.guardou,
    JSON.stringify(cap));
 
-/* ---- as respostas do cliente, na tela da equipe ---- */
+/* ---- as respostas do cliente: lista no painel, relatório ao clique ---- */
 const resp = await page.evaluate(()=>{
   const sec = document.getElementById('mgn-respostas');
   return {
     existe: !!sec,
-    abas: [...(sec ? sec.querySelectorAll('.mgn-abas button') : [])].map(b=>b.textContent.trim()),
-    ativa: (sec ? (sec.querySelector('.mgn-abas button.on')||{}).textContent : '' ) || '',
-    texto: sec ? sec.textContent : '',
-    palavras: (document.querySelector('#v-nps .mgn-bloco h2 + .n')||{}).textContent,
-    corpo: document.getElementById('v-nps').textContent,
+    linhas: [...(sec ? sec.querySelectorAll('tbody tr') : [])].map(tr=>tr.querySelector('b').textContent.trim()),
+    botoes: [...(sec ? sec.querySelectorAll('button') : [])].map(b=>b.textContent.trim()),
+    cruas: /Quanto você confia nas recomendações/.test(sec ? sec.textContent : ''),
+    semLeitura: /sem leitura ainda/.test(sec ? sec.textContent : ''),
   };
 });
-ok('18 as respostas do cliente aparecem no painel da equipe, sem abrir o formulário',
-   resp.existe && resp.abas.length === 3
-   && /Revisão de Parceria/.test(resp.ativa), JSON.stringify({abas:resp.abas, ativa:resp.ativa}));
+ok('18 o painel lista as respostas em uma linha por pesquisa, sem despejar as respostas cruas',
+   resp.existe && resp.linhas.length === 3 && /Revisão de Parceria/.test(resp.linhas[0])
+   && resp.botoes.every(b=>b==='abrir relatório') && !resp.cruas && resp.semLeitura, JSON.stringify(resp));
 
-const c19 = {motivoNps:/Já recomendei a Modesto para outras empresas/.test(resp.texto), temaIA:/IA/.test(resp.texto),
-   motivoExec:/Tivemos atrasos que impactaram o cronograma/.test(resp.corpo),
-   palavras:/As decisões costumam ser bem embasadas e isso me dá segurança/.test(resp.corpo)};
-ok('19 o bloco mostra pergunta e resposta, e "nas palavras do cliente" traz o motivo de cada pilar',
-   Object.values(c19).every(Boolean), JSON.stringify(c19) + ' ' + resp.texto.slice(0, 120));
+const rel = await page.evaluate(()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
+  mgNpsRelatorio(p.id);
+  const r = document.getElementById('mgn-relatorio');
+  const t = r ? r.textContent : '';
+  return {
+    existe: !!r,
+    titulo: (r.querySelector('.rel-tit h1')||{}).textContent,
+    donuts: r.querySelectorAll('.rel-donut').length,
+    mgpiNoDonut: (r.querySelector('.rel-donut text')||{}).textContent,
+    radar: !!r.querySelector('.rel-radar'),
+    barras: r.querySelectorAll('.rel-barra').length,
+    citas: r.querySelectorAll('.rel-cita').length,
+    motivoExec: /Tivemos atrasos que impactaram o cronograma/.test(t),
+    palavras: /As decisões costumam ser bem embasadas e isso me dá segurança/.test(t),
+    temaIA: /IA/.test(t),
+    semLeitura: /Ainda sem leitura/.test(t),
+    botoes: [...r.querySelectorAll('.rel-acoes button')].map(b=>b.textContent.trim()),
+    painelSumiu: !document.querySelector('#v-nps .mgn-cap'),
+  };
+});
+ok('19 o relatório abre no lugar do painel: MGPI, radar, uma barra por pergunta, a frase de cada pilar',
+   rel.existe && /Revisão de Parceria/.test(rel.titulo) && rel.donuts===2 && rel.mgpiNoDonut==='8,20'
+   && rel.radar && rel.barras===10 && rel.citas===6 && rel.motivoExec && rel.palavras && rel.temaIA
+   && rel.semLeitura && rel.botoes.join('|')==='Salvar em PDF|Gerar leitura da Modesto' && rel.painelSumiu,
+   JSON.stringify(rel));
+
+/* a leitura da Modesto: vai para a função, volta, fica guardada na tabela interna */
+const lei = await page.evaluate(async ()=>{
+  const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='mgpr');
+  await mgNpsGerarLeitura(p.id);
+  await new Promise(r=>setTimeout(r,200));
+  const r = document.getElementById('mgn-relatorio');
+  const i = __FIX.mgp_pesquisas_interno.find(x=>x.pesquisa_id===p.id);
+  const enviado = window.__LEITURA_ULTIMO || {};
+  return {tipo: enviado.tipo, dossieTemNumeros: /MGPI 8,20/.test(enviado.dossie||''),
+          dossieTemRespostas: /Tivemos atrasos que impactaram o cronograma/.test(enviado.dossie||''),
+          dossieTemDiscovery: /CAC subindo e margem caindo no retargeting/.test(enviado.dossie||''),
+          titulos: [...r.querySelectorAll('.rel-texto h4')].map(h=>h.textContent),
+          itens: r.querySelectorAll('.rel-texto li').length,
+          guardou: !!(i && i.dados.leitura && /O cliente confia no time/.test(i.dados.leitura.texto)),
+          botao: (r.querySelector('.rel-acoes .btn-p')||{}).textContent};
+});
+ok('19b a leitura da Modesto é gerada a partir do dossiê completo e fica guardada só na tabela interna',
+   lei.tipo==='mgpr' && lei.dossieTemNumeros && lei.dossieTemRespostas && lei.dossieTemDiscovery
+   && lei.titulos.length===6 && lei.titulos[0]==='Em três linhas' && lei.itens===8 && lei.guardou
+   && /Gerar leitura de novo/.test(lei.botao), JSON.stringify(lei));
 
 const trocou = await page.evaluate(()=>{
+  mgNpsFecharRelatorio();
+  const voltou = !!document.querySelector('#v-nps .mgn-cap') && !document.getElementById('mgn-relatorio');
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
-  mgNpsLer(p.id);
-  const sec = document.getElementById('mgn-respostas');
-  return {ativa:(sec.querySelector('.mgn-abas button.on')||{}).textContent, texto:sec.textContent};
+  mgNpsRelatorio(p.id);
+  const r = document.getElementById('mgn-relatorio');
+  return {voltou, titulo:(r.querySelector('.rel-tit h1')||{}).textContent, texto:r.textContent,
+          semGrafico: !r.querySelector('.rel-radar'), perguntas: r.querySelectorAll('.rel-q').length};
 });
-ok('20 trocar de aba mostra as respostas daquela pesquisa',
-   /Pré-Discovery/.test(trocou.ativa)
-   && /CAC subindo e margem caindo no retargeting/.test(trocou.texto),
-   JSON.stringify({ativa:trocou.ativa}));
+ok('20 voltar devolve o painel, e o relatório do Pré-Discovery é pergunta e resposta, sem gráfico',
+   trocou.voltou && /Pré-Discovery/.test(trocou.titulo)
+   && /CAC subindo e margem caindo no retargeting/.test(trocou.texto) && trocou.semGrafico && trocou.perguntas===12,
+   JSON.stringify({voltou:trocou.voltou, titulo:trocou.titulo, perguntas:trocou.perguntas}));
+await page.evaluate(()=>mgNpsFecharRelatorio());
 
 const carteira = await page.evaluate(()=>{
   mgNpsCliente('');
@@ -411,8 +456,8 @@ await page.evaluate(()=>mgNpsCliente('c-1'));   /* o caso 21 deixou a visão ger
 await page.waitForTimeout(400);
 const folha = await page.evaluate(()=>{
   const p = __FIX.mgp_pesquisas.find(x=>x.tipo==='pre_discovery');
-  mgNpsLer(p.id);
-  const sec = document.getElementById('mgn-respostas');
+  mgNpsRelatorio(p.id);
+  const sec = document.getElementById('mgn-relatorio');
   const botao = [...sec.querySelectorAll('button')].find(b=>/Salvar em PDF/.test(b.textContent));
   const _p = window.print; let duranteImpressao = null;
   window.print = ()=>{ duranteImpressao = sec.classList.contains('mgn-folha') };
@@ -429,8 +474,8 @@ const folha = await page.evaluate(()=>{
           cabecalhoSoNoPapel: cab ? getComputedStyle(cab).display === 'none' : false};
 });
 await page.waitForTimeout(1700);
-const folhaLimpa = await page.evaluate(()=>!document.getElementById('mgn-respostas').classList.contains('mgn-folha'));
-ok('24 as respostas têm Salvar em PDF, e a folha de papel mostra só elas, com o cabeçalho',
+const folhaLimpa = await page.evaluate(()=>{ const ok = !document.getElementById('mgn-relatorio').classList.contains('mgn-folha'); mgNpsFecharRelatorio(); return ok });
+ok('24 o relatório tem Salvar em PDF, e a folha de papel mostra só ele, com o cabeçalho',
    folha.temBotao && folha.duranteImpressao && folha.folhaVisivelNoPapel && folha.abasSomemNoPapel
    && /Cliente Um · Pré-Discovery · respondida em/.test(folha.cabecalho) && folha.cabecalhoSoNoPapel
    && folhaLimpa, JSON.stringify({...folha, folhaLimpa}));
@@ -444,7 +489,7 @@ const excluir = await page.evaluate(async ()=>{
   const pend = __FIX.mgp_pesquisas.find(p=>p.status==='enviado' && p.tipo==='pre_discovery');
   const linha = linhas().find(tr=>/aguardando o cliente/.test(tr.textContent));
   const botao = linha && [...linha.querySelectorAll('button')].find(b=>/excluir envio/.test(b.textContent));
-  const respondidaTemExcluir = linhas().some(tr=>/ler respostas/.test(tr.textContent) && /excluir envio/.test(tr.textContent));
+  const respondidaTemExcluir = linhas().some(tr=>/relatório/.test(tr.textContent) && /excluir envio/.test(tr.textContent));
   window.confirm = ()=>false; await mgNpsExcluirEnvio(pend.id);
   const cancelarNaoApaga = __FIX.mgp_pesquisas.length === antes;
   window.confirm = ()=>true; await mgNpsExcluirEnvio(pend.id);

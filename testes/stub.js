@@ -331,6 +331,14 @@
        falta de chave e falha na execução. */
     functions:{ invoke:(nome,opc)=>{
       const corpo=(opc&&opc.body)||{};
+      /* a leitura interna do CIP: devolve um texto no formato combinado */
+      if(nome==='cip-leitura'){
+        window.__LEITURA_ULTIMO=corpo;
+        if(window.__KRONOS_MODO==='sem_chave') return Promise.resolve({data:{ok:false,codigo:'sem_chave',
+          erro:'A leitura ainda não tem chave de IA configurada.'},error:null});
+        return Promise.resolve({data:{ok:true,tipo:'texto',modelo:'dublê',
+          texto:'## Em três linhas\n- O cliente confia no time, mas cobra prazo.\n- Vê valor estratégico.\n- Recomenda com ressalva.\n## O que pesa\n- Prazos e organização.\n## O que sustenta\n- Confiança nas recomendações.\n## Hipóteses de trabalho\n- Cadência de entrega irregular.\n## Perguntas para a próxima reunião\n- Qual atraso pesou mais?\n## Ações para as próximas duas semanas\n- Revisar o calendário de entregas.'},error:null});
+      }
       /* o teste precisa ver o que o front mandou, não só o que voltou:
          é assim que se prova que a opção de ler as conversas viaja */
       window.__KRONOS_ULTIMO=corpo;
