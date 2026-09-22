@@ -1,6 +1,6 @@
 /**
  * =====================================================================
- *  E-MAIL POR CONTA  |  conta.gs  ·  v3.2 (21/09/2026)
+ *  E-MAIL POR CONTA  |  conta.gs  ·  v3.3 (22/09/2026)
  *  Modesto Growth Partners
  * =====================================================================
  *
@@ -17,10 +17,16 @@
  *  some inteira, em vez de ficar um quadro "indisponível". Nada de "n/d" ou
  *  "sem meta cadastrada" ocupando lugar.
  *
- *  Layout: cabeçalho · cards (só os que existem) · Ontem · "No total, estou na
- *  meta?" · 3 faixas de ação · Pacing do mês · Gasto por dia 14d · Mix +
- *  Receita vs meta · ROAS 7d + Funil · Por plataforma · Tendências · Por
- *  campanha · 5 elefantes na sala · rodapé.
+ *  v3.3 (22/09/2026): "Boletim de ontem" antes dos gráficos (o que aconteceu
+ *  no dia, em 3 a 6 frases com número), gráfico "Receita do mês" (acumulada x
+ *  ideal da meta x projeção, o mesmo desenho do pacing) e Slack com o mesmo
+ *  conteúdo do e-mail executivo: blocos curtos por conta + gráfico de pacing
+ *  em imagem (enviarSlackVisual_, precisa de SLACK_BOT_TOKEN com files:write).
+ *
+ *  Layout: cabeçalho · cards (só os que existem) · Boletim de ontem · Ontem ·
+ *  "No total, estou na meta?" · 3 faixas de ação · Pacing do mês · Receita do
+ *  mês · Gasto por dia 14d · Mix + Receita vs meta · ROAS 7d + Funil · Por
+ *  plataforma · Tendências · Por campanha · 5 elefantes na sala · rodapé.
  *
  *  Os gráficos são PNG gerados pelo serviço Charts do Apps Script e vão como
  *  imagem embutida (cid:).
@@ -337,8 +343,8 @@ function montarHtmlConta_(ss, c, datas, tendencias, det, serie) {
   const projConta = temMedia7 ? investido + media7 * datas.diasRestantes : soma('proj');
 
   // Gráficos
-  const graf = graficosConta_(c, datas, serieConta, vs, plat, moeda, { budget: budget, investido: investido, projConta: projConta, metaRoas: metaRoas });
-  if (!temReceita) { delete graf.g4; delete graf.g5; }   // sem receita, sem gráfico de receita nem de ROAS
+  const graf = graficosConta_(c, datas, serieConta, vs, plat, moeda, { budget: budget, investido: investido, projConta: projConta, metaRoas: metaRoas, metaReceita: metaReceita, receita: receita, projReceita: projReceita });
+  if (!temReceita) { delete graf.g4; delete graf.g5; delete graf.g7; }   // sem receita, sem gráfico de receita nem de ROAS
 
   // ---- helpers de HTML
   const sec = (t, sub, extra) => '<tr><td style="padding:10px 28px 2px 28px;' + (extra || 'border-top:1px solid ' + M.linha) + '"><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:' + M.dourado + ';font-weight:bold">' + t +
@@ -383,8 +389,22 @@ function montarHtmlConta_(ss, c, datas, tendencias, det, serie) {
       (k.sub ? '<div style="font-size:10px;color:' + M.neutro + ';margin-top:2px">' + k.sub + '</div>' : '') + '</td>').join('') +
     '</tr></table></td></tr>';
 
-  // Ontem: conversões, receita (se houver) e gasto, contra a média de 7 dias
+  // Boletim de ontem: o que aconteceu, em frases com número, antes de qualquer gráfico
   const ont = resumoOntem_(serieConta, datas);
+  const faixasPre = faixasAcao_(c, vs, inconsistentes, plat, datas, fmtK);
+  const listaPre = (det && det.campanhas && det.campanhas[c.nome]) || [];
+  const totalPre = listaPre.reduce((a, x) => a + x.gasto, 0);
+  const metasPre = {}; vs.forEach(v => { metasPre[plataformaCanonica_(v.nome)] = { roas: v.metaRoas || 0, cpa: v.metaCpa || 0 }; });
+  const comVerPre = listaPre.map(x => { const mm = metasPre[x.plataforma] || { roas: 0, cpa: 0 }; const vd = veredito_(x, mm, totalPre, !!c.porCpa);
+    return Object.assign({}, x, { veredito: vd.veredito, motivo: vd.motivo, marca: vd.marca, share: totalPre ? x.gasto / totalPre : 0, meta_roas: mm.roas || null, meta_cpa: mm.cpa || null }); });
+  const elefPre = elefantes_(c, vs, inconsistentes, plat, comVerPre, (det && det.alteracoes && det.alteracoes[c.nome]) || [], datas, moeda, fmtKint);
+  const boletim = boletimOntem_(c, vs, plat, ont, datas, moeda, fmtKint, { temReceita: temReceita, temVerba: temVerba, budget: budget, investido: investido, projConta: projConta, stInv: stInv, elef: elefPre, faixas: faixasPre });
+  if (boletim.length) {
+    h += '<tr><td style="padding:12px 28px 10px 28px;border-bottom:1px solid ' + M.linha + '">' +
+      '<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:' + M.dourado + ';font-weight:bold;margin-bottom:6px">Boletim de ontem <span style="color:' + M.neutro + ';font-weight:normal;letter-spacing:0;text-transform:none">· ' + datas.labelOntem + ' em ' + boletim.length + ' pontos</span></div>' +
+      boletim.map(b => '<div style="font-size:13px;line-height:1.5;padding:3px 0">' + dot(b.sev, 11) + ' ' + b.txt + '</div>').join('') + '</td></tr>';
+  }
+
   const tiles = [];
   tiles.push({ rot: temReceita ? 'Vendas' : 'Conversões', val: Math.round(ont.ontem.conversoes), varv: ont.variacao.conversoes });
   if (temReceita) tiles.push({ rot: 'Receita', val: fmtKint(ont.ontem.receita), varv: ont.variacao.receita });
@@ -425,6 +445,8 @@ function montarHtmlConta_(ss, c, datas, tendencias, det, serie) {
 
   // Gráfico 1: pacing do mês (só se existir)
   if (graf.g1) h += sec('Pacing do mês', 'acumulado x ideal x projeção', '') + '<tr><td style="padding:0 28px 6px 28px">' + img('g1', 764) + '</td></tr>';
+  // Gráfico 7: receita do mês (acumulada x ideal da meta x projeção), só com receita
+  if (graf.g7 && temReceita) h += sec('Receita do mês', temMetaReceita ? 'acumulada x ideal da meta x projeção' : 'acumulada x projeção (sem meta cadastrada)') + '<tr><td style="padding:0 28px 6px 28px">' + img('g7', 764) + '</td></tr>';
   // Gráfico 2: gasto por dia
   if (graf.g2) h += sec('Gasto por dia', 'últimos 14 dias por plataforma' + (temVerba ? ' · planejado/dia ' + fmtKint(budget / datas.diasNoMes) : '')) + '<tr><td style="padding:0 28px 6px 28px">' + img('g2', 764) + '</td></tr>';
 
@@ -558,12 +580,199 @@ function montarHtmlConta_(ss, c, datas, tendencias, det, serie) {
   h += '</table></div></body></html>';
 
   const imagens = {};
-  ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'].forEach(k => { if (graf[k]) imagens[k] = graf[k]; });
+  ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7'].forEach(k => { if (graf[k]) imagens[k] = graf[k]; });
+  if (!temReceita) delete imagens.g7;
   if (!mostraMix) delete imagens.g3;
   if (!mostraRec) delete imagens.g4;
   if (!mostraRoas) delete imagens.g5;
   if (!mostraFunil) delete imagens.g6;
   return { html: h, imagens: imagens };
+}
+
+/**
+ * Boletim de ontem: 3 a 6 frases, cada uma com o número que a sustenta.
+ * Tudo vem do que já foi calculado (SERIE DIARIA, PAINEL, tendências,
+ * elefantes). Não inventa causa: onde não há dado, a frase não entra.
+ */
+function boletimOntem_(c, vs, plat, ont, datas, moeda, fmtKint, x) {
+  const out = [];
+  const pctTxt = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
+  const porPlat = vs.filter(v => v.gastoOntem !== null && v.gastoOntem !== undefined).map(v => plataformaCanonica_(v.nome) + ' ' + fmtKint(v.gastoOntem));
+  // 1. gasto de ontem x média 7d
+  if (ont.ontem.gasto > 0) {
+    const varG = ont.variacao.gasto;
+    out.push({ sev: varG === null ? 'na' : Math.abs(varG) <= 0.15 ? 'ok' : 'aten',
+      txt: 'Gastou <b>' + fmtKint(ont.ontem.gasto) + '</b> ontem' + (porPlat.length > 1 ? ' (' + porPlat.join(', ') + ')' : '') +
+        (varG === null ? (ont.dias_base ? '' : ', sem base de 7 dias para comparar') : ', <b>' + pctTxt(varG) + '</b> contra a média dos 7 dias anteriores (' + fmtKint(ont.media_7d.gasto) + '/dia)') + '.' });
+  } else {
+    const parados = vs.filter(v => v.gastoOntem === 0 && v.budget > 0).map(v => plataformaCanonica_(v.nome));
+    if (parados.length) out.push({ sev: 'crit', txt: '<b>Gasto zero</b> ontem em ' + parados.join(' e ') + ' com verba ativa. Primeira coisa a conferir hoje.' });
+  }
+  // 2. resultado de ontem
+  if (x.temReceita) {
+    if (ont.ontem.receita > 0 || ont.ontem.conversoes > 0) {
+      const roasDia = ont.ontem.gasto ? ont.ontem.receita / ont.ontem.gasto : null;
+      const varR = ont.variacao.receita;
+      out.push({ sev: varR === null ? 'na' : varR >= -0.15 ? 'ok' : 'aten',
+        txt: '<b>' + Math.round(ont.ontem.conversoes) + ' vendas</b> e <b>' + fmtKint(ont.ontem.receita) + '</b> de receita' + (roasDia ? ' (ROAS do dia ' + roasDia.toFixed(2) + ')' : '') +
+          (varR === null ? '' : ', receita ' + pctTxt(varR) + ' e vendas ' + pctTxt(ont.variacao.conversoes || 0) + ' contra a média 7d') + '.' });
+    }
+  } else if (ont.ontem.conversoes > 0) {
+    const cpl = ont.ontem.gasto / ont.ontem.conversoes;
+    const varC = ont.variacao.conversoes;
+    out.push({ sev: varC === null ? 'na' : varC >= -0.15 ? 'ok' : 'aten',
+      txt: '<b>' + Math.round(ont.ontem.conversoes) + ' conversões</b> a ' + moeda + ' ' + Math.round(cpl) + ' cada' + (varC === null ? '' : ', ' + pctTxt(varC) + ' contra a média 7d') + '.' });
+  } else if (ont.ontem.gasto > 0) {
+    out.push({ sev: 'crit', txt: 'Gasto sem nenhuma conversão registrada ontem. Conferir tracking antes de mexer em campanha.' });
+  }
+  // 3. pacing do mês
+  if (x.temVerba) {
+    const idx = (x.investido / x.budget) / datas.pctMes;
+    const sv = sevInvest_(x.stInv);
+    const fora = vs.filter(v => v.budget > 0 && sevInvest_(v.status) !== 'ok' && !v.emCorrecao);
+    const corr = vs.filter(v => v.emCorrecao);
+    let t = 'No mês: <b>' + Math.round(x.investido / x.budget * 100) + '% da verba</b> com ' + Math.round(datas.pctMes * 100) + '% do mês (índice ' + idx.toFixed(2) + '), fecha em ' + fmtKint(x.projConta) + ' de ' + fmtKint(x.budget) + '.';
+    if (fora.length) t += ' Fora do ritmo: ' + fora.map(v => plataformaCanonica_(v.nome) + ' (' + (v.ajuste >= 0 ? 'acelerar ' : 'frear ') + fmtKint(Math.abs(v.ajuste)) + '/dia)').join(', ') + '.';
+    if (corr.length) t += ' ' + corr.map(v => plataformaCanonica_(v.nome)).join(' e ') + ' já em correção desde ontem.';
+    out.push({ sev: sv, txt: t });
+  }
+  // 4. previsão pela curva (tendências)
+  const prev = Object.keys(plat).filter(p => plat[p] && plat[p].suficiente && plat[p].status_previsto && plat[p].status_previsto !== 'fecha no ritmo' && plat[p].status_atual === 'NO RITMO');
+  if (prev.length) out.push({ sev: 'aten', txt: 'Pela curva dos últimos 14 dias, ' + prev.map(p => p + ' <b>' + esc_(plat[p].status_previsto) + '</b>' + (plat[p].dias_ate_estourar_budget ? ' em ' + plat[p].dias_ate_estourar_budget + ' dia(s)' : '')).join('; ') + ', mesmo estando no ritmo hoje.' });
+  // 5. ação do dia (primeiro elefante)
+  if (x.elef && x.elef.length) out.push({ sev: x.elef[0].sev, txt: 'Ação do dia: ' + x.elef[0].titulo + '. ' + x.elef[0].acao + '.' });
+  return out.slice(0, 6);
+}
+
+// ---------------------------------------------------------------------
+//  SLACK VISUAL: o mesmo conteúdo do e-mail executivo, com gráfico
+//  Chamado por enviar_ (Código.gs) no lugar do texto longo. Precisa de
+//  SLACK_BOT_TOKEN (escopos chat:write e files:write) e do bot no canal.
+//  Sem token, cai no texto antigo pelo webhook (postarNoCanalPacing_).
+// ---------------------------------------------------------------------
+const SLACK_CANAL_PADRAO = 'C0BG2NK56UC';   // #controle_pacing_diário
+
+function enviarSlackVisual_(ss, crit, aten, painel, datas, url, alertas) {
+  const props = PropertiesService.getScriptProperties();
+  const token = props.getProperty('SLACK_BOT_TOKEN');
+  const canal = props.getProperty('SLACK_CANAL_ID') || SLACK_CANAL_PADRAO;
+  if (!token) {
+    if (typeof postarNoCanalPacing_ === 'function') postarNoCanalPacing_(montarTextoSlack_(crit, aten, [], datas, url), alertas);
+    return;
+  }
+  const serie = (typeof lerSerie_ === 'function') ? lerSerie_(ss, datas) : {};
+  const blocos = montarBlocosSlack_(crit, aten, painel, datas, url);
+  try {
+    slackPostBlocks_(token, canal, blocos.texto, blocos.blocks);
+  } catch (e) {
+    if (alertas) alertas.push(alerta_(NIVEL.ATENCAO, 'GERAL', 'Slack não postado', 'chat.postMessage falhou: ' + e.message, 'slack_erro'));
+    Logger.log('Slack blocks falhou: %s', e.message);
+    if (typeof postarNoCanalPacing_ === 'function') postarNoCanalPacing_(montarTextoSlack_(crit, aten, [], datas, url), alertas);
+    return;
+  }
+  // Gráfico de pacing das contas com crítico (ou, sem crítico, das que estão em atenção), no máximo 5
+  const nomesCrit = {}; crit.forEach(a => { nomesCrit[a.conta] = true; });
+  const nomesAten = {}; aten.forEach(a => { nomesAten[a.conta] = true; });
+  let contas = painel.contas.filter(c => nomesCrit[c.nome]);
+  if (!contas.length) contas = painel.contas.filter(c => nomesAten[c.nome]);
+  contas.slice(0, 5).forEach(c => {
+    try {
+      const vs = (c.veiculos || []).filter(v => !v.inconsistente);
+      if (!vs.length) return;
+      const moeda = CONTA_MOEDA[c.nome] || 'R$';
+      const soma = k => vs.reduce((a, v) => a + (Number(v[k]) || 0), 0);
+      const g = graficosConta_(c, datas, serie[c.nome] || {}, vs, {}, moeda, { budget: soma('budget'), investido: soma('investido'), projConta: soma('proj'), metaRoas: 0 }, ['g1']);
+      if (!g.g1) return;
+      const budget = soma('budget'), investido = soma('investido');
+      const legenda = c.nome + ' · pacing do mês · ' + (budget ? Math.round(investido / budget * 100) + '% da verba com ' + Math.round(datas.pctMes * 100) + '% do mês' : 'sem verba fixa') +
+        (nomesCrit[c.nome] ? ' · ' + crit.filter(a => a.conta === c.nome).length + ' crítico(s)' : '');
+      slackUploadPng_(token, canal, g.g1, c.nome + ' ' + fmtIso_(datas.ontem) + '.png', legenda);
+    } catch (e) { Logger.log('Slack gráfico %s: %s', c.nome, e.message); }
+  });
+}
+
+/** Blocos curtos: placar da carteira, uma linha por conta com bolinhas por plataforma, críticos com o número. */
+function montarBlocosSlack_(crit, aten, painel, datas, url) {
+  const bola = sev => sev === 'ok' ? ':large_green_circle:' : sev === 'aten' ? ':large_yellow_circle:' : sev === 'crit' ? ':red_circle:' : ':white_circle:';
+  const blocks = [];
+  blocks.push({ type: 'header', text: { type: 'plain_text', text: 'Pacing · ' + datas.labelOntem + ' · dia ' + datas.diasDecorridos + ' de ' + datas.diasNoMes } });
+  blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: crit.length + ' crítico(s) · ' + aten.length + ' atenção · <' + url + '|planilha> · e-mail por cliente sai em seguida' }] });
+  blocks.push({ type: 'divider' });
+  const linhas = painel.contas.filter(c => (c.veiculos || []).length).map(c => {
+    const vs = (c.veiculos || []).filter(v => !v.inconsistente);
+    const sevC = severidadeConta_(c);
+    const plats = vs.map(v => { const p = plataformaCanonica_(v.nome); const sv = v.budget ? sevInvest_(v.status) : 'na';
+      return bola(sv) + ' ' + p + ' ' + (v.budget ? Math.round(v.investido / v.budget * 100) + '%' : 'sem verba'); }).join('  ');
+    return bola(sevC) + ' *' + c.nome + '*  ' + plats;
+  });
+  // Slack limita cada section a 3000 caracteres: quebra em blocos de 8 contas
+  for (let i = 0; i < linhas.length; i += 8) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: linhas.slice(i, i + 8).join('\n') } });
+  if (crit.length) {
+    blocks.push({ type: 'divider' });
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: '*Ação hoje*' } });
+    const itens = crit.slice(0, 8).map(a => {
+      const tit = a.titulo.split(':')[0].replace(/ \[.*\]/, '');
+      const plat = a.titulo.indexOf(' / ') >= 0 ? ' · ' + a.titulo.split(' / ').pop() : '';
+      return ':red_circle: *' + a.conta + plat + '* · ' + tit.toLowerCase() + (a.persistencia && a.persistencia !== 'NOVO' ? ' _(' + a.persistencia + ')_' : '') + '\n      ' + String(a.detalhe).substring(0, 220);
+    });
+    for (let i = 0; i < itens.length; i += 4) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: itens.slice(i, i + 4).join('\n') } });
+    if (crit.length > 8) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: '+ ' + (crit.length - 8) + ' crítico(s) na aba ALERTAS' }] });
+  } else {
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: ':large_green_circle: Nenhum crítico. Ajustes do dia estão no e-mail de cada cliente.' } });
+  }
+  const texto = 'Pacing ' + datas.labelOntem + ': ' + crit.length + ' crítico(s), ' + aten.length + ' atenção';
+  return { texto: texto, blocks: blocks };
+}
+
+function slackPostBlocks_(token, canal, texto, blocks) {
+  const r = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
+    method: 'post', contentType: 'application/json; charset=utf-8', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ channel: canal, text: texto, blocks: blocks, unfurl_links: false }), muteHttpExceptions: true
+  });
+  const body = JSON.parse(r.getContentText());
+  if (!body.ok) throw new Error('chat.postMessage: ' + body.error);
+  return body.ts;
+}
+
+/** Sobe um PNG no canal (files.getUploadURLExternal + files.completeUploadExternal). Exige escopo files:write. */
+function slackUploadPng_(token, canal, blob, nome, comentario) {
+  const bytes = blob.getBytes();
+  const r1 = UrlFetchApp.fetch('https://slack.com/api/files.getUploadURLExternal', {
+    method: 'post', headers: { Authorization: 'Bearer ' + token }, payload: { filename: nome, length: String(bytes.length) }, muteHttpExceptions: true
+  });
+  const b1 = JSON.parse(r1.getContentText());
+  if (!b1.ok) throw new Error('getUploadURLExternal: ' + b1.error);
+  const r2 = UrlFetchApp.fetch(b1.upload_url, { method: 'post', contentType: 'image/png', payload: bytes, muteHttpExceptions: true });
+  if (r2.getResponseCode() >= 300) throw new Error('upload ' + r2.getResponseCode());
+  const r3 = UrlFetchApp.fetch('https://slack.com/api/files.completeUploadExternal', {
+    method: 'post', contentType: 'application/json; charset=utf-8', headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ files: [{ id: b1.file_id, title: nome }], channel_id: canal, initial_comment: comentario }), muteHttpExceptions: true
+  });
+  const b3 = JSON.parse(r3.getContentText());
+  if (!b3.ok) throw new Error('completeUploadExternal: ' + b3.error);
+}
+
+/**
+ * Editor: manda o Slack visual de hoje para o canal em SLACK_CANAL_TESTE
+ * (propriedade do script). Sem essa propriedade, não manda nada e avisa:
+ * o canal de produção não é lugar de teste.
+ */
+function testarSlackVisual() {
+  const props = PropertiesService.getScriptProperties();
+  const canalTeste = props.getProperty('SLACK_CANAL_TESTE');
+  if (!canalTeste) { Logger.log('Defina a propriedade SLACK_CANAL_TESTE (ID de um canal de teste, ex.: C0XXXXXXX) antes de testar.'); return; }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const datas = calcularDatas_();
+  const alertas = [];
+  const painel = lerPainel_(ss, datas, alertas);
+  const orcamentos = (function () { try { return lerOrcamentosExternos_(); } catch (e) { return {}; } })();
+  painel.contas.forEach(c => analisarConta_(ss, c, datas, orcamentos, alertas));
+  const crit = alertas.filter(a => a.nivel === NIVEL.CRITICO), aten = alertas.filter(a => a.nivel === NIVEL.ATENCAO);
+  const original = props.getProperty('SLACK_CANAL_ID');
+  props.setProperty('SLACK_CANAL_ID', canalTeste);
+  try { enviarSlackVisual_(ss, crit, aten, painel, datas, ss.getUrl(), alertas); }
+  finally { if (original) props.setProperty('SLACK_CANAL_ID', original); else props.deleteProperty('SLACK_CANAL_ID'); }
+  Logger.log('Slack visual de teste enviado para ' + canalTeste + ' (' + crit.length + ' críticos, ' + aten.length + ' atenção).');
 }
 
 function nomeCurto_(n) { n = String(n || ''); return n.length > 44 ? n.substring(0, 43) + '…' : n; }
@@ -731,6 +940,42 @@ function graficosConta_(c, datas, serieConta, vs, plat, moeda, tot, apenas) {
         .setOption('series', { 0: { lineWidth: 3 }, 1: { lineWidth: 2, lineDashStyle: [6, 4] }, 2: { lineWidth: 2, lineDashStyle: [2, 3] }, 3: { lineWidth: 1 } })
         .setOption('legend', { position: 'bottom', textStyle: { color: '#4A4A46' } }).setOption('hAxis', Object.assign({ title: 'dia do mês', ticks: [1, 5, 10, 15, 20, 25, datas.diasNoMes] }, base.hAxis))
         .setOption('vAxis', base.vAxis).setOption('backgroundColor', base.backgroundColor).setOption('chartArea', base.chartArea).setOption('interpolateNulls', false).build().getBlob().setName('g1.png');
+    }
+
+    // g7: receita do mês (acumulada x ideal da meta x projeção x meta), mesmo desenho do pacing
+    if (quer('g7') && pontosDoMes.length) {
+      const recPorDia = {};
+      plats.forEach(p => serieConta[p].forEach(pt => {
+        if (pt.data.getMonth() + 1 !== mesRef || pt.data.getFullYear() !== anoRef) return;
+        const d = pt.data.getDate(); recPorDia[d] = (recPorDia[d] || 0) + (pt.receita || 0);
+      }));
+      const dias = Object.keys(recPorDia).map(Number);
+      if (dias.length && Object.keys(recPorDia).some(d => recPorDia[d] > 0)) {
+        const meta = tot.metaReceita || 0;
+        const dt = Charts.newDataTable().addColumn(Charts.ColumnType.NUMBER, 'dia do mês').addColumn(Charts.ColumnType.NUMBER, 'receita acumulada');
+        if (meta) dt.addColumn(Charts.ColumnType.NUMBER, 'ideal da meta');
+        dt.addColumn(Charts.ColumnType.NUMBER, 'projeção (ritmo 7d)');
+        if (meta) dt.addColumn(Charts.ColumnType.NUMBER, 'meta do mês');
+        let acum = 0; const acumPorDia = {};
+        for (let d = 1; d <= datas.diaOntem; d++) { if (recPorDia[d] !== undefined) { acum += recPorDia[d]; acumPorDia[d] = acum; } }
+        let rec7 = 0, n7 = 0;
+        for (let d = Math.max(1, datas.diaOntem - 6); d <= datas.diaOntem; d++) { if (recPorDia[d] !== undefined) { rec7 += recPorDia[d]; n7++; } }
+        const ritmo7 = n7 ? rec7 / n7 : 0;
+        let ultimo = acum;
+        for (let d = 1; d <= datas.diasNoMes; d++) {
+          const real = d <= datas.diaOntem ? (acumPorDia[d] !== undefined ? acumPorDia[d] : null) : null;
+          if (real !== null) ultimo = real;
+          const proj = d >= datas.diaOntem ? (d === datas.diaOntem ? ultimo : ultimo + ritmo7 * (d - datas.diaOntem)) : null;
+          const row = [d, real]; if (meta) row.push(meta / datas.diasNoMes * d); row.push(proj); if (meta) row.push(meta);
+          dt.addRow(row);
+        }
+        const cores7 = meta ? ['#2E7D4F', '#9A978F', '#C9A227', '#B3261E'] : ['#2E7D4F', '#C9A227'];
+        const series7 = meta ? { 0: { lineWidth: 3 }, 1: { lineWidth: 2, lineDashStyle: [6, 4] }, 2: { lineWidth: 2, lineDashStyle: [2, 3] }, 3: { lineWidth: 1 } } : { 0: { lineWidth: 3 }, 1: { lineWidth: 2, lineDashStyle: [2, 3] } };
+        out.g7 = Charts.newLineChart().setDataTable(dt.build()).setDimensions(764, 300)
+          .setOption('colors', cores7).setOption('series', series7)
+          .setOption('legend', { position: 'bottom', textStyle: { color: '#4A4A46' } }).setOption('hAxis', Object.assign({ title: 'dia do mês', ticks: [1, 5, 10, 15, 20, 25, datas.diasNoMes] }, base.hAxis))
+          .setOption('vAxis', base.vAxis).setOption('backgroundColor', base.backgroundColor).setOption('chartArea', base.chartArea).setOption('interpolateNulls', false).build().getBlob().setName('g7.png');
+      }
     }
 
     // g2: gasto por dia, últimos 14 dias, colunas empilhadas por plataforma + planejado/dia
