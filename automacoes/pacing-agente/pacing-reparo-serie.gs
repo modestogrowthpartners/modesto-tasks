@@ -1,50 +1,44 @@
 /**
  * REPARO DA ABA "SERIE DIARIA" (21/09/2026)
  *
- * O que aconteceu: a SERIE DIARIA tem 241 linhas SEM a coluna Data.
+ * SINTOMA: 241 linhas na SERIE DIARIA sem a coluna Data. Tudo que filtra a
+ * série por data lia zero dias: TENDENCIAS com "Dias c/ dado" = 0, o
+ * tendencias_*.json com dias_com_dado = 0 (e por isso sem meta_receita,
+ * roas_mes etc.), e o e-mail por conta com "gráfico indisponível" nos seis
+ * gráficos, inclusive "sem meta de receita cadastrada" (graficosConta_ sai
+ * cedo quando a série está vazia, antes de olhar a meta).
  *
- * Causa provável (21/09, 20:42): a planilha está SEM FUSO HORÁRIO válido.
- * getSpreadsheetTimeZone() volta vazio. Sem fuso, o Apps Script não converte
- * objeto Date em número de série e o setValues grava VAZIO, sem erro nenhum.
- * A primeira versão deste reparo "gravou" 240 datas e a releitura achou 0.
- * A única célula com data (A69) guarda 14/09/2026 03:00, uma meia-noite UTC
- * deslocada para o lado errado, o que confirma que o fuso está quebrado.
- * O backfill original muito provavelmente sofreu do mesmo problema.
+ * CAUSA (provada em 21/09, 21:25, com diagnosticarSerieDiariaV3):
+ *   A aba SERIE DIARIA estava com um FILTRO ativo (A1:Z246) que ocultava 240
+ *   das 241 linhas. Em linha oculta por filtro, o Sheets DESCARTA gravação de
+ *   objeto Date e mudança de formato de número, sem erro, mas ACEITA número.
+ *   Por isso:
+ *     - o backfill (reconstruirSerieDoMesAtual, que grava Date) só persistia
+ *       na linha 69, a única visível;
+ *     - a coluna K (Atualizado em, Date) ficava vazia;
+ *     - o reparo v1 deste arquivo (gravava Date) não pegou;
+ *     - o reparo v3 (grava NÚMERO DE SÉRIE) pegou nas 241.
+ *   Defeito secundário, real mas não o bloqueio: a planilha estava SEM FUSO
+ *   (getSpreadsheetTimeZone() = ""), o que derruba Utilities.formatDate.
+ *   corrigirFusoDaPlanilha() põe America/Sao_Paulo.
  *
- * Por isso este reparo grava o NÚMERO DE SÉRIE (dias desde 30/12/1899), que
- * não depende de fuso, e existe uma função separada para corrigir o fuso da
- * planilha, para que os outros scripts (backfill, importação) voltem a
- * conseguir gravar datas.
+ * ORDEM DE USO (o que ainda vale depois do reparo):
+ *   1. removerFiltroSerieDiaria      tira o filtro; nenhuma célula é tocada
+ *   2. reconstruirSerieDoMesAtual    (tendencias.gs) regrava as 241 no lugar
+ *   3. diagnosticarSerieDiariaV3     passo 1: "coluna K com Date=241";
+ *                                    passo 2: "nenhum filtro"
+ *   4. regerarTendenciasAgora        TENDENCIAS + tendencias_<ontem>.json
+ *   5. testarEmailAmakha             e-mail com os seis gráficos, só p/ teste
  *
- * Consequência: tudo que filtra a série por data lê zero dias. É a causa de:
- *   - TENDENCIAS com "Dias c/ dado" = 0 em todas as plataformas;
- *   - tendencias_*.json com dias_com_dado = 0 (e por isso sem meta_receita,
- *     roas_mes etc., que só são calculados quando há série);
- *   - e-mail por conta com "gráfico indisponível: sem série diária do mês",
- *     "sem série diária", "sem receita na série", "sem impressões e cliques
- *     na série" e, por tabela, "sem meta de receita cadastrada".
+ * PARA NÃO VOLTAR: em tendencias.gs, no início de upsertSerie_, logo depois
+ * de `const aba = obterAbaSerie_(ss);`, acrescente
+ *     const filtro = aba.getFilter(); if (filtro) filtro.remove();
+ * Quem abrir a aba e criar um filtro para olhar os dados não derruba mais a
+ * gravação do dia seguinte.
  *
- * O que esta função faz: para cada linha da SERIE DIARIA com Fonte
- * "backfill aba", descobre o dia pela POSIÇÃO da linha dentro do grupo
- * (conta, plataforma) e CONFERE contra a aba da conta: o "Inv. Realizado"
- * daquele dia tem que bater com o Investido da linha (tolerância de 1 centavo).
- * Só grava a data quando bate. Se não bater, não toca na linha e lista no log.
- * Conferido fora do Apps Script em 21/09/2026: 241 de 241 linhas batem.
- *
- * Linhas com outra Fonte (importação diária) não são tocadas.
- *
- * COMO USAR
- *   1. Rode `conferirSerieDiaria`: só lê; mostra o fuso e o estado da aba.
- *   2. Rode `corrigirFusoDaPlanilha`: põe America/Sao_Paulo no fuso.
- *   3. Rode `repararDatasSerieDiaria`: grava a coluna A e confere depois.
- *   4. Rode `conferirSerieDiaria` de novo: tem que mostrar 241 com data.
- *   5. Rode de novo a geração das tendências / o e-mail por conta.
- *
- * ATENÇÃO: isto conserta o DADO, não a CAUSA. Se a função de backfill rodar
- * de novo sem a correção (converter o número do dia em data), ela apaga ou
- * regrava as linhas sem data outra vez. A correção do backfill é uma linha:
- *   data = new Date(ano, mesIndice, Number(numeroDoDia))
- * onde ano e mesIndice vêm do "Mês de referência" do PAINEL (B4).
+ * O reparo posicional (simular/repararDatasSerieDiaria) continua aqui como
+ * ferramenta: grava número de série, que persiste mesmo em linha oculta, e
+ * confere cada linha contra o "Inv. Realizado" da aba da conta.
  */
 
 const REPARO_SERIE = {
@@ -240,9 +234,9 @@ function serialDaCelula_(v) {
 }
 
 /**
- * Corrige o fuso da planilha. Sem fuso válido, nenhum script consegue gravar
- * Date nesta planilha (backfill, importação diária, este reparo). Mostra o
- * valor anterior no log. Não mexe em nenhuma célula.
+ * Corrige o fuso da planilha. Sem fuso válido, Utilities.formatDate lança
+ * erro e qualquer conversão de data fica imprevisível. Mostra o valor
+ * anterior no log. Não mexe em nenhuma célula.
  */
 function corrigirFusoDaPlanilha() {
   const ss = SpreadsheetApp.getActive();
@@ -352,107 +346,6 @@ function testarEmailAmakha() { testarEmailConta('AMAKHA PARIS'); }
 /** E-mail de teste do MEU RODAPE. Vai só para CONFIG.EMAILS_TESTE. */
 function testarEmailMeuRodape() { testarEmailConta('MEU RODAPE'); }
 
-/**
- * DIAGNÓSTICO (21/09, 21:10): o backfill regravou só a linha 69; as outras 240
- * não persistiram, com o fuso já em America/Sao_Paulo. Então a diferença é na
- * célula, não na planilha. Esta função testa, de dentro do script, e LOGA A
- * CADA PASSO (a primeira versão morreu com "erro desconhecido" sem log):
- *   1. o que getValues devolve na coluna A (Date x número x vazio);
- *   2. formatos, validações, proteções e filtro que possam bloquear a escrita;
- *   3. gravação real: um Date em A2, um número em A3 e um Date em M2 (fora da
- *      tabela), com releitura depois do flush. Restaura tudo no fim.
- * Cada passo está em try/catch: se um quebrar, o log diz qual, e segue.
- * AUTOSSUFICIENTE: não depende de nada deste arquivo, para poder ser colada
- * sozinha num arquivo (21/09, 21:17: ReferenceError ao colar só ela).
- */
-function diagnosticarSerieDiaria() {
-  const ss = SpreadsheetApp.getActive();
-  const aba = ss.getSheetByName('SERIE DIARIA');
-  if (!aba) throw new Error('aba "SERIE DIARIA" não encontrada');
-  const ultima = aba.getLastRow();
-  const n = ultima - 1;
-  const serialDia = function (d) { return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000); };
-  const passo = function (nome, fn) {
-    try { Logger.log('[' + nome + '] ' + fn()); }
-    catch (e) { Logger.log('[' + nome + '] QUEBROU: ' + (e && e.message ? e.message : e)); }
-  };
-
-  passo('0 contexto', function () {
-    let fusoPl; try { fusoPl = ss.getSpreadsheetTimeZone(); } catch (e) { fusoPl = 'erro: ' + e; }
-    return 'planilha ' + ss.getId() + ' · fuso planilha=' + JSON.stringify(fusoPl) + ' · fuso script=' + Session.getScriptTimeZone() + ' · linhas=' + n;
-  });
-
-  let a = null;
-  passo('1 tipos via getValues', function () {
-    a = aba.getRange(2, 1, n, 11).getValues();
-    const t = { A_date: 0, A_num: 0, A_vazio: 0, A_outro: 0, K_date: 0 };
-    a.forEach(function (r) {
-      const v = r[0];
-      if (v instanceof Date) t.A_date++; else if (typeof v === 'number') t.A_num++; else if (v === '') t.A_vazio++; else t.A_outro++;
-      if (r[10] instanceof Date) t.K_date++;
-    });
-    return 'coluna A: Date=' + t.A_date + ' número=' + t.A_num + ' vazio=' + t.A_vazio + ' outro=' + t.A_outro + ' · K com Date=' + t.K_date +
-      ' · A2=' + JSON.stringify(a[0][0]) + ' (' + typeof a[0][0] + ') · A69=' + JSON.stringify(a[67][0]) + ' (' + typeof a[67][0] + ')';
-  });
-
-  passo('2a formatos coluna A', function () {
-    const fmts = aba.getRange(2, 1, n, 1).getNumberFormats();
-    const fc = {}; fmts.forEach(function (r) { fc[r[0]] = (fc[r[0]] || 0) + 1; });
-    return JSON.stringify(fc) + ' · A2=' + fmts[0][0] + ' · A69=' + fmts[67][0];
-  });
-
-  passo('2b validações', function () {
-    const dv = aba.getRange(2, 1, n, 11).getDataValidations();
-    let nDv = 0, ex = '';
-    dv.forEach(function (r, i) { r.forEach(function (v, j) { if (v) { nDv++; if (!ex) ex = 'ex.: linha ' + (i + 2) + ' col ' + (j + 1) + ' tipo ' + v.getCriteriaType() + ' rejeita=' + !v.getAllowInvalid(); } }); });
-    return nDv + ' célula(s) com validação' + (ex ? ' (' + ex + ')' : '');
-  });
-
-  passo('2c proteções e filtro', function () {
-    const prot = aba.getProtections(SpreadsheetApp.ProtectionType.RANGE).map(function (p) { return p.getRange().getA1Notation() + (p.isWarningOnly() ? ' (aviso)' : ' (bloqueia)') + ' posso editar=' + p.canEdit(); });
-    const protAba = aba.getProtections(SpreadsheetApp.ProtectionType.SHEET).map(function (p) { return 'ABA INTEIRA' + (p.isWarningOnly() ? ' (aviso)' : ' (bloqueia)') + ' posso editar=' + p.canEdit(); });
-    const f = aba.getFilter();
-    return (prot.concat(protAba).join('; ') || 'nenhuma proteção') + ' · filtro=' + (f ? f.getRange().getA1Notation() : 'nenhum');
-  });
-
-  passo('2d linhas ocultas 2..10', function () {
-    const oc = [2, 3, 4, 5, 6, 7, 8, 9, 10].filter(function (r) { return aba.isRowHiddenByUser(r) || aba.isRowHiddenByFilter(r); });
-    return oc.length ? oc.join(',') : 'nenhuma';
-  });
-
-  // 3. gravação real com releitura, uma célula por vez, cada uma protegida
-  const testar = function (rotulo, a1, valor) {
-    let antes = null;
-    passo('3 ' + rotulo, function () {
-      const rng = aba.getRange(a1);
-      antes = rng.getValue();
-      rng.setValue(valor);
-      SpreadsheetApp.flush();
-      const depois = rng.getValue();
-      const ok = (depois instanceof Date && valor instanceof Date && depois.getTime() === valor.getTime()) || depois === valor;
-      return 'gravei ' + JSON.stringify(valor) + ' em ' + a1 + ' · antes=' + JSON.stringify(antes) + ' (' + typeof antes + ') · depois=' + JSON.stringify(depois) + ' (' + typeof depois + ') · ' + (ok ? 'PERSISTIU' : 'NÃO PERSISTIU');
-    });
-    return antes;
-  };
-  const restaurar = function (a1, antes) {
-    passo('4 restaurar ' + a1, function () {
-      const rng = aba.getRange(a1);
-      if (antes === null) return 'nada a restaurar (o teste nem leu a célula)';
-      if (antes instanceof Date) rng.setValue(serialDia(antes));
-      else if (antes === '' || antes === undefined) rng.clearContent();
-      else rng.setValue(antes);
-      SpreadsheetApp.flush();
-      return 'agora=' + JSON.stringify(rng.getValue());
-    });
-  };
-  const a2antes = testar('Date em A2', 'A2', new Date(2026, 8, 1));
-  restaurar('A2', a2antes);
-  const a3antes = testar('número em A3', 'A3', 46266);
-  restaurar('A3', a3antes);
-  const m2antes = testar('Date em M2 (fora da tabela)', 'M2', new Date(2026, 8, 1));
-  restaurar('M2', m2antes);
-  Logger.log('[fim] diagnóstico concluído');
-}
 /**
  * DIAGNÓSTICO v3 (21/09, 21:25). A rodada anterior mostrou: filtro ativo em
  * A1:Z246 na SERIE DIARIA, linhas 2..10 ocultas por ele, formato dd/mm/yyyy em
