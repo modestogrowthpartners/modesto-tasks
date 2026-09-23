@@ -171,7 +171,31 @@ S["section_quality"]=section(
    "group_qItems":group(qb,qo,direction="row",gap=24,h_col="center")},
   ["group_qHead","group_qItems"],"t:names.icons_with_text",direction="column",bg="",pt=64,pb=64,gap=40,h_col="center")
 
-order=["section_eKPPTg","section_JTKzfe","product_list_fa6P9H","section_propHead"]+purpose_keys+["section_quality"]
+
+# 9. Perguntas frequentes (estrutura da seção FAQ do Horizon)
+def faq_text(html):
+    t=text(html,"rte",width="100%"); t["settings"]["font_size"]=""; return t
+faqs=[("As semijoias escurecem com o tempo?","Com o banho de ouro 18k e cuidados simples, como evitar contato com perfume, água do mar e produtos químicos, suas peças mantêm o brilho por muito tempo."),
+      ("Como funciona a troca?","Sua primeira troca é grátis: você tem 30 dias para trocar, sem burocracia. É só falar com a gente pelo WhatsApp que resolvemos para você."),
+      ("Qual o prazo de entrega?","Enviamos para todo o Brasil com código de rastreio. O prazo varia conforme a sua região e a modalidade escolhida no checkout, e você acompanha cada etapa até a entrega."),
+      ("Em quantas vezes posso parcelar?","Você parcela em até 12x sem juros no cartão de crédito. No PIX, confira as condições no checkout."),
+      ("As peças são antialérgicas?","Sim. Nossas semijoias são livres de níquel e pensadas para o conforto de peles sensíveis, para você usar o dia inteiro sem preocupação."),
+      ("O que significa \"joia com propósito\"?","Cada peça nasce de uma palavra, como fé, milagres, prosperidade e união, e traz uma frase ou símbolo que vira um lembrete diário. Mais que um acessório, é um significado que você carrega com você.")]
+rows_b={};rows_o=[]
+for i,(q,a) in enumerate(faqs):
+    rows_b[f"accordion_row_faq{i}"]={"type":"_accordion-row","settings":{"heading":q,"open_by_default":False,"icon":"none","width":20},
+        "blocks":{f"text_faq{i}":faq_text(f"<p>{a}</p>")},"block_order":[f"text_faq{i}"]}
+    rows_o.append(f"accordion_row_faq{i}")
+faq_head=text("<p>Perguntas frequentes</p>","h2",name="t:names.heading",max_width="narrow"); faq_head["settings"]["font_size"]=""
+faq_eye=text("<p>TIRE SUAS DÚVIDAS</p>"); faq_eye["settings"]["font_size"]=""
+faq_sec=section({"text_faqEye":faq_eye,"text_Lmq9Rn":faq_head,
+    "accordion_bmC3XV":{"type":"accordion","name":"t:names.accordion","settings":dict({"icon":"caret","dividers":True,"divider_color":"",
+        "type_preset":"h5","background_color":"","text_color":"","border":"none","border_width":1,"border_opacity":100,"border_color":"",
+        "border_radius":0},**pad0()),"blocks":rows_b,"block_order":rows_o}},
+  ["text_faqEye","text_Lmq9Rn","accordion_bmC3XV"],"t:names.faq_section",direction="column",bg=CREAM2,pt=64,pb=64,gap=16)
+S["section_Gprabp"]=faq_sec
+
+order=["section_eKPPTg","section_JTKzfe","product_list_fa6P9H","section_propHead"]+purpose_keys+["section_quality","section_Gprabp"]
 data={"sections":S,"order":order}
 header="""/*
  * ------------------------------------------------------------
