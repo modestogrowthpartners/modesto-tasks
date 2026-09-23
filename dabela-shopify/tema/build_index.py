@@ -2,8 +2,8 @@ import json, copy
 
 def pad0(): return {"padding-block-start":0,"padding-block-end":0,"padding-inline-start":0,"padding-inline-end":0}
 
-def group(blocks, order, direction="column", gap=12, h_col="flex-start", width="fill", custom_width=100, h_align="flex-start"):
-    s={"content_direction":direction,"vertical_on_mobile":True,"horizontal_alignment":h_align,"vertical_alignment":"center",
+def group(blocks, order, direction="column", gap=12, h_col="flex-start", width="fill", custom_width=100, h_align="flex-start", vom=True):
+    s={"content_direction":direction,"vertical_on_mobile":vom,"horizontal_alignment":h_align,"vertical_alignment":"center",
        "align_baseline":False,"horizontal_alignment_flex_direction_column":h_col,"vertical_alignment_flex_direction_column":"center",
        "gap":gap,"width":width,"custom_width":custom_width,"width_mobile":"fill","custom_width_mobile":100,"height":"fit","custom_height":100,
        "background_media":"none","background_color":"","video_position":"cover","background_image_position":"cover","toggle_overlay":False,
@@ -71,9 +71,16 @@ def item(i,ic,t,sub,prefix):
                                                f"text_{prefix}b{i}":text(f"<p>{sub}</p>","rte","center",width="100%")},
                                               [f"text_{prefix}a{i}",f"text_{prefix}b{i}"],gap=4)},
                  [f"icon_{prefix}{i}",f"group_{prefix}t{i}"],gap=12,h_col="center")
+def trust_item(i,ic,t,sub,prefix):
+    # ícone à esquerda e texto à direita, como no documento; mantém lado a lado no celular
+    return group({f"icon_{prefix}{i}":icon(ic),
+                  f"group_{prefix}t{i}":group({f"text_{prefix}a{i}":text(f"<p><strong>{t}</strong></p>","h6","left",width="100%"),
+                                               f"text_{prefix}b{i}":text(f"<p>{sub}</p>","rte","left",width="100%")},
+                                              [f"text_{prefix}a{i}",f"text_{prefix}b{i}"],gap=2)},
+                 [f"icon_{prefix}{i}",f"group_{prefix}t{i}"],direction="row",gap=12,vom=False)
 tb={};to=[]
 for i,(k,ic,t,sub) in enumerate(trust):
-    tb[f"group_{k}"]=item(i,ic,t,sub,"tr"); to.append(f"group_{k}")
+    tb[f"group_{k}"]=trust_item(i,ic,t,sub,"tr"); to.append(f"group_{k}")
 S["section_JTKzfe"]=section(tb,to,"t:names.icons_with_text",bg=CREAM2,pt=28,pb=28,gap=16)
 
 # 3. Os 7 mais vendidos (estrutura original do tema, só textos ajustados)
