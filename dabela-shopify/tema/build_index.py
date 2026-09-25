@@ -51,16 +51,35 @@ CREAM2="{{ settings.color_palette.color2 }}"
 WA="https://wa.me/5516994047755?text=Ol%C3%A1%2C%20Dabela%21%20Vim%20pelo%20site%20e%20gostaria%20de%20conhecer%20as%20joias%20com%20prop%C3%B3sito."
 S={}
 
-# 1. Banner
-S["section_eKPPTg"]=section(
-  {"group_exUXnF":group({
-      "text_TQAwiz":text("<p>Joias com Propósito.</p>","h1",name="t:names.heading"),
-      "text_HQYtK9":text("<p>Uma joia que expressa fé, presença e propósito. Semijoias banhadas a ouro 18k, criadas para celebrar o brilho único de cada mulher. Peças com significado para os momentos que importam.</p>",max_width="narrow"),
-      "button_kNrRrR":button("Descobrir a coleção","shopify://collections/all"),
-      "button_94GhmW":button("Falar no WhatsApp",WA,"button-secondary",True)},
-      ["text_TQAwiz","text_HQYtK9","button_kNrRrR","button_94GhmW"],gap=20,width="custom"),
-   "image_bgKPkz":image("shopify://shop_images/viverei-2.webp")},
-  ["group_exUXnF","image_bgKPkz"],"t:names.image_with_text")
+# 1. Hero premium: foto em tela cheia, texto sobreposto embaixo à esquerda
+# NOTA: "background_image" é uma inferência de schema (não confirmada), já que o
+# grupo group() só expõe "background_media"/"background_color" nos exemplos que
+# tínhamos. Se a foto não aparecer como fundo depois de colar, selecione a imagem
+# manualmente no editor (grupo do hero > Appearance > Background media > Image).
+hero_bg_group={
+    "content_direction":"column","vertical_on_mobile":True,"horizontal_alignment":"flex-start","vertical_alignment":"flex-end",
+    "align_baseline":False,"horizontal_alignment_flex_direction_column":"flex-start","vertical_alignment_flex_direction_column":"flex-end",
+    "gap":18,"width":"fill","custom_width":100,"width_mobile":"fill","custom_width_mobile":100,"height":"fill","custom_height":100,
+    "background_media":"image","background_image":"shopify://shop_images/hero-01.webp","background_color":"","video_position":"cover",
+    "background_image_position":"50% 30%","toggle_overlay":True,"overlay_color":"#14160fB3","overlay_style":"gradient","gradient_direction":"to top",
+    "border":"none","border_width":1,"border_opacity":100,"border_color":"","border_radius":0,"link":"","open_in_new_tab":False,"placeholder":""}
+hero_bg_group.update(pad0())
+hero_eye=text("<p>JOIAS COM PROPÓSITO</p>"); hero_eye["settings"]["text_color"]="#E8D9B0"
+hero_h=text("<p>Joias que carregam significado.</p>","h1",name="t:names.heading"); hero_h["settings"]["text_color"]="#FFFFFF"
+hero_p=text("<p>Semijoias banhadas a ouro 18k, criadas para celebrar o brilho único de cada mulher. Cada peça nasce de uma palavra que se torna presença.</p>",max_width="narrow")
+hero_p["settings"]["text_color"]="#FFFFFFDB"
+S["section_heroPremium"]={"type":"section","name":"t:names.image_with_text","blocks":{
+    "group_heroBg":{"type":"group","settings":hero_bg_group,"blocks":{
+        "text_heroEye":hero_eye,"text_heroH":hero_h,"text_heroP":hero_p,
+        "button_heroCta":button("Descobrir a coleção →","shopify://collections/all")},
+      "block_order":["text_heroEye","text_heroH","text_heroP","button_heroCta"]}},
+  "block_order":["group_heroBg"],
+  "settings":{"content_direction":"column","vertical_on_mobile":True,"horizontal_alignment":"flex-start","vertical_alignment":"center",
+    "align_baseline":False,"horizontal_alignment_flex_direction_column":"flex-start","vertical_alignment_flex_direction_column":"center",
+    "gap":0,"section_width":"full","section_height":"custom","section_height_custom":78,"background_media":"none","background_color":"",
+    "video_position":"cover","background_image_position":"cover","toggle_overlay":False,"overlay_color":"#00000026","overlay_style":"solid",
+    "gradient_direction":"to top","border":"none","border_width":1,"border_opacity":100,"border_color":"","border_radius":0,
+    "padding-block-start":0,"padding-block-end":0}}
 
 # 2. Faixa de confiança
 trust=[("gxmwWM","price_tag","Pague parcelado","até 12x no cartão"),("h4HPgj","truck","Entrega garantida","para todo o Brasil"),
@@ -82,6 +101,29 @@ tb={};to=[]
 for i,(k,ic,t,sub) in enumerate(trust):
     tb[f"group_{k}"]=trust_item(i,ic,t,sub,"tr"); to.append(f"group_{k}")
 S["section_JTKzfe"]=section(tb,to,"t:names.icons_with_text",bg=CREAM2,pt=28,pb=28,gap=16)
+
+# 2b. Coleções em círculo
+def circle_image(src):
+    im=image(f"shopify://shop_images/{src}")
+    im["settings"].update({"link":"shopify://collections/all","image_ratio":"square","width":"custom","custom_width":150,
+        "width_mobile":"custom","custom_width_mobile":110,"height":"fit","border":"none","border_radius":999})
+    return im
+categorias=[("cat1","florescer-2.webp","Colares"),("cat2","filha-1.webp","Pulseiras e Braceletes"),
+            ("cat3","ore-2.webp","Brincos"),("cat4","casados-1.webp","Infantil")]
+cb={};co=[]
+for k,img,label in categorias:
+    g=group({f"image_{k}":circle_image(img),
+             f"text_{k}":text(f"<p>{label}</p>","h6","center",width="100%")},
+            [f"image_{k}",f"text_{k}"],gap=14,h_col="center")
+    g["settings"]["width"]="custom"; g["settings"]["custom_width"]=15
+    cb[f"group_{k}"]=g; co.append(f"group_{k}")
+S["section_colecoes"]=section(
+  {"group_colHead":group({
+      "text_colEye":text("<p>EXPLORE POR COLEÇÃO</p>","rte","center"),
+      "text_colH":text("<p>Cada peça, uma palavra.</p>","h2","center",name="t:names.heading")},
+    ["text_colEye","text_colH"],gap=8,h_col="center",h_align="center"),
+   "group_colItems":group(cb,co,direction="row",gap=40,h_col="center")},
+  ["group_colHead","group_colItems"],"t:names.icons_with_text",direction="column",bg="",pt=64,pb=56,gap=36,h_col="center")
 
 # 3. Os 7 mais vendidos (estrutura original do tema, só textos ajustados)
 def plist_text(html, preset):
@@ -122,37 +164,46 @@ S["product_list_fa6P9H"]={"type":"product-list","blocks":{
     "section_width":"page-width","horizontal_alignment":"flex-start","gap":28,"background_color":"{{ settings.color_palette.background }}",
     "padding-block-start":48,"padding-block-end":48}}
 
-# 4. Propósito: cabeçalho
+# 4-5. Propósito: cabeçalho + grade com as 7 peças (duas fileiras, 4 + 3 centralizada)
 S["section_propHead"]=section(
   {"group_propHead":group({
-      "text_propEye":text("<p>O PROPÓSITO DE CADA PEÇA</p>","rte","center"),
-      "text_propH":text("<p>Mais que um acessório</p>","h2","center",name="t:names.heading")},
+      "text_propEye":text("<p>JOIAS COM PROPÓSITO</p>","rte","center"),
+      "text_propH":text("<p>\"Não vendemos apenas ouro, vendemos a palavra que alguém precisa carregar perto do peito.\"</p>","h2","center",name="t:names.heading")},
     ["text_propEye","text_propH"],gap=8,h_col="center",h_align="center")},
-  ["group_propHead"],"t:names.image_with_text",direction="column",bg=GREEN,pt=56,pb=0,h_col="center")
+  ["group_propHead"],"t:names.image_with_text",direction="column",bg=GREEN,pt=56,pb=40,h_col="center")
 
-# 5-7. Propósito: 3 peças, foto alternando de lado
-rows=[("Mil","MILAGRES · COLAR VIVEREI MILAGRES","Para quem crê antes de ver.",
-       "Um pingente circular com a frase \"Viverei Milagres\" e uma borboleta que representa renovo e liberdade. Um lembrete diário de que a vida é cheia de possibilidades, perfeito para presentear quem espera uma resposta.",
-       "viverei-1.webp",False),
-      ("Flo","RECOMEÇO · COLAR TEMPO DE FLORESCER","O seu tempo de desabrochar chegou.",
-       "A árvore da vida simboliza crescimento e raízes firmes. A frase \"Tempo de Florescer\" celebra novos ciclos e a força de quem está pronta para viver uma nova estação.",
-       "florescer-1.webp",True),
-      ("Pro","PROSPERIDADE · COLAR PROSPERE","Para florescer em cada área da vida.",
-       "Uma cruz cravejada de zircônias com uma pequena chave na base, representando caminhos abertos e novas oportunidades. Na prata que reflete leveza, um símbolo de determinação e expansão.",
-       "prospere-1.webp",False)]
-purpose_keys=[]
-for i,(k,eye,h,p,img,img_left) in enumerate(rows):
-    g=group({f"text_{k}Eye":text(f"<p>{eye}</p>"),
-             f"text_{k}H":text(f"<p>{h}</p>","h2",name="t:names.heading"),
-             f"text_{k}P":text(f"<p>{p}</p>",max_width="narrow"),
-             f"button_{k}":button("Ver a peça →","shopify://collections/all")},
-            [f"text_{k}Eye",f"text_{k}H",f"text_{k}P",f"button_{k}"],gap=16,width="custom")
-    blocks={f"group_{k}":g,f"image_{k}":image(f"shopify://shop_images/{img}")}
-    order=[f"image_{k}",f"group_{k}"] if img_left else [f"group_{k}",f"image_{k}"]
-    last=(i==len(rows)-1)
-    key=f"section_prop{k}"
-    S[key]=section(blocks,order,"t:names.image_with_text",bg=GREEN,pt=40,pb=64 if last else 40)
-    purpose_keys.append(key)
+pecas=[
+  ("Mil","MILAGRES","Viverei Milagres","Pingente com borboleta, para quem espera o inesperado.","viverei-2.webp"),
+  ("Flo","RECOMEÇO","Tempo de Florescer","Árvore da vida cravejada, para quem está recomeçando.","florescer-1.webp"),
+  ("Ore","FÉ","Ore, Espere, Confie","Medalhão sobre pérolas, para quem segue confiando.","ore-1.webp"),
+  ("Pro","PROSPERIDADE","Prospere","Cruz com chave, para quem abre novos caminhos.","prospere-2.webp"),
+  ("Ami","AMIZADE","Amiga de Deus","Pulseira gravada, para lembrar de quem cuida da gente.","amiga-1.webp"),
+  ("Cas","UNIÃO","Casados","Pingente do casal entrelaçado, para celebrar a união.","casados-2.webp"),
+  ("Fil","FAMÍLIA","Filha","Pulseira com letras, para a filha que carrega o nome da família.","filha-2.webp"),
+]
+def peca_card(k,eye,h,p,img):
+    im=image(f"shopify://shop_images/{img}")
+    im["settings"].update({"link":"shopify://collections/all","image_ratio":"portrait","border":"none","border_radius":0})
+    g=group({f"image_{k}":im,
+             f"text_{k}Eye":text(f"<p>{eye}</p>"),
+             f"text_{k}H":text(f"<p>{h}</p>","h4",name="t:names.heading"),
+             f"text_{k}P":text(f"<p>{p}</p>"),
+             f"button_{k}":button("Ver a peça →","shopify://collections/all","link")},
+            [f"image_{k}",f"text_{k}Eye",f"text_{k}H",f"text_{k}P",f"button_{k}"],gap=8,h_col="flex-start")
+    g["settings"]["width"]="custom"; g["settings"]["custom_width"]=22
+    return g
+row1=pecas[:4]; row2=pecas[4:]
+r1b={};r1o=[]
+for k,eye,h,p,img in row1:
+    r1b[f"group_{k}"]=peca_card(k,eye,h,p,img); r1o.append(f"group_{k}")
+r2b={};r2o=[]
+for k,eye,h,p,img in row2:
+    r2b[f"group_{k}"]=peca_card(k,eye,h,p,img); r2o.append(f"group_{k}")
+S["section_propGrid"]=section(
+  {"group_propRow1":group(r1b,r1o,direction="row",gap=24,h_col="center"),
+   "group_propRow2":group(r2b,r2o,direction="row",gap=24,h_col="center")},
+  ["group_propRow1","group_propRow2"],"t:names.image_with_text",direction="column",bg=GREEN,pt=0,pb=64,gap=24,h_col="center")
+purpose_keys=["section_propHead","section_propGrid"]
 
 # 8. Qualidade Dabela
 quality=[("heart","Banho ouro 18k","Camada generosa de ouro para um brilho intenso e duradouro."),
@@ -195,7 +246,7 @@ faq_sec=section({"text_faqEye":faq_eye,"text_Lmq9Rn":faq_head,
   ["text_faqEye","text_Lmq9Rn","accordion_bmC3XV"],"t:names.faq_section",direction="column",bg=CREAM2,pt=64,pb=64,gap=16)
 S["section_Gprabp"]=faq_sec
 
-order=["section_eKPPTg","section_JTKzfe","product_list_fa6P9H","section_propHead"]+purpose_keys+["section_quality","section_Gprabp"]
+order=["section_heroPremium","section_JTKzfe","section_colecoes","product_list_fa6P9H"]+purpose_keys+["section_quality","section_Gprabp"]
 data={"sections":S,"order":order}
 header="""/*
  * ------------------------------------------------------------
