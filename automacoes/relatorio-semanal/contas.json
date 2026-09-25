@@ -1,6 +1,6 @@
 {
   "_comentario": "Mapeamento cliente -> contas de midia. Editar aqui quando entrar ou sair conta. O relatorio semanal le este arquivo.",
-  "_atualizado_em": "2026-09-09",
+  "_atualizado_em": "2026-09-25",
   "fuso": "America/Sao_Paulo",
   "slack_channel_id": "C0C0H9AGT8U",
   "slack_channel_nome": "#resumo_otmizações_e_tarefas",
@@ -254,12 +254,12 @@
     },
     {
       "rotulo": "Botoclinic",
-      "supabase_cliente": null,
-      "supabase_client_id": null,
+      "supabase_cliente": "Botoclinic",
+      "supabase_client_id": "7aaa06fa-0863-4091-89f4-c99ee81d69e3",
       "google_ads": [],
       "meta_ads": [],
       "tiktok": [],
-      "obs": "Ainda nao vinculado (nem conta de midia nem cadastro no MGP Tasks). Ha canal #botoclinic-midia no Slack."
+      "obs": "Cadastrado no MGP Tasks em 15/09/2026, entao ja entra no bloco de tarefas. Conta de midia ainda nao conectada, continua fora do bloco de otimizacoes. Ha canal #botoclinic-midia no Slack."
     },
     {
       "rotulo": "Modesto (Interno)",

@@ -129,6 +129,14 @@ LIMIT 200
 o que permite dizer "R$ 400 para R$ 520" em vez de "orçamento alterado".
 `amountMicros` divide por 1.000.000.
 
+Numa semana de reestruturação a consulta pode estourar o limite de resposta da
+ferramenta: em 25/09/2026 Wondr voltou 164 eventos (92 mil caracteres) e Meu
+Rodapé 134 (99 mil), porque `old_resource`/`new_resource` carregam o recurso
+inteiro. Quando isso acontece a saída é salva em arquivo, e o caminho certo é
+agregar por script, não ler evento a evento: contar renomeações, somar
+orçamentos, agrupar negativas por campanha. Reduzir o `LIMIT` cortaria eventos
+reais e é pior.
+
 Não existe `CAMPAIGN_BIDDING_STRATEGY` neste enum. Ele esteve nesta lista até
 11/09/2026 e derrubava a consulta inteira com `BAD_ENUM_CONSTANT`, em todas as
 contas de uma vez. Mudança de estratégia de lance já vem como `CAMPAIGN`, com
@@ -246,7 +254,8 @@ mudança de conteúdo se faz aqui, não no trigger.
 - Google Ads guarda change history por **30 dias**. Semana perdida não se
   recupera depois.
 - TikTok não tem log de alteração na API.
-- Dabela e Botoclinic não têm conta de mídia conectada ao Pipeboard. Dabela
-  aparece só nas tarefas; Botoclinic não existe nem como cliente no Supabase.
+- Dabela e Botoclinic não têm conta de mídia conectada ao Pipeboard, então
+  aparecem só nas tarefas. Botoclinic ganhou cadastro no MGP Tasks em
+  15/09/2026 e desde então entra no bloco de tarefas.
 - O Activity Log do Meta falha com frequência em janelas largas. Por isso
   `limit=25` e paginação, e por isso vale checar `coverage.truncated`.
