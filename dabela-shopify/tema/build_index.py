@@ -106,7 +106,7 @@ S["section_JTKzfe"]=section(tb,to,"t:names.icons_with_text",bg=CREAM2,pt=28,pb=2
 def circle_image(src):
     im=image(f"shopify://shop_images/{src}")
     im["settings"].update({"link":"shopify://collections/all","image_ratio":"square","width":"fill","custom_width":100,
-        "width_mobile":"fill","custom_width_mobile":100,"height":"fit","border":"none","border_radius":999})
+        "width_mobile":"fill","custom_width_mobile":100,"height":"fit","border":"none","border_radius":100})
     return im
 categorias=[("cat1","florescer-2.webp","Colares"),("cat2","filha-1.webp","Pulseiras e Braceletes"),
             ("cat3","ore-2.webp","Brincos"),("cat4","casados-1.webp","Infantil")]
