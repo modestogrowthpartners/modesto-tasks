@@ -1,6 +1,6 @@
 /**
  * =====================================================================
- *  E-MAIL POR CONTA  |  conta.gs  ·  v3.4 (22/09/2026)
+ *  E-MAIL POR CONTA  |  conta.gs  ·  v3.5 (25/09/2026)
  *  Modesto Growth Partners
  * =====================================================================
  *
@@ -31,8 +31,9 @@
  *
  *  Layout: cabeçalho · cards (só os que existem) · Boletim de ontem · Ontem ·
  *  "No total, estou na meta?" · 3 faixas de ação · Pacing do mês · Receita do
- *  mês · Gasto por dia 14d · Mix + Receita vs meta · ROAS 7d + Funil · Por
- *  plataforma · Tendências · Por campanha · 5 elefantes na sala · rodapé.
+ *  mês · Site (GA4, só quem tem) · Gasto por dia 14d · Mix + Receita vs meta ·
+ *  ROAS 7d + Funil · Por plataforma · Tendências · Por campanha · 5 elefantes
+ *  na sala · rodapé.
  *
  *  Os gráficos são PNG gerados pelo serviço Charts do Apps Script e vão como
  *  imagem embutida (cid:).
@@ -191,6 +192,59 @@ function lerTendenciasDoDrive_(datas) {
     const f = acharArquivoNaPasta_(TEND.PREFIXO_TENDENCIAS + fmtIso_(datas.ontem) + '.json');
     return f ? JSON.parse(f.getBlob().getDataAsString('UTF-8')) : null;
   } catch (e) { Logger.log('tendencias_ não lido: %s', e.message); return null; }
+}
+
+// ---------------------------------------------------------------------
+//  GA4: dado de SITE (sessões, transações, receita), como conferência
+//  cruzada do que Google/Meta reportam. Só entra na conta que tiver o
+//  arquivo do dia (ga4_AAAA-MM-DD_CONTA.json na pasta do Drive) — hoje só
+//  a WONDR EXPERIENCE tem essa coleta. Arquivo gerado por rotina própria,
+//  fora do Apps Script; sem o arquivo, a seção simplesmente não aparece.
+// ---------------------------------------------------------------------
+function slugConta_(nome) { return String(nome || '').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase(); }
+
+/** Lê o ga4_ de ontem da conta no Drive (ou null, se a conta não tiver coleta de GA4). */
+function lerGa4DoDrive_(datas, c) {
+  try {
+    const nome = 'ga4_' + fmtIso_(datas.ontem) + '_' + slugConta_(c.nome) + '.json';
+    const f = acharArquivoNaPasta_(nome);
+    return f ? JSON.parse(f.getBlob().getDataAsString('UTF-8')) : null;
+  } catch (e) { Logger.log('ga4_ de %s não lido: %s', c.nome, e.message); return null; }
+}
+
+/**
+ * Seção "Site (GA4)": sessões, transações e receita do site, como
+ * conferência cruzada do que as plataformas de mídia atribuem a si mesmas
+ * (a atribuição é diferente, os números não batem exatamente por desenho;
+ * só a diferença grande importa). Retorna '' sem arquivo do dia.
+ * @return {string}
+ */
+function blocoGa4_(ga4, moeda, fmtKint, M, dot) {
+  if (!ga4 || !ga4.ontem) return '';
+  const base = (ga4.serie_7d || []).filter(d => d.data !== ga4.dia);
+  const media = k => base.length ? base.reduce((a, d) => a + (Number(d[k]) || 0), 0) / base.length : null;
+  const varv = (v, m) => (m === null || !m) ? null : (v - m) / m;
+  const o = ga4.ontem;
+  const tiles = [
+    { rot: 'Sessões', val: Math.round(o.sessoes).toLocaleString('pt-BR'), v: varv(o.sessoes, media('sessoes')) },
+    { rot: 'Transações', val: Math.round(o.transacoes), v: varv(o.transacoes, media('transacoes')) },
+    { rot: 'Receita do site', val: fmtKint(o.receita), v: varv(o.receita, media('receita')) }
+  ];
+  const wTile = Math.floor(100 / tiles.length) + '%';
+  let h = '<tr><td style="padding:10px 28px 2px 28px;border-top:1px solid ' + M.linha + '"><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:' + M.dourado + ';font-weight:bold">Site (GA4) <span style="color:' + M.neutro + ';font-weight:normal;letter-spacing:0;text-transform:none">· o que o site registrou, não o que cada plataforma atribui a si</span></div></td></tr>';
+  h += '<tr><td style="padding:6px 28px 4px 28px"><table width="100%" cellpadding="0" cellspacing="0"><tr>' +
+    tiles.map((t, i) => {
+      const cor = t.v === null ? M.neutro : (t.v >= 0 ? M.verde : M.vermelho);
+      const seta = t.v === null ? '' : '<span style="color:' + cor + ';font-weight:bold">' + (t.v >= 0 ? '&#9650; ' : '&#9660; ') + Math.abs(Math.round(t.v * 100)) + '%</span> <span style="color:' + M.neutro + '">vs média 7d</span>';
+      return '<td width="' + wTile + '" valign="top" style="padding:0 14px;' + (i === tiles.length - 1 ? '' : 'border-right:1px solid ' + M.linha) + '"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:' + M.cinza + '">' + t.rot + '</div>' +
+        '<div style="font-size:16px;font-weight:bold;margin-top:2px">' + t.val + '</div>' + (seta ? '<div style="font-size:10px;margin-top:1px">' + seta + '</div>' : '') + '</td>';
+    }).join('') + '</tr></table></td></tr>';
+  const canais = (ga4.canais_ontem || []).slice(0, 5);
+  if (canais.length) {
+    h += '<tr><td style="padding:0 28px 10px 28px"><div style="font-size:10px;color:' + M.neutro + ';margin-bottom:4px">Sessões de ontem por canal (GA4)</div>' +
+      canais.map(ch => '<span style="display:inline-block;margin:0 12px 4px 0;font-size:11px"><b>' + esc_(ch.canal) + '</b> <span style="color:' + M.cinza + '">' + Math.round(ch.sessoes) + '</span></span>').join('') + '</td></tr>';
+  }
+  return h;
 }
 
 // ---------------------------------------------------------------------
@@ -424,6 +478,11 @@ function montarHtmlConta_(ss, c, datas, tendencias, det, serie) {
       return '<td width="' + wTile + '" style="padding:10px 14px;' + (i === tiles.length - 1 ? '' : 'border-right:1px solid ' + M.linha) + '"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:' + M.cinza + '">' + t.rot + '</div>' +
         '<div style="font-size:16px;font-weight:bold;margin-top:2px">' + t.val + '</div>' + (seta ? '<div style="font-size:10px;margin-top:1px">' + seta + '</div>' : '') + '</td>';
     }).join('') + '</tr></table></td></tr>';
+
+  // Site (GA4): conferência cruzada do que o site registrou, direto do GA4.
+  // Só entra na conta que tiver o arquivo do dia (ga4_AAAA-MM-DD_CONTA.json).
+  const ga4 = lerGa4DoDrive_(datas, c);
+  h += blocoGa4_(ga4, moeda, fmtKint, M, dot);
 
   // No total, estou na meta? Só as caixas que fazem sentido para a conta.
   const caixas = [];
