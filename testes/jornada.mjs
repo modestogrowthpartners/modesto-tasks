@@ -947,26 +947,26 @@ ok('29 régua sem os botões de formatação',
    && regua.botoes.some(b=>/Anexar/.test(b)) && regua.botoes.some(b=>/Emoji/.test(b)),
    JSON.stringify(regua));
 
-/* ---- 30. tema escuro é o abismo teal da Auros, e a escolha mora no chat ---- */
+/* ---- 30. tema preto de verdade, e a escolha mora no chat ---- */
 const tema = await page.evaluate(async ()=>{
   MGChat.desenhar(); await new Promise(x=>setTimeout(x,250));
   const sel = document.querySelector('#v-chat .mgz-tema');
   mgTema('dark'); await new Promise(x=>setTimeout(x,250));
   const cs = getComputedStyle(document.body);
   const fundo = cs.getPropertyValue('--paper').trim();
-  /* escuro proposital, não neutro: abismo com acento teal, vermelho
-     sempre o canal mais baixo dos três (assinatura de verde-azulado). */
+  /* preto de verdade: os três canais quase iguais. O marrom antigo era
+     rgb(22,21,15), com 7 de diferença entre o vermelho e o azul. */
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(fundo);
   const rgb = m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : null;
+  const desvio = rgb ? Math.max(...rgb) - Math.min(...rgb) : 99;
   const claro = rgb ? Math.max(...rgb) : 99;
-  const teal = rgb ? (rgb[0] < rgb[1] && rgb[0] < rgb[2]) : false;
   mgTema('light'); await new Promise(x=>setTimeout(x,250));
   const claroDepois = getComputedStyle(document.body).getPropertyValue('--paper').trim();
-  return {temSeletor:!!sel, fundo, claro, teal, claroDepois};
+  return {temSeletor:!!sel, fundo, desvio, claro, claroDepois};
 });
-ok('30 escuro é o abismo teal da Auros e o claro troca para o painel novo',
-   tema.temSeletor && tema.claro <= 24 && tema.teal
-   && /f4f7f6/i.test(tema.claroDepois), JSON.stringify(tema));
+ok('30 escuro é preto neutro e o claro continua bege',
+   tema.temSeletor && tema.desvio <= 2 && tema.claro <= 20
+   && /f8f5ef/i.test(tema.claroDepois), JSON.stringify(tema));
 
 /* ---- 31. /configcomoreport manda o arquivo para o acervo ---- */
 const acervo = await page.evaluate(async ()=>{
@@ -1891,9 +1891,9 @@ ok('44b descrição e tempo seguem inteiros ao abrir o card',
    dentro.descricaoNoDetalhe && dentro.tempoNoDetalhe, JSON.stringify(dentro));
 
 /* =====================================================================
-   45 — a marca do Kronos é o sprite de pixel
+   45 — a marca da Mia é uma centelha de pixel, não mais um gato
    ===================================================================== */
-const marcaKronos = await page.evaluate(()=>{
+const marcaMia = await page.evaluate(()=>{
   const linha = mgGatoLinha(17), cheio = mgGato(20);
   const conta = s => (s.match(/<rect/g)||[]).length;
   const d = document.createElement('div'); d.innerHTML = cheio;
@@ -1908,309 +1908,14 @@ const marcaKronos = await page.evaluate(()=>{
     proporcao: svg.getAttribute('width') + 'x' + svg.getAttribute('height'),
   };
 });
-/* a grade do gato de frente tem 29 quadrados (2+4+7+5+6+5); a versão
-   cheia soma os dois olhos e o focinho */
-ok('45 o Kronos é um gato de pixel, com cor herdada no traço',
-   marcaKronos.quadrosLinha === 29 && marcaKronos.quadrosCheio === 32
-   && marcaKronos.herdaCor && marcaKronos.corPropria
-   && marcaKronos.semSuavizar && marcaKronos.caixa === '0 0 7 6'
-   && marcaKronos.proporcao === '20x17',
-   JSON.stringify(marcaKronos));
-
-/* ---- 45b. o gato senta na barra, e some quando não deve aparecer ----
-   Ele parou de atravessar a tela. Atravessar chamava atenção na hora
-   errada e passava por cima dos botões; agora ele fica sentado na quina
-   da barra, e o que dá vida são as manhas de bicho parado. */
-const sentado = await page.evaluate(async ()=>{
-  const r = {};
-  /* A barra é escondida por !important enquanto as boas-vindas estão
-     abertas, e mgEstadoDaTela repõe a classe a cada 700 ms. O que este
-     caso testa é "dada uma barra em cena, o gato senta nela". */
-  document.body.classList.remove('mg-sem-dock');
-  document.querySelectorAll('.mg-boas, .mg-tour').forEach(e=>e.remove());
-  const dock = document.getElementById('mg-dock');
-  if(dock) dock.style.setProperty('display','flex','important');
-  await new Promise(x=>setTimeout(x,120));
-
-  /* o gato é opcional e começa escondido: só aparece para quem ligar em
-     Configurações → Acessibilidade. O resto do caso testa com ele ligado. */
-  mgP('gato','off');
-  r.escondidoPorPadrao = !mgGatoPodeAparecer();
-  mgP('gato','on');
-  r.podeAparecer = mgGatoPodeAparecer();
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(x=>setTimeout(x,200));
-  const g = document.querySelector('.mg-gato-sen');
-  r.apareceu = !!g;
-  if(g){
-    const q = g.getBoundingClientRect(), b = dock.getBoundingClientRect();
-    /* sentado EM CIMA da borda da barra, não flutuando longe dela */
-    r.encostadoNaBarra = Math.abs(q.bottom - b.top) < 8;
-    r.dentroDaBarra = q.left >= b.left - 2 && q.right <= b.right + 2;
-    r.parado = getComputedStyle(g).position === 'fixed';
-    /* e recebe clique, ao contrário do que atravessava */
-    r.recebeClique = getComputedStyle(g).pointerEvents !== 'none';
-  }
-
-  /* com "Animações: desligado" ele não entra em cena */
-  document.body.classList.add('mg-sem-anim');
-  r.respeitaPreferencia = !mgGatoPodeAparecer();
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(x=>setTimeout(x,150));
-  r.ficouQuieto = !document.querySelector('.mg-gato-sen');
-  document.body.classList.remove('mg-sem-anim');
-  return r;
-});
-ok('45b o gato começa escondido, e ligado senta na barra obedecendo a animação',
-   sentado.escondidoPorPadrao && sentado.podeAparecer && sentado.apareceu && sentado.encostadoNaBarra
-   && sentado.dentroDaBarra && sentado.parado && sentado.recebeClique
-   && sentado.respeitaPreferencia && sentado.ficouQuieto,
-   JSON.stringify(sentado));
-
-/* ---- 45c. o desenho tem as três silhuetas na mesma grade ----
-   Grade única é o que impede o bicho de pular de tamanho ao trocar de
-   pose, e por isso a caixa é a mesma para sentado, andando e deitado. */
-const desenho = await page.evaluate(()=>{
-  const d = document.createElement('div');
-  d.innerHTML = mgGatoDesenho(26);
-  const svg = d.querySelector('svg');
-  const rabos = [...d.querySelectorAll('[class^="rabo"]')];
-  const quadros = sel => [...d.querySelectorAll(sel)];
-  const and = quadros('.mg-g-and > g'), dei = quadros('.mg-g-dei > g');
-  const pixels = g => [...g.querySelectorAll('rect')]
-    .map(r => r.getAttribute('x') + ',' + r.getAttribute('y')).sort().join(' ');
-  return {
-    caixa: svg.getAttribute('viewBox'),
-    semSuavizar: svg.getAttribute('shape-rendering') === 'crispEdges',
-    temCabeca: !!d.querySelector('.cabeca'),
-    temOlhos: d.querySelectorAll('.olhos rect').length,
-    temPata: !!d.querySelector('.pata'),
-    posesDeRabo: rabos.length,
-    /* o rabo é grupo próprio para se mexer sozinho, e não pixel solto */
-    rabosTemPixel: rabos.every(g => g.querySelectorAll('rect').length > 0),
-    passadas: and.length,
-    respiros: dei.length,
-    /* quadro de passada que repete outro é quadro desperdiçado: a
-       passada tem que ser quatro desenhos DIFERENTES */
-    passadasDistintas: new Set(and.map(pixels)).size,
-    respirosDistintos: new Set(dei.map(pixels)).size,
-    /* todo mundo pisa na mesma linha de chão, senão o gato afunda ou
-       flutua ao trocar de pose */
-    chaoIgual: new Set([d.querySelector('.mg-g-sen'), and[0], dei[0]].map(g =>
-      Math.max(...[...g.querySelectorAll('rect')].map(r => +r.getAttribute('y'))))).size === 1,
-  };
-});
-ok('45c as três silhuetas dividem a grade, o chão e têm quadros distintos',
-   desenho.caixa === '0 0 16 12' && desenho.semSuavizar
-   && desenho.temCabeca && desenho.temOlhos === 2 && desenho.temPata
-   && desenho.posesDeRabo === 2 && desenho.rabosTemPixel
-   && desenho.passadas === 4 && desenho.passadasDistintas === 4
-   && desenho.respiros === 2 && desenho.respirosDistintos === 2
-   && desenho.chaoIgual,
-   JSON.stringify(desenho));
-
-/* ---- 45d. as manhas: lamber a patinha e o mortal ---- */
-const manhas = await page.evaluate(async ()=>{
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(r=>setTimeout(r,200));
-  const g = document.querySelector('.mg-gato-sen');
-  if(!g) return {erro:'sem gato'};
-  const vistas = new Set();
-  /* chama a manha várias vezes: ela sorteia entre lamber e dar o mortal,
-     e o mortal é raro de propósito */
-  for(let i=0;i<120 && vistas.size < 2;i++){
-    /* a rotina agora também sorteia passear e deitar, e nesses estados
-       ela sai por outro caminho. Zerar antes de cada tentativa é o que
-       mantém este caso medindo SÓ as manhas de gato parado. */
-    g.classList.remove('andando','deitado','lambendo','mortal');
-    mgGatoManha();
-    if(g.classList.contains('lambendo')) vistas.add('lambendo');
-    if(g.classList.contains('mortal'))   vistas.add('mortal');
-  }
-  /* e a classe sai sozinha no fim, senão a manha só aconteceria uma vez */
-  for(let i=0;i<30;i++){
-    g.classList.remove('andando','deitado','lambendo','mortal');
-    mgGatoManha();
-    if(g.classList.contains('lambendo') || g.classList.contains('mortal')) break;
-  }
-  const logo = g.classList.contains('lambendo') || g.classList.contains('mortal');
-  await new Promise(r=>setTimeout(r,1800));
-  const depois = g.classList.contains('lambendo') || g.classList.contains('mortal');
-  return {manhas: [...vistas].sort(), comecou: logo, terminou: !depois};
-});
-ok('45d o gato lambe a patinha e dá o mortal, e a manha termina sozinha',
-   manhas.manhas && manhas.manhas.join() === 'lambendo,mortal'
-   && manhas.comecou && manhas.terminou,
-   JSON.stringify(manhas));
-
-/* ---- 45e. tocar nele faz ele ronronar ---- */
-const ronrom = await page.evaluate(async ()=>{
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(r=>setTimeout(r,200));
-  const g = document.querySelector('.mg-gato-sen');
-  if(!g) return {erro:'sem gato'};
-  g.dispatchEvent(new MouseEvent('click',{bubbles:true}));
-  await new Promise(r=>setTimeout(r,150));
-  const bolha = document.querySelector('.mg-gato-ron');
-  const r = {
-    ronronou: g.classList.contains('ronronando'),
-    bolha: bolha ? bolha.textContent : null,
-    /* de olho fechado enquanto ronrona */
-    olhoFechado: (()=>{ const o=g.querySelector('.olhos');
-      return o ? /scaleY\(0?\.14\)|matrix\(1, 0, 0, 0.14/.test(getComputedStyle(o).transform)
-                 || getComputedStyle(o).animationName === 'none' : false })(),
-    /* e sem som: barulho que ninguém pediu é barulho que se desliga */
-    semAudio: !g.querySelector('audio')
-  };
-  await new Promise(x=>setTimeout(x,2100));
-  r.parouDeRonronar = !g.classList.contains('ronronando');
-  return r;
-});
-ok('45e tocar no gato faz ele ronronar, sem som, e ele para sozinho',
-   ronrom.ronronou && ronrom.bolha === 'prrr' && ronrom.olhoFechado
-   && ronrom.semAudio && ronrom.parouDeRonronar,
-   JSON.stringify(ronrom));
-
-/* ---- 45f. o gato é da casa: cliente não vê ---- */
-const gatoSoEquipe = await page.evaluate(async ()=>{
-  const _adm = window.isAdmin;
-  window.isAdmin = ()=>false;
-  const podeComoCliente = mgGatoPodeAparecer();
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(r=>setTimeout(r,180));
-  const apareceuComoCliente = !!document.querySelector('.mg-gato-sen');
-  window.isAdmin = _adm;
-  mgGatoSentar();
-  await new Promise(r=>setTimeout(r,180));
-  return {podeComoCliente, apareceuComoCliente,
-          voltaComEquipe: !!document.querySelector('.mg-gato-sen')};
-});
-ok('45f cliente não vê o gato, e a equipe continua vendo',
-   !gatoSoEquipe.podeComoCliente && !gatoSoEquipe.apareceuComoCliente
-   && gatoSoEquipe.voltaComEquipe,
-   JSON.stringify(gatoSoEquipe));
-
-/* ---- 45g. ele anda de verdade pela barra ----
-   Três coisas separadas, e as três importam. Que ele SAIA do lugar, que
-   a passada troque de quadro um por vez, e que virar de direção não
-   passe pela largura zero. A terceira é a que quebra sozinha: se
-   deslocamento e espelho morassem no mesmo elemento, a transição
-   interpolaria os dois juntos e o gato encolheria até sumir a cada
-   mudança de rumo. */
-const passeio = await page.evaluate(async ()=>{
-  document.body.classList.remove('mg-sem-dock');
-  const t = document.getElementById('tour'); if(t) t.classList.remove('on');
-  document.querySelectorAll('.mg-boas, .mg-tour').forEach(e=>e.remove());
-  const dock = document.getElementById('mg-dock');
-  if(dock) dock.style.setProperty('display','flex','important');
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(r=>setTimeout(r,200));
-  const g = document.querySelector('.mg-gato-sen');
-  if(!g) return {erro:'sem gato'};
-  const vira = g.querySelector('.mg-gato-vira');
-  const naTela = ()=> Math.round(g.getBoundingClientRect().left);
-
-  /* vai até a ponta direita */
-  mgGatoAndarAte(0);
-  await new Promise(r=>setTimeout(r,900));
-  const partiu = naTela();
-  mgGatoAndarAte(mgGatoOnde().limite);
-  await new Promise(r=>setTimeout(r,120));
-  const andandoAgora = g.classList.contains('andando');
-  const olhaDireita = getComputedStyle(vira).transform;
-
-  /* a largura nunca pode encolher no meio da virada */
-  let larguraMinima = g.getBoundingClientRect().width;
-  const quadros = new Set();
-  for(let i=0;i<14;i++){
-    await new Promise(r=>setTimeout(r,90));
-    larguraMinima = Math.min(larguraMinima, g.getBoundingClientRect().width);
-    quadros.add([...g.querySelectorAll('.a0,.a1,.a2,.a3')]
-      .map(e=>getComputedStyle(e).opacity === '1' ? '1' : '0').join(''));
-  }
-  const meio = naTela();
-
-  /* agora para o outro lado, para provar que ele espelha */
-  mgGatoAndarAte(0);
-  await new Promise(r=>setTimeout(r,260));
-  larguraMinima = Math.min(larguraMinima, g.getBoundingClientRect().width);
-  const olhaEsquerda = getComputedStyle(vira).transform;
-
-  mgGatoCongelar();
-  const larguraFinal = g.getBoundingClientRect().width;
-  return {
-    andouParaFrente: meio > partiu + 20,
-    andandoAgora,
-    /* um quadro por vez, e mais de um quadro ao longo do trecho */
-    quadros: [...quadros],
-    umQuadroPorVez: [...quadros].every(q => q.split('1').length === 2),
-    variouQuadro: [...quadros].length > 1,
-    olhaDireita, olhaEsquerda,
-    /* matrix(-1,...) é o espelho; a largura não some no caminho */
-    espelhou: /matrix\(\s*-1/.test(olhaEsquerda) && !/matrix\(\s*-1/.test(olhaDireita),
-    larguraMinima: Math.round(larguraMinima), larguraFinal: Math.round(larguraFinal),
-    parouAoCongelar: !g.classList.contains('andando'),
-  };
-});
-ok('45g o gato anda pela barra, troca um quadro por vez e vira sem sumir',
-   passeio.andouParaFrente && passeio.andandoAgora
-   && passeio.umQuadroPorVez && passeio.variouQuadro && passeio.espelhou
-   && passeio.larguraMinima >= passeio.larguraFinal - 1
-   && passeio.parouAoCongelar,
-   JSON.stringify(passeio));
-
-/* ---- 45h. ele deita, respira e vira de um lado para o outro ---- */
-const deitada = await page.evaluate(async ()=>{
-  mgGatoSumir(); mgGatoSentar();
-  await new Promise(r=>setTimeout(r,200));
-  const g = document.querySelector('.mg-gato-sen');
-  if(!g) return {erro:'sem gato'};
-  const vira = g.querySelector('.mg-gato-vira');
-  const visivel = sel => getComputedStyle(g.querySelector(sel)).display !== 'none';
-
-  mgGatoDeitar();
-  await new Promise(r=>setTimeout(r,150));
-  const deitou = g.classList.contains('deitado');
-  const trocouSilhueta = visivel('.mg-g-dei') && !visivel('.mg-g-sen') && !visivel('.mg-g-and');
-
-  /* respira: os dois quadros aparecem ao longo do tempo, um por vez */
-  const respiros = new Set();
-  for(let i=0;i<10;i++){
-    await new Promise(r=>setTimeout(r,320));
-    respiros.add([...g.querySelectorAll('.d0,.d1')]
-      .map(e=>getComputedStyle(e).opacity === '1' ? '1' : '0').join(''));
-  }
-
-  /* deitado, a rotina só vira de lado ou levanta. Nas duas ele continua
-     com uma silhueta válida, e nunca fica preso andando. */
-  /* a rotina sorteia entre virar e levantar. Para provar que ele VIRA,
-     deita de novo sempre que levantar, até ver o espelho mudar; para
-     provar que LEVANTA, conta se em algum momento saiu do deitado. */
-  const lados = new Set([getComputedStyle(vira).transform]);
-  let levantou = false;
-  for(let i=0;i<60 && lados.size < 2;i++){
-    if(!g.classList.contains('deitado')){ levantou = true; mgGatoDeitar(); }
-    mgGatoManha();
-    await new Promise(r=>setTimeout(r,20));
-    lados.add(getComputedStyle(vira).transform);
-  }
-  for(let i=0;i<60 && !levantou;i++){
-    mgGatoManha();
-    await new Promise(r=>setTimeout(r,20));
-    if(!g.classList.contains('deitado')) levantou = true;
-  }
-  g.classList.remove('deitado');
-  return {deitou, trocouSilhueta, respiros: [...respiros],
-          umPorVez: [...respiros].every(q => q === '10' || q === '01'),
-          variouRespiro: [...respiros].length > 1,
-          virouDeLado: lados.size > 1, levantou};
-});
-ok('45h o gato deita, respira em dois quadros e vira de um lado para o outro',
-   deitada.deitou && deitada.trocouSilhueta
-   && deitada.umPorVez && deitada.variouRespiro
-   && deitada.virouDeLado && deitada.levantou,
-   JSON.stringify(deitada));
-
+/* a centelha (losango) tem 20 quadrados (1+3+5+7+3+1); sem rosto, a
+   versão cheia tem a mesma contagem da versão de traço */
+ok('45 a Mia é uma centelha de pixel, com cor herdada no traço',
+   marcaMia.quadrosLinha === 20 && marcaMia.quadrosCheio === 20
+   && marcaMia.herdaCor && marcaMia.corPropria
+   && marcaMia.semSuavizar && marcaMia.caixa === '0 0 7 6'
+   && marcaMia.proporcao === '20x17',
+   JSON.stringify(marcaMia));
 
 /* =====================================================================
    46 — a conversa para de pular, o Elias volta a ser equipe,
