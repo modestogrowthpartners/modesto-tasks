@@ -21737,6 +21737,7 @@ async function mgCarregarNaoLidas(){
   box-shadow:0 26px 60px -22px rgba(0,0,0,.55);
   animation:mglSobe .2s cubic-bezier(.2,.7,.3,1)}
 .mgk-painel.on{display:flex}
+.mgk-painel.fs{right:0;bottom:0;left:0;top:0;width:auto;height:auto;max-width:none;border-radius:0}
 @keyframes mglSobe{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .mgk-topo{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);
   background:var(--card2);flex-shrink:0}
@@ -21748,6 +21749,7 @@ async function mgCarregarNaoLidas(){
 .mgk-topo button{background:none;border:1px solid var(--line2);border-radius:0;width:28px;height:28px;
   color:var(--muted);font-size:13px;font-family:inherit;flex-shrink:0}
 .mgk-topo button:hover{border-color:var(--brass);color:var(--brass2)}
+.mgk-topo button#mgk-fs.on{border-color:var(--brass);color:var(--brass2)}
 /* o interruptor de contexto precisa dizer, só pela cor, se a Mia está
    lendo as conversas ou não: é a diferença entre ele saber e ele chutar */
 .mgk-topo button.ctx{font-size:13px;filter:grayscale(1);opacity:.55}
@@ -22041,6 +22043,17 @@ const MGKronos = (function(){
 let painel = null;
 let aberto = false;
 let hist = [];                 /* {papel, texto, acao, passos, erro}      */
+/* hist crescia sem teto numa sessão longa, e pintar() refaz o innerHTML
+   da conversa inteira (com o markdown reprocessado) a cada mensagem nova:
+   isso é o que fazia a Mia ficar mais pesada conforme a conversa crescia.
+   Mantém só as últimas 60 na tela; o que sai também libera a ação ligada
+   a ela em ACOES, senão o mapa cresce do mesmo jeito por baixo. */
+function empilhar(item){
+  hist.push(item);
+  if(hist.length > 60){
+    hist.splice(0, hist.length - 60).forEach(h=>{ if(h.acao) ACOES.delete(h.acao.id) });
+  }
+}
 let pensando = false;
 let estado = 'desconhecido';   /* desconhecido | ok | sem_chave | ...     */
 let motivoTxt = '';
@@ -22170,6 +22183,7 @@ function montar(){
       '<div class="mgk-topo"><span class="av">' + mgGato(21) + '</span>'
     + '<span class="tx"><b>Mia</b><span id="mgk-sub">Modesto IA, dentro do MGP</span></span>'
     + '<button id="mgk-ctx" class="ctx" onclick="MGKronos.alternarContexto()"></button>'
+    + '<button id="mgk-fs" title="Tela cheia" aria-label="Tela cheia" onclick="MGKronos.telaCheia()">⛶</button>'
     + '<button title="Apagar a conversa" onclick="MGKronos.limpar()">🧹</button>'
     + '<button title="Minimizar" onclick="MGKronos.fechar()">—</button></div>'
     + '<div class="mgk-corpo" id="mgk-corpo"></div>'
@@ -22233,7 +22247,23 @@ function abrir(){
 function fechar(){
   aberto = false;
   if(painel) painel.classList.remove('on');
+  if(telaCheiaOn) telaCheia();
   pintarBolha();
+}
+/* ocupar a tela inteira: não move a conversa para outro lugar, só troca
+   o tamanho do mesmo painel. Sai sozinho ao fechar, pra não prender o
+   próximo chamado da Mia em tela cheia por engano. */
+let telaCheiaOn = false;
+function telaCheia(){
+  if(!painel) return;
+  telaCheiaOn = !telaCheiaOn;
+  painel.classList.toggle('fs', telaCheiaOn);
+  const b = document.getElementById('mgk-fs');
+  if(b){
+    b.classList.toggle('on', telaCheiaOn);
+    b.title = telaCheiaOn ? 'Sair da tela cheia' : 'Tela cheia';
+    b.setAttribute('aria-label', b.title);
+  }
 }
 
 function marcado(txt){
@@ -22263,7 +22293,7 @@ function pintar(){
   if(sub){
     sub.textContent = pensando ? 'pensando…'
       : estado === 'sem_chave' || estado === 'chave_invalida' ? 'indisponível'
-      : 'Claude, dentro do MGP';
+      : 'Modesto IA, dentro do MGP';
   }
   if(!hist.length && !pensando){
     cx.innerHTML = '<div class="mgk-vazio"><div class="ic">' + mgGato(40) + '</div>'
@@ -22317,7 +22347,7 @@ async function enviar(){
 }
 async function perguntar(texto){
   abrir();
-  hist.push({papel:'user', texto});
+  empilhar({papel:'user', texto});
   guardar('user', texto);
   pensando = true; pintar();
 
@@ -22326,18 +22356,18 @@ async function perguntar(texto){
   registrarEstado(r);
 
   if(!r.ok){
-    hist.push({papel:'assistant', texto: r.erro || 'Não consegui responder agora.', erro:true});
+    empilhar({papel:'assistant', texto: r.erro || 'Não consegui responder agora.', erro:true});
     pintar();
     return r;
   }
   const passos = (r.passos||[]).map(p=>p.ferramenta).filter(Boolean);
   if(r.tipo === 'confirmar'){
-    if(r.texto) hist.push({papel:'assistant', texto:r.texto, passos});
+    if(r.texto) empilhar({papel:'assistant', texto:r.texto, passos});
     const a = novaAcao(r);
-    hist.push({papel:'assistant', acao:a});
+    empilhar({papel:'assistant', acao:a});
     guardar('assistant', r.texto || r.titulo, {acao:r.acao});
   }else{
-    hist.push({papel:'assistant', texto: r.texto, passos});
+    empilhar({papel:'assistant', texto: r.texto, passos});
     guardar('assistant', r.texto);
   }
   pintar();
@@ -22528,7 +22558,7 @@ return {
   abrir, fechar, alternar, enviar, tecla, digitou, sugestao, limpar,
   perguntar, pedirNoChat, noCanal, sobreMensagem, sobrePessoa,
   confirmar, cancelar, ligado, motivo,
-  alternarContexto,
+  alternarContexto, telaCheia,
   pintarBotao: pintarBolha,
   get lendoConversas(){ return lerConversas },
   get estado(){ return estado },

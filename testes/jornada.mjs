@@ -249,20 +249,20 @@ await page.evaluate(()=>{const t=document.getElementById('mgz-in');t.value='/res
 await page.waitForTimeout(600);
 const barrado = await page.evaluate(()=>{
   const m=[...document.querySelectorAll('#mgz-msgs .mgz-m.luq .tx')].pop(); return m?m.textContent:''});
-ok('17 comando de IA barrado com motivo', /depende do Kronos/.test(barrado) && /ANTHROPIC_API_KEY/.test(barrado), barrado);
+ok('17 comando de IA barrado com motivo', /depende da Mia/.test(barrado) && /ANTHROPIC_API_KEY/.test(barrado), barrado);
 
-/* ---- 18. @Kronos publica para todo mundo ---- */
+/* ---- 18. @Mia publica para todo mundo ---- */
 await page.evaluate(()=>{window.__KRONOS_MODO='texto'});
 const nMsgAntes = await page.evaluate(()=>window.__FIX.messages.length);
 await page.evaluate(()=>{const t=document.getElementById('mgz-in');
-  t.value='@Kronos resume essa conversa';MGChat.digitou(t,'');return MGChat.enviar()});
+  t.value='@Mia resume essa conversa';MGChat.digitou(t,'');return MGChat.enviar()});
 await page.waitForTimeout(1400);
 const publicou = await page.evaluate(()=>({
   n:window.__FIX.messages.length,
   ultimas:window.__FIX.messages.slice(-2).map(m=>({kind:m.kind, autor:m.author_name})),
   naTela:[...document.querySelectorAll('#mgz-msgs .mgz-m .quem')].map(x=>x.textContent)}));
-ok('18 @Kronos publica na conversa', publicou.n===nMsgAntes+2
-   && publicou.ultimas[1].kind==='kronos' && publicou.naTela.includes('Kronos'),
+ok('18 @Mia publica na conversa', publicou.n===nMsgAntes+2
+   && publicou.ultimas[1].kind==='kronos' && publicou.naTela.includes('Mia'),
    JSON.stringify(publicou.ultimas));
 
 /* ---- 19. consistência da identidade em todos os lugares ---- */
@@ -947,26 +947,26 @@ ok('29 régua sem os botões de formatação',
    && regua.botoes.some(b=>/Anexar/.test(b)) && regua.botoes.some(b=>/Emoji/.test(b)),
    JSON.stringify(regua));
 
-/* ---- 30. tema preto de verdade, e a escolha mora no chat ---- */
+/* ---- 30. tema escuro é o abismo teal da Auros, e a escolha mora no chat ---- */
 const tema = await page.evaluate(async ()=>{
   MGChat.desenhar(); await new Promise(x=>setTimeout(x,250));
   const sel = document.querySelector('#v-chat .mgz-tema');
   mgTema('dark'); await new Promise(x=>setTimeout(x,250));
   const cs = getComputedStyle(document.body);
   const fundo = cs.getPropertyValue('--paper').trim();
-  /* preto de verdade: os três canais quase iguais. O marrom antigo era
-     rgb(22,21,15), com 7 de diferença entre o vermelho e o azul. */
+  /* escuro proposital, não neutro: abismo com acento teal, vermelho
+     sempre o canal mais baixo dos três (assinatura de verde-azulado). */
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(fundo);
   const rgb = m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : null;
-  const desvio = rgb ? Math.max(...rgb) - Math.min(...rgb) : 99;
   const claro = rgb ? Math.max(...rgb) : 99;
+  const teal = rgb ? (rgb[0] < rgb[1] && rgb[0] < rgb[2]) : false;
   mgTema('light'); await new Promise(x=>setTimeout(x,250));
   const claroDepois = getComputedStyle(document.body).getPropertyValue('--paper').trim();
-  return {temSeletor:!!sel, fundo, desvio, claro, claroDepois};
+  return {temSeletor:!!sel, fundo, claro, teal, claroDepois};
 });
-ok('30 escuro é preto neutro e o claro continua bege',
-   tema.temSeletor && tema.desvio <= 2 && tema.claro <= 20
-   && /f8f5ef/i.test(tema.claroDepois), JSON.stringify(tema));
+ok('30 escuro é o abismo teal da Auros e o claro troca para o painel novo',
+   tema.temSeletor && tema.claro <= 24 && tema.teal
+   && /f4f7f6/i.test(tema.claroDepois), JSON.stringify(tema));
 
 /* ---- 31. /configcomoreport manda o arquivo para o acervo ---- */
 const acervo = await page.evaluate(async ()=>{
