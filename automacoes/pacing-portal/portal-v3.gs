@@ -32,8 +32,8 @@
  * 1. No projeto do Apps Script "Alertas de pacing V1": Arquivos > + >
  *    Script, nome `portal`, cole este arquivo inteiro.
  * 2. Configurações do projeto > Propriedades do script, acrescente:
- *      SUPABASE_URL   https://vwhpjdesnszxbbvvwqvc.supabase.co
- *      SUPABASE_KEY   service_role key do projeto novo
+ *      SUPABASE_URL   https://eeqaabwsheaiwyhujcqj.supabase.co
+ *      SUPABASE_KEY   service_role key do projeto (eeqaabwsheaiwyhujcqj)
  *    (SLACK_WEBHOOK_URL, SLACK_BOT_TOKEN etc. continuam os mesmos, não mexe.)
  * 3. Em pacing_alertas.gs (arquivo "Alerta de pacing.gs"), dentro de
  *    `executar_(opts)`, logo depois da linha:
