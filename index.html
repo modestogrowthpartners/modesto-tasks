@@ -30988,7 +30988,7 @@ window.mgzQuemEh        = mgzQuemEh;
           try{
             const {error} = await sb.from('mgp_pesquisas').insert({
               client_id: nova.id, tipo: e.pesquisa, rodada: 1, status: 'enviado',
-              respostas: {}, anexos: [], interno: {},
+              respostas: {}, anexos: [],
               criado_por: (typeof ME !== 'undefined' && ME) ? ME.id : null,
             });
             if(error) throw error;
