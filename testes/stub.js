@@ -51,6 +51,7 @@
       {id:'tt-2', nome:'Report', ordem:2},
       {id:'tt-3', nome:'Implementação', ordem:3},
       {id:'tt-4', nome:'UTM', ordem:4},
+      {id:'tt-12', nome:'UGC', ordem:12},
     ]
   };
   /* persiste entre recargas, para dar sentido ao teste de persistência:

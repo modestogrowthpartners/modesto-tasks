@@ -922,18 +922,24 @@ const demandaPeloChat = await page.evaluate(async ()=>{
   const dt  = document.querySelector('[data-campo="due"] input');
   const cli = document.querySelector('[data-campo="cliente"] select');
   const ok1 = [...document.querySelectorAll('button')].find(b=>/Criar demanda/.test(b.textContent));
+  /* sem tarefa fixa a janela não cria; escolhida, cria */
+  if(ok1) ok1.click();
+  await new Promise(x=>setTimeout(x,300));
+  const barrouSemTipo = window.__FIX.tasks.length === antes && !!document.querySelector('[data-campo="tipo"].ruim');
+  const tp = document.querySelector('[data-campo="tipo"] select');
+  if(tp) tp.value = 'Report';
   if(ok1) ok1.click();
   await new Promise(x=>setTimeout(x,900));
   const nova = window.__FIX.tasks[window.__FIX.tasks.length-1];
   return {abriu:!!j, titulo: tit?tit.value:'', prazo: dt?dt.value:'',
-          empresaDoCanal: cli?cli.value:'',
+          empresaDoCanal: cli?cli.value:'', barrouSemTipo,
           criou: window.__FIX.tasks.length > antes,
-          gravada: nova ? {t:nova.title, c:nova.client_id, d:nova.due} : null};
+          gravada: nova ? {t:nova.title, c:nova.client_id, d:nova.due, tipo:nova.tipo} : null};
 });
 ok('28c /demanda abre a janela e cria a demanda',
    demandaPeloChat.abriu && /banner/i.test(demandaPeloChat.titulo) && demandaPeloChat.prazo
-   && demandaPeloChat.empresaDoCanal === 'c-1' && demandaPeloChat.criou
-   && demandaPeloChat.gravada && demandaPeloChat.gravada.c === 'c-1',
+   && demandaPeloChat.empresaDoCanal === 'c-1' && demandaPeloChat.criou && demandaPeloChat.barrouSemTipo
+   && demandaPeloChat.gravada && demandaPeloChat.gravada.c === 'c-1' && demandaPeloChat.gravada.tipo === 'Report',
    JSON.stringify(demandaPeloChat));
 
 /* ---- 29. a régua da caixa não tem mais B, I, S e código ---- */
@@ -3107,6 +3113,7 @@ const criarComArquivo = await page.evaluate(async ()=>{
   openTaskModal(null, 'Não iniciado'); await new Promise(r=>setTimeout(r,200));
   const temBotao = !!document.getElementById('m-anexos-btn');
   document.getElementById('m-title').value = 'Demanda com arquivo';
+  document.getElementById('m-tipo').value = 'Report';
   /* o seletor nativo não abre em teste: o arquivo entra pela mesma lista
      que o botão preenche */
   MG_ANEXOS_NOVOS = [new File(['%PDF-1.4 teste'], 'briefing.pdf', {type:'application/pdf'})];
@@ -3312,6 +3319,81 @@ const tipoDetalhe = await page.evaluate(async ()=>{
 ok('58c o campo Tarefa fixa no detalhe salva na hora, sem precisar de "Salvar alterações"',
    tipoDetalhe.valorAntes === 'UTM' && tipoDetalhe.salvouNovoTipo,
    JSON.stringify(tipoDetalhe));
+
+/* ---- 58d. o cliente é um campo do detalhe, gravado no Salvar alterações ---- */
+const trocaCli = await page.evaluate(async ()=>{
+  if(!window.__FIX.clients.some(c=>c.id==='c-2')) window.__FIX.clients.push({id:'c-2', nome:'Cliente Dois', logo_url:null});
+  await loadClients();
+  window.__FIX.tasks = (window.__FIX.tasks||[]).filter(t=>t.id!=='t-cli');
+  window.__FIX.tasks.push({id:'t-cli', client_id:'c-1', title:'Demanda que muda de cliente', description:'',
+    status:'Não iniciado', priority:'Média', assignees:[], assignee_ids:[], due:null, start_date:null,
+    recurrence:'none', subtasks:[], time_spent:0, timer_start:null, position:99, tipo:'Report',
+    created_at:'2026-09-02T10:00:00Z', updated_at:'2026-09-02T10:00:00Z', completed_at:null,
+    archived:false, urgente:false, anexos:[], project_id:'p-velho'});
+  await loadTasks(); render();
+  await openDetail('t-cli'); await new Promise(r=>setTimeout(r,320));
+  const sel = document.getElementById('d-client');
+  const antes = sel ? sel.value : null;
+  if(sel) sel.value = 'c-2';
+  await saveDetail(); await new Promise(r=>setTimeout(r,900));
+  const f = window.__FIX.tasks.find(x=>x.id==='t-cli');
+  const cab = (document.querySelector('#slide .slide-h .st-line')||{}).textContent || '';
+  const papel = ME.role, emp = ME.client_id;
+  ME.role = 'client'; ME.client_id = 'c-2';
+  await openDetail('t-cli'); await new Promise(r=>setTimeout(r,320));
+  const clienteVeCampo = !!document.getElementById('d-client');
+  closeDetail(); ME.role = papel; ME.client_id = emp;
+  return {antes, gravou: f.client_id, projeto: f.project_id, cabNovo: /Cliente Dois/.test(cab), clienteVeCampo};
+});
+ok('58d o cliente se troca no detalhe, grava no Salvar alterações, solta o projeto e não aparece para o cliente',
+   trocaCli.antes === 'c-1' && trocaCli.gravou === 'c-2' && trocaCli.projeto === null
+   && trocaCli.cabNovo && !trocaCli.clienteVeCampo,
+   JSON.stringify(trocaCli));
+
+/* ---- 58e. a tarefa fixa é obrigatória na janela e no detalhe, e a recorrência herda ---- */
+const tipoObrig = await page.evaluate(async ()=>{
+  closeDetail();
+  /* a demanda mais recente fica urgente: a validação não pode mexer nela */
+  const maisNova = (TASKS||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
+  const fm = window.__FIX.tasks.find(x=>x.id===maisNova.id); fm.urgente = true; maisNova.urgente = true;
+  const antes = window.__FIX.tasks.length;
+  openTaskModal(null, 'Não iniciado'); await new Promise(r=>setTimeout(r,200));
+  const rotulo = [...document.querySelectorAll('#tmodal-c label')].map(l=>l.textContent).find(x=>/Tarefa fixa/.test(x)) || '';
+  const vazioDesab = !!document.querySelector('#m-tipo option[value=""][disabled]');
+  const temUGC = [...document.querySelectorAll('#m-tipo option')].some(o=>o.value==='UGC');
+  document.getElementById('m-title').value = 'Demanda sem tipo';
+  const r = await saveTask(null); await new Promise(x=>setTimeout(x,700));
+  const barrou = r === false && window.__FIX.tasks.length === antes && document.getElementById('tmodal').classList.contains('on');
+  const urgenteIntacto = window.__FIX.tasks.find(x=>x.id===maisNova.id).urgente === true;
+  document.getElementById('tmodal').classList.remove('on');
+
+  /* demanda antiga sem tipo: o detalhe mostra o aviso e não deixa voltar para vazio */
+  window.__FIX.tasks = window.__FIX.tasks.filter(t=>t.id!=='t-semtipo');
+  window.__FIX.tasks.push({id:'t-semtipo', client_id:'c-1', title:'Demanda antiga sem tipo', description:'',
+    status:'Não iniciado', priority:'Média', assignees:[], assignee_ids:[], due:'2026-09-10', start_date:null,
+    recurrence:'weekly', subtasks:[], time_spent:0, timer_start:null, position:98, tipo:null,
+    created_at:'2026-08-01T10:00:00Z', updated_at:'2026-08-01T10:00:00Z', completed_at:null,
+    archived:false, urgente:false, anexos:[]});
+  await loadTasks(); render();
+  await openDetail('t-semtipo'); await new Promise(x=>setTimeout(x,320));
+  const sel = document.getElementById('d-tipo');
+  const avisoLegado = !!(sel && sel.querySelector('option[value=""][disabled]') && sel.value === '');
+  await quickField('tipo','UGC');
+  await quickField('tipo','');
+  const t = TASKS.find(x=>x.id==='t-semtipo');
+  const naoZerou = t.tipo === 'UGC' && window.__FIX.tasks.find(x=>x.id==='t-semtipo').tipo === 'UGC';
+
+  /* concluir a recorrente gera a próxima com a mesma tarefa fixa */
+  await changeStatus(t, 'Feito'); await new Promise(x=>setTimeout(x,600));
+  const prox = window.__FIX.tasks.filter(x=>x.title==='Demanda antiga sem tipo' && x.id!=='t-semtipo');
+  closeDetail();
+  return {rotulo, vazioDesab, temUGC, barrou, urgenteIntacto, avisoLegado, naoZerou,
+          herdou: prox.length === 1 && prox[0].tipo === 'UGC'};
+});
+ok('58e tarefa fixa obrigatória: a janela barra sem tipo, o detalhe não volta para vazio e a recorrência herda',
+   !/opcional/i.test(tipoObrig.rotulo) && tipoObrig.vazioDesab && tipoObrig.temUGC && tipoObrig.barrou
+   && tipoObrig.urgenteIntacto && tipoObrig.avisoLegado && tipoObrig.naoZerou && tipoObrig.herdou,
+   JSON.stringify(tipoObrig));
 
 /* =====================================================================
    59. Double check — responsável, prazo e a etapa concluída

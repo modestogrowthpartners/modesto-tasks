@@ -1260,6 +1260,13 @@ async function loadTaskTipos(){
   const {data}=await sb.from('task_tipos').select('*').order('ordem').order('nome');
   TASK_TIPOS=data||[];
 }
+/* opções do seletor de tarefa fixa: o rótulo já salvo na demanda entra mesmo
+   que tenha saído do catálogo, para não sumir ao editar */
+function mgTipoOpcoes(atual){
+  const nomes=TASK_TIPOS.map(x=>x.nome);
+  if(atual&&!nomes.includes(atual))nomes.push(atual);
+  return nomes.map(n=>`<option value="${esc(n)}" ${atual===n?'selected':''}>${esc(n)}</option>`).join('');
+}
 async function loadTasks(){
   let q=sb.from('tasks').select('*').order('position',{ascending:true}).order('created_at',{ascending:false});
   const {data,error}=await q;
@@ -1715,8 +1722,9 @@ function renderDetailBody(){
       <button class="x" onclick="closeDetail()">✕</button>
     </div>
     <div class="slide-b">
+      ${admin?`<div class="frow"><span class="fl">Cliente</span><select class="fld" id="d-client">${t.client_id?'':'<option value="" selected>Sem cliente</option>'}${CLIENTS.map(c=>`<option value="${esc(c.id)}" ${t.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>`:''}
       <div class="frow"><span class="fl">Status</span>${statusField}</div>
-      <div class="frow"><span class="fl">Tarefa fixa</span>${admin?`<select class="fld" id="d-tipo" onchange="quickField('tipo',this.value)"><option value="">— nenhuma —</option>${TASK_TIPOS.map(x=>`<option value="${esc(x.nome)}" ${t.tipo===x.nome?'selected':''}>${esc(x.nome)}</option>`).join('')}</select>`:(t.tipo?`<span class="mg-tipo-tag">${esc(t.tipo)}</span>`:'<span>—</span>')}</div>
+      <div class="frow"><span class="fl">Tarefa fixa</span>${admin?`<select class="fld" id="d-tipo" onchange="quickField('tipo',this.value)">${t.tipo?'':'<option value="" disabled selected>Escolha a tarefa fixa</option>'}${mgTipoOpcoes(t.tipo)}</select>`:(t.tipo?`<span class="mg-tipo-tag">${esc(t.tipo)}</span>`:'<span>—</span>')}</div>
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
       <div class="frow"><span class="fl">Owner</span>${admin?`<select class="fld" id="d-owner">${mgOwnerOpcoes(t.owner_id)}</select>`:`<span>${esc(mgOwnerNome(t.owner_id)||'—')}</span>`}</div>
       <div class="frow" style="align-items:flex-start"><span class="fl">Responsáveis</span>${admin?`<div class="mg-resp-host">${assigneePickerHTML()}</div>`:`<span>${(t.assignees||[]).join(', ')||'—'}</span>`}</div>
@@ -1801,6 +1809,7 @@ async function saveDetail(){
   const t=TASKS.find(x=>x.id===DETAIL_ID);if(!t)return;
   const patch={
     title:$('d-title').value.trim()||t.title,
+    client_id:(($('d-client')||{}).value)||t.client_id||null,
     status:$('d-status').value,
     priority:$('d-prio').value,
     assignees:[..._selAssignees],
@@ -1810,6 +1819,8 @@ async function saveDetail(){
     recurrence:$('d-rec').value,
     description:$('d-desc').value,
   };
+  /* projeto é por cliente: trocar o cliente tira a demanda do projeto antigo */
+  if(patch.client_id!==t.client_id && t.project_id) patch.project_id=null;
   const becameDone = DONE_STATUSES.includes(patch.status) && !DONE_STATUSES.includes(t.status);
   const leftDone = !DONE_STATUSES.includes(patch.status) && DONE_STATUSES.includes(t.status);
   if(becameDone) patch.completed_at=new Date().toISOString();
@@ -1826,7 +1837,9 @@ async function quickField(field,value){
   const t=TASKS.find(x=>x.id===DETAIL_ID);if(!t)return;
   if(field==='status'){await changeStatus(t,value);}
   else if(field==='tipo'){
-    const patch={tipo:value||null};
+    /* tarefa fixa é obrigatória: o seletor não volta para vazio */
+    if(!value){toast('Escolha a tarefa fixa.');return}
+    const patch={tipo:value};
     const {error}=await sb.from('tasks').update(patch).eq('id',t.id);
     if(error){toast('Erro ao salvar o tipo');console.error(error);return}
     Object.assign(t,patch);
@@ -1871,6 +1884,7 @@ async function maybeRecur(t){
   await sb.from('tasks').insert({
     client_id:t.client_id,title:t.title,description:t.description,status:'Não iniciado',
     priority:t.priority,assignees:t.assignees,due:nextDue,recurrence:t.recurrence,
+    tipo:t.tipo||null,   /* a próxima recorrência herda a tarefa fixa */
   });
   toast('♻︎ Próxima recorrência criada ('+({daily:'+1 dia',weekly:'+7 dias',monthly:'+1 mês'}[t.recurrence]||'+1 dia')+')');
 }
@@ -1885,7 +1899,7 @@ function openTaskModal(id=null,status=null){
   $('tmodal-c').innerHTML=`
     <h2>${t?'Editar demanda':'Nova demanda'}</h2>
     <div style="font-size:12px;color:var(--muted)">Preencha os dados da demanda.</div>
-    <label>Tarefa fixa (opcional)</label><select class="fld" id="m-tipo"><option value="">— nenhuma —</option>${TASK_TIPOS.map(x=>`<option value="${esc(x.nome)}" ${t&&t.tipo===x.nome?'selected':''}>${esc(x.nome)}</option>`).join('')}</select>
+    <label>Tarefa fixa</label><select class="fld" id="m-tipo"><option value="" disabled ${t&&t.tipo?'':'selected'}>Escolha a tarefa fixa</option>${mgTipoOpcoes(t?t.tipo:'')}</select>
     <label>Título</label><input class="fld" id="m-title" value="${t?esc(t.title):''}" placeholder="Ex.: Subir campanha Meta Ads">
     <label>Cliente</label><select class="fld" id="m-client">${CLIENTS.map(c=>`<option value="${c.id}" ${t&&t.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -1947,7 +1961,10 @@ async function saveTask(id){
     owner_id:(($('m-owner')||{}).value)||null,
     description:$('m-desc').value,
   };
-  if(!payload.title){toast('Informe o título.');return}
+  /* devolve false quando nada foi gravado: os embrulhos de saveTask param aí */
+  if(!payload.title){toast('Informe o título.');return false}
+  /* tarefa fixa é obrigatória; sem catálogo carregado não trava a criação */
+  if(!payload.tipo&&TASK_TIPOS.length){toast('Escolha a tarefa fixa.');$('m-tipo').focus();return false}
   let error, criada = null;
   if(id){({error}=await sb.from('tasks').update(payload).eq('id',id));}
   else {
@@ -1955,7 +1972,7 @@ async function saveTask(id){
     const r = await sb.from('tasks').insert(payload).select('id,client_id,anexos').single();
     error = r.error; criada = r.data;
   }
-  if(error){toast('Erro ao salvar');console.error(error);return}
+  if(error){toast('Erro ao salvar');console.error(error);return false}
   $('tmodal').classList.remove('on');
   toast(id?'Demanda atualizada':'Demanda criada');
   if(criada && MG_ANEXOS_NOVOS.length){
@@ -12235,14 +12252,17 @@ function mgUrgConferir(){
   saveTask = async function(){
     const cx = document.getElementById('mg-urg-nova');
     const quer = cx ? cx.checked : null;
+    const idEditado = arguments[0];
     /* repassa os argumentos: sem isto o id da edição sumia aqui e a
        camada de baixo fazia INSERT, duplicando a demanda editada */
     const r = await _st.apply(this, arguments);
-    if(quer===null) return r;
+    /* nada foi gravado (validação ou erro): não mexe no urgente de ninguém */
+    if(quer===null || r===false) return r;
     try{
       await loadTasks();
-      /* a demanda recém-salva é a mais recente do usuário */
-      const alvo = (TASKS||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
+      /* na edição o alvo é a própria demanda; na criação, a mais recente */
+      const alvo = idEditado ? (TASKS||[]).find(x=>x.id===idEditado)
+        : (TASKS||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
       if(alvo && !!alvo.urgente !== quer){
         await sb.from('tasks').update({urgente:quer}).eq('id', alvo.id);
         alvo.urgente = quer;
@@ -15920,16 +15940,6 @@ function mgOrdenarPorEntrega(){
 .slide-foot .btn-edit{background:var(--card2);border:1px solid var(--line2);border-radius:0;
   padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px;color:var(--text)}
 .slide-foot .btn-edit:hover{border-color:var(--brass);color:var(--brass2)}
-
-/* o cliente atual fica visível no topo do painel, clicável para trocar */
-.mg-det-cli{display:inline-flex;align-items:center;gap:7px;background:var(--card2);
-  border:1px solid var(--line2);border-radius:0;padding:4px 12px 4px 5px;
-  font-size:12px;font-weight:600;font-family:inherit;color:var(--text);margin-top:8px}
-.mg-det-cli:hover{border-color:var(--brass);color:var(--brass2)}
-.mg-det-cli img{width:18px;height:18px;border-radius:50%;object-fit:contain;background:#fff;
-  border:1px solid var(--line)}
-.mg-det-cli .pt{width:10px;height:10px;border-radius:50%;margin-left:4px}
-.mg-det-cli .lapis{font-size:10px;opacity:.6}
 </style>
 <script>
 /* =====================================================================
@@ -16074,23 +16084,13 @@ function mgEditarDemanda(id){
       if(pe && !pe.querySelector('.btn-edit')){
         const salvar = pe.querySelector('.btn-save');
         const html = `<button class="btn-edit" onclick="mgEditarDemanda('${escJS(t.id)}')"
-            title="Abrir a janela completa — inclusive para trocar o cliente">✎ Editar</button>`;
+            title="Abrir a janela completa de edição">✎ Editar</button>`;
         if(salvar) salvar.insertAdjacentHTML('afterend', html);
         else pe.insertAdjacentHTML('beforeend', html);
       }
 
-      /* 2. o cliente atual, visível e clicável, no topo do painel */
-      const cab = document.querySelector('#slide .slide-h');
-      if(cab && !cab.querySelector('.mg-det-cli')){
-        const lg = (typeof clientLogo === 'function') ? clientLogo(t.client_id) : null;
-        const marca = lg ? `<img src="${mgUrlImagem(lg)}" alt="">`
-                         : `<span class="pt" style="background:${clientColor(t.client_id)}"></span>`;
-        cab.insertAdjacentHTML('beforeend',
-          `<button class="mg-det-cli" onclick="mgEditarDemanda('${escJS(t.id)}')"
-             title="Trocar o cliente desta demanda">
-            ${marca}${esc(clientName(t.client_id))}<span class="lapis">✎</span>
-          </button>`);
-      }
+      /* 2. o cliente agora se troca no campo Cliente do próprio painel
+         (renderDetailBody), salvo junto com os outros em saveDetail */
     }catch(e){ console.warn('[editar demanda]', e) }
     return r;
   };
@@ -16102,7 +16102,7 @@ function mgEditarDemanda(id){
   const _st = saveTask;
   saveTask = async function(id){
     const r = await _st(id);
-    if(id){
+    if(id && r!==false){
       setTimeout(()=>{
         try{
           const ainda = (TASKS||[]).find(x => x.id === id);
@@ -23889,6 +23889,10 @@ body.theme-dark .bg-anim{opacity:.35}
       campos: [
         {nome:'title', rotulo:'Título', tipo:'texto', valor:d.title, obrigatorio:true,
          validar: v => String(v||'').trim() ? null : 'Dê um título à demanda.'},
+        /* tarefa fixa é obrigatória, como na janela de Nova demanda */
+        {nome:'tipo', rotulo:'Tarefa fixa', tipo:'lista', valor:'',
+         opcoes:[{v:'', r:'Escolha a tarefa fixa'}].concat((typeof TASK_TIPOS!=='undefined'?TASK_TIPOS:[]).map(x=>({v:x.nome, r:x.nome}))),
+         validar: v => (v || !(typeof TASK_TIPOS!=='undefined' && TASK_TIPOS.length)) ? null : 'Escolha a tarefa fixa.'},
         {nome:'description', rotulo:'Descrição', tipo:'area', valor:d.description,
          ajuda:'O que você escreveu, inteiro. Complete com o contexto que faltar.'},
         {nome:'cliente', rotulo:'Empresa', tipo:'lista', valor:d.cliente ? d.cliente.id : '',
@@ -23910,6 +23914,7 @@ body.theme-dark .bg-anim{opacity:.35}
 
     const linha = {
       title: String(r.title).trim(),
+      tipo: r.tipo || null,
       description: String(r.description || ''),
       status: 'Não iniciado',
       priority: r.priority || 'Média',
@@ -26568,7 +26573,7 @@ if(typeof saveTask === 'function'){
     const novos = mgLerMencoes(texto).filter(u => !antes.has(u.id));
     const r = await _sv.apply(this, arguments);
     try{
-      if(!novos.length) return r;
+      if(!novos.length || r===false) return r;
       /* na criação o id só existe depois: a original insere sem devolver a
          linha, então a demanda é reencontrada pelo título e pela empresa */
       let alvo = id;
