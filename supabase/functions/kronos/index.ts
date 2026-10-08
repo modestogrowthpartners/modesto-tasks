@@ -147,6 +147,7 @@ const ESCRITA = [
       type: "object",
       properties: {
         title: { type: "string", description: "título curto, no imperativo" },
+        tipo: { type: "string", description: "tarefa fixa: o nome exato de um item do catálogo de tarefas fixas listado nas instruções" },
         description: { type: "string", description: "descrição estruturada do que precisa ser feito" },
         cliente: { type: "string", description: "nome do cliente, quando houver" },
         priority: { type: "string", enum: PRIORIDADES },
@@ -161,7 +162,7 @@ const ESCRITA = [
             "passo a passo do que precisa ser feito, uma frase por passo, na ordem de execução. Vira a lista de subtarefas da demanda.",
         },
       },
-      required: ["title"],
+      required: ["title", "tipo"],
     },
   },
   {
@@ -172,6 +173,7 @@ const ESCRITA = [
       properties: {
         id: { type: "string" },
         title: { type: "string" },
+        tipo: { type: "string", description: "tarefa fixa, nome exato do catálogo" },
         description: { type: "string" },
         status: { type: "string", enum: STATUS },
         priority: { type: "string", enum: PRIORIDADES },
@@ -569,6 +571,16 @@ async function acharPessoas(sb: SupabaseClient, nomes: string[]) {
   return { achados: [...new Set(achados)], perdidos };
 }
 
+/* Catálogo de tarefas fixas (task_tipos), na ordem da tela. Toda demanda
+   nova precisa de uma delas. */
+async function tarefasFixas(sb: SupabaseClient): Promise<string[]> {
+  const { data, error } = await sb.from("task_tipos").select("nome").order("ordem").order("nome");
+  if (error) return [];
+  return (data ?? []).map((x: any) => String(x.nome));
+}
+const normTipo = (s: any) =>
+  String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 /* ---------------------------------------------------------------------
    Ferramentas de escrita: primeiro resolver, depois (noutra chamada) executar
    --------------------------------------------------------------------- */
@@ -589,6 +601,16 @@ async function resolverEscrita(sb: SupabaseClient, nome: string, a: any): Promis
       campos.title = String(a.title).trim();
     }
     if (a?.description !== undefined) campos.description = String(a.description || "");
+    /* tarefa fixa: obrigatória ao criar, sempre um nome do catálogo. Se o
+       catálogo não puder ser lido, a demanda não fica travada por isso. */
+    const nomesTipo = await tarefasFixas(sb);
+    if (a?.tipo !== undefined && a?.tipo !== null && String(a.tipo).trim() !== "") {
+      const achado = nomesTipo.find((n) => normTipo(n) === normTipo(a.tipo));
+      if (nomesTipo.length && !achado) {
+        return { ok: false, erro: `Tarefa fixa inválida. Use exatamente uma destas: ${nomesTipo.join(", ")}.` };
+      }
+      campos.tipo = achado || String(a.tipo).trim();
+    }
     if (a?.status !== undefined) {
       if (!STATUS.includes(a.status)) return { ok: false, erro: `Status inválido. Os válidos são: ${STATUS.join(", ")}.` };
       campos.status = a.status;
@@ -627,6 +649,9 @@ async function resolverEscrita(sb: SupabaseClient, nome: string, a: any): Promis
     }
     if (nome === "criar_demanda") {
       if (!campos.title) return { ok: false, erro: "Falta o título da demanda." };
+      if (nomesTipo.length && !campos.tipo) {
+        return { ok: false, erro: `Falta a tarefa fixa. Escolha uma destas: ${nomesTipo.join(", ")}. Se o pedido não deixar claro qual é, pergunte à pessoa.` };
+      }
       campos.status = campos.status || "Não iniciado";
       campos.priority = campos.priority || "Média";
       campos.description = campos.description || "";
@@ -789,6 +814,7 @@ function resumirAcao(nome: string, a: any) {
   if (nome === "criar_demanda" || nome === "atualizar_demanda") {
     if (a.__alvo) put("Demanda", a.__alvo.title);
     put("Título", a.title);
+    put("Tarefa fixa", a.tipo);
     put("Descrição", a.description);
     put("Cliente", a.__cliente);
     put("Prioridade", a.priority);
@@ -824,7 +850,7 @@ const TITULOS: Record<string, string> = {
 /* ---------------------------------------------------------------------
    Instrução do assistente
    --------------------------------------------------------------------- */
-function instrucao(quem: any, ctx: any, panorama = "") {
+function instrucao(quem: any, ctx: any, panorama = "", tipos: string[] = []) {
   const leitura = panorama
     ? `
 
@@ -854,6 +880,7 @@ Como você trabalha:
 Sobre criar e alterar dados:
 - As ferramentas criar_demanda, atualizar_demanda, comentar_demanda, criar_projeto e criar_documento NÃO executam nada. Elas apenas montam uma proposta que aparece na tela para a pessoa confirmar.
 - Quando pedirem uma demanda, entregue ela pronta para trabalhar: título curto no imperativo, uma descrição com o contexto (o porquê e o que já se sabe) e o passo a passo em "passos", uma frase por passo, na ordem de execução. Não deixe a demanda como uma linha solta.
+- Toda demanda nova precisa de uma tarefa fixa no campo "tipo"${tipos.length ? `, escolhida exatamente entre: ${tipos.join(", ")}` : ""}. Escolha a que melhor descreve o trabalho; se o pedido não deixar claro, pergunte antes de propor.
 - Quando pedirem um documento, escreva o conteúdo dele em "conteudo" se você tiver o que escrever, e sempre preencha "descricao" dizendo do que ele trata. Se faltar informação para escrever o conteúdo, crie só a ficha com a descrição e diga o que falta.
 - Por isso você NUNCA deve dizer que criou, alterou ou salvou alguma coisa. Diga que preparou a proposta e que ela está aguardando confirmação.
 - Se uma ferramenta devolver erro, relate o erro como ele é. Não tente contornar inventando dados.
@@ -982,7 +1009,7 @@ Deno.serve(async (req) => {
      não dá para verificar se a chamada continua válida, e quebrar o
      Kronos inteiro por uma economia não medida é mau negócio. Fica para
      quando a chave existir e der para medir. */
-  const sistema = instrucao(quem, ctx, panorama);
+  const sistema = instrucao(quem, ctx, panorama, await tarefasFixas(sb));
 
   try {
     for (let volta = 0; volta < 6; volta++) {

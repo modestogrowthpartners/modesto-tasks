@@ -2255,6 +2255,8 @@ const datas = await page.evaluate(async ()=>{
   const fim = document.getElementById('d-due');
   if(ini) ini.value = '2026-09-15';
   if(fim) fim.value = '2026-09-30';
+  /* tarefa fixa é obrigatória: a demanda do stub nasce sem */
+  if(!TASKS.find(x=>x.id==='t-aj').tipo) await quickField('tipo','Report');
   await saveDetail();
   await new Promise(r=>setTimeout(r,320));
   const t = TASKS.find(x=>x.id==='t-aj');
@@ -3174,6 +3176,7 @@ const owner = await page.evaluate(async ()=>{
   /* escolhe alguém da equipe e salva */
   const alvo = sel ? [...sel.options].find(o=>o.value && /Elias/.test(o.textContent)) : null;
   if(alvo) sel.value = alvo.value;
+  if(!tarefa.tipo) await quickField('tipo','Report');
   await saveDetail(); await new Promise(r=>setTimeout(r,900));
   const salvo = TASKS.find(x=>x.id===tarefa.id);
   const card = document.querySelector('.card-t[data-id="'+tarefa.id+'"] .mg-owner');
@@ -3243,7 +3246,12 @@ ok('57c abrir a plataforma com #demanda=<id> abre o card e limpa o endereço',
 const repinta = await page.evaluate(async ()=>{
   closeDetail(); showView('board'); await new Promise(r=>setTimeout(r,200));
   const t = TASKS.find(x=>!x.archived);
-  const lerCard = ()=>(document.querySelector('.card-t[data-id="'+t.id+'"] .tt')||{}).textContent;
+  /* só o nome: o rótulo da tarefa fixa, quando houver, fica de fora */
+  const lerCard = ()=>{
+    const el = document.querySelector('.card-t[data-id="'+t.id+'"] .tt'); if(!el) return undefined;
+    const c = el.cloneNode(true); c.querySelectorAll('.mg-tipo-tag').forEach(x=>x.remove());
+    return c.textContent.trim();
+  };
   const antes = lerCard();
   /* garante a rodada incremental: a completa recarrega do servidor e
      descartaria a mudança de memória, que é o comportamento certo lá.
@@ -3394,6 +3402,65 @@ ok('58e tarefa fixa obrigatória: a janela barra sem tipo, o detalhe não volta 
    !/opcional/i.test(tipoObrig.rotulo) && tipoObrig.vazioDesab && tipoObrig.temUGC && tipoObrig.barrou
    && tipoObrig.urgenteIntacto && tipoObrig.avisoLegado && tipoObrig.naoZerou && tipoObrig.herdou,
    JSON.stringify(tipoObrig));
+
+/* ---- 58f. ajustes da revisão: cliente fora da lista, Salvar sem tipo, urgente da criada, #adicionardemanda ---- */
+const revisao = await page.evaluate(async ()=>{
+  closeDetail();
+  /* (1) cliente que ainda não está em CLIENTS: o campo não troca de empresa sozinho */
+  window.__FIX.tasks = window.__FIX.tasks.filter(t=>t.id!=='t-fora');
+  window.__FIX.tasks.push({id:'t-fora', client_id:'c-nao-carregado', title:'Demanda de empresa nova', description:'',
+    status:'Não iniciado', priority:'Média', assignees:[], assignee_ids:[], due:null, start_date:null,
+    recurrence:'none', subtasks:[], time_spent:0, timer_start:null, position:97, tipo:'Report',
+    created_at:'2026-09-03T10:00:00Z', updated_at:'2026-09-03T10:00:00Z', completed_at:null,
+    archived:false, urgente:false, anexos:[], project_id:'p-x'});
+  await loadTasks(); render();
+  await openDetail('t-fora'); await new Promise(x=>setTimeout(x,320));
+  const selCli = document.getElementById('d-client');
+  const mostraAtual = selCli && selCli.value === 'c-nao-carregado';
+  document.getElementById('d-prio').value = 'Alta';
+  await saveDetail(); await new Promise(x=>setTimeout(x,600));
+  const fora = window.__FIX.tasks.find(x=>x.id==='t-fora');
+  const manteveCliente = fora.client_id === 'c-nao-carregado' && fora.project_id === 'p-x' && fora.priority === 'Alta';
+  closeDetail();
+
+  /* (2) Salvar alterações numa demanda sem tarefa fixa é barrado */
+  window.__FIX.tasks = window.__FIX.tasks.filter(t=>t.id!=='t-leg');
+  window.__FIX.tasks.push({id:'t-leg', client_id:'c-1', title:'Legado sem tipo', description:'',
+    status:'Não iniciado', priority:'Média', assignees:[], assignee_ids:[], due:null, start_date:null,
+    recurrence:'none', subtasks:[], time_spent:0, timer_start:null, position:96, tipo:null,
+    created_at:'2026-08-02T10:00:00Z', updated_at:'2026-08-02T10:00:00Z', completed_at:null,
+    archived:false, urgente:false, anexos:[]});
+  await loadTasks(); render();
+  await openDetail('t-leg'); await new Promise(x=>setTimeout(x,320));
+  document.getElementById('d-prio').value = 'Alta';
+  const rLeg = await saveDetail(); await new Promise(x=>setTimeout(x,400));
+  const leg = window.__FIX.tasks.find(x=>x.id==='t-leg');
+  const barrouDetalhe = rLeg === false && leg.priority === 'Média';
+  closeDetail();
+
+  /* (3) urgente marcado na criação vai para a demanda criada */
+  openTaskModal(null, 'Não iniciado'); await new Promise(x=>setTimeout(x,250));
+  document.getElementById('m-title').value = 'Criada urgente';
+  document.getElementById('m-tipo').value = 'Report';
+  const cx = document.getElementById('mg-urg-nova'); if(cx) cx.checked = true;
+  const rNova = await saveTask(null); await new Promise(x=>setTimeout(x,900));
+  const criada = window.__FIX.tasks.find(x=>x.title==='Criada urgente');
+  const urgenteNaCriada = !!criada && criada.urgente === true && rNova === criada.id;
+  closeDetail();
+
+  /* (4) #adicionardemanda: sem tarefa fixa não cria; com, cria e grava o tipo */
+  const antes = window.__FIX.tasks.length;
+  await chCriarDemanda('#adicionardemanda\ntitulo: Pelo chat sem tipo');
+  const semTipoNaoCriou = window.__FIX.tasks.length === antes;
+  await chCriarDemanda('#adicionardemanda\ntitulo: Pelo chat com tipo\ntarefa fixa: ugc');
+  const peloChat = window.__FIX.tasks.find(x=>x.title==='Pelo chat com tipo');
+  return {mostraAtual, manteveCliente, barrouDetalhe, urgenteNaCriada, semTipoNaoCriou,
+          chatTipo: peloChat ? peloChat.tipo : null, chatRec: peloChat ? peloChat.recurrence : null};
+});
+ok('58f cliente fora da lista não muda sozinho, Salvar sem tipo é barrado, urgente vai para a criada e o #adicionardemanda exige a tarefa fixa',
+   revisao.mostraAtual && revisao.manteveCliente && revisao.barrouDetalhe && revisao.urgenteNaCriada
+   && revisao.semTipoNaoCriou && revisao.chatTipo === 'UGC' && revisao.chatRec === 'none',
+   JSON.stringify(revisao));
 
 /* =====================================================================
    59. Double check — responsável, prazo e a etapa concluída

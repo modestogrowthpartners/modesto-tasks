@@ -1722,7 +1722,7 @@ function renderDetailBody(){
       <button class="x" onclick="closeDetail()">✕</button>
     </div>
     <div class="slide-b">
-      ${admin?`<div class="frow"><span class="fl">Cliente</span><select class="fld" id="d-client">${t.client_id?'':'<option value="" selected>Sem cliente</option>'}${CLIENTS.map(c=>`<option value="${esc(c.id)}" ${t.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>`:''}
+      ${admin?`<div class="frow"><span class="fl">Cliente</span><select class="fld" id="d-client">${t.client_id?'':'<option value="" selected>Sem cliente</option>'}${t.client_id&&!CLIENTS.some(c=>c.id===t.client_id)?`<option value="${esc(t.client_id)}" selected>Empresa não carregada</option>`:''}${CLIENTS.map(c=>`<option value="${esc(c.id)}" ${t.client_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>`:''}
       <div class="frow"><span class="fl">Status</span>${statusField}</div>
       <div class="frow"><span class="fl">Tarefa fixa</span>${admin?`<select class="fld" id="d-tipo" onchange="quickField('tipo',this.value)">${t.tipo?'':'<option value="" disabled selected>Escolha a tarefa fixa</option>'}${mgTipoOpcoes(t.tipo)}</select>`:(t.tipo?`<span class="mg-tipo-tag">${esc(t.tipo)}</span>`:'<span>—</span>')}</div>
       <div class="frow"><span class="fl">Prioridade</span>${admin?`<select class="fld" id="d-prio">${['Alta','Média','Baixa'].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select>`:`<span class="prio ${t.priority}">${t.priority}</span>`}</div>
@@ -1807,9 +1807,10 @@ function delSub(i){const t=_curDetail();if(!t||!t.subtasks)return;t.subtasks.spl
 /* salvar alterações do detalhe (admin) */
 async function saveDetail(){
   const t=TASKS.find(x=>x.id===DETAIL_ID);if(!t)return;
+  /* tarefa fixa é obrigatória também aqui; devolve false quando nada é gravado */
+  const tp=$('d-tipo'); if(tp&&!tp.value&&!t.tipo&&TASK_TIPOS.length){toast('Escolha a tarefa fixa.');tp.focus();return false}
   const patch={
     title:$('d-title').value.trim()||t.title,
-    client_id:(($('d-client')||{}).value)||t.client_id||null,
     status:$('d-status').value,
     priority:$('d-prio').value,
     assignees:[..._selAssignees],
@@ -1819,14 +1820,16 @@ async function saveDetail(){
     recurrence:$('d-rec').value,
     description:$('d-desc').value,
   };
-  /* projeto é por cliente: trocar o cliente tira a demanda do projeto antigo */
-  if(patch.client_id!==t.client_id && t.project_id) patch.project_id=null;
+  /* o cliente só entra no patch quando a pessoa trocou o campo; projeto é por
+     cliente, então trocar o cliente tira a demanda do projeto antigo */
+  const cliSel=($('d-client')||{}).value;
+  if(cliSel && cliSel!==t.client_id){ patch.client_id=cliSel; if(t.project_id) patch.project_id=null; }
   const becameDone = DONE_STATUSES.includes(patch.status) && !DONE_STATUSES.includes(t.status);
   const leftDone = !DONE_STATUSES.includes(patch.status) && DONE_STATUSES.includes(t.status);
   if(becameDone) patch.completed_at=new Date().toISOString();
   if(leftDone)   patch.completed_at=null;
   const {error}=await sb.from('tasks').update(patch).eq('id',t.id);
-  if(error){toast('Erro ao salvar');console.error(error);return}
+  if(error){toast('Erro ao salvar');console.error(error);return false}
   Object.assign(t,patch);
   if(becameDone){celebrate();toast('🎉 Demanda concluída!');await maybeRecur(t);}
   else toast('Demanda atualizada');
@@ -1966,7 +1969,12 @@ async function saveTask(id){
   /* tarefa fixa é obrigatória; sem catálogo carregado não trava a criação */
   if(!payload.tipo&&TASK_TIPOS.length){toast('Escolha a tarefa fixa.');$('m-tipo').focus();return false}
   let error, criada = null;
-  if(id){({error}=await sb.from('tasks').update(payload).eq('id',id));}
+  if(id){
+    /* projeto é por cliente: trocar o cliente pela janela também solta o projeto antigo */
+    const ant=(TASKS||[]).find(x=>x.id===id);
+    if(ant && ant.project_id && String(ant.client_id||'')!==String(payload.client_id||'')) payload.project_id=null;
+    ({error}=await sb.from('tasks').update(payload).eq('id',id));
+  }
   else {
     /* devolve a linha: é ela que recebe os arquivos escolhidos na janela */
     const r = await sb.from('tasks').insert(payload).select('id,client_id,anexos').single();
@@ -1988,6 +1996,8 @@ async function saveTask(id){
   }
   MG_ANEXOS_NOVOS = [];
   await refresh();
+  /* os embrulhos usam o id para mexer só na demanda que acabou de ser gravada */
+  return id || (criada && criada.id) || true;
 }
 async function deleteTask(id){
   if(!confirm('Excluir esta demanda? As anotações também serão removidas.'))return;
@@ -4691,17 +4701,22 @@ chCriarDemanda = async function(texto){
   const campos={}; let inline='';
   texto.split(/\r?\n/).forEach(l=>{
     l=l.trim(); if(!l) return;
-    const m = l.match(/^(t[íi]tulo|cliente|respons[áa]ve(?:l|is)|prazo|prioridade|descri[çc][ãa]o)\s*:\s*(.+)$/i);
+    const m = l.match(/^(t[íi]tulo|cliente|respons[áa]ve(?:l|is)|prazo|prioridade|descri[çc][ãa]o|tipo|tarefa fixa)\s*:\s*(.+)$/i);
     if(m){
       let k=m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       k = k.startsWith('titulo')?'titulo' : k.startsWith('cliente')?'cliente'
         : k.startsWith('responsave')?'resp' : k.startsWith('prazo')?'prazo'
-        : k.startsWith('priorid')?'prio' : 'desc';
+        : k.startsWith('priorid')?'prio' : (k.startsWith('tipo')||k.startsWith('tarefa'))?'tipo' : 'desc';
       campos[k]=m[2].trim();
     } else if(/#adicionardemanda/i.test(l)){ inline = l.replace(/#adicionardemanda/i,'').trim() }
   });
   const titulo = campos.titulo || inline;
   if(!titulo){ toast('Informe ao menos um título na demanda'); return }
+  /* tarefa fixa é obrigatória, como na janela de Nova demanda */
+  const tipo = campos.tipo ? ((TASK_TIPOS||[]).find(x=>mgNorm(x.nome)===mgNorm(campos.tipo))||{}).nome : null;
+  if(!tipo && (TASK_TIPOS||[]).length){
+    toast('Informe a tarefa fixa (tarefa fixa: '+TASK_TIPOS.map(x=>x.nome).join(', ')+')'); return
+  }
 
   let cid=null;
   if(campos.cliente){
@@ -4730,17 +4745,18 @@ chCriarDemanda = async function(texto){
     /* nomes de coluna exatamente como o app usa: due, priority, recurrence */
     const {error} = await sb.from('tasks').insert({
       title: titulo,
+      tipo: tipo||null,
       client_id: cid,
       status: 'Não iniciado',
       priority: priority,
       due: due,
-      recurrence: 'Nenhuma',
+      recurrence: 'none',
       assignees: who,
       description: campos.desc || ('Criada pelo MGP Chat em #'+(cur?cur.nome:'')+' por '+(ME?ME.name:'')+'.')
     });
     if(error) throw error;
 
-    const resumo = [cid?('cliente: '+clientName(cid)):'', who.length?('resp.: '+who.join(', ')):'',
+    const resumo = [tipo?('tarefa fixa: '+tipo):'', cid?('cliente: '+clientName(cid)):'', who.length?('resp.: '+who.join(', ')):'',
                     due?('prazo: '+fmtDate(due)):'', 'prioridade: '+priority].filter(Boolean).join(' · ');
     await sb.from('messages').insert({
       channel_id: CHAN, author_id: ME.id, author_name:'Tasks', kind:'system',
@@ -12260,8 +12276,10 @@ function mgUrgConferir(){
     if(quer===null || r===false) return r;
     try{
       await loadTasks();
-      /* na edição o alvo é a própria demanda; na criação, a mais recente */
-      const alvo = idEditado ? (TASKS||[]).find(x=>x.id===idEditado)
+      /* o alvo é a demanda gravada agora: a editada, ou a criada (a camada
+         de baixo devolve o id); a mais recente só se o id não vier */
+      const alvoId = idEditado || (typeof r === 'string' ? r : null);
+      const alvo = alvoId ? (TASKS||[]).find(x=>x.id===alvoId)
         : (TASKS||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
       if(alvo && !!alvo.urgente !== quer){
         await sb.from('tasks').update({urgente:quer}).eq('id', alvo.id);
@@ -18730,7 +18748,7 @@ function abrir(opc){
           ruim.cx.classList.add('ruim');
           const e = ruim.cx.querySelector('.erro');
           if(e){ e.textContent = ruim.msg; e.hidden = false }
-          const foco = ruim.cx.querySelector('input,textarea');
+          const foco = ruim.cx.querySelector('input,textarea,select');
           if(foco) foco.focus();
         }
         return;
@@ -21507,7 +21525,8 @@ function exemploDemanda(){
   const ta = caixa(); if(!ta) return;
   const linhaCli = (c && c.tipo==='client') ? '' : '\ncliente: ' + ((CLIENTS[0]||{}).nome || '');
   const prazo = new Date(Date.now() + 7*864e5).toISOString().slice(0,10);
-  ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento' + linhaCli
+  ta.value = '#adicionardemanda\ntitulo: Ajustar gráfico de faturamento'
+    + '\ntarefa fixa: ' + (((typeof TASK_TIPOS!=='undefined' && TASK_TIPOS[0]) || {}).nome || '') + linhaCli
     + '\nresponsavel: ' + ((typeof ASSIGNEE_OPTS!=='undefined' && ASSIGNEE_OPTS[0]) || '')
     + '\nprazo: ' + (typeof fmtDate==='function' ? fmtDate(prazo) : prazo)
     + '\nprioridade: Alta';
@@ -26550,7 +26569,7 @@ if(typeof saveDetail === 'function'){
     const novos = depois.filter(u => !antes.has(u.id));
     const r = await _sd.apply(this, arguments);
     try{
-      if(novos.length){
+      if(novos.length && r!==false){
         const so = novos.map(u => '@' + (u.primeiro || u.nome)).join(' ');
         await mgGravarMencoes(id, so, 'descricao', null);
       }
@@ -26576,7 +26595,7 @@ if(typeof saveTask === 'function'){
       if(!novos.length || r===false) return r;
       /* na criação o id só existe depois: a original insere sem devolver a
          linha, então a demanda é reencontrada pelo título e pela empresa */
-      let alvo = id;
+      let alvo = id || (typeof r === 'string' ? r : null);
       if(!alvo){
         const cand = (typeof TASKS !== 'undefined' && TASKS || [])
           .filter(x => x.title === titulo.trim() && String(x.client_id) === String(empresa))
