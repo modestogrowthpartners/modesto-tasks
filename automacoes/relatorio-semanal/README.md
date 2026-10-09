@@ -137,6 +137,15 @@ agregar por script, não ler evento a evento: contar renomeações, somar
 orçamentos, agrupar negativas por campanha. Reduzir o `LIMIT` cortaria eventos
 reais e é pior.
 
+Quando `total_results` vier exatamente igual ao `LIMIT`, a janela foi truncada e
+não há como saber o que ficou de fora. Aconteceu com D&G em 02/10 e em 09/10 de
+2026: nos dois casos a sobra era de negativas, que estouram a contagem sozinhas
+(em 09/10, 191 dos 200 eventos eram `CAMPAIGN_CRITERION`). A saída é rodar uma
+segunda consulta na mesma janela só com `CAMPAIGN`, `CAMPAIGN_BUDGET` e
+`AD_GROUP`, que é o que muda a leitura do relatório, e tratar as negativas como
+contagem agregada vinda da primeira consulta. Sem essa segunda rodada o começo
+da semana desaparece do post, porque a ordenação é `DESC`.
+
 Não existe `CAMPAIGN_BIDDING_STRATEGY` neste enum. Ele esteve nesta lista até
 11/09/2026 e derrubava a consulta inteira com `BAD_ENUM_CONSTANT`, em todas as
 contas de uma vez. Mudança de estratégia de lance já vem como `CAMPAIGN`, com
